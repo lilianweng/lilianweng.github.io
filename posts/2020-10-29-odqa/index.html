@@ -549,7 +549,7 @@ $$
 </div>
 <img src="R^3-reward-flow.png" style="width: 30%;" class="center" />
 <figcaption>Fig. 7. The workflow of R^3 training process. (Image source: <a href="https://github.com/danqi/acl2020-openqa-tutorial/blob/master/slides/part4-retriever-reader.pdf" target="_blank">acl2020-openqa-tutorial/slides/part4</a>)</figcaption>
-<p><a name="ORQA" ></a><strong>ORQA</strong> (&ldquo;Open-Retrieval Question-Answering&rdquo;; <a href="https://arxiv.org/abs/1906.00300">Lee et al., 2019</a>) jointly learns a retriever + reader QA model to optimize marginal log-likelihood of obtaining correct answers in a supervised manner. No explicit &ldquo;black-box&rdquo; IR system is involved. Instead, it is capable of retrieving any text in an open corpus. During training, ORQA does not need ground-truth context passages (i.e. reading comprehension datasets) but only needs (question, answer) string pairs. Both retriever and reader components are based on BERT, but not shared.</p>
+<p><a id="ORQA" ></a><strong>ORQA</strong> (&ldquo;Open-Retrieval Question-Answering&rdquo;; <a href="https://arxiv.org/abs/1906.00300">Lee et al., 2019</a>) jointly learns a retriever + reader QA model to optimize marginal log-likelihood of obtaining correct answers in a supervised manner. No explicit &ldquo;black-box&rdquo; IR system is involved. Instead, it is capable of retrieving any text in an open corpus. During training, ORQA does not need ground-truth context passages (i.e. reading comprehension datasets) but only needs (question, answer) string pairs. Both retriever and reader components are based on BERT, but not shared.</p>
 <img src="ORQA-retriever.png" style="width: 80%;" class="center" />
 <figcaption>Fig. 8. An illustration of the retriever component in ORQA. (Image source: replotted based on one slide in <a href="https://github.com/danqi/acl2020-openqa-tutorial/blob/master/slides/part5-dense-retriever-e2e-training.pdf" target="_blank">acl2020-openqa-tutorial/slides/part5</a>)</figcaption>
 <p>All the evidence blocks are ranked by a retrieval score, defined as the inner product of BERT embedding vectors of the <code>[CLS]</code> token of the question $x$ and the evidence block $z$. Note that the encoders for questions and context are independent.</p>
@@ -562,7 +562,7 @@ S_\text{retr}(z, x) &= h_x^\top h_z
 \end{aligned}
 $$
 </div>
-<p><a name="ICT-loss" ></a>The retriever module is pretrained with <em>Inverse Cloze Task (ICT)</em>, which is to predict the context given a sentence, opposite to the standard <a href="https://en.wikipedia.org/wiki/Cloze_test">Cloze Task</a>. The ICT objective is to maximize the retrieval score of the correct context $z$ given a random sentence $x$:</p>
+<p><a id="ICT-loss" ></a>The retriever module is pretrained with <em>Inverse Cloze Task (ICT)</em>, which is to predict the context given a sentence, opposite to the standard <a href="https://en.wikipedia.org/wiki/Cloze_test">Cloze Task</a>. The ICT objective is to maximize the retrieval score of the correct context $z$ given a random sentence $x$:</p>
 <div>
 $$
 L_\text{ICT} = p_\text{early}(z \vert x) = \frac{\exp(S_\text{retr}(z, x))}{\sum_{z'\in\text{BATCH}(\mathcal{Z})} \exp(S_\text{retr}(z', x))}
@@ -603,7 +603,7 @@ $$
 <blockquote>
 <p>&quot; The notable drop between development and test accuracy for SQuAD is a reflection of an artifact in the dataset&mdash;its 100k questions are derived from only 536 documents. Therefore, good retrieval targets are highly correlated between training examples, violating the IID assumption, and making it unsuitable for learned retrieval. We strongly suggest that those who are interested in end-to-end open-domain QA models no longer train and evaluate with SQuAD for this reason.&quot;</p>
 </blockquote>
-<p><a name="REALM" ></a><strong>REALM</strong> (&ldquo;Retrieval-Augmented Language Model pre-training&rdquo;; <a href="https://arxiv.org/abs/2002.08909">Guu et al., 2020</a>) also jointly trains retriever + reader by optimizing the marginal likelihood of obtaining the true answer:</p>
+<p><a id="REALM" ></a><strong>REALM</strong> (&ldquo;Retrieval-Augmented Language Model pre-training&rdquo;; <a href="https://arxiv.org/abs/2002.08909">Guu et al., 2020</a>) also jointly trains retriever + reader by optimizing the marginal likelihood of obtaining the true answer:</p>
 <div>
 $$
 p(y \vert x) 
@@ -615,7 +615,7 @@ $$
 <figcaption>Fig. 10. REALM is first unsupervised pre-trained with salient spans masking and then fine-tuned with QA data. (Image source: <a href="https://arxiv.org/abs/2002.08909" target="_blank">Guu et al., 2020</a>).</figcaption>
 <p>REALM computes two probabilities, $p(z \vert x)$ and $p(y \vert x, z)$, same as ORQA. However, different from ICT in ORQA, REALM upgrades the unsupervised pre-training step with several new design decisions, leading towards better retrievals. REALM pre-trains the model with Wikipedia or CC-News corpus.</p>
 <ol>
-<li><a name="ssm" ></a>Use <em>salient span masking</em>. Named entities and dates are identified. Then one of these &ldquo;salient spans&rdquo; is selected and masked. Salient span masking is a special case of MLM and works out well for QA tasks.</li>
+<li><a id="ssm" ></a>Use <em>salient span masking</em>. Named entities and dates are identified. Then one of these &ldquo;salient spans&rdquo; is selected and masked. Salient span masking is a special case of MLM and works out well for QA tasks.</li>
 <li>Add an <em>empty null document</em>. Because not every question demands a context document.</li>
 <li>No trivial retrieval. The context document should not be same as the selected sentence with a masked span.</li>
 <li>Apply the same ICT loss as in ORQA to encourage learning when the retrieval quality is still poor at the early stage of training.</li>
@@ -625,7 +625,7 @@ $$
 </blockquote>
 <p>Both unsupervised pre-training and supervised fine-tuning optimize the same log-likelihood $\log p(y \vert x)$. Because the parameters of the retriever encoder for evidence documents are also updated in the process, the index for MIPS is changing. REALM asynchronously refreshes the index with the updated encoder parameters every several hundred training steps.</p>
 <p><a href="https://arxiv.org/abs/2104.08710">Balachandran, et al. (2021)</a> found that REALM is significantly undertrained and REALM++ achieves great EM accuracy improvement (3-5%) by scaling up the model training with larger batch size and more retrieved documents for the reader to process.</p>
-<p><a name="DPR" ></a><strong>DPR</strong> (&ldquo;Dense Passage Retriever&rdquo;; <a href="https://arxiv.org/abs/2004.04906">Karpukhin et al., 2020</a>, <a href="https://github.com/facebookresearch/DPR">code</a>) argues that ICT pre-training could be too computationally expensive and the ORQA&rsquo;s context encoder might be sub-optimal because it is not fine-tuned with question-answer pairs. DPR aims to resolve these two issues by only training a dense dual-encoder architecture for retrieval only from a small number of Q/A pairs, without any pre-training.</p>
+<p><a id="DPR" ></a><strong>DPR</strong> (&ldquo;Dense Passage Retriever&rdquo;; <a href="https://arxiv.org/abs/2004.04906">Karpukhin et al., 2020</a>, <a href="https://github.com/facebookresearch/DPR">code</a>) argues that ICT pre-training could be too computationally expensive and the ORQA&rsquo;s context encoder might be sub-optimal because it is not fine-tuned with question-answer pairs. DPR aims to resolve these two issues by only training a dense dual-encoder architecture for retrieval only from a small number of Q/A pairs, without any pre-training.</p>
 <p>Same as previous work, DPR uses the dot-product (L2 distance or cosine similarity also works) of BERT representations as retrieval score. The loss function for training the dual-encoder is the NLL of the positive passage, which essentially takes the same formulation as <a href="#ICT-loss">ICT loss</a> of ORQA. Note that both of them consider other passages in the same batch as the negative samples, named <em>in-batch negative sampling</em>. The main difference is that DPR relies on supervised QA data, while ORQA trains with ICT on unsupervised corpus. At the inference time, DPR uses <a href="https://github.com/facebookresearch/faiss">FAISS</a> to run fast MIPS.</p>
 <p>DPR did a set of comparison experiments involving several different types of negatives:</p>
 <ol>
@@ -694,7 +694,7 @@ $$
 <p>The performance grows with the model size. On the TriviaQA dataset, GPT3 evaluation with demonstrations can match or exceed the performance of SOTA baseline with fine-tuning.</p>
 <img src="GPT3-triviaqa.png" style="width: 75%;" class="center" />
 <figcaption>Fig. 15. GPT3's performance on TriviaQA grows smoothly with the model size. More demonstrations lead to better performance. (Image source: <a href="https://arxiv.org/abs/2005.14165" target="_blank">Brown et al., 2020</a>).</figcaption>
-<p><a name="openai-api-example" ></a>Check out this cool example in OpenAI API <a href="https://beta.openai.com/playground/p/HMoho4552EHXrPLbmOIxpX4X">playground viewer</a>. The model is able to answer factal questions in short answer and not to make up things when the model does not know the answer. I added the last two questions and asked the model to respond with <code>A:</code>. The API is still in beta version, so you might need to <a href="https://beta.openai.com/">apply</a> to get on the wait list.</p>
+<p><a id="openai-api-example" ></a>Check out this cool example in OpenAI API <a href="https://beta.openai.com/playground/p/HMoho4552EHXrPLbmOIxpX4X">playground viewer</a>. The model is able to answer factal questions in short answer and not to make up things when the model does not know the answer. I added the last two questions and asked the model to respond with <code>A:</code>. The API is still in beta version, so you might need to <a href="https://beta.openai.com/">apply</a> to get on the wait list.</p>
 <pre tabindex="0"><code>Q: Who is Batman?
 A: Batman is a fictional comic book character.
 ##
