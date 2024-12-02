@@ -8,11 +8,95 @@
 <title>The Transformer Family Version 2.0 | Lil&#39;Log</title>
 <meta name="keywords" content="architecture, attention, transformer, foundation, long-read, reinforcement-learning" />
 <meta name="description" content="Many new Transformer architecture improvements have been proposed since my last post on &ldquo;The Transformer Family&rdquo; about three years ago. Here I did a big refactoring and enrichment of that 2020 post &mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.
-Notations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size.">
+Notations
+
+  
+      
+          Symbol
+          Meaning
+      
+  
+  
+      
+          $d$
+          The model size / hidden state dimension / positional encoding size.
+      
+      
+          $h$
+          The number of heads in multi-head attention layer.
+      
+      
+          $L$
+          The segment length of input sequence.
+      
+      
+          $N$
+          The total number of attention layers in the model; not considering MoE.
+      
+      
+          $\mathbf{X} \in \mathbb{R}^{L \times d}$
+          The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.
+      
+      
+          $\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$
+          The key weight matrix.
+      
+      
+          $\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$
+          The query weight matrix.
+      
+      
+          $\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$
+          The value weight matrix. Often we have $d_k = d_v = d$.
+      
+      
+          $\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$
+          The weight matrices per head.
+      
+      
+          $\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$
+          The output weight matrix.
+      
+      
+          $\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$
+          The query embedding inputs.
+      
+      
+          $\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$
+          The key embedding inputs.
+      
+      
+          $\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$
+          The value embedding inputs.
+      
+      
+          $\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$
+          Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$.
+      
+      
+          $S_i$
+          A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.
+      
+      
+          $\mathbf{A} \in \mathbb{R}^{L \times L}$
+          The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.
+      
+      
+          $a_{ij} \in \mathbf{A}$
+          The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.
+      
+      
+          $\mathbf{P} \in \mathbb{R}^{L \times d}$
+          position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.
+      
+  
+
+Transformer Basics
+The Transformer (which will be referred to as &ldquo;vanilla Transformer&rdquo; to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +105,7 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +143,106 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="The Transformer Family Version 2.0" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="The Transformer Family Version 2.0" />
 <meta property="og:description" content="Many new Transformer architecture improvements have been proposed since my last post on &ldquo;The Transformer Family&rdquo; about three years ago. Here I did a big refactoring and enrichment of that 2020 post &mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.
-Notations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size." />
+Notations
+
+  
+      
+          Symbol
+          Meaning
+      
+  
+  
+      
+          $d$
+          The model size / hidden state dimension / positional encoding size.
+      
+      
+          $h$
+          The number of heads in multi-head attention layer.
+      
+      
+          $L$
+          The segment length of input sequence.
+      
+      
+          $N$
+          The total number of attention layers in the model; not considering MoE.
+      
+      
+          $\mathbf{X} \in \mathbb{R}^{L \times d}$
+          The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.
+      
+      
+          $\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$
+          The key weight matrix.
+      
+      
+          $\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$
+          The query weight matrix.
+      
+      
+          $\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$
+          The value weight matrix. Often we have $d_k = d_v = d$.
+      
+      
+          $\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$
+          The weight matrices per head.
+      
+      
+          $\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$
+          The output weight matrix.
+      
+      
+          $\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$
+          The query embedding inputs.
+      
+      
+          $\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$
+          The key embedding inputs.
+      
+      
+          $\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$
+          The value embedding inputs.
+      
+      
+          $\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$
+          Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$.
+      
+      
+          $S_i$
+          A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.
+      
+      
+          $\mathbf{A} \in \mathbb{R}^{L \times L}$
+          The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.
+      
+      
+          $a_{ij} \in \mathbf{A}$
+          The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.
+      
+      
+          $\mathbf{P} \in \mathbb{R}^{L \times d}$
+          position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.
+      
+  
+
+Transformer Basics
+The Transformer (which will be referred to as &ldquo;vanilla Transformer&rdquo; to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-01-27T00:00:00&#43;00:00" />
@@ -79,7 +251,91 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="The Transformer Family Version 2.0"/>
 <meta name="twitter:description" content="Many new Transformer architecture improvements have been proposed since my last post on &ldquo;The Transformer Family&rdquo; about three years ago. Here I did a big refactoring and enrichment of that 2020 post &mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.
-Notations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size."/>
+Notations
+
+  
+      
+          Symbol
+          Meaning
+      
+  
+  
+      
+          $d$
+          The model size / hidden state dimension / positional encoding size.
+      
+      
+          $h$
+          The number of heads in multi-head attention layer.
+      
+      
+          $L$
+          The segment length of input sequence.
+      
+      
+          $N$
+          The total number of attention layers in the model; not considering MoE.
+      
+      
+          $\mathbf{X} \in \mathbb{R}^{L \times d}$
+          The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.
+      
+      
+          $\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$
+          The key weight matrix.
+      
+      
+          $\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$
+          The query weight matrix.
+      
+      
+          $\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$
+          The value weight matrix. Often we have $d_k = d_v = d$.
+      
+      
+          $\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$
+          The weight matrices per head.
+      
+      
+          $\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$
+          The output weight matrix.
+      
+      
+          $\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$
+          The query embedding inputs.
+      
+      
+          $\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$
+          The key embedding inputs.
+      
+      
+          $\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$
+          The value embedding inputs.
+      
+      
+          $\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$
+          Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$.
+      
+      
+          $S_i$
+          A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.
+      
+      
+          $\mathbf{A} \in \mathbb{R}^{L \times L}$
+          The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.
+      
+      
+          $a_{ij} \in \mathbf{A}$
+          The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.
+      
+      
+          $\mathbf{P} \in \mathbb{R}^{L \times d}$
+          position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.
+      
+  
+
+Transformer Basics
+The Transformer (which will be referred to as &ldquo;vanilla Transformer&rdquo; to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +364,7 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
   "@type": "BlogPosting",
   "headline": "The Transformer Family Version 2.0",
   "name": "The Transformer Family Version 2.0",
-  "description": "Many new Transformer architecture improvements have been proposed since my last post on \u0026ldquo;The Transformer Family\u0026rdquo; about three years ago. Here I did a big refactoring and enrichment of that 2020 post \u0026mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.\nNotations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size.",
+  "description": "Many new Transformer architecture improvements have been proposed since my last post on \u0026ldquo;The Transformer Family\u0026rdquo; about three years ago. Here I did a big refactoring and enrichment of that 2020 post \u0026mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.\nNotations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size. $h$ The number of heads in multi-head attention layer. $L$ The segment length of input sequence. $N$ The total number of attention layers in the model; not considering MoE. $\\mathbf{X} \\in \\mathbb{R}^{L \\times d}$ The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size. $\\mathbf{W}^k \\in \\mathbb{R}^{d \\times d_k}$ The key weight matrix. $\\mathbf{W}^q \\in \\mathbb{R}^{d \\times d_k}$ The query weight matrix. $\\mathbf{W}^v \\in \\mathbb{R}^{d \\times d_v}$ The value weight matrix. Often we have $d_k = d_v = d$. $\\mathbf{W}^k_i, \\mathbf{W}^q_i \\in \\mathbb{R}^{d \\times d_k/h}; \\mathbf{W}^v_i \\in \\mathbb{R}^{d \\times d_v/h}$ The weight matrices per head. $\\mathbf{W}^o \\in \\mathbb{R}^{d_v \\times d}$ The output weight matrix. $\\mathbf{Q} = \\mathbf{X}\\mathbf{W}^q \\in \\mathbb{R}^{L \\times d_k}$ The query embedding inputs. $\\mathbf{K} = \\mathbf{X}\\mathbf{W}^k \\in \\mathbb{R}^{L \\times d_k}$ The key embedding inputs. $\\mathbf{V} = \\mathbf{X}\\mathbf{W}^v \\in \\mathbb{R}^{L \\times d_v}$ The value embedding inputs. $\\mathbf{q}_i, \\mathbf{k}_i \\in \\mathbb{R}^{d_k}, \\mathbf{v}_i \\in \\mathbb{R}^{d_v}$ Row vectors in query, key, value matrices, $\\mathbf{Q}$, $\\mathbf{K}$ and $\\mathbf{V}$. $S_i$ A collection of key positions for the $i$-th query $\\mathbf{q}_i$ to attend to. $\\mathbf{A} \\in \\mathbb{R}^{L \\times L}$ The self-attention matrix between a input sequence of lenght $L$ and itself. $\\mathbf{A} = \\text{softmax}(\\mathbf{Q}\\mathbf{K}^\\top / \\sqrt{d_k})$. $a_{ij} \\in \\mathbf{A}$ The scalar attention score between query $\\mathbf{q}_i$ and key $\\mathbf{k}_j$. $\\mathbf{P} \\in \\mathbb{R}^{L \\times d}$ position encoding matrix, where the $i$-th row $\\mathbf{p}_i$ is the positional encoding for input $\\mathbf{x}_i$. Transformer Basics The Transformer (which will be referred to as \u0026ldquo;vanilla Transformer\u0026rdquo; to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT.\n",
   "keywords": [
     "architecture", "attention", "transformer", "foundation", "long-read", "reinforcement-learning"
   ],
@@ -198,6 +454,8 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -329,86 +587,86 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
   <div class="post-content"><p>Many new Transformer architecture improvements have been proposed since my last post on <a href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/"><ins>&ldquo;The Transformer Family&rdquo;</ins></a> about three years ago. Here I did a big refactoring and enrichment of that 2020 post &mdash; restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.</p>
 <h1 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h1>
 <table>
-<thead>
-<tr>
-<th>Symbol</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$d$</td>
-<td>The model size / hidden state dimension / positional encoding size.</td>
-</tr>
-<tr>
-<td>$h$</td>
-<td>The number of heads in multi-head attention layer.</td>
-</tr>
-<tr>
-<td>$L$</td>
-<td>The segment length of input sequence.</td>
-</tr>
-<tr>
-<td>$N$</td>
-<td>The total number of attention layers in the model; not considering MoE.</td>
-</tr>
-<tr>
-<td>$\mathbf{X} \in \mathbb{R}^{L \times d}$</td>
-<td>The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$</td>
-<td>The key weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$</td>
-<td>The query weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$</td>
-<td>The value weight matrix. Often we have $d_k = d_v = d$.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$</td>
-<td>The weight matrices per head.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$</td>
-<td>The output weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$</td>
-<td>The query embedding inputs.</td>
-</tr>
-<tr>
-<td>$\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$</td>
-<td>The key embedding inputs.</td>
-</tr>
-<tr>
-<td>$\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$</td>
-<td>The value embedding inputs.</td>
-</tr>
-<tr>
-<td>$\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$</td>
-<td>Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$.</td>
-</tr>
-<tr>
-<td>$S_i$</td>
-<td>A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.</td>
-</tr>
-<tr>
-<td>$\mathbf{A} \in \mathbb{R}^{L \times L}$</td>
-<td>The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.</td>
-</tr>
-<tr>
-<td>$a_{ij} \in \mathbf{A}$</td>
-<td>The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.</td>
-</tr>
-<tr>
-<td>$\mathbf{P} \in \mathbb{R}^{L \times d}$</td>
-<td>position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$d$</td>
+          <td>The model size / hidden state dimension / positional encoding size.</td>
+      </tr>
+      <tr>
+          <td>$h$</td>
+          <td>The number of heads in multi-head attention layer.</td>
+      </tr>
+      <tr>
+          <td>$L$</td>
+          <td>The segment length of input sequence.</td>
+      </tr>
+      <tr>
+          <td>$N$</td>
+          <td>The total number of attention layers in the model; not considering MoE.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{X} \in \mathbb{R}^{L \times d}$</td>
+          <td>The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The key weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The query weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$</td>
+          <td>The value weight matrix. Often we have $d_k = d_v = d$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$</td>
+          <td>The weight matrices per head.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$</td>
+          <td>The output weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The query embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The key embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$</td>
+          <td>The value embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$</td>
+          <td>Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$.</td>
+      </tr>
+      <tr>
+          <td>$S_i$</td>
+          <td>A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{A} \in \mathbb{R}^{L \times L}$</td>
+          <td>The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.</td>
+      </tr>
+      <tr>
+          <td>$a_{ij} \in \mathbf{A}$</td>
+          <td>The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{P} \in \mathbb{R}^{L \times d}$</td>
+          <td>position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.</td>
+      </tr>
+  </tbody>
 </table>
 <h1 id="transformer-basics">Transformer Basics<a hidden class="anchor" aria-hidden="true" href="#transformer-basics">#</a></h1>
 <p>The <strong>Transformer</strong> (which will be referred to as &ldquo;vanilla Transformer&rdquo; to distinguish it from other enhanced versions; <a href="https://arxiv.org/abs/1706.03762">Vaswani, et al., 2017</a>) model has an encoder-decoder architecture, as commonly used in many <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#born-for-translation">NMT</a> models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#bert">BERT</a> or decoder-only <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#openai-gpt">GPT</a>.</p>
@@ -1142,12 +1400,12 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/architecture/">architecture</a></li>
-      <li><a href="https://lilianweng.github.io/tags/attention/">attention</a></li>
-      <li><a href="https://lilianweng.github.io/tags/transformer/">transformer</a></li>
-      <li><a href="https://lilianweng.github.io/tags/foundation/">foundation</a></li>
-      <li><a href="https://lilianweng.github.io/tags/long-read/">long-read</a></li>
-      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">reinforcement-learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/">

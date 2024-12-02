@@ -7,13 +7,13 @@
 <meta name="robots" content="index, follow">
 <title>How to Build an Open-Domain Question Answering System? | Lil&#39;Log</title>
 <meta name="keywords" content="nlp, language-model, attention, transformer" />
-<meta name="description" content="[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
-A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.
-Disclaimers given so many papers in the wild:">
+<meta name="description" content="
+[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
+A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2020-10-29-odqa/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -22,6 +22,7 @@ Disclaimers given so many papers in the wild:">
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-10-29-odqa/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -59,20 +60,23 @@ Disclaimers given so many papers in the wild:">
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="How to Build an Open-Domain Question Answering System?" />
-<meta property="og:description" content="[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
-A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.
-Disclaimers given so many papers in the wild:" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="How to Build an Open-Domain Question Answering System?" />
+<meta property="og:description" content="
+[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
+A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2020-10-29-odqa/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2020-10-29T00:00:00&#43;00:00" />
@@ -80,9 +84,9 @@ Disclaimers given so many papers in the wild:" />
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="How to Build an Open-Domain Question Answering System?"/>
-<meta name="twitter:description" content="[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
-A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.
-Disclaimers given so many papers in the wild:"/>
+<meta name="twitter:description" content="
+[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).
+A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system."/>
 
 
 <script type="application/ld+json">
@@ -111,7 +115,7 @@ Disclaimers given so many papers in the wild:"/>
   "@type": "BlogPosting",
   "headline": "How to Build an Open-Domain Question Answering System?",
   "name": "How to Build an Open-Domain Question Answering System?",
-  "description": "[Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).\nA model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.\nDisclaimers given so many papers in the wild:",
+  "description": " [Updated on 2020-11-12: add an example on closed-book factual QA using OpenAI API (beta).\nA model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.\n",
   "keywords": [
     "nlp", "language-model", "attention", "transformer"
   ],
@@ -201,6 +205,8 @@ Disclaimers given so many papers in the wild:"/>
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -747,101 +753,101 @@ A: H1N1 is a strain of influenza.
 </ul>
 <h1 id="summary">Summary<a hidden class="anchor" aria-hidden="true" href="#summary">#</a></h1>
 <table>
-<thead>
-<tr>
-<th>Model</th>
-<th>Retriever</th>
-<th>Reader / Generator</th>
-<th>Pre-training / Fine-tuning</th>
-<th>End2end</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>DrQA</td>
-<td>TF-IDF</td>
-<td>Bi-directional LSTM</td>
-<td>&ndash;</td>
-<td>No</td>
-</tr>
-<tr>
-<td>BERTserini</td>
-<td>Aserini + BM25</td>
-<td>BERT without softmax layer</td>
-<td>Fine-tune with SQuAD</td>
-<td>No</td>
-</tr>
-<tr>
-<td>Multi-passage BERT</td>
-<td>ElasticSearch + BM25</td>
-<td>Multi-passage BERT + Passage ranker</td>
-<td></td>
-<td>No</td>
-</tr>
-<tr>
-<td>R^3</td>
-<td>Classic IR + Match-LSTM</td>
-<td>Match-LSTM</td>
-<td></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>ORQA</td>
-<td>Dot product of BERT embeddings</td>
-<td>BERT-RC</td>
-<td>Inverse cloze task</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>REALM</td>
-<td>Dot product of BERT embeddings</td>
-<td>BERT-RC</td>
-<td>Salient span masking</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>DPR</td>
-<td>Dot product of BERT embeddings</td>
-<td>BERT-RC</td>
-<td>supervised training with QA pairs</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>DenSPI</td>
-<td>Classic + Neural IR</td>
-<td>&ndash;</td>
-<td></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>T5 + SSM</td>
-<td>&ndash;</td>
-<td>T5</td>
-<td>SSM on <a href="https://commoncrawl.org/the-data/get-started/">CommonCrawl</a> data + Fine-tuning on QA data</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>GPT3</td>
-<td>&ndash;</td>
-<td>GPT3</td>
-<td>NSP on <a href="https://commoncrawl.org/the-data/get-started/">CommonCrawl</a> data</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>RAG</td>
-<td>DPR retriever</td>
-<td><a href="https://arxiv.org/abs/1910.13461">BART</a></td>
-<td></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>Fusion-in-Decoder</td>
-<td>BM25 / DPR retriever</td>
-<td>Tranformer</td>
-<td></td>
-<td>No</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Model</th>
+          <th>Retriever</th>
+          <th>Reader / Generator</th>
+          <th>Pre-training / Fine-tuning</th>
+          <th>End2end</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>DrQA</td>
+          <td>TF-IDF</td>
+          <td>Bi-directional LSTM</td>
+          <td>&ndash;</td>
+          <td>No</td>
+      </tr>
+      <tr>
+          <td>BERTserini</td>
+          <td>Aserini + BM25</td>
+          <td>BERT without softmax layer</td>
+          <td>Fine-tune with SQuAD</td>
+          <td>No</td>
+      </tr>
+      <tr>
+          <td>Multi-passage BERT</td>
+          <td>ElasticSearch + BM25</td>
+          <td>Multi-passage BERT + Passage ranker</td>
+          <td></td>
+          <td>No</td>
+      </tr>
+      <tr>
+          <td>R^3</td>
+          <td>Classic IR + Match-LSTM</td>
+          <td>Match-LSTM</td>
+          <td></td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>ORQA</td>
+          <td>Dot product of BERT embeddings</td>
+          <td>BERT-RC</td>
+          <td>Inverse cloze task</td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>REALM</td>
+          <td>Dot product of BERT embeddings</td>
+          <td>BERT-RC</td>
+          <td>Salient span masking</td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>DPR</td>
+          <td>Dot product of BERT embeddings</td>
+          <td>BERT-RC</td>
+          <td>supervised training with QA pairs</td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>DenSPI</td>
+          <td>Classic + Neural IR</td>
+          <td>&ndash;</td>
+          <td></td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>T5 + SSM</td>
+          <td>&ndash;</td>
+          <td>T5</td>
+          <td>SSM on <a href="https://commoncrawl.org/the-data/get-started/">CommonCrawl</a> data + Fine-tuning on QA data</td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>GPT3</td>
+          <td>&ndash;</td>
+          <td>GPT3</td>
+          <td>NSP on <a href="https://commoncrawl.org/the-data/get-started/">CommonCrawl</a> data</td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>RAG</td>
+          <td>DPR retriever</td>
+          <td><a href="https://arxiv.org/abs/1910.13461">BART</a></td>
+          <td></td>
+          <td>Yes</td>
+      </tr>
+      <tr>
+          <td>Fusion-in-Decoder</td>
+          <td>BM25 / DPR retriever</td>
+          <td>Tranformer</td>
+          <td></td>
+          <td>No</td>
+      </tr>
+  </tbody>
 </table>
 <img src="QA-results.png" style="width: 90%;" class="center" />
 <figcaption>Fig. 16. A comparison of performance of several QA models on common QA datasets. On TriviaQA, two columns of results are reported, on the open domain test set (left) and on the hidden test set (right). (Image source: <a href="https://arxiv.org/abs/2007.01282" target="_blank">Izacard & Grave, 2020</a>).</figcaption>
@@ -910,10 +916,10 @@ A: H1N1 is a strain of influenza.
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/nlp/">nlp</a></li>
-      <li><a href="https://lilianweng.github.io/tags/language-model/">language-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/attention/">attention</a></li>
-      <li><a href="https://lilianweng.github.io/tags/transformer/">transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/">

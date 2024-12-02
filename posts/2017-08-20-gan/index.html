@@ -7,12 +7,15 @@
 <meta name="robots" content="index, follow">
 <title>From GAN to WGAN | Lil&#39;Log</title>
 <meta name="keywords" content="gan, long-read, generative-model, image-generation, math-heavy" />
-<meta name="description" content="[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!] [Updated on 2019-04-18: this post is also available on arXiv.]
-Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time.">
+<meta name="description" content="
+[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!]
+
+[Updated on 2019-04-18: this post is also available on arXiv.]
+Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time. However, it is rather challenging to train a GAN model, as people are facing issues like training instability or failure to converge.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2017-08-20-gan/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +24,7 @@ Generative adversarial network (GAN) has shown great results in many generative 
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-08-20-gan/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +62,25 @@ Generative adversarial network (GAN) has shown great results in many generative 
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="From GAN to WGAN" />
-<meta property="og:description" content="[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!] [Updated on 2019-04-18: this post is also available on arXiv.]
-Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="From GAN to WGAN" />
+<meta property="og:description" content="
+[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!]
+
+[Updated on 2019-04-18: this post is also available on arXiv.]
+Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time. However, it is rather challenging to train a GAN model, as people are facing issues like training instability or failure to converge." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2017-08-20-gan/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2017-08-20T00:00:00&#43;00:00" />
@@ -78,8 +88,11 @@ Generative adversarial network (GAN) has shown great results in many generative 
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="From GAN to WGAN"/>
-<meta name="twitter:description" content="[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!] [Updated on 2019-04-18: this post is also available on arXiv.]
-Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time."/>
+<meta name="twitter:description" content="
+[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!]
+
+[Updated on 2019-04-18: this post is also available on arXiv.]
+Generative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time. However, it is rather challenging to train a GAN model, as people are facing issues like training instability or failure to converge."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +121,7 @@ Generative adversarial network (GAN) has shown great results in many generative 
   "@type": "BlogPosting",
   "headline": "From GAN to WGAN",
   "name": "From GAN to WGAN",
-  "description": "[Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!] [Updated on 2019-04-18: this post is also available on arXiv.]\nGenerative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time.",
+  "description": " [Updated on 2018-09-30: thanks to Yoonju, we have this post translated in Korean!] [Updated on 2019-04-18: this post is also available on arXiv.]\nGenerative adversarial network (GAN) has shown great results in many generative tasks to replicate the real-world rich content such as images, human language, and music. It is inspired by game theory: two models, a generator and a critic, are competing with each other while making each other stronger at the same time. However, it is rather challenging to train a GAN model, as people are facing issues like training instability or failure to converge.\n",
   "keywords": [
     "gan", "long-read", "generative-model", "image-generation", "math-heavy"
   ],
@@ -198,6 +211,8 @@ Generative adversarial network (GAN) has shown great results in many generative 
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -336,30 +351,30 @@ $$
 <p>These two models compete against each other during the training process: the generator $G$ is trying hard to trick the discriminator, while the critic model $D$ is trying hard not to be cheated. This interesting zero-sum game between two models motivates both to improve their functionalities.</p>
 <p>Given,</p>
 <table>
-<thead>
-<tr>
-<th>Symbol</th>
-<th>Meaning</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$p_{z}$</td>
-<td>Data distribution over noise input $z$</td>
-<td>Usually, just uniform.</td>
-</tr>
-<tr>
-<td>$p_{g}$</td>
-<td>The generator&rsquo;s distribution over data $x$</td>
-<td></td>
-</tr>
-<tr>
-<td>$p_{r}$</td>
-<td>Data distribution over real sample $x$</td>
-<td></td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+          <th>Notes</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$p_{z}$</td>
+          <td>Data distribution over noise input $z$</td>
+          <td>Usually, just uniform.</td>
+      </tr>
+      <tr>
+          <td>$p_{g}$</td>
+          <td>The generator&rsquo;s distribution over data $x$</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>$p_{r}$</td>
+          <td>Data distribution over real sample $x$</td>
+          <td></td>
+      </tr>
+  </tbody>
 </table>
 <p>On one hand, we want to make sure the discriminator $D$&rsquo;s decisions over real data are accurate by maximizing $\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]$. Meanwhile, given a fake sample $G(z), z \sim p_z(z)$, the discriminator is expected to output a probability, $D(G(z))$, close to zero by maximizing $\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]$.</p>
 <p>On the other hand, the generator is trained to increase the chances of $D$ producing a high probability for a fake example, thus to minimize $\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]$.</p>
@@ -449,22 +464,22 @@ $$
 <figcaption>Fig. 3. A simulation of our example for updating $x$ to minimize $xy$ and updating $y$ to minimize $-xy$. The learning rate $\eta = 0.1$. With more iterations, the oscillation grows more and more unstable.</figcaption>
 <h2 id="low-dimensional-supports">Low dimensional supports<a hidden class="anchor" aria-hidden="true" href="#low-dimensional-supports">#</a></h2>
 <table>
-<thead>
-<tr>
-<th>Term</th>
-<th>Explanation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://en.wikipedia.org/wiki/Manifold">Manifold</a></td>
-<td>A topological space that locally resembles Euclidean space near each point. Precisely, when this Euclidean space is of <strong>dimension $n$</strong>, the manifold is referred as <strong>$n$-manifold</strong>.</td>
-</tr>
-<tr>
-<td><a href="https://en.wikipedia.org/wiki/Support_(mathematics)">Support</a></td>
-<td>A real-valued function $f$ is the subset of the domain containing those elements which are not mapped to <strong>zero</strong>.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Term</th>
+          <th>Explanation</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><a href="https://en.wikipedia.org/wiki/Manifold">Manifold</a></td>
+          <td>A topological space that locally resembles Euclidean space near each point. Precisely, when this Euclidean space is of <strong>dimension $n$</strong>, the manifold is referred as <strong>$n$-manifold</strong>.</td>
+      </tr>
+      <tr>
+          <td><a href="https://en.wikipedia.org/wiki/Support_(mathematics)">Support</a></td>
+          <td>A real-valued function $f$ is the subset of the domain containing those elements which are not mapped to <strong>zero</strong>.</td>
+      </tr>
+  </tbody>
 </table>
 <p><a href="https://arxiv.org/pdf/1701.04862.pdf">Arjovsky and Bottou (2017)</a> discussed the problem of the <a href="https://en.wikipedia.org/wiki/Support_(mathematics)">supports</a> of $p_r$ and $p_g$ lying on low dimensional <a href="https://en.wikipedia.org/wiki/Manifold">manifolds</a> and how it contributes to the instability of GAN training thoroughly in a very theoretical paper <a href="https://arxiv.org/pdf/1701.04862.pdf">&ldquo;Towards principled methods for training generative adversarial networks&rdquo;</a>.</p>
 <p>The dimensions of many real-world datasets, as represented by $p_r$, only appear to be <strong>artificially high</strong>. They have been found to concentrate in a lower dimensional manifold. This is actually the fundamental assumption for <a href="http://scikit-learn.org/stable/modules/manifold.html">Manifold Learning</a>. Thinking of the real world images, once the theme or the contained object is fixed, the images have a lot of restrictions to follow, i.e., a dog should have two ears and a tail, and a skyscraper should have a straight and tall body, etc. These restrictions keep images aways from the possibility of having a high-dimensional free form.</p>
@@ -669,11 +684,11 @@ Unfortunately due to the tiny training data, the new pokemons only have rough sh
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/gan/">gan</a></li>
-      <li><a href="https://lilianweng.github.io/tags/long-read/">long-read</a></li>
-      <li><a href="https://lilianweng.github.io/tags/generative-model/">generative-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/image-generation/">image-generation</a></li>
-      <li><a href="https://lilianweng.github.io/tags/math-heavy/">math-heavy</a></li>
+      <li><a href="https://lilianweng.github.io/tags/gan/">Gan</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+      <li><a href="https://lilianweng.github.io/tags/generative-model/">Generative-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/image-generation/">Image-Generation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/math-heavy/">Math-Heavy</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/">

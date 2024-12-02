@@ -7,11 +7,12 @@
 <meta name="robots" content="index, follow">
 <title>Domain Randomization for Sim2Real Transfer | Lil&#39;Log</title>
 <meta name="keywords" content="robotics, meta-learning, reinforcement-learning" />
-<meta name="description" content="In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots.">
+<meta name="description" content="
+In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots. The gap is triggered by an inconsistency between physical parameters (i.e. friction, kp, damping, mass, density) and, more fatally, the incorrect physical modeling (i.e. collision between soft surfaces).">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -20,6 +21,7 @@
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -57,18 +59,22 @@
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Domain Randomization for Sim2Real Transfer" />
-<meta property="og:description" content="In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Domain Randomization for Sim2Real Transfer" />
+<meta property="og:description" content="
+In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots. The gap is triggered by an inconsistency between physical parameters (i.e. friction, kp, damping, mass, density) and, more fatally, the incorrect physical modeling (i.e. collision between soft surfaces)." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2019-05-05T00:00:00&#43;00:00" />
@@ -76,7 +82,8 @@ if (!doNotTrack) {
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Domain Randomization for Sim2Real Transfer"/>
-<meta name="twitter:description" content="In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots."/>
+<meta name="twitter:description" content="
+In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots. The gap is triggered by an inconsistency between physical parameters (i.e. friction, kp, damping, mass, density) and, more fatally, the incorrect physical modeling (i.e. collision between soft surfaces)."/>
 
 
 <script type="application/ld+json">
@@ -105,7 +112,7 @@ if (!doNotTrack) {
   "@type": "BlogPosting",
   "headline": "Domain Randomization for Sim2Real Transfer",
   "name": "Domain Randomization for Sim2Real Transfer",
-  "description": "In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots.",
+  "description": " In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots. The gap is triggered by an inconsistency between physical parameters (i.e. friction, kp, damping, mass, density) and, more fatally, the incorrect physical modeling (i.e. collision between soft surfaces).\n",
   "keywords": [
     "robotics", "meta-learning", "reinforcement-learning"
   ],
@@ -195,6 +202,8 @@ if (!doNotTrack) {
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -449,9 +458,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/robotics/">robotics</a></li>
-      <li><a href="https://lilianweng.github.io/tags/meta-learning/">meta-learning</a></li>
-      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">reinforcement-learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/robotics/">Robotics</a></li>
+      <li><a href="https://lilianweng.github.io/tags/meta-learning/">Meta-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/">

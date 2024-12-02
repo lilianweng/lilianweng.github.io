@@ -8,11 +8,18 @@
 <title>Diffusion Models for Video Generation | Lil&#39;Log</title>
 <meta name="keywords" content="generative-model, video-generation" />
 <meta name="description" content="Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task&mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:
-It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.">
+
+It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.
+In comparison to text or images, it is more difficult to collect large amounts of high-quality, high-dimensional video data, let along text-video pairs.
+
+
+
+🥑 Required Pre-read: Please make sure you have read the previous blog on &ldquo;What are Diffusion Models?&rdquo; for image generation before continue here.
+">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2024-04-12-diffusion-video/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +28,7 @@ It has extra requirements on temporal consistency across frames in time, which n
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2024-04-12-diffusion-video/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +66,29 @@ It has extra requirements on temporal consistency across frames in time, which n
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Diffusion Models for Video Generation" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Diffusion Models for Video Generation" />
 <meta property="og:description" content="Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task&mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:
-It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model." />
+
+It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.
+In comparison to text or images, it is more difficult to collect large amounts of high-quality, high-dimensional video data, let along text-video pairs.
+
+
+
+🥑 Required Pre-read: Please make sure you have read the previous blog on &ldquo;What are Diffusion Models?&rdquo; for image generation before continue here.
+" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2024-04-12-diffusion-video/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2024-04-12T00:00:00&#43;00:00" />
@@ -79,7 +97,14 @@ It has extra requirements on temporal consistency across frames in time, which n
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Diffusion Models for Video Generation"/>
 <meta name="twitter:description" content="Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task&mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:
-It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model."/>
+
+It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.
+In comparison to text or images, it is more difficult to collect large amounts of high-quality, high-dimensional video data, let along text-video pairs.
+
+
+
+🥑 Required Pre-read: Please make sure you have read the previous blog on &ldquo;What are Diffusion Models?&rdquo; for image generation before continue here.
+"/>
 
 
 <script type="application/ld+json">
@@ -108,7 +133,7 @@ It has extra requirements on temporal consistency across frames in time, which n
   "@type": "BlogPosting",
   "headline": "Diffusion Models for Video Generation",
   "name": "Diffusion Models for Video Generation",
-  "description": "Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task\u0026mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:\nIt has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.",
+  "description": "Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task\u0026mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:\nIt has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model. In comparison to text or images, it is more difficult to collect large amounts of high-quality, high-dimensional video data, let along text-video pairs. 🥑 Required Pre-read: Please make sure you have read the previous blog on \u0026ldquo;What are Diffusion Models?\u0026rdquo; for image generation before continue here. ",
   "keywords": [
     "generative-model", "video-generation"
   ],
@@ -198,6 +223,8 @@ It has extra requirements on temporal consistency across frames in time, which n
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -256,9 +283,9 @@ It has extra requirements on temporal consistency across frames in time, which n
                     <a href="#video-generation-modeling-from-scratch" aria-label="Video Generation Modeling from Scratch">Video Generation Modeling from Scratch</a><ul>
                         
                 <li>
-                    <a href="#parameterization--sampling-basics" aria-label="Parameterization &amp;amp; Sampling Basics">Parameterization &amp; Sampling Basics</a></li>
+                    <a href="#parameterization--sampling-basics" aria-label="Parameterization &amp; Sampling Basics">Parameterization &amp; Sampling Basics</a></li>
                 <li>
-                    <a href="#model-architecture-3d-u-net--dit" aria-label="Model Architecture: 3D U-Net &amp;amp; DiT">Model Architecture: 3D U-Net &amp; DiT</a></li></ul>
+                    <a href="#model-architecture-3d-u-net--dit" aria-label="Model Architecture: 3D U-Net &amp; DiT">Model Architecture: 3D U-Net &amp; DiT</a></li></ul>
                 </li>
                 <li>
                     <a href="#adapting-image-models-to-generate-videos" aria-label="Adapting Image Models to Generate Videos">Adapting Image Models to Generate Videos</a><ul>
@@ -278,7 +305,7 @@ It has extra requirements on temporal consistency across frames in time, which n
     </details>
 </div>
 
-  <div class="post-content"><p>Diffusion models have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task&mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:</p>
+  <div class="post-content"><p><a href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/">Diffusion models</a> have demonstrated strong results on image synthesis in past years. Now the research community has started working on a harder task&mdash;using it for video generation. The task itself is a superset of the image case, since an image is a video of 1 frame, and it is much more challenging because:</p>
 <ol>
 <li>It has extra requirements on temporal consistency across frames in time, which naturally demands more world knowledge to be encoded into the model.</li>
 <li>In comparison to text or images, it is more difficult to collect large amounts of high-quality, high-dimensional video data, let along text-video pairs.</li>
@@ -580,8 +607,8 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/generative-model/">generative-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/video-generation/">video-generation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/generative-model/">Generative-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/video-generation/">Video-Generation</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2024-07-07-hallucination/">

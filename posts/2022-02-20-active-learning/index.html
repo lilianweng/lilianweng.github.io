@@ -7,12 +7,12 @@
 <meta name="robots" content="index, follow">
 <title>Learning with not Enough Data Part 2: Active Learning | Lil&#39;Log</title>
 <meta name="keywords" content="data, active-learning" />
-<meta name="description" content="This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.
-Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$ Labeled dataset. $y$ is a one-hot representation of the true label.">
+<meta name="description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +21,7 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +59,22 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Learning with not Enough Data Part 2: Active Learning" />
-<meta property="og:description" content="This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.
-Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$ Labeled dataset. $y$ is a one-hot representation of the true label." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Learning with not Enough Data Part 2: Active Learning" />
+<meta property="og:description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2022-02-20-active-learning/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2022-02-20T00:00:00&#43;00:00" />
@@ -78,8 +82,8 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Learning with not Enough Data Part 2: Active Learning"/>
-<meta name="twitter:description" content="This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.
-Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$ Labeled dataset. $y$ is a one-hot representation of the true label."/>
+<meta name="twitter:description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +112,7 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
   "@type": "BlogPosting",
   "headline": "Learning with not Enough Data Part 2: Active Learning",
   "name": "Learning with not Enough Data Part 2: Active Learning",
-  "description": "This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.\nNotations Symbol Meaning $K$ Number of unique class labels. $(\\mathbf{x}^l, y) \\sim \\mathcal{X}, y \\in \\{0, 1\\}^K$ Labeled dataset. $y$ is a one-hot representation of the true label.",
+  "description": " This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.\n",
   "keywords": [
     "data", "active-learning"
   ],
@@ -198,6 +202,8 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -316,58 +322,58 @@ Notations Symbol Meaning $K$ Number of unique class labels. $(\mathbf{x}^l, y) \
 <p>This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.</p>
 <h1 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h1>
 <table>
-<thead>
-<tr>
-<th>Symbol</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$K$</td>
-<td>Number of unique class labels.</td>
-</tr>
-<tr>
-<td>$(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$</td>
-<td>Labeled dataset. $y$ is a one-hot representation of the true label.</td>
-</tr>
-<tr>
-<td>$\mathbf{u} \sim \mathcal{U}$</td>
-<td>Unlabeled dataset.</td>
-</tr>
-<tr>
-<td>$\mathcal{D} = \mathcal{X} \cup \mathcal{U}$</td>
-<td>The entire dataset, including both labeled and unlabeled examples.</td>
-</tr>
-<tr>
-<td>$\mathbf{x}$</td>
-<td>Any sample which can be either labeled or unlabeled.</td>
-</tr>
-<tr>
-<td>$\mathbf{x}_i$</td>
-<td>The $i$-th sample.</td>
-</tr>
-<tr>
-<td>$U(\mathbf{x})$</td>
-<td>Scoring function for active learning selection.</td>
-</tr>
-<tr>
-<td>$P_\theta(y \vert \mathbf{x})$</td>
-<td>A softmax classifier parameterized by $\theta$.</td>
-</tr>
-<tr>
-<td>$\hat{y} = \arg\max_{y \in \mathcal{Y}} P_\theta(y \vert \mathbf{x})$</td>
-<td>The most confident prediction by the classifier.</td>
-</tr>
-<tr>
-<td>$B$</td>
-<td>Labeling budget (the maximum number of samples to label).</td>
-</tr>
-<tr>
-<td>$b$</td>
-<td>Batch size.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$K$</td>
+          <td>Number of unique class labels.</td>
+      </tr>
+      <tr>
+          <td>$(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$</td>
+          <td>Labeled dataset. $y$ is a one-hot representation of the true label.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{u} \sim \mathcal{U}$</td>
+          <td>Unlabeled dataset.</td>
+      </tr>
+      <tr>
+          <td>$\mathcal{D} = \mathcal{X} \cup \mathcal{U}$</td>
+          <td>The entire dataset, including both labeled and unlabeled examples.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}$</td>
+          <td>Any sample which can be either labeled or unlabeled.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}_i$</td>
+          <td>The $i$-th sample.</td>
+      </tr>
+      <tr>
+          <td>$U(\mathbf{x})$</td>
+          <td>Scoring function for active learning selection.</td>
+      </tr>
+      <tr>
+          <td>$P_\theta(y \vert \mathbf{x})$</td>
+          <td>A softmax classifier parameterized by $\theta$.</td>
+      </tr>
+      <tr>
+          <td>$\hat{y} = \arg\max_{y \in \mathcal{Y}} P_\theta(y \vert \mathbf{x})$</td>
+          <td>The most confident prediction by the classifier.</td>
+      </tr>
+      <tr>
+          <td>$B$</td>
+          <td>Labeling budget (the maximum number of samples to label).</td>
+      </tr>
+      <tr>
+          <td>$b$</td>
+          <td>Batch size.</td>
+      </tr>
+  </tbody>
 </table>
 <h1 id="what-is-active-learning">What is Active Learning?<a hidden class="anchor" aria-hidden="true" href="#what-is-active-learning">#</a></h1>
 <p>Given an unlabeled dataset $\mathcal{U}$ and a fixed amount of labeling cost $B$, active learning aims to select a subset of $B$ examples from $\mathcal{U}$ to be labeled such that they can result in maximized improvement in model performance. This is an effective way of learning especially when data labeling is difficult and costly, e.g. medical images. This classical <a href="https://burrsettles.com/pub/settles.activelearning.pdf">survey paper</a> in 2010 lists many key concepts. While some conventional approaches may not apply to deep learning, discussion in this post mainly focuses on deep neural models and training in batch mode.</p>
@@ -675,8 +681,8 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/data/">data</a></li>
-      <li><a href="https://lilianweng.github.io/tags/active-learning/">active-learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data/">Data</a></li>
+      <li><a href="https://lilianweng.github.io/tags/active-learning/">Active-Learning</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2022-04-15-data-gen/">

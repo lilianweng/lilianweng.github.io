@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
-<title>architecture | Lil&#39;Log</title>
+<title>Architecture | Lil&#39;Log</title>
 <meta name="keywords" content="" />
 <meta name="description" content="Document my learning notes.">
 <meta name="author" content="Lilian Weng">
@@ -19,6 +19,7 @@
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
 <link rel="alternate" type="application/rss+xml" href="https://lilianweng.github.io/tags/architecture/index.xml">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/tags/architecture/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -56,23 +57,26 @@
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="architecture" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Architecture" />
 <meta property="og:description" content="Document my learning notes." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://lilianweng.github.io/tags/architecture/" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="architecture"/>
+<meta name="twitter:title" content="Architecture"/>
 <meta name="twitter:description" content="Document my learning notes."/>
 
 </head>
@@ -138,6 +142,8 @@ if (!doNotTrack) {
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -176,7 +182,7 @@ if (!doNotTrack) {
 </header>
 <main class="main"> 
 <header class="page-header">
-  <h1>architecture</h1>
+  <h1>Architecture</h1>
 </header>
 
 <article class="post-entry tag-entry"> 
@@ -186,7 +192,8 @@ if (!doNotTrack) {
   </header>
   <section class="entry-content">
     <p>Many new Transformer architecture improvements have been proposed since my last post on “The Transformer Family” about three years ago. Here I did a big refactoring and enrichment of that 2020 post — restructure the hierarchy of sections and improve many sections with more recent papers. Version 2.0 is a superset of the old version, about twice the length.
-Notations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size....</p>
+Notations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size. $h$ The number of heads in multi-head attention layer. $L$ The segment length of input sequence. $N$ The total number of attention layers in the model; not considering MoE. $\mathbf{X} \in \mathbb{R}^{L \times d}$ The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size. $\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$ The key weight matrix. $\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$ The query weight matrix. $\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$ The value weight matrix. Often we have $d_k = d_v = d$. $\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$ The weight matrices per head. $\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$ The output weight matrix. $\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$ The query embedding inputs. $\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$ The key embedding inputs. $\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$ The value embedding inputs. $\mathbf{q}_i, \mathbf{k}_i \in \mathbb{R}^{d_k}, \mathbf{v}_i \in \mathbb{R}^{d_v}$ Row vectors in query, key, value matrices, $\mathbf{Q}$, $\mathbf{K}$ and $\mathbf{V}$. $S_i$ A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to. $\mathbf{A} \in \mathbb{R}^{L \times L}$ The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$. $a_{ij} \in \mathbf{A}$ The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$. $\mathbf{P} \in \mathbb{R}^{L \times d}$ position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$. Transformer Basics The Transformer (which will be referred to as “vanilla Transformer” to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT.
+...</p>
   </section>
   <footer class="entry-footer">Date: January 27, 2023  |  Estimated Reading Time: 46 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to The Transformer Family Version 2.0" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/"></a>
@@ -200,7 +207,8 @@ Notations Symbol Meaning $d$ The model size / hidden state dimension / positiona
   <section class="entry-content">
     <p>[Updated on 2023-01-24: add a small section on Distillation.]
 Large transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.
-Why is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al....</p>
+Why is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):
+...</p>
   </section>
   <footer class="entry-footer">Date: January 10, 2023  |  Estimated Reading Time: 9 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to Large Transformer Model Inference Optimization" href="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/"></a>
@@ -212,8 +220,8 @@ Why is it hard to run inference for large transformer models? Besides the increa
     </h2>
   </header>
   <section class="entry-content">
-    <p>[Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: “Techniques for Training Large Neural Networks”
-In recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time....</p>
+    <p> [Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: “Techniques for Training Large Neural Networks”
+...</p>
   </section>
   <footer class="entry-footer">Date: September 24, 2021  |  Estimated Reading Time: 21 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to How to Train Really Large Models on Many GPUs?" href="https://lilianweng.github.io/posts/2021-09-25-train-large/"></a>
@@ -225,8 +233,8 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
     </h2>
   </header>
   <section class="entry-content">
-    <p>Although most popular and successful model architectures are designed by human experts, it doesn’t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.
-Automatically learning and evolving network topologies is not a new idea (Stanley &amp; Miikkulainen, 2002). In recent years, the pioneering work by Zoph &amp; Le 2017 and Baker et al....</p>
+    <p> Although most popular and successful model architectures are designed by human experts, it doesn’t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.
+...</p>
   </section>
   <footer class="entry-footer">Date: August 6, 2020  |  Estimated Reading Time: 32 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to Neural Architecture Search" href="https://lilianweng.github.io/posts/2020-08-06-nas/"></a>
@@ -238,7 +246,7 @@ Automatically learning and evolving network topologies is not a new idea (Stanle
     </h2>
   </header>
   <section class="entry-content">
-    <p>[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more....</p>
+    <p> [Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] ...</p>
   </section>
   <footer class="entry-footer">Date: April 7, 2020  |  Estimated Reading Time: 25 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to The Transformer Family" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/"></a>
@@ -250,8 +258,9 @@ Automatically learning and evolving network topologies is not a new idea (Stanle
     </h2>
   </header>
   <section class="entry-content">
-    <p>[Updated on 2019-02-14: add ULMFiT and GPT-2.] [Updated on 2020-02-29: add ALBERT.] [Updated on 2020-10-25: add RoBERTa.] [Updated on 2020-12-13: add T5.] [Updated on 2020-12-30: add GPT-3.] [Updated on 2021-11-13: add XLNet, BART and ELECTRA; Also updated the Summary section.]
-Fig. 0. I guess they are Elmo &amp; Bert? (Image source: here) We have seen amazing progress in NLP in 2018. Large-scale pre-trained language modes like OpenAI GPT and BERT have achieved great performance on a variety of language tasks using generic model architectures....</p>
+    <p> [Updated on 2019-02-14: add ULMFiT and GPT-2.] [Updated on 2020-02-29: add ALBERT.] [Updated on 2020-10-25: add RoBERTa.] [Updated on 2020-12-13: add T5.] [Updated on 2020-12-30: add GPT-3.] [Updated on 2021-11-13: add XLNet, BART and ELECTRA; Also updated the Summary section.]
+Fig. 0. I guess they are Elmo &amp; Bert? (Image source: here) We have seen amazing progress in NLP in 2018. Large-scale pre-trained language modes like OpenAI GPT and BERT have achieved great performance on a variety of language tasks using generic model architectures. The idea is similar to how ImageNet classification pre-training helps many vision tasks (*). Even better than vision classification pre-training, this simple and powerful approach in NLP does not require labeled data for pre-training, allowing us to experiment with increased training scale, up to our very limit.
+...</p>
   </section>
   <footer class="entry-footer">Date: January 31, 2019  |  Estimated Reading Time: 36 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to Generalized Language Models" href="https://lilianweng.github.io/posts/2019-01-31-lm/"></a>
@@ -263,7 +272,8 @@ Fig. 0. I guess they are Elmo &amp; Bert? (Image source: here) We have seen amaz
     </h2>
   </header>
   <section class="entry-content">
-    <p>So far, I’ve written about two types of generative models, GAN and VAE. Neither of them explicitly learns the probability density function of real data, $p(\mathbf{x})$ (where $\mathbf{x} \in \mathcal{D}$) — because it is really hard! Taking the generative model with latent variables as an example, $p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}$ can hardly be calculated as it is intractable to go through all possible values of the latent code $\mathbf{z}$....</p>
+    <p> So far, I’ve written about two types of generative models, GAN and VAE. Neither of them explicitly learns the probability density function of real data, $p(\mathbf{x})$ (where $\mathbf{x} \in \mathcal{D}$) — because it is really hard! Taking the generative model with latent variables as an example, $p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}$ can hardly be calculated as it is intractable to go through all possible values of the latent code $\mathbf{z}$.
+...</p>
   </section>
   <footer class="entry-footer">Date: October 13, 2018  |  Estimated Reading Time: 21 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to Flow-based Deep Generative Models" href="https://lilianweng.github.io/posts/2018-10-13-flow-models/"></a>
@@ -275,8 +285,8 @@ Fig. 0. I guess they are Elmo &amp; Bert? (Image source: here) We have seen amaz
     </h2>
   </header>
   <section class="entry-content">
-    <p>[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term “self-attention” when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]
-Attention is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence....</p>
+    <p> [Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term “self-attention” when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]
+...</p>
   </section>
   <footer class="entry-footer">Date: June 24, 2018  |  Estimated Reading Time: 21 min  |  Author: Lilian Weng</footer>
   <a class="entry-link" aria-label="post link to Attention? Attention!" href="https://lilianweng.github.io/posts/2018-06-24-attention/"></a>

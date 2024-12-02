@@ -7,12 +7,13 @@
 <meta name="robots" content="index, follow">
 <title>How to Train Really Large Models on Many GPUs? | Lil&#39;Log</title>
 <meta name="keywords" content="architecture, transformer, foundation" />
-<meta name="description" content="[Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;
-In recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time.">
+<meta name="description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2021-09-25-train-large/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +22,7 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-09-25-train-large/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +60,23 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="How to Train Really Large Models on Many GPUs?" />
-<meta property="og:description" content="[Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;
-In recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="How to Train Really Large Models on Many GPUs?" />
+<meta property="og:description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2021-09-25-train-large/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2021-09-24T00:00:00&#43;00:00" />
@@ -78,8 +84,9 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="How to Train Really Large Models on Many GPUs?"/>
-<meta name="twitter:description" content="[Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;
-In recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time."/>
+<meta name="twitter:description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;"/>
 
 
 <script type="application/ld+json">
@@ -108,7 +115,7 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
   "@type": "BlogPosting",
   "headline": "How to Train Really Large Models on Many GPUs?",
   "name": "How to Train Really Large Models on Many GPUs?",
-  "description": "[Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: \u0026ldquo;Techniques for Training Large Neural Networks\u0026rdquo;\nIn recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time.",
+  "description": " [Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: \u0026ldquo;Techniques for Training Large Neural Networks\u0026rdquo;\n",
   "keywords": [
     "architecture", "transformer", "foundation"
   ],
@@ -198,6 +205,8 @@ In recent years, we are seeing better results on many NLP benchmark tasks with l
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -535,9 +544,9 @@ ZeRO-R optimizes the memory consumption of residual states, using partitioned ac
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/architecture/">architecture</a></li>
-      <li><a href="https://lilianweng.github.io/tags/transformer/">transformer</a></li>
-      <li><a href="https://lilianweng.github.io/tags/foundation/">foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/">

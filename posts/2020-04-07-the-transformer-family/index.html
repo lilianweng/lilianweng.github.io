@@ -7,11 +7,13 @@
 <meta name="robots" content="index, follow">
 <title>The Transformer Family | Lil&#39;Log</title>
 <meta name="keywords" content="architecture, attention, transformer, foundation, reinforcement-learning" />
-<meta name="description" content="[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more.">
+<meta name="description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -20,6 +22,7 @@
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -57,18 +60,23 @@
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="The Transformer Family" />
-<meta property="og:description" content="[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="The Transformer Family" />
+<meta property="og:description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2020-04-07T00:00:00&#43;00:00" />
@@ -76,7 +84,9 @@ if (!doNotTrack) {
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="The Transformer Family"/>
-<meta name="twitter:description" content="[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more."/>
+<meta name="twitter:description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+"/>
 
 
 <script type="application/ld+json">
@@ -105,7 +115,7 @@ if (!doNotTrack) {
   "@type": "BlogPosting",
   "headline": "The Transformer Family",
   "name": "The Transformer Family",
-  "description": "[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more.",
+  "description": " [Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] ",
   "keywords": [
     "architecture", "attention", "transformer", "foundation", "reinforcement-learning"
   ],
@@ -195,6 +205,8 @@ if (!doNotTrack) {
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -298,78 +310,78 @@ if (!doNotTrack) {
 <p>It has been almost two years since my last post on <a href="https://lilianweng.github.io/posts/2018-06-24-attention/">attention</a>. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more.</p>
 <h2 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h2>
 <table>
-<thead>
-<tr>
-<th>Symbol</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$d$</td>
-<td>The model size / hidden state dimension / positional encoding size.</td>
-</tr>
-<tr>
-<td>$h$</td>
-<td>The number of heads in multi-head attention layer.</td>
-</tr>
-<tr>
-<td>$L$</td>
-<td>The segment length of input sequence.</td>
-</tr>
-<tr>
-<td>$\mathbf{X} \in \mathbb{R}^{L \times d}$</td>
-<td>The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$</td>
-<td>The key weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$</td>
-<td>The query weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$</td>
-<td>The value weight matrix. Often we have $d_k = d_v = d$.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$</td>
-<td>The weight matrices per head.</td>
-</tr>
-<tr>
-<td>$\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$</td>
-<td>The output weight matrix.</td>
-</tr>
-<tr>
-<td>$\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$</td>
-<td>The query embedding inputs.</td>
-</tr>
-<tr>
-<td>$\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$</td>
-<td>The key embedding inputs.</td>
-</tr>
-<tr>
-<td>$\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$</td>
-<td>The value embedding inputs.</td>
-</tr>
-<tr>
-<td>$S_i$</td>
-<td>A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.</td>
-</tr>
-<tr>
-<td>$\mathbf{A} \in \mathbb{R}^{L \times L}$</td>
-<td>The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.</td>
-</tr>
-<tr>
-<td>$a_{ij} \in \mathbf{A}$</td>
-<td>The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.</td>
-</tr>
-<tr>
-<td>$\mathbf{P} \in \mathbb{R}^{L \times d}$</td>
-<td>position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$d$</td>
+          <td>The model size / hidden state dimension / positional encoding size.</td>
+      </tr>
+      <tr>
+          <td>$h$</td>
+          <td>The number of heads in multi-head attention layer.</td>
+      </tr>
+      <tr>
+          <td>$L$</td>
+          <td>The segment length of input sequence.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{X} \in \mathbb{R}^{L \times d}$</td>
+          <td>The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The key weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The query weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$</td>
+          <td>The value weight matrix. Often we have $d_k = d_v = d$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$</td>
+          <td>The weight matrices per head.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$</td>
+          <td>The output weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The query embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The key embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$</td>
+          <td>The value embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$S_i$</td>
+          <td>A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{A} \in \mathbb{R}^{L \times L}$</td>
+          <td>The self-attention matrix between a input sequence of lenght $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.</td>
+      </tr>
+      <tr>
+          <td>$a_{ij} \in \mathbf{A}$</td>
+          <td>The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{P} \in \mathbb{R}^{L \times d}$</td>
+          <td>position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.</td>
+      </tr>
+  </tbody>
 </table>
 <h1 id="attention-and-self-attention">Attention and Self-Attention<a hidden class="anchor" aria-hidden="true" href="#attention-and-self-attention">#</a></h1>
 <p><em>Attention</em> is a mechanism in the neural network that a model can learn to make predictions by selectively attending to a given set of data. The amount of attention is quantified by learned weights and thus the output is usually formed as a weighted average.</p>
@@ -784,11 +796,11 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/architecture/">architecture</a></li>
-      <li><a href="https://lilianweng.github.io/tags/attention/">attention</a></li>
-      <li><a href="https://lilianweng.github.io/tags/transformer/">transformer</a></li>
-      <li><a href="https://lilianweng.github.io/tags/foundation/">foundation</a></li>
-      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">reinforcement-learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/">

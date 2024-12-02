@@ -8,11 +8,11 @@
 <title>Adversarial Attacks on LLMs | Lil&#39;Log</title>
 <meta name="keywords" content="nlp, language-model, safety, adversarial attacks, robustness, redteam" />
 <meta name="description" content="The use of large language models in the real world has strongly accelerated by the launch of ChatGPT. We (including my team at OpenAI, shoutout to them) have invested a lot of effort to build default safe behavior into the model during the alignment process (e.g. via RLHF). However, adversarial attacks or jailbreak prompts could potentially trigger the model to output something undesired.
-A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space.">
+A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space. Attacks for discrete data like text have been considered to be a lot more challenging, due to lack of direct gradient signals. My past post on Controllable Text Generation is quite relevant to this topic, as attacking LLMs is essentially to control the model to output a certain type of (unsafe) content.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +21,7 @@ A large body of ground work on adversarial attacks is on images, and differently
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +59,22 @@ A large body of ground work on adversarial attacks is on images, and differently
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Adversarial Attacks on LLMs" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Adversarial Attacks on LLMs" />
 <meta property="og:description" content="The use of large language models in the real world has strongly accelerated by the launch of ChatGPT. We (including my team at OpenAI, shoutout to them) have invested a lot of effort to build default safe behavior into the model during the alignment process (e.g. via RLHF). However, adversarial attacks or jailbreak prompts could potentially trigger the model to output something undesired.
-A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space." />
+A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space. Attacks for discrete data like text have been considered to be a lot more challenging, due to lack of direct gradient signals. My past post on Controllable Text Generation is quite relevant to this topic, as attacking LLMs is essentially to control the model to output a certain type of (unsafe) content." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-10-25T00:00:00&#43;00:00" />
@@ -79,7 +83,7 @@ A large body of ground work on adversarial attacks is on images, and differently
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Adversarial Attacks on LLMs"/>
 <meta name="twitter:description" content="The use of large language models in the real world has strongly accelerated by the launch of ChatGPT. We (including my team at OpenAI, shoutout to them) have invested a lot of effort to build default safe behavior into the model during the alignment process (e.g. via RLHF). However, adversarial attacks or jailbreak prompts could potentially trigger the model to output something undesired.
-A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space."/>
+A large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space. Attacks for discrete data like text have been considered to be a lot more challenging, due to lack of direct gradient signals. My past post on Controllable Text Generation is quite relevant to this topic, as attacking LLMs is essentially to control the model to output a certain type of (unsafe) content."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +112,7 @@ A large body of ground work on adversarial attacks is on images, and differently
   "@type": "BlogPosting",
   "headline": "Adversarial Attacks on LLMs",
   "name": "Adversarial Attacks on LLMs",
-  "description": "The use of large language models in the real world has strongly accelerated by the launch of ChatGPT. We (including my team at OpenAI, shoutout to them) have invested a lot of effort to build default safe behavior into the model during the alignment process (e.g. via RLHF). However, adversarial attacks or jailbreak prompts could potentially trigger the model to output something undesired.\nA large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space.",
+  "description": "The use of large language models in the real world has strongly accelerated by the launch of ChatGPT. We (including my team at OpenAI, shoutout to them) have invested a lot of effort to build default safe behavior into the model during the alignment process (e.g. via RLHF). However, adversarial attacks or jailbreak prompts could potentially trigger the model to output something undesired.\nA large body of ground work on adversarial attacks is on images, and differently it operates in the continuous, high-dimensional space. Attacks for discrete data like text have been considered to be a lot more challenging, due to lack of direct gradient signals. My past post on Controllable Text Generation is quite relevant to this topic, as attacking LLMs is essentially to control the model to output a certain type of (unsafe) content.\n",
   "keywords": [
     "nlp", "language-model", "safety", "adversarial attacks", "robustness", "redteam"
   ],
@@ -198,6 +202,8 @@ A large body of ground work on adversarial attacks is on images, and differently
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -316,40 +322,40 @@ Black-box attacks assume that attackers only have access to an API-like service 
 <h1 id="types-of-adversarial-attacks">Types of Adversarial Attacks<a hidden class="anchor" aria-hidden="true" href="#types-of-adversarial-attacks">#</a></h1>
 <p>There are various means to find adversarial inputs to trigger LLMs to output something undesired. We present five approaches here.</p>
 <table>
-<thead>
-<tr>
-<th>Attack</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Token manipulation</td>
-<td>Black-box</td>
-<td>Alter a small fraction of tokens in the text input such that it triggers model failure but still remain its original semantic meanings.</td>
-</tr>
-<tr>
-<td>Gradient based attack</td>
-<td>White-box</td>
-<td>Rely on gradient signals to learn an effective attack.</td>
-</tr>
-<tr>
-<td>Jailbreak prompting</td>
-<td>Black-box</td>
-<td>Often heuristic based prompting to &ldquo;jailbreak&rdquo; built-in model safety.</td>
-</tr>
-<tr>
-<td>Human red-teaming</td>
-<td>Black-box</td>
-<td>Human attacks the model, with or without assist from other models.</td>
-</tr>
-<tr>
-<td>Model red-teaming</td>
-<td>Black-box</td>
-<td>Model attacks the model, where the attacker model can be fine-tuned.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Attack</th>
+          <th>Type</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Token manipulation</td>
+          <td>Black-box</td>
+          <td>Alter a small fraction of tokens in the text input such that it triggers model failure but still remain its original semantic meanings.</td>
+      </tr>
+      <tr>
+          <td>Gradient based attack</td>
+          <td>White-box</td>
+          <td>Rely on gradient signals to learn an effective attack.</td>
+      </tr>
+      <tr>
+          <td>Jailbreak prompting</td>
+          <td>Black-box</td>
+          <td>Often heuristic based prompting to &ldquo;jailbreak&rdquo; built-in model safety.</td>
+      </tr>
+      <tr>
+          <td>Human red-teaming</td>
+          <td>Black-box</td>
+          <td>Human attacks the model, with or without assist from other models.</td>
+      </tr>
+      <tr>
+          <td>Model red-teaming</td>
+          <td>Black-box</td>
+          <td>Model attacks the model, where the attacker model can be fine-tuned.</td>
+      </tr>
+  </tbody>
 </table>
 <h2 id="token-manipulation">Token Manipulation<a hidden class="anchor" aria-hidden="true" href="#token-manipulation">#</a></h2>
 <p>Given a piece of text input containing a sequence of tokens, we can apply simple token operations like replacement with synonyms to trigger the model to make the incorrect predictions. Token manipulation based attacks work in <strong>black box</strong> settings. The Python framework, TextAttack (<a href="https://arxiv.org/abs/2005.05909">Morris et al. 2020</a>), implemented many word and token manipulation attack methods to create adversarial examples for NLP models. Most work in this area experimented with classification and entailment prediction.</p>
@@ -688,12 +694,12 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/nlp/">nlp</a></li>
-      <li><a href="https://lilianweng.github.io/tags/language-model/">language-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/safety/">safety</a></li>
-      <li><a href="https://lilianweng.github.io/tags/adversarial-attacks/">adversarial attacks</a></li>
-      <li><a href="https://lilianweng.github.io/tags/robustness/">robustness</a></li>
-      <li><a href="https://lilianweng.github.io/tags/redteam/">redteam</a></li>
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/safety/">Safety</a></li>
+      <li><a href="https://lilianweng.github.io/tags/adversarial-attacks/">Adversarial Attacks</a></li>
+      <li><a href="https://lilianweng.github.io/tags/robustness/">Robustness</a></li>
+      <li><a href="https://lilianweng.github.io/tags/redteam/">Redteam</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2024-02-05-human-data-quality/">

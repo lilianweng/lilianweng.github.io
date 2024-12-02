@@ -7,12 +7,16 @@
 <meta name="robots" content="index, follow">
 <title>Attention? Attention! | Lil&#39;Log</title>
 <meta name="keywords" content="architecture, attention, transformer, rnn" />
-<meta name="description" content="[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]
-Attention is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence.">
+<meta name="description" content="
+[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.]
+[Updated on 2018-11-06: Add a link to the implementation of Transformer model.]
+[Updated on 2018-11-18: Add Neural Turing Machines.]
+[Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.]
+[Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2018-06-24-attention/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +25,7 @@ Attention is, to some extent, motivated by how we pay visual attention to differ
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-06-24-attention/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +63,26 @@ Attention is, to some extent, motivated by how we pay visual attention to differ
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Attention? Attention!" />
-<meta property="og:description" content="[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]
-Attention is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Attention? Attention!" />
+<meta property="og:description" content="
+[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.]
+[Updated on 2018-11-06: Add a link to the implementation of Transformer model.]
+[Updated on 2018-11-18: Add Neural Turing Machines.]
+[Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.]
+[Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2018-06-24-attention/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2018-06-24T00:00:00&#43;00:00" />
@@ -78,8 +90,12 @@ Attention is, to some extent, motivated by how we pay visual attention to differ
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Attention? Attention!"/>
-<meta name="twitter:description" content="[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]
-Attention is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence."/>
+<meta name="twitter:description" content="
+[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.]
+[Updated on 2018-11-06: Add a link to the implementation of Transformer model.]
+[Updated on 2018-11-18: Add Neural Turing Machines.]
+[Updated on 2019-07-18: Correct the mistake on using the term &ldquo;self-attention&rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.]
+[Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]"/>
 
 
 <script type="application/ld+json">
@@ -108,7 +124,7 @@ Attention is, to some extent, motivated by how we pay visual attention to differ
   "@type": "BlogPosting",
   "headline": "Attention? Attention!",
   "name": "Attention? Attention!",
-  "description": "[Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term \u0026ldquo;self-attention\u0026rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]\nAttention is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence.",
+  "description": " [Updated on 2018-10-28: Add Pointer Network and the link to my implementation of Transformer.] [Updated on 2018-11-06: Add a link to the implementation of Transformer model.] [Updated on 2018-11-18: Add Neural Turing Machines.] [Updated on 2019-07-18: Correct the mistake on using the term \u0026ldquo;self-attention\u0026rdquo; when introducing the show-attention-tell paper; moved it to Self-Attention section.] [Updated on 2020-04-07: A follow-up post on improved Transformer models is here.]\n",
   "keywords": [
     "architecture", "attention", "transformer", "rnn"
   ],
@@ -198,6 +214,8 @@ Attention is, to some extent, motivated by how we pay visual attention to differ
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -386,74 +404,74 @@ $$
 <h2 id="summary">Summary<a hidden class="anchor" aria-hidden="true" href="#summary">#</a></h2>
 <p>Below is a summary table of several popular attention mechanisms and corresponding alignment score functions:</p>
 <table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Alignment score function</th>
-<th>Citation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Content-base attention</td>
-<td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \text{cosine}[\boldsymbol{s}_t, \boldsymbol{h}_i]$</td>
-<td><a href="https://arxiv.org/abs/1410.5401">Graves2014</a></td>
-</tr>
-<tr>
-<td>Additive(*)</td>
-<td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_{t-1}; \boldsymbol{h}_i])$</td>
-<td><a href="https://arxiv.org/pdf/1409.0473.pdf">Bahdanau2015</a></td>
-</tr>
-<tr>
-<td>Location-Base</td>
-<td>$\alpha_{t,i} = \text{softmax}(\mathbf{W}_a \boldsymbol{s}_t)$<br/>Note: This simplifies the softmax alignment to only depend on the target position.</td>
-<td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
-</tr>
-<tr>
-<td>General</td>
-<td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\mathbf{W}_a\boldsymbol{h}_i$<br/>where $\mathbf{W}_a$ is a trainable weight matrix in the attention layer.</td>
-<td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
-</tr>
-<tr>
-<td>Dot-Product</td>
-<td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\boldsymbol{h}_i$</td>
-<td><a href="https://arxiv.org/pdf/1508.4025.pdf">Luong2015</a></td>
-</tr>
-<tr>
-<td>Scaled Dot-Product(^)</td>
-<td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \frac{\boldsymbol{s}_t^\top\boldsymbol{h}_i}{\sqrt{n}}$<br/>Note: very similar to the dot-product attention except for a scaling factor; where n is the dimension of the source hidden state.</td>
-<td><a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf">Vaswani2017</a></td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Name</th>
+          <th>Alignment score function</th>
+          <th>Citation</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Content-base attention</td>
+          <td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \text{cosine}[\boldsymbol{s}_t, \boldsymbol{h}_i]$</td>
+          <td><a href="https://arxiv.org/abs/1410.5401">Graves2014</a></td>
+      </tr>
+      <tr>
+          <td>Additive(*)</td>
+          <td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_{t-1}; \boldsymbol{h}_i])$</td>
+          <td><a href="https://arxiv.org/pdf/1409.0473.pdf">Bahdanau2015</a></td>
+      </tr>
+      <tr>
+          <td>Location-Base</td>
+          <td>$\alpha_{t,i} = \text{softmax}(\mathbf{W}_a \boldsymbol{s}_t)$<br/>Note: This simplifies the softmax alignment to only depend on the target position.</td>
+          <td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+      </tr>
+      <tr>
+          <td>General</td>
+          <td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\mathbf{W}_a\boldsymbol{h}_i$<br/>where $\mathbf{W}_a$ is a trainable weight matrix in the attention layer.</td>
+          <td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+      </tr>
+      <tr>
+          <td>Dot-Product</td>
+          <td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\boldsymbol{h}_i$</td>
+          <td><a href="https://arxiv.org/pdf/1508.4025.pdf">Luong2015</a></td>
+      </tr>
+      <tr>
+          <td>Scaled Dot-Product(^)</td>
+          <td>$\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \frac{\boldsymbol{s}_t^\top\boldsymbol{h}_i}{\sqrt{n}}$<br/>Note: very similar to the dot-product attention except for a scaling factor; where n is the dimension of the source hidden state.</td>
+          <td><a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf">Vaswani2017</a></td>
+      </tr>
+  </tbody>
 </table>
 <p>(*) Referred to as &ldquo;concat&rdquo; in Luong, et al., 2015 and as &ldquo;additive attention&rdquo; in Vaswani, et al., 2017.<br/>
 (^) It adds a scaling factor $1/\sqrt{n}$, motivated by the concern when the input is large, the softmax function may have an extremely small gradient, hard for efficient learning.<br/></p>
 <p>Here are a summary of broader categories of attention mechanisms:</p>
 <table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Definition</th>
-<th>Citation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Self-Attention(&amp;)</td>
-<td>Relating different positions of the same input sequence. Theoretically the self-attention can adopt any score functions above, but just replace the target sequence with the same input sequence.</td>
-<td><a href="https://arxiv.org/pdf/1601.06733.pdf">Cheng2016</a></td>
-</tr>
-<tr>
-<td>Global/Soft</td>
-<td>Attending to the entire input state space.</td>
-<td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a></td>
-</tr>
-<tr>
-<td>Local/Hard</td>
-<td>Attending to the part of input state space; i.e. a patch of the input image.</td>
-<td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a>; <a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Name</th>
+          <th>Definition</th>
+          <th>Citation</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Self-Attention(&amp;)</td>
+          <td>Relating different positions of the same input sequence. Theoretically the self-attention can adopt any score functions above, but just replace the target sequence with the same input sequence.</td>
+          <td><a href="https://arxiv.org/pdf/1601.06733.pdf">Cheng2016</a></td>
+      </tr>
+      <tr>
+          <td>Global/Soft</td>
+          <td>Attending to the entire input state space.</td>
+          <td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a></td>
+      </tr>
+      <tr>
+          <td>Local/Hard</td>
+          <td>Attending to the part of input state space; i.e. a patch of the input image.</td>
+          <td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a>; <a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+      </tr>
+  </tbody>
 </table>
 <p>(&amp;) Also, referred to as &ldquo;intra-attention&rdquo; in Cheng et al., 2016 and some other papers.</p>
 <h2 id="self-attention">Self-Attention<a hidden class="anchor" aria-hidden="true" href="#self-attention">#</a></h2>
@@ -685,10 +703,10 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/architecture/">architecture</a></li>
-      <li><a href="https://lilianweng.github.io/tags/attention/">attention</a></li>
-      <li><a href="https://lilianweng.github.io/tags/transformer/">transformer</a></li>
-      <li><a href="https://lilianweng.github.io/tags/rnn/">rnn</a></li>
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/rnn/">Rnn</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2018-08-12-vae/">

@@ -7,11 +7,12 @@
 <meta name="robots" content="index, follow">
 <title>Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS | Lil&#39;Log</title>
 <meta name="keywords" content="object-detection, object-recognition, vision-model" />
-<meta name="description" content="I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation.">
+<meta name="description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -20,6 +21,7 @@
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -57,18 +59,22 @@
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS" />
-<meta property="og:description" content="I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS" />
+<meta property="og:description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2017-10-29T00:00:00&#43;00:00" />
@@ -76,7 +82,8 @@ if (!doNotTrack) {
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS"/>
-<meta name="twitter:description" content="I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation."/>
+<meta name="twitter:description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3."/>
 
 
 <script type="application/ld+json">
@@ -105,7 +112,7 @@ if (!doNotTrack) {
   "@type": "BlogPosting",
   "headline": "Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS",
   "name": "Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS",
-  "description": "I\u0026rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I\u0026rsquo;m writing a few posts on this topic \u0026ldquo;Object Detection for Dummies\u0026rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation.",
+  "description": " I\u0026rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I\u0026rsquo;m writing a few posts on this topic \u0026ldquo;Object Detection for Dummies\u0026rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.\n",
   "keywords": [
     "object-detection", "object-recognition", "vision-model"
   ],
@@ -195,6 +202,8 @@ if (!doNotTrack) {
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -266,7 +275,7 @@ if (!doNotTrack) {
                     <a href="#example-manu-in-2004-1" aria-label="Example: Manu in 2004">Example: Manu in 2004</a></li></ul>
                 </li>
                 <li>
-                    <a href="#image-segmentation-felzenszwalbs-algorithm" aria-label="Image Segmentation (Felzenszwalb&amp;rsquo;s Algorithm)">Image Segmentation (Felzenszwalb&rsquo;s Algorithm)</a><ul>
+                    <a href="#image-segmentation-felzenszwalbs-algorithm" aria-label="Image Segmentation (Felzenszwalb&rsquo;s Algorithm)">Image Segmentation (Felzenszwalb&rsquo;s Algorithm)</a><ul>
                         
                 <li>
                     <a href="#graph-construction" aria-label="Graph Construction">Graph Construction</a></li>
@@ -306,28 +315,28 @@ if (!doNotTrack) {
 <h1 id="image-gradient-vector">Image Gradient Vector<a hidden class="anchor" aria-hidden="true" href="#image-gradient-vector">#</a></h1>
 <p>First of all, I would like to make sure we can distinguish the following terms. They are very similar, closely related, but not exactly the same.</p>
 <table>
-<thead>
-<tr>
-<th></th>
-<th><strong>Derivative</strong></th>
-<th><strong>Directional Derivative</strong></th>
-<th><strong>Gradient</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Value type</td>
-<td>Scalar</td>
-<td>Scalar</td>
-<td>Vector</td>
-</tr>
-<tr>
-<td>Definition</td>
-<td>The rate of change of a function $f(x,y,z,&hellip;)$ at a point $(x_0,y_0,z_0,&hellip;)$, which is the slope of the tangent line at the point.</td>
-<td>The instantaneous rate of change of $f(x,y,z, &hellip;)$ in the direction of an unit vector $\vec{u}$.</td>
-<td>It points in the direction of the greatest rate of increase of the function, containing all the partial derivative information of a multivariable function.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th></th>
+          <th><strong>Derivative</strong></th>
+          <th><strong>Directional Derivative</strong></th>
+          <th><strong>Gradient</strong></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Value type</td>
+          <td>Scalar</td>
+          <td>Scalar</td>
+          <td>Vector</td>
+      </tr>
+      <tr>
+          <td>Definition</td>
+          <td>The rate of change of a function $f(x,y,z,&hellip;)$ at a point $(x_0,y_0,z_0,&hellip;)$, which is the slope of the tangent line at the point.</td>
+          <td>The instantaneous rate of change of $f(x,y,z, &hellip;)$ in the direction of an unit vector $\vec{u}$.</td>
+          <td>It points in the direction of the greatest rate of increase of the function, containing all the partial derivative information of a multivariable function.</td>
+      </tr>
+  </tbody>
 </table>
 <p>In the image processing, we want to know the direction of colors changing from one extreme to the other (i.e. black to white on a grayscale image). Therefore, we want to measure &ldquo;gradient&rdquo; on pixels of colors. The gradient on an image is discrete because each pixel is independent and cannot be further split.</p>
 <p>The <a href="https://en.wikipedia.org/wiki/Image_gradient">image gradient vector</a> is defined as a metric for every individual pixel, containing the pixel color changes in both x-axis and y-axis. The definition is aligned with the gradient of a continuous multi-variable function, which is a vector of partial derivatives of all the variables. Suppose f(x, y) records the color of the pixel at location (x, y), the gradient vector of the pixel (x, y) is defined as follows:</p>
@@ -682,9 +691,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/object-detection/">object-detection</a></li>
-      <li><a href="https://lilianweng.github.io/tags/object-recognition/">object-recognition</a></li>
-      <li><a href="https://lilianweng.github.io/tags/vision-model/">vision-model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/object-detection/">Object-Detection</a></li>
+      <li><a href="https://lilianweng.github.io/tags/object-recognition/">Object-Recognition</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-model/">Vision-Model</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">

@@ -7,12 +7,13 @@
 <meta name="robots" content="index, follow">
 <title>Exploration Strategies in Deep Reinforcement Learning | Lil&#39;Log</title>
 <meta name="keywords" content="reinforcement-learning, exploration, long-read" />
-<meta name="description" content="[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+<meta name="description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
 Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +22,7 @@ Exploitation versus exploration is a critical topic in Reinforcement Learning. W
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,18 +60,22 @@ Exploitation versus exploration is a critical topic in Reinforcement Learning. W
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Exploration Strategies in Deep Reinforcement Learning" />
-<meta property="og:description" content="[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Exploration Strategies in Deep Reinforcement Learning" />
+<meta property="og:description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
 Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" /><meta property="article:section" content="posts" />
@@ -78,7 +84,8 @@ Exploitation versus exploration is a critical topic in Reinforcement Learning. W
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Exploration Strategies in Deep Reinforcement Learning"/>
-<meta name="twitter:description" content="[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+<meta name="twitter:description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
 Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic."/>
 
 
@@ -108,7 +115,7 @@ Exploitation versus exploration is a critical topic in Reinforcement Learning. W
   "@type": "BlogPosting",
   "headline": "Exploration Strategies in Deep Reinforcement Learning",
   "name": "Exploration Strategies in Deep Reinforcement Learning",
-  "description": "[Updated on 2020-06-17: Add \u0026ldquo;exploration via disagreement\u0026rdquo; in the \u0026ldquo;Forward Dynamics\u0026rdquo; section.\nExploitation versus exploration is a critical topic in Reinforcement Learning. We\u0026rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.",
+  "description": " [Updated on 2020-06-17: Add \u0026ldquo;exploration via disagreement\u0026rdquo; in the \u0026ldquo;Forward Dynamics\u0026rdquo; section.\nExploitation versus exploration is a critical topic in Reinforcement Learning. We\u0026rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.\n",
   "keywords": [
     "reinforcement-learning", "exploration", "long-read"
   ],
@@ -198,6 +205,8 @@ Exploitation versus exploration is a critical topic in Reinforcement Learning. W
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -693,9 +702,9 @@ Prediction-Based Rewards&rdquo;</a> Oct, 2018.</p>
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">reinforcement-learning</a></li>
-      <li><a href="https://lilianweng.github.io/tags/exploration/">exploration</a></li>
-      <li><a href="https://lilianweng.github.io/tags/long-read/">long-read</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/exploration/">Exploration</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2020-08-06-nas/">

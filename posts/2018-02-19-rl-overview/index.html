@@ -7,12 +7,14 @@
 <meta name="robots" content="index, follow">
 <title>A (Long) Peek into Reinforcement Learning | Lil&#39;Log</title>
 <meta name="keywords" content="reinforcement-learning, long-read, math-heavy" />
-<meta name="description" content="[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced. [Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].
-A couple of exciting news in Artificial Intelligence (AI) has just happened in recent years. AlphaGo defeated the best professional human player in the game of Go. Very soon the extended algorithm AlphaGo Zero beat AlphaGo by 100-0 without supervised learning on human knowledge.">
+<meta name="description" content="
+[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced.
+
+[Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +23,7 @@ A couple of exciting news in Artificial Intelligence (AI) has just happened in r
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +61,24 @@ A couple of exciting news in Artificial Intelligence (AI) has just happened in r
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="A (Long) Peek into Reinforcement Learning" />
-<meta property="og:description" content="[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced. [Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].
-A couple of exciting news in Artificial Intelligence (AI) has just happened in recent years. AlphaGo defeated the best professional human player in the game of Go. Very soon the extended algorithm AlphaGo Zero beat AlphaGo by 100-0 without supervised learning on human knowledge." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="A (Long) Peek into Reinforcement Learning" />
+<meta property="og:description" content="
+[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced.
+
+[Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese]." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2018-02-19-rl-overview/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2018-02-19T00:00:00&#43;00:00" />
@@ -78,8 +86,10 @@ A couple of exciting news in Artificial Intelligence (AI) has just happened in r
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="A (Long) Peek into Reinforcement Learning"/>
-<meta name="twitter:description" content="[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced. [Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].
-A couple of exciting news in Artificial Intelligence (AI) has just happened in recent years. AlphaGo defeated the best professional human player in the game of Go. Very soon the extended algorithm AlphaGo Zero beat AlphaGo by 100-0 without supervised learning on human knowledge."/>
+<meta name="twitter:description" content="
+[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced.
+
+[Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese]."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +118,7 @@ A couple of exciting news in Artificial Intelligence (AI) has just happened in r
   "@type": "BlogPosting",
   "headline": "A (Long) Peek into Reinforcement Learning",
   "name": "A (Long) Peek into Reinforcement Learning",
-  "description": "[Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced. [Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].\nA couple of exciting news in Artificial Intelligence (AI) has just happened in recent years. AlphaGo defeated the best professional human player in the game of Go. Very soon the extended algorithm AlphaGo Zero beat AlphaGo by 100-0 without supervised learning on human knowledge.",
+  "description": " [Updated on 2020-09-03: Updated the algorithm of SARSA and Q-learning so that the difference is more pronounced. [Updated on 2021-09-19: Thanks to 爱吃猫的鱼, we have this post in Chinese].\n",
   "keywords": [
     "reinforcement-learning", "long-read", "math-heavy"
   ],
@@ -198,6 +208,8 @@ A couple of exciting news in Artificial Intelligence (AI) has just happened in r
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -662,45 +674,45 @@ $$
 <p>In the previous <a href="#value-estimation">section</a> on value estimation in TD learning, we only trace one step further down the action chain when calculating the TD target. One can easily extend it to take multiple steps to estimate the return.</p>
 <p>Let&rsquo;s label the estimated return following n steps as $G_t^{(n)}, n=1, \dots, \infty$, then:</p>
 <table>
-<thead>
-<tr>
-<th>$n$</th>
-<th>$G_t$</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$n=1$</td>
-<td>$G_t^{(1)} = R_{t+1} + \gamma V(S_{t+1})$</td>
-<td>TD learning</td>
-</tr>
-<tr>
-<td>$n=2$</td>
-<td>$G_t^{(2)} = R_{t+1} + \gamma R_{t+2} + \gamma^2 V(S_{t+2})$</td>
-<td></td>
-</tr>
-<tr>
-<td>&hellip;</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>$n=n$</td>
-<td>$ G_t^{(n)} = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{n-1} R_{t+n} + \gamma^n V(S_{t+n}) $</td>
-<td></td>
-</tr>
-<tr>
-<td>&hellip;</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>$n=\infty$</td>
-<td>$G_t^{(\infty)} = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{T-t-1} R_T + \gamma^{T-t} V(S_T) $</td>
-<td>MC estimation</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>$n$</th>
+          <th>$G_t$</th>
+          <th>Notes</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$n=1$</td>
+          <td>$G_t^{(1)} = R_{t+1} + \gamma V(S_{t+1})$</td>
+          <td>TD learning</td>
+      </tr>
+      <tr>
+          <td>$n=2$</td>
+          <td>$G_t^{(2)} = R_{t+1} + \gamma R_{t+2} + \gamma^2 V(S_{t+2})$</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>&hellip;</td>
+          <td></td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>$n=n$</td>
+          <td>$ G_t^{(n)} = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{n-1} R_{t+n} + \gamma^n V(S_{t+n}) $</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>&hellip;</td>
+          <td></td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>$n=\infty$</td>
+          <td>$G_t^{(\infty)} = R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{T-t-1} R_T + \gamma^{T-t} V(S_T) $</td>
+          <td>MC estimation</td>
+      </tr>
+  </tbody>
 </table>
 <p>The generalized n-step TD learning still has the <a href="#value-estimation">same</a> form for updating the value function:</p>
 <div>
@@ -945,9 +957,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">reinforcement-learning</a></li>
-      <li><a href="https://lilianweng.github.io/tags/long-read/">long-read</a></li>
-      <li><a href="https://lilianweng.github.io/tags/math-heavy/">math-heavy</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+      <li><a href="https://lilianweng.github.io/tags/math-heavy/">Math-Heavy</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/">

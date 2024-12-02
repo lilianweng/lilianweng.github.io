@@ -8,11 +8,11 @@
 <title>Some Math behind Neural Tangent Kernel | Lil&#39;Log</title>
 <meta name="keywords" content="foundation, neural-tangent-kernel, learning-dynamics" />
 <meta name="description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
-Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent.">
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2022-09-08-ntk/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +21,7 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-09-08-ntk/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +59,22 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Some Math behind Neural Tangent Kernel" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Some Math behind Neural Tangent Kernel" />
 <meta property="og:description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
-Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent." />
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2022-09-08-ntk/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2022-09-08T10:00:00-07:00" />
@@ -79,7 +83,7 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Some Math behind Neural Tangent Kernel"/>
 <meta name="twitter:description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
-Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent."/>
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +112,7 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
   "@type": "BlogPosting",
   "headline": "Some Math behind Neural Tangent Kernel",
   "name": "Some Math behind Neural Tangent Kernel",
-  "description": "Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.\nNeural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent.",
+  "description": "Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.\nNeural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.\n",
   "keywords": [
     "foundation", "neural-tangent-kernel", "learning-dynamics"
   ],
@@ -198,6 +202,8 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -264,7 +270,7 @@ Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolu
                 <li>
                     <a href="#taylor-expansion" aria-label="Taylor Expansion">Taylor Expansion</a></li>
                 <li>
-                    <a href="#kernel--kernel-methods" aria-label="Kernel &amp;amp; Kernel Methods">Kernel &amp; Kernel Methods</a></li>
+                    <a href="#kernel--kernel-methods" aria-label="Kernel &amp; Kernel Methods">Kernel &amp; Kernel Methods</a></li>
                 <li>
                     <a href="#gaussian-processes" aria-label="Gaussian Processes">Gaussian Processes</a></li></ul>
                 </li>
@@ -746,9 +752,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/foundation/">foundation</a></li>
-      <li><a href="https://lilianweng.github.io/tags/neural-tangent-kernel/">neural-tangent-kernel</a></li>
-      <li><a href="https://lilianweng.github.io/tags/learning-dynamics/">learning-dynamics</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/neural-tangent-kernel/">Neural-Tangent-Kernel</a></li>
+      <li><a href="https://lilianweng.github.io/tags/learning-dynamics/">Learning-Dynamics</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/">

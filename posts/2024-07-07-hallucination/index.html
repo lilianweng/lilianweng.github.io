@@ -9,11 +9,15 @@
 <meta name="keywords" content="nlp, language-model, safety, hallucination, factuality" />
 <meta name="description" content="Hallucination in large language models usually refers to the model generating unfaithful, fabricated, inconsistent, or nonsensical content. As a term, hallucination has been somewhat generalized to cases when the model makes mistakes. Here, I would like to narrow down the problem of hallucination to cases where the model output is fabricated and not grounded by either the provided context or world knowledge.
 There are two types of hallucination:
-In-context hallucination: The model output should be consistent with the source content in context.">
+
+In-context hallucination: The model output should be consistent with the source content in context.
+Extrinsic hallucination: The model output should be grounded by the pre-training dataset. However, given the size of the pre-training dataset, it is too expensive to retrieve and identify conflicts per generation. If we consider the pre-training data corpus as a proxy for world knowledge, we essentially try to ensure the model output is factual and verifiable by external world knowledge. Equally importantly, when the model does not know about a fact, it should say so.
+
+This post focuses on extrinsic hallucination. To avoid hallucination, LLMs need to be (1) factual and (2) acknowledge not knowing the answer when applicable.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2024-07-07-hallucination/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -22,6 +26,7 @@ In-context hallucination: The model output should be consistent with the source 
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2024-07-07-hallucination/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -59,20 +64,27 @@ In-context hallucination: The model output should be consistent with the source 
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="Extrinsic Hallucinations in LLMs" />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Extrinsic Hallucinations in LLMs" />
 <meta property="og:description" content="Hallucination in large language models usually refers to the model generating unfaithful, fabricated, inconsistent, or nonsensical content. As a term, hallucination has been somewhat generalized to cases when the model makes mistakes. Here, I would like to narrow down the problem of hallucination to cases where the model output is fabricated and not grounded by either the provided context or world knowledge.
 There are two types of hallucination:
-In-context hallucination: The model output should be consistent with the source content in context." />
+
+In-context hallucination: The model output should be consistent with the source content in context.
+Extrinsic hallucination: The model output should be grounded by the pre-training dataset. However, given the size of the pre-training dataset, it is too expensive to retrieve and identify conflicts per generation. If we consider the pre-training data corpus as a proxy for world knowledge, we essentially try to ensure the model output is factual and verifiable by external world knowledge. Equally importantly, when the model does not know about a fact, it should say so.
+
+This post focuses on extrinsic hallucination. To avoid hallucination, LLMs need to be (1) factual and (2) acknowledge not knowing the answer when applicable." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2024-07-07-hallucination/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2024-07-07T00:00:00&#43;00:00" />
@@ -82,7 +94,11 @@ In-context hallucination: The model output should be consistent with the source 
 <meta name="twitter:title" content="Extrinsic Hallucinations in LLMs"/>
 <meta name="twitter:description" content="Hallucination in large language models usually refers to the model generating unfaithful, fabricated, inconsistent, or nonsensical content. As a term, hallucination has been somewhat generalized to cases when the model makes mistakes. Here, I would like to narrow down the problem of hallucination to cases where the model output is fabricated and not grounded by either the provided context or world knowledge.
 There are two types of hallucination:
-In-context hallucination: The model output should be consistent with the source content in context."/>
+
+In-context hallucination: The model output should be consistent with the source content in context.
+Extrinsic hallucination: The model output should be grounded by the pre-training dataset. However, given the size of the pre-training dataset, it is too expensive to retrieve and identify conflicts per generation. If we consider the pre-training data corpus as a proxy for world knowledge, we essentially try to ensure the model output is factual and verifiable by external world knowledge. Equally importantly, when the model does not know about a fact, it should say so.
+
+This post focuses on extrinsic hallucination. To avoid hallucination, LLMs need to be (1) factual and (2) acknowledge not knowing the answer when applicable."/>
 
 
 <script type="application/ld+json">
@@ -111,7 +127,7 @@ In-context hallucination: The model output should be consistent with the source 
   "@type": "BlogPosting",
   "headline": "Extrinsic Hallucinations in LLMs",
   "name": "Extrinsic Hallucinations in LLMs",
-  "description": "Hallucination in large language models usually refers to the model generating unfaithful, fabricated, inconsistent, or nonsensical content. As a term, hallucination has been somewhat generalized to cases when the model makes mistakes. Here, I would like to narrow down the problem of hallucination to cases where the model output is fabricated and not grounded by either the provided context or world knowledge.\nThere are two types of hallucination:\nIn-context hallucination: The model output should be consistent with the source content in context.",
+  "description": "Hallucination in large language models usually refers to the model generating unfaithful, fabricated, inconsistent, or nonsensical content. As a term, hallucination has been somewhat generalized to cases when the model makes mistakes. Here, I would like to narrow down the problem of hallucination to cases where the model output is fabricated and not grounded by either the provided context or world knowledge.\nThere are two types of hallucination:\nIn-context hallucination: The model output should be consistent with the source content in context. Extrinsic hallucination: The model output should be grounded by the pre-training dataset. However, given the size of the pre-training dataset, it is too expensive to retrieve and identify conflicts per generation. If we consider the pre-training data corpus as a proxy for world knowledge, we essentially try to ensure the model output is factual and verifiable by external world knowledge. Equally importantly, when the model does not know about a fact, it should say so. This post focuses on extrinsic hallucination. To avoid hallucination, LLMs need to be (1) factual and (2) acknowledge not knowing the answer when applicable.\n",
   "keywords": [
     "nlp", "language-model", "safety", "hallucination", "factuality"
   ],
@@ -201,6 +217,8 @@ In-context hallucination: The model output should be consistent with the source 
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -613,7 +631,7 @@ RARR leads to better-balanced results, especially in terms of preservation metri
 <h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
 <p>Cited as:</p>
 <blockquote>
-<p>Weng, Lilian. (Jul 2024). Extrinsic Hallucinations in LLMs.. Lil&rsquo;Log. https://lilianweng.github.io/posts/2024-07-07-hallucination/.</p>
+<p>Weng, Lilian. (Jul 2024). Extrinsic Hallucinations in LLMs. Lil&rsquo;Log. https://lilianweng.github.io/posts/2024-07-07-hallucination/.</p>
 </blockquote>
 <p>Or</p>
 <pre tabindex="0"><code>@article{weng2024hallucination,
@@ -655,13 +673,18 @@ RARR leads to better-balanced results, especially in terms of preservation metri
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/nlp/">nlp</a></li>
-      <li><a href="https://lilianweng.github.io/tags/language-model/">language-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/safety/">safety</a></li>
-      <li><a href="https://lilianweng.github.io/tags/hallucination/">hallucination</a></li>
-      <li><a href="https://lilianweng.github.io/tags/factuality/">factuality</a></li>
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/safety/">Safety</a></li>
+      <li><a href="https://lilianweng.github.io/tags/hallucination/">Hallucination</a></li>
+      <li><a href="https://lilianweng.github.io/tags/factuality/">Factuality</a></li>
     </ul>
 <nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2024-11-28-reward-hacking/">
+    <span class="title">« </span>
+    <br>
+    <span>Reward Hacking in Reinforcement Learning</span>
+  </a>
   <a class="next" href="https://lilianweng.github.io/posts/2024-04-12-diffusion-video/">
     <span class="title"> »</span>
     <br>

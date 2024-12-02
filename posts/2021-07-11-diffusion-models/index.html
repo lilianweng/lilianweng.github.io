@@ -7,12 +7,15 @@
 <meta name="robots" content="index, follow">
 <title>What are Diffusion Models? | Lil&#39;Log</title>
 <meta name="keywords" content="generative-model, math-heavy, image-generation" />
-<meta name="description" content="[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)]. [Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen. [Updated on 2022-08-31: Added latent diffusion model. [Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.
-So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and Flow-based models. They have shown great success in generating high-quality samples, but each has some limitations of its own.">
+<meta name="description" content="
+[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)].
+[Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen.
+[Updated on 2022-08-31: Added latent diffusion model.
+[Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -21,6 +24,7 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -58,19 +62,25 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="What are Diffusion Models?" />
-<meta property="og:description" content="[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)]. [Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen. [Updated on 2022-08-31: Added latent diffusion model. [Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.
-So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and Flow-based models. They have shown great success in generating high-quality samples, but each has some limitations of its own." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="What are Diffusion Models?" />
+<meta property="og:description" content="
+[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)].
+[Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen.
+[Updated on 2022-08-31: Added latent diffusion model.
+[Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2021-07-11T00:00:00&#43;00:00" />
@@ -78,8 +88,11 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="What are Diffusion Models?"/>
-<meta name="twitter:description" content="[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)]. [Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen. [Updated on 2022-08-31: Added latent diffusion model. [Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.
-So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and Flow-based models. They have shown great success in generating high-quality samples, but each has some limitations of its own."/>
+<meta name="twitter:description" content="
+[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)].
+[Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen.
+[Updated on 2022-08-31: Added latent diffusion model.
+[Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section."/>
 
 
 <script type="application/ld+json">
@@ -108,7 +121,7 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
   "@type": "BlogPosting",
   "headline": "What are Diffusion Models?",
   "name": "What are Diffusion Models?",
-  "description": "[Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)]. [Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen. [Updated on 2022-08-31: Added latent diffusion model. [Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.\nSo far, I\u0026rsquo;ve written about three types of generative models, GAN, VAE, and Flow-based models. They have shown great success in generating high-quality samples, but each has some limitations of its own.",
+  "description": " [Updated on 2021-09-19: Highly recommend this blog post on score-based generative modeling by Yang Song (author of several key papers in the references)]. [Updated on 2022-08-27: Added classifier-free guidance, GLIDE, unCLIP and Imagen. [Updated on 2022-08-31: Added latent diffusion model. [Updated on 2024-04-13: Added progressive distillation, consistency models, and the Model Architecture section.\n",
   "keywords": [
     "generative-model", "math-heavy", "image-generation"
   ],
@@ -198,6 +211,8 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -288,7 +303,7 @@ So far, I&rsquo;ve written about three types of generative models, GAN, VAE, and
                     <a href="#speed-up-diffusion-models" aria-label="Speed up Diffusion Models">Speed up Diffusion Models</a><ul>
                         
                 <li>
-                    <a href="#fewer-sampling-steps--distillation" aria-label="Fewer Sampling Steps &amp;amp; Distillation">Fewer Sampling Steps &amp; Distillation</a></li>
+                    <a href="#fewer-sampling-steps--distillation" aria-label="Fewer Sampling Steps &amp; Distillation">Fewer Sampling Steps &amp; Distillation</a></li>
                 <li>
                     <a href="#latent-variable-space" aria-label="Latent Variable Space">Latent Variable Space</a></li></ul>
                 </li>
@@ -861,9 +876,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/generative-model/">generative-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/math-heavy/">math-heavy</a></li>
-      <li><a href="https://lilianweng.github.io/tags/image-generation/">image-generation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/generative-model/">Generative-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/math-heavy/">Math-Heavy</a></li>
+      <li><a href="https://lilianweng.github.io/tags/image-generation/">Image-Generation</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2021-09-25-train-large/">

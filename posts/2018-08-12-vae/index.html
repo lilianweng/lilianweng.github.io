@@ -7,11 +7,16 @@
 <meta name="robots" content="index, follow">
 <title>From Autoencoder to Beta-VAE | Lil&#39;Log</title>
 <meta name="keywords" content="autoencoder, generative-model, image-generation" />
-<meta name="description" content="[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.] [Updated on 2019-07-26: add a section on TD-VAE.] Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding.">
+<meta name="description" content="
+[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.]
+
+[Updated on 2019-07-26: add a section on TD-VAE.]
+
+Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2018-08-12-vae/" />
 <link crossorigin="anonymous" href="/assets/css/stylesheet.min.67a6fb6e33089cb29e856bcc95d7aa39f70049a42b123105531265a0d9f1258b.css" integrity="sha256-Z6b7bjMInLKehWvMldeqOfcASaQrEjEFUxJloNnxJYs=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.5b9ae0304f93db6cc493f51846f012428af399c614b4f2fbdb7fa59dd4d5ef5b.js" integrity="sha256-W5rgME&#43;T22zEk/UYRvASQorzmcYUtPL723&#43;lndTV71s="
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_peach.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -20,6 +25,7 @@
 <link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-08-12-vae/" />
 <noscript>
     <style>
         #theme-toggle,
@@ -57,18 +63,26 @@
 
     </style>
 </noscript>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
-<script>
-var doNotTrack = false;
-if (!doNotTrack) {
-	window.dataLayer = window.dataLayer || [];
-	function gtag(){dataLayer.push(arguments);}
-	gtag('js', new Date());
-	gtag('config', 'G-HFT45VFBX6', { 'anonymize_ip': false });
-}
-</script>
-<meta property="og:title" content="From Autoencoder to Beta-VAE" />
-<meta property="og:description" content="[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.] [Updated on 2019-07-26: add a section on TD-VAE.] Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding." />
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="From Autoencoder to Beta-VAE" />
+<meta property="og:description" content="
+[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.]
+
+[Updated on 2019-07-26: add a section on TD-VAE.]
+
+Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://lilianweng.github.io/posts/2018-08-12-vae/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2018-08-12T00:00:00&#43;00:00" />
@@ -76,7 +90,12 @@ if (!doNotTrack) {
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="From Autoencoder to Beta-VAE"/>
-<meta name="twitter:description" content="[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.] [Updated on 2019-07-26: add a section on TD-VAE.] Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding."/>
+<meta name="twitter:description" content="
+[Updated on 2019-07-18: add a section on VQ-VAE &amp; VQ-VAE-2.]
+
+[Updated on 2019-07-26: add a section on TD-VAE.]
+
+Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors."/>
 
 
 <script type="application/ld+json">
@@ -105,7 +124,7 @@ if (!doNotTrack) {
   "@type": "BlogPosting",
   "headline": "From Autoencoder to Beta-VAE",
   "name": "From Autoencoder to Beta-VAE",
-  "description": "[Updated on 2019-07-18: add a section on VQ-VAE \u0026amp; VQ-VAE-2.] [Updated on 2019-07-26: add a section on TD-VAE.] Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding.",
+  "description": " [Updated on 2019-07-18: add a section on VQ-VAE \u0026amp; VQ-VAE-2.] [Updated on 2019-07-26: add a section on TD-VAE.] Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for Variational Autoencoder, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors.\n",
   "keywords": [
     "autoencoder", "generative-model", "image-generation"
   ],
@@ -195,6 +214,8 @@ if (!doNotTrack) {
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
             </span>
         </div>
         <ul id="menu">
@@ -289,58 +310,58 @@ if (!doNotTrack) {
 <p>Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for <a href="#vae-variational-autoencoder">Variational Autoencoder</a>, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors.</p>
 <h1 id="notation">Notation<a hidden class="anchor" aria-hidden="true" href="#notation">#</a></h1>
 <table>
-<thead>
-<tr>
-<th>Symbol</th>
-<th>Mean</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$\mathcal{D}$</td>
-<td>The dataset, $\mathcal{D} = \{ \mathbf{x}^{(1)}, \mathbf{x}^{(2)}, \dots, \mathbf{x}^{(n)} \}$, contains $n$ data samples; $\vert\mathcal{D}\vert =n $.</td>
-</tr>
-<tr>
-<td>$\mathbf{x}^{(i)}$</td>
-<td>Each data point is a vector of $d$ dimensions, $\mathbf{x}^{(i)} = [x^{(i)}_1, x^{(i)}_2, \dots, x^{(i)}_d]$.</td>
-</tr>
-<tr>
-<td>$\mathbf{x}$</td>
-<td>One data sample from the dataset, $\mathbf{x} \in \mathcal{D}$.</td>
-</tr>
-<tr>
-<td>$\mathbf{x}’$</td>
-<td>The reconstructed version of $\mathbf{x}$.</td>
-</tr>
-<tr>
-<td>$\tilde{\mathbf{x}}$</td>
-<td>The corrupted version of $\mathbf{x}$.</td>
-</tr>
-<tr>
-<td>$\mathbf{z}$</td>
-<td>The compressed code learned in the bottleneck layer.</td>
-</tr>
-<tr>
-<td>$a_j^{(l)}$</td>
-<td>The activation function for the $j$-th neuron in the $l$-th hidden layer.</td>
-</tr>
-<tr>
-<td>$g_{\phi}(.)$</td>
-<td>The <strong>encoding</strong> function parameterized by $\phi$.</td>
-</tr>
-<tr>
-<td>$f_{\theta}(.)$</td>
-<td>The <strong>decoding</strong> function parameterized by $\theta$.</td>
-</tr>
-<tr>
-<td>$q_{\phi}(\mathbf{z}\vert\mathbf{x})$</td>
-<td>Estimated posterior probability function, also known as <strong>probabilistic encoder</strong>.</td>
-</tr>
-<tr>
-<td>$p_{\theta}(\mathbf{x}\vert\mathbf{z})$</td>
-<td>Likelihood of generating true data sample given the latent code, also known as <strong>probabilistic decoder</strong>.</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Mean</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$\mathcal{D}$</td>
+          <td>The dataset, $\mathcal{D} = \{ \mathbf{x}^{(1)}, \mathbf{x}^{(2)}, \dots, \mathbf{x}^{(n)} \}$, contains $n$ data samples; $\vert\mathcal{D}\vert =n $.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}^{(i)}$</td>
+          <td>Each data point is a vector of $d$ dimensions, $\mathbf{x}^{(i)} = [x^{(i)}_1, x^{(i)}_2, \dots, x^{(i)}_d]$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}$</td>
+          <td>One data sample from the dataset, $\mathbf{x} \in \mathcal{D}$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}’$</td>
+          <td>The reconstructed version of $\mathbf{x}$.</td>
+      </tr>
+      <tr>
+          <td>$\tilde{\mathbf{x}}$</td>
+          <td>The corrupted version of $\mathbf{x}$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{z}$</td>
+          <td>The compressed code learned in the bottleneck layer.</td>
+      </tr>
+      <tr>
+          <td>$a_j^{(l)}$</td>
+          <td>The activation function for the $j$-th neuron in the $l$-th hidden layer.</td>
+      </tr>
+      <tr>
+          <td>$g_{\phi}(.)$</td>
+          <td>The <strong>encoding</strong> function parameterized by $\phi$.</td>
+      </tr>
+      <tr>
+          <td>$f_{\theta}(.)$</td>
+          <td>The <strong>decoding</strong> function parameterized by $\theta$.</td>
+      </tr>
+      <tr>
+          <td>$q_{\phi}(\mathbf{z}\vert\mathbf{x})$</td>
+          <td>Estimated posterior probability function, also known as <strong>probabilistic encoder</strong>.</td>
+      </tr>
+      <tr>
+          <td>$p_{\theta}(\mathbf{x}\vert\mathbf{z})$</td>
+          <td>Likelihood of generating true data sample given the latent code, also known as <strong>probabilistic decoder</strong>.</td>
+      </tr>
+  </tbody>
 </table>
 <h1 id="autoencoder">Autoencoder<a hidden class="anchor" aria-hidden="true" href="#autoencoder">#</a></h1>
 <p><strong>Autoencoder</strong> is a neural network designed to learn an identity function in an unsupervised way  to reconstruct the original input while compressing the data in the process so as to discover a more efficient and compressed representation. The idea was originated in <a href="https://en.wikipedia.org/wiki/Autoencoder">the 1980s</a>, and later promoted by the seminal paper by <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.459.3788&amp;rep=rep1&amp;type=pdf">Hinton &amp; Salakhutdinov, 2006</a>.</p>
@@ -742,9 +763,9 @@ $$
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://lilianweng.github.io/tags/autoencoder/">autoencoder</a></li>
-      <li><a href="https://lilianweng.github.io/tags/generative-model/">generative-model</a></li>
-      <li><a href="https://lilianweng.github.io/tags/image-generation/">image-generation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/autoencoder/">Autoencoder</a></li>
+      <li><a href="https://lilianweng.github.io/tags/generative-model/">Generative-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/image-generation/">Image-Generation</a></li>
     </ul>
 <nav class="paginav">
   <a class="prev" href="https://lilianweng.github.io/posts/2018-10-13-flow-models/">
