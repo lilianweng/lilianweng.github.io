@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Contrastive Representation Learning | Lil&#39;Log</title>
+<meta name="keywords" content="representation-learning, long-read, language-model, unsupervised-learning, data-augmentation" />
+<meta name="description" content="
+The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in self-supervised learning.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2021-05-31-contrastive/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-05-31-contrastive/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Contrastive Representation Learning" />
+<meta property="og:description" content="
+The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in self-supervised learning." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2021-05-31-contrastive/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-05-31T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2021-05-31T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Contrastive Representation Learning"/>
+<meta name="twitter:description" content="
+The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in self-supervised learning."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Contrastive Representation Learning",
+      "item": "https://lilianweng.github.io/posts/2021-05-31-contrastive/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Contrastive Representation Learning",
+  "name": "Contrastive Representation Learning",
+  "description": " The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in self-supervised learning.\n",
+  "keywords": [
+    "representation-learning", "long-read", "language-model", "unsupervised-learning", "data-augmentation"
+  ],
+  "articleBody": " The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in self-supervised learning.\nContrastive Training Objectives In early versions of loss functions for contrastive learning, only one positive and one negative sample are involved. The trend in recent training objectives is to include multiple positive and negative pairs in one batch.\nContrastive Loss Contrastive loss (Chopra et al. 2005) is one of the earliest training objectives used for deep metric learning in a contrastive fashion.\nGiven a list of input samples $\\{ \\mathbf{x}_i \\}$, each has a corresponding label $y_i \\in \\{1, \\dots, L\\}$ among $L$ classes. We would like to learn a function $f_\\theta(.): \\mathcal{X}\\to\\mathbb{R}^d$ that encodes $x_i$ into an embedding vector such that examples from the same class have similar embeddings and samples from different classes have very different ones. Thus, contrastive loss takes a pair of inputs $(x_i, x_j)$ and minimizes the embedding distance when they are from the same class but maximizes the distance otherwise.\n$$ \\mathcal{L}_\\text{cont}(\\mathbf{x}_i, \\mathbf{x}_j, \\theta) = \\mathbb{1}[y_i=y_j] \\| f_\\theta(\\mathbf{x}_i) - f_\\theta(\\mathbf{x}_j) \\|^2_2 + \\mathbb{1}[y_i\\neq y_j]\\max(0, \\epsilon - \\|f_\\theta(\\mathbf{x}_i) - f_\\theta(\\mathbf{x}_j)\\|_2)^2 $$ where $\\epsilon$ is a hyperparameter, defining the lower bound distance between samples of different classes.\nTriplet Loss Triplet loss was originally proposed in the FaceNet (Schroff et al. 2015) paper and was used to learn face recognition of the same person at different poses and angles.\nIllustration of triplet loss given one positive and one negative per anchor. (Image source: Schroff et al. 2015) Given one anchor input $\\mathbf{x}$, we select one positive sample $\\mathbf{x}^+$ and one negative $\\mathbf{x}^-$, meaning that $\\mathbf{x}^+$ and $\\mathbf{x}$ belong to the same class and $\\mathbf{x}^-$ is sampled from another different class. Triplet loss learns to minimize the distance between the anchor $\\mathbf{x}$ and positive $\\mathbf{x}^+$ and maximize the distance between the anchor $\\mathbf{x}$ and negative $\\mathbf{x}^-$ at the same time with the following equation:\n$$ \\mathcal{L}_\\text{triplet}(\\mathbf{x}, \\mathbf{x}^+, \\mathbf{x}^-) = \\sum_{\\mathbf{x} \\in \\mathcal{X}} \\max\\big( 0, \\|f(\\mathbf{x}) - f(\\mathbf{x}^+)\\|^2_2 - \\|f(\\mathbf{x}) - f(\\mathbf{x}^-)\\|^2_2 + \\epsilon \\big) $$ where the margin parameter $\\epsilon$ is configured as the minimum offset between distances of similar vs dissimilar pairs.\nIt is crucial to select challenging $\\mathbf{x}^-$ to truly improve the model.\nLifted Structured Loss Lifted Structured Loss (Song et al. 2015) utilizes all the pairwise edges within one training batch for better computational efficiency.\nIllustration compares contrastive loss, triplet loss and lifted structured loss. Red and blue edges connect similar and dissimilar sample pairs respectively. (Image source: Song et al. 2015) Let $D_{ij} = | f(\\mathbf{x}_i) - f(\\mathbf{x}_j) |_2$, a structured loss function is defined as\n$$ \\begin{aligned} \\mathcal{L}_\\text{struct} \u0026= \\frac{1}{2\\vert \\mathcal{P} \\vert} \\sum_{(i,j) \\in \\mathcal{P}} \\max(0, \\mathcal{L}_\\text{struct}^{(ij)})^2 \\\\ \\text{where } \\mathcal{L}_\\text{struct}^{(ij)} \u0026= D_{ij} + \\color{red}{\\max \\big( \\max_{(i,k)\\in \\mathcal{N}} \\epsilon - D_{ik}, \\max_{(j,l)\\in \\mathcal{N}} \\epsilon - D_{jl} \\big)} \\end{aligned} $$ where $\\mathcal{P}$ contains the set of positive pairs and $\\mathcal{N}$ is the set of negative pairs. Note that the dense pairwise squared distance matrix can be easily computed per training batch.\nThe red part in $\\mathcal{L}_\\text{struct}^{(ij)}$ is used for mining hard negatives. However, it is not smooth and may cause the convergence to a bad local optimum in practice. Thus, it is relaxed to be:\n$$ \\mathcal{L}_\\text{struct}^{(ij)} = D_{ij} + \\log \\Big( \\sum_{(i,k)\\in\\mathcal{N}} \\exp(\\epsilon - D_{ik}) + \\sum_{(j,l)\\in\\mathcal{N}} \\exp(\\epsilon - D_{jl}) \\Big) $$ In the paper, they also proposed to enhance the quality of negative samples in each batch by actively incorporating difficult negative samples given a few random positive pairs.\nN-pair Loss Multi-Class N-pair loss (Sohn 2016) generalizes triplet loss to include comparison with multiple negative samples.\nGiven a $(N + 1)$-tuplet of training samples, $\\{ \\mathbf{x}, \\mathbf{x}^+, \\mathbf{x}^-_1, \\dots, \\mathbf{x}^-_{N-1} \\}$, including one positive and $N-1$ negative ones, N-pair loss is defined as:\n$$ \\begin{aligned} \\mathcal{L}_\\text{N-pair}(\\mathbf{x}, \\mathbf{x}^+, \\{\\mathbf{x}^-_i\\}^{N-1}_{i=1}) \u0026= \\log\\big(1 + \\sum_{i=1}^{N-1} \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^-_i) - f(\\mathbf{x})^\\top f(\\mathbf{x}^+))\\big) \\\\ \u0026= -\\log\\frac{\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+))}{\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+)) + \\sum_{i=1}^{N-1} \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^-_i))} \\end{aligned} $$ If we only sample one negative sample per class, it is equivalent to the softmax loss for multi-class classification.\nNCE Noise Contrastive Estimation, short for NCE, is a method for estimating parameters of a statistical model, proposed by Gutmann \u0026 Hyvarinen in 2010. The idea is to run logistic regression to tell apart the target data from noise. Read more on how NCE is used for learning word embedding here.\nLet $\\mathbf{x}$ be the target sample $\\sim P(\\mathbf{x} \\vert C=1; \\theta) = p_\\theta(\\mathbf{x})$ and $\\tilde{\\mathbf{x}}$ be the noise sample $\\sim P(\\tilde{\\mathbf{x}} \\vert C=0) = q(\\tilde{\\mathbf{x}})$. Note that the logistic regression models the logit (i.e. log-odds) and in this case we would like to model the logit of a sample $u$ from the target data distribution instead of the noise distribution:\n$$ \\ell_\\theta(\\mathbf{u}) = \\log \\frac{p_\\theta(\\mathbf{u})}{q(\\mathbf{u})} = \\log p_\\theta(\\mathbf{u}) - \\log q(\\mathbf{u}) $$ After converting logits into probabilities with sigmoid $\\sigma(.)$, we can apply cross entropy loss:\n$$ \\begin{aligned} \\mathcal{L}_\\text{NCE} \u0026= - \\frac{1}{N} \\sum_{i=1}^N \\big[ \\log \\sigma (\\ell_\\theta(\\mathbf{x}_i)) + \\log (1 - \\sigma (\\ell_\\theta(\\tilde{\\mathbf{x}}_i))) \\big] \\\\ \\text{ where }\\sigma(\\ell) \u0026= \\frac{1}{1 + \\exp(-\\ell)} = \\frac{p_\\theta}{p_\\theta + q} \\end{aligned} $$ Here I listed the original form of NCE loss which works with only one positive and one noise sample. In many follow-up works, contrastive loss incorporating multiple negative samples is also broadly referred to as NCE.\nInfoNCE The InfoNCE loss in CPC (Contrastive Predictive Coding; van den Oord, et al. 2018), inspired by NCE, uses categorical cross-entropy loss to identify the positive sample amongst a set of unrelated noise samples.\nGiven a context vector $\\mathbf{c}$, the positive sample should be drawn from the conditional distribution $p(\\mathbf{x} \\vert \\mathbf{c})$, while $N-1$ negative samples are drawn from the proposal distribution $p(\\mathbf{x})$, independent from the context $\\mathbf{c}$. For brevity, let us label all the samples as $X=\\{ \\mathbf{x}_i \\}^N_{i=1}$ among which only one of them $\\mathbf{x}_\\texttt{pos}$ is a positive sample. The probability of we detecting the positive sample correctly is:\n$$ p(C=\\texttt{pos} \\vert X, \\mathbf{c}) = \\frac{p(x_\\texttt{pos} \\vert \\mathbf{c}) \\prod_{i=1,\\dots,N; i \\neq \\texttt{pos}} p(\\mathbf{x}_i)}{\\sum_{j=1}^N \\big[ p(\\mathbf{x}_j \\vert \\mathbf{c}) \\prod_{i=1,\\dots,N; i \\neq j} p(\\mathbf{x}_i) \\big]} = \\frac{ \\frac{p(\\mathbf{x}_\\texttt{pos}\\vert c)}{p(\\mathbf{x}_\\texttt{pos})} }{ \\sum_{j=1}^N \\frac{p(\\mathbf{x}_j\\vert \\mathbf{c})}{p(\\mathbf{x}_j)} } = \\frac{f(\\mathbf{x}_\\texttt{pos}, \\mathbf{c})}{ \\sum_{j=1}^N f(\\mathbf{x}_j, \\mathbf{c}) } $$ where the scoring function is $f(\\mathbf{x}, \\mathbf{c}) \\propto \\frac{p(\\mathbf{x}\\vert\\mathbf{c})}{p(\\mathbf{x})}$.\nThe InfoNCE loss optimizes the negative log probability of classifying the positive sample correctly:\n$$ \\mathcal{L}_\\text{InfoNCE} = - \\mathbb{E} \\Big[\\log \\frac{f(\\mathbf{x}, \\mathbf{c})}{\\sum_{\\mathbf{x}' \\in X} f(\\mathbf{x}', \\mathbf{c})} \\Big] $$ The fact that $f(x, c)$ estimates the density ratio $\\frac{p(x\\vert c)}{p(x)}$ has a connection with mutual information optimization. To maximize the the mutual information between input $x$ and context vector $c$, we have:\n$$ I(\\mathbf{x}; \\mathbf{c}) = \\sum_{\\mathbf{x}, \\mathbf{c}} p(\\mathbf{x}, \\mathbf{c}) \\log\\frac{p(\\mathbf{x}, \\mathbf{c})}{p(\\mathbf{x})p(\\mathbf{c})} = \\sum_{\\mathbf{x}, \\mathbf{c}} p(\\mathbf{x}, \\mathbf{c})\\log\\color{blue}{\\frac{p(\\mathbf{x}|\\mathbf{c})}{p(\\mathbf{x})}} $$ where the logarithmic term in blue is estimated by $f$.\nFor sequence prediction tasks, rather than modeling the future observations $p_k(\\mathbf{x}_{t+k} \\vert \\mathbf{c}_t)$ directly (which could be fairly expensive), CPC models a density function to preserve the mutual information between $\\mathbf{x}_{t+k}$ and $\\mathbf{c}_t$:\n$$ f_k(\\mathbf{x}_{t+k}, \\mathbf{c}_t) = \\exp(\\mathbf{z}_{t+k}^\\top \\mathbf{W}_k \\mathbf{c}_t) \\propto \\frac{p(\\mathbf{x}_{t+k}\\vert\\mathbf{c}_t)}{p(\\mathbf{x}_{t+k})} $$ where $\\mathbf{z}_{t+k}$ is the encoded input and $\\mathbf{W}_k$ is a trainable weight matrix.\nSoft-Nearest Neighbors Loss Soft-Nearest Neighbors Loss (Salakhutdinov \u0026 Hinton 2007, Frosst et al. 2019) extends it to include multiple positive samples.\nGiven a batch of samples, $\\{\\mathbf{x}_i, y_i)\\}^B_{i=1}$ where $y_i$ is the class label of $\\mathbf{x}_i$ and a function $f(.,.)$ for measuring similarity between two inputs, the soft nearest neighbor loss at temperature $\\tau$ is defined as:\n$$ \\mathcal{L}_\\text{snn} = -\\frac{1}{B}\\sum_{i=1}^B \\log \\frac{\\sum_{i\\neq j, y_i = y_j, j=1,\\dots,B} \\exp(- f(\\mathbf{x}_i, \\mathbf{x}_j) / \\tau)}{\\sum_{i\\neq k, k=1,\\dots,B} \\exp(- f(\\mathbf{x}_i, \\mathbf{x}_k) /\\tau)} $$ The temperature $\\tau$ is used for tuning how concentrated the features are in the representation space. For example, when at low temperature, the loss is dominated by the small distances and widely separated representations cannot contribute much and become irrelevant.\nCommon Setup We can loosen the definition of “classes” and “labels” in soft nearest-neighbor loss to create positive and negative sample pairs out of unsupervised data by, for example, applying data augmentation to create noise versions of original samples.\nMost recent studies follow the following definition of contrastive learning objective to incorporate multiple positive and negative samples. According to the setup in (Wang \u0026 Isola 2020), let $p_\\texttt{data}(.)$ be the data distribution over $\\mathbb{R}^n$ and $p_\\texttt{pos}(., .)$ be the distribution of positive pairs over $\\mathbb{R}^{n \\times n}$. These two distributions should satisfy:\nSymmetry: $\\forall \\mathbf{x}, \\mathbf{x}^+, p_\\texttt{pos}(\\mathbf{x}, \\mathbf{x}^+) = p_\\texttt{pos}(\\mathbf{x}^+, \\mathbf{x})$ Matching marginal: $\\forall \\mathbf{x}, \\int p_\\texttt{pos}(\\mathbf{x}, \\mathbf{x}^+) d\\mathbf{x}^+ = p_\\texttt{data}(\\mathbf{x})$ To learn an encoder $f(\\mathbf{x})$ to learn a L2-normalized feature vector, the contrastive learning objective is:\n$$ \\begin{aligned} \\mathcal{L}_\\text{contrastive} \u0026= \\mathbb{E}_{(\\mathbf{x},\\mathbf{x}^+)\\sim p_\\texttt{pos}, \\{\\mathbf{x}^-_i\\}^M_{i=1} \\overset{\\text{i.i.d}}{\\sim} p_\\texttt{data} } \\Big[ -\\log\\frac{\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+) / \\tau)}{ \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+) / \\tau) + \\sum_{i=1}^M \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}_i^-) / \\tau)} \\Big] \u0026 \\\\ \u0026\\approx \\mathbb{E}_{(\\mathbf{x},\\mathbf{x}^+)\\sim p_\\texttt{pos}, \\{\\mathbf{x}^-_i\\}^M_{i=1} \\overset{\\text{i.i.d}}{\\sim} p_\\texttt{data} }\\Big[ - f(\\mathbf{x})^\\top f(\\mathbf{x}^+) / \\tau + \\log\\big(\\sum_{i=1}^M \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}_i^-) / \\tau)\\big) \\Big] \u0026 \\scriptstyle{\\text{; Assuming infinite negatives}} \\\\ \u0026= -\\frac{1}{\\tau}\\mathbb{E}_{(\\mathbf{x},\\mathbf{x}^+)\\sim p_\\texttt{pos}}f(\\mathbf{x})^\\top f(\\mathbf{x}^+) + \\mathbb{E}_{ \\mathbf{x} \\sim p_\\texttt{data}} \\Big[ \\log \\mathbb{E}_{\\mathbf{x}^- \\sim p_\\texttt{data}} \\big[ \\sum_{i=1}^M \\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}_i^-) / \\tau)\\big] \\Big] \u0026 \\end{aligned} $$ Key Ingredients Heavy Data Augmentation Given a training sample, data augmentation techniques are needed for creating noise versions of itself to feed into the loss as positive samples. Proper data augmentation setup is critical for learning good and generalizable embedding features. It introduces the non-essential variations into examples without modifying semantic meanings and thus encourages the model to learn the essential part of the representation. For example, experiments in SimCLR showed that the composition of random cropping and random color distortion is crucial for good performance on learning visual representation of images.\nLarge Batch Size Using a large batch size during training is another key ingredient in the success of many contrastive learning methods (e.g. SimCLR, CLIP), especially when it relies on in-batch negatives. Only when the batch size is big enough, the loss function can cover a diverse enough collection of negative samples, challenging enough for the model to learn meaningful representation to distinguish different examples.\nHard Negative Mining Hard negative samples should have different labels from the anchor sample, but have embedding features very close to the anchor embedding. With access to ground truth labels in supervised datasets, it is easy to identify task-specific hard negatives. For example when learning sentence embedding, we can treat sentence pairs labelled as “contradiction” in NLI datasets as hard negative pairs (e.g. SimCSE, or use top incorrect candidates returned by BM25 with most keywords matched as hard negative samples (DPR; Karpukhin et al., 2020).\nHowever, it becomes tricky to do hard negative mining when we want to remain unsupervised. Increasing training batch size or memory bank size implicitly introduces more hard negative samples, but it leads to a heavy burden of large memory usage as a side effect.\nChuang et al. (2020) studied the sampling bias in contrastive learning and proposed debiased loss. In the unsupervised setting, since we do not know the ground truth labels, we may accidentally sample false negative samples. Sampling bias can lead to significant performance drop.\nSampling bias which refers to false negative samples in contrastive learning can lead to a big performance drop. (Image source: Chuang et al., 2020) Let us assume the probability of anchor class $c$ is uniform $\\rho(c)=\\eta^+$ and the probability of observing a different class is $\\eta^- = 1-\\eta^+$.\nThe probability of observing a positive example for $\\mathbf{x}$ is $p^+_x(\\mathbf{x}’)=p(\\mathbf{x}’\\vert \\mathbf{h}_{x’}=\\mathbf{h}_x)$; The probability of getting a negative sample for $\\mathbf{x}$ is $p^-_x(\\mathbf{x}’)=p(\\mathbf{x}’\\vert \\mathbf{h}_{x’}\\neq\\mathbf{h}_x)$. When we are sampling $\\mathbf{x}^-$ , we cannot access the true $p^-_x(\\mathbf{x}^-)$ and thus $\\mathbf{x}^-$ may be sampled from the (undesired) anchor class $c$ with probability $\\eta^+$. The actual sampling data distribution becomes:\n$$ p(\\mathbf{x}') = \\eta^+ p^+_x(\\mathbf{x}') + \\eta^- p_x^-(\\mathbf{x}') $$ Thus we can use $p^-_x(\\mathbf{x}’) = (p(\\mathbf{x}’) - \\eta^+ p^+_x(\\mathbf{x}’))/\\eta^-$ for sampling $\\mathbf{x}^-$ to debias the loss. With $N$ samples $\\{\\mathbf{u}_i\\}^N_{i=1}$ from $p$ and $M$ samples $\\{ \\mathbf{v}_i \\}_{i=1}^M$ from $p^+_x$ , we can estimate the expectation of the second term $\\mathbb{E}_{\\mathbf{x}^-\\sim p^-_x}[\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^-))]$ in the denominator of contrastive learning loss:\n$$ g(\\mathbf{x}, \\{\\mathbf{u}_i\\}^N_{i=1}, \\{\\mathbf{v}_i\\}_{i=1}^M) = \\max\\Big\\{ \\frac{1}{\\eta^-}\\Big( \\frac{1}{N}\\sum_{i=1}^N \\exp(f(\\mathbf{x})^\\top f(\\mathbf{u}_i)) - \\frac{\\eta^+}{M}\\sum_{i=1}^M \\exp(f(\\mathbf{x})^\\top f(\\mathbf{v}_i)) \\Big), \\exp(-1/\\tau) \\Big\\} $$ where $\\tau$ is the temperature and $\\exp(-1/\\tau)$ is the theoretical lower bound of $\\mathbb{E}_{\\mathbf{x}^-\\sim p^-_x}[\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^-))]$.\nThe final debiased contrastive loss looks like:\n$$ \\mathcal{L}^{N,M}_\\text{debias}(f) = \\mathbb{E}_{\\mathbf{x},\\{\\mathbf{u}_i\\}^N_{i=1}\\sim p;\\;\\mathbf{x}^+, \\{\\mathbf{v}_i\\}_{i=1}^M\\sim p^+} \\Big[ -\\log\\frac{\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+)}{\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^+) + N g(x,\\{\\mathbf{u}_i\\}^N_{i=1}, \\{\\mathbf{v}_i\\}_{i=1}^M)} \\Big] $$ t-SNE visualization of learned representation with debiased contrastive learning. (Image source: Chuang et al., 2020) Following the above annotation, Robinson et al. (2021) modified the sampling probabilities to target at hard negatives by up-weighting the probability $p^-_x(x’)$ to be proportional to its similarity to the anchor sample. The new sampling probability $q_\\beta(x^-)$ is:\n$$ q_\\beta(\\mathbf{x}^-) \\propto \\exp(\\beta f(\\mathbf{x})^\\top f(\\mathbf{x}^-)) \\cdot p(\\mathbf{x}^-) $$ where $\\beta$ is a hyperparameter to tune.\nWe can estimate the second term in the denominator $\\mathbb{E}_{\\mathbf{x}^- \\sim q_\\beta} [\\exp(f(\\mathbf{x})^\\top f(\\mathbf{x}^-))]$ using importance sampling where both the partition functions $Z_\\beta, Z^+_\\beta$ can be estimated empirically.\n$$ \\begin{aligned} \\mathbb{E}_{\\mathbf{u} \\sim q_\\beta} [\\exp(f(\\mathbf{x})^\\top f(\\mathbf{u}))] \u0026= \\mathbb{E}_{\\mathbf{u} \\sim p} [\\frac{q_\\beta}{p}\\exp(f(\\mathbf{x})^\\top f(\\mathbf{u}))] = \\mathbb{E}_{\\mathbf{u} \\sim p} [\\frac{1}{Z_\\beta}\\exp((\\beta + 1)f(\\mathbf{x})^\\top f(\\mathbf{u}))] \\\\ \\mathbb{E}_{\\mathbf{v} \\sim q^+_\\beta} [\\exp(f(\\mathbf{x})^\\top f(\\mathbf{v}))] \u0026= \\mathbb{E}_{\\mathbf{v} \\sim p^+} [\\frac{q^+_\\beta}{p}\\exp(f(\\mathbf{x})^\\top f(\\mathbf{v}))] = \\mathbb{E}_{\\mathbf{v} \\sim p} [\\frac{1}{Z^+_\\beta}\\exp((\\beta + 1)f(\\mathbf{x})^\\top f(\\mathbf{v}))] \\end{aligned} $$ Pseudo code for computing NCE loss, debiased contrastive loss, and hard negative sample objective when setting $M=1$. (Image source: Robinson et al., 2021 ) Vision: Image Embedding Image Augmentations Most approaches for contrastive representation learning in the vision domain rely on creating a noise version of a sample by applying a sequence of data augmentation techniques. The augmentation should significantly change its visual appearance but keep the semantic meaning unchanged.\nBasic Image Augmentation There are many ways to modify an image while retaining its semantic meaning. We can use any one of the following augmentation or a composition of multiple operations.\nRandom cropping and then resize back to the original size. Random color distortions Random Gaussian blur Random color jittering Random horizontal flip Random grayscale conversion Multi-crop augmentation: Use two standard resolution crops and sample a set of additional low resolution crops that cover only small parts of the image. Using low resolution crops reduces the compute cost. (SwAV) And many more … Augmentation Strategies Many frameworks are designed for learning good data augmentation strategies (i.e. a composition of multiple transforms). Here are a few common ones.\nAutoAugment (Cubuk, et al. 2018): Inspired by NAS, AutoAugment frames the problem of learning best data augmentation operations (i.e. shearing, rotation, invert, etc.) for image classification as an RL problem and looks for the combination that leads to the highest accuracy on the evaluation set. RandAugment (Cubuk et al., 2019): RandAugment greatly reduces the search space of AutoAugment by controlling the magnitudes of different transformation operations with a single magnitude parameter. PBA (Population based augmentation; Ho et al., 2019): PBA combined PBT (Jaderberg et al, 2017) with AutoAugment, using the evolutionary algorithm to train a population of children models in parallel to evolve the best augmentation strategies. UDA (Unsupervised Data Augmentation; Xie et al., 2019): Among a set of possible augmentation strategies, UDA selects those to minimize the KL divergence between the predicted distribution over an unlabelled example and its unlabelled augmented version. Image Mixture Image mixture methods can construct new training examples from existing data points.\nMixup (Zhang et al., 2018): It runs global-level mixture by creating a weighted pixel-wise combination of two existing images $I_1$ and $I_2$: $I_\\text{mixup} \\gets \\alpha I_1 + (1-\\alpha) I_2$ and $\\alpha \\in [0, 1]$. Cutmix (Yun et al., 2019): Cutmix does region-level mixture by generating a new example by combining a local region of one image with the rest of the other image. $I_\\text{cutmix} \\gets \\mathbf{M}_b \\odot I_1 + (1-\\mathbf{M}_b) \\odot I_2$, where $\\mathbf{M}_b \\in \\{0, 1\\}^I$ is a binary mask and $\\odot$ is element-wise multiplication. It is equivalent to filling the cutout (DeVries \u0026 Taylor 2017) region with the same region from another image. MoCHi (“Mixing of Contrastive Hard Negatives”; Kalantidis et al. 2020): Given a query $\\mathbf{q}$, MoCHi maintains a queue of $K$ negative features $Q=\\{\\mathbf{n}_1, \\dots, \\mathbf{n}_K \\}$ and sorts these negative features by similarity to the query, $\\mathbf{q}^\\top \\mathbf{n}$, in descending order. The first $N$ items in the queue are considered as the hardest negatives, $Q^N$. Then synthetic hard examples can be generated by $\\mathbf{h} = \\tilde{\\mathbf{h}} / |\\tilde{\\mathbf{h}}|$ where $\\tilde{\\mathbf{h}} = \\alpha\\mathbf{n}_i + (1-\\alpha) \\mathbf{n}_j$ and $\\alpha \\in (0, 1)$. Even harder examples can be created by mixing with the query feature, $\\mathbf{h}’ = \\tilde{\\mathbf{h}’} / |\\tilde{\\mathbf{h}’}|_2$ where $\\tilde{\\mathbf{h}’} = \\beta\\mathbf{q} + (1-\\beta) \\mathbf{n}_j$ and $\\beta \\in (0, 0.5)$. Parallel Augmentation This category of approaches produce two noise versions of one anchor image and aim to learn representation such that these two augmented samples share the same embedding.\nSimCLR SimCLR (Chen et al, 2020) proposed a simple framework for contrastive learning of visual representations. It learns representations for visual inputs by maximizing agreement between differently augmented views of the same sample via a contrastive loss in the latent space.\nA simple framework for contrastive learning of visual representations. (Image source: Chen et al, 2020) Randomly sample a minibatch of $N$ samples and each sample is applied with two different data augmentation operations, resulting in $2N$ augmented samples in total. $$ \\tilde{\\mathbf{x}}_i = t(\\mathbf{x}),\\quad\\tilde{\\mathbf{x}}_j = t'(\\mathbf{x}),\\quad t, t' \\sim \\mathcal{T} $$ where two separate data augmentation operators, $t$ and $t’$, are sampled from the same family of augmentations $\\mathcal{T}$. Data augmentation includes random crop, resize with random flip, color distortions, and Gaussian blur.\nGiven one positive pair, other $2(N-1)$ data points are treated as negative samples. The representation is produced by a base encoder $f(.)$: $$ \\mathbf{h}_i = f(\\tilde{\\mathbf{x}}_i),\\quad \\mathbf{h}_j = f(\\tilde{\\mathbf{x}}_j) $$ The contrastive learning loss is defined using cosine similarity $\\text{sim}(.,.)$. Note that the loss operates on an extra projection layer of the representation $g(.)$ rather than on the representation space directly. But only the representation $\\mathbf{h}$ is used for downstream tasks. $$ \\begin{aligned} \\mathbf{z}_i \u0026= g(\\mathbf{h}_i),\\quad \\mathbf{z}_j = g(\\mathbf{h}_j) \\\\ \\mathcal{L}_\\text{SimCLR}^{(i,j)} \u0026= - \\log\\frac{\\exp(\\text{sim}(\\mathbf{z}_i, \\mathbf{z}_j) / \\tau)}{\\sum_{k=1}^{2N} \\mathbb{1}_{[k \\neq i]} \\exp(\\text{sim}(\\mathbf{z}_i, \\mathbf{z}_k) / \\tau)} \\end{aligned} $$ where $\\mathbb{1}_{[k \\neq i]}$ is an indicator function: 1 if $k\\neq i$ 0 otherwise.\nSimCLR needs a large batch size to incorporate enough negative samples to achieve good performance.\nThe algorithm for SimCLR. (Image source: Chen et al, 2020). Barlow Twins Barlow Twins (Zbontar et al. 2021) feeds two distorted versions of samples into the same network to extract features and learns to make the cross-correlation matrix between these two groups of output features close to the identity. The goal is to keep the representation vectors of different distorted versions of one sample similar, while minimizing the redundancy between these vectors.\nIllustration of Barlow Twins learning pipeline. (Image source: Zbontar et al. 2021). Let $\\mathcal{C}$ be a cross-correlation matrix computed between outputs from two identical networks along the batch dimension. $\\mathcal{C}$ is a square matrix with the size same as the feature network’s output dimensionality. Each entry in the matrix $\\mathcal{C}_{ij}$ is the cosine similarity between network output vector dimension at index $i, j$ and batch index $b$, $\\mathbf{z}_{b,i}^A$ and $\\mathbf{z}_{b,j}^B$, with a value between -1 (i.e. perfect anti-correlation) and 1 (i.e. perfect correlation).\n$$ \\begin{aligned} \\mathcal{L}_\\text{BT} \u0026= \\underbrace{\\sum_i (1-\\mathcal{C}_{ii})^2}_\\text{invariance term} + \\lambda \\underbrace{\\sum_i\\sum_{i\\neq j} \\mathcal{C}_{ij}^2}_\\text{redundancy reduction term} \\\\ \\text{where } \\mathcal{C}_{ij} \u0026= \\frac{\\sum_b \\mathbf{z}^A_{b,i} \\mathbf{z}^B_{b,j}}{\\sqrt{\\sum_b (\\mathbf{z}^A_{b,i})^2}\\sqrt{\\sum_b (\\mathbf{z}^B_{b,j})^2}} \\end{aligned} $$ Barlow Twins is competitive with SOTA methods for self-supervised learning. It naturally avoids trivial constants (i.e. collapsed representations), and is robust to different training batch sizes.\nAlgorithm of Barlow Twins in Pytorch style pseudo code. (Image source: Zbontar et al. 2021). BYOL Different from the above approaches, interestingly, BYOL (Bootstrap Your Own Latent; Grill, et al 2020) claims to achieve a new state-of-the-art results without using negative samples. It relies on two neural networks, referred to as online and target networks that interact and learn from each other. The target network (parameterized by $\\xi$) has the same architecture as the online one (parameterized by $\\theta$), but with polyak averaged weights, $\\xi \\leftarrow \\tau \\xi + (1-\\tau) \\theta$.\nThe goal is to learn a presentation $y$ that can be used in downstream tasks. The online network parameterized by $\\theta$ contains:\nAn encoder $f_\\theta$; A projector $g_\\theta$; A predictor $q_\\theta$. The target network has the same network architecture, but with different parameter $\\xi$, updated by polyak averaging $\\theta$: $\\xi \\leftarrow \\tau \\xi + (1-\\tau) \\theta$.\nThe model architecture of BYOL. After training, we only care about $f\\_\\theta$ for producing representation, $y=f\\_\\theta(x)$, and everything else is discarded. $\\text{sg}$ means stop gradient. (Image source: Grill, et al 2020) Given an image $\\mathbf{x}$, the BYOL loss is constructed as follows:\nCreate two augmented views: $\\mathbf{v}=t(\\mathbf{x}); \\mathbf{v}’=t’(\\mathbf{x})$ with augmentations sampled $t \\sim \\mathcal{T}, t’ \\sim \\mathcal{T}’$; Then they are encoded into representations, $\\mathbf{y}_\\theta=f_\\theta(\\mathbf{v}), \\mathbf{y}’=f_\\xi(\\mathbf{v}’)$; Then they are projected into latent variables, $\\mathbf{z}_\\theta=g_\\theta(\\mathbf{y}_\\theta), \\mathbf{z}’=g_\\xi(\\mathbf{y}’)$; The online network outputs a prediction $q_\\theta(\\mathbf{z}_\\theta)$; Both $q_\\theta(\\mathbf{z}_\\theta)$ and $\\mathbf{z}’$ are L2-normalized, giving us $\\bar{q}_\\theta(\\mathbf{z}_\\theta) = q_\\theta(\\mathbf{z}_\\theta) / | q_\\theta(\\mathbf{z}_\\theta) |$ and $\\bar{\\mathbf{z}’} = \\mathbf{z}’ / |\\mathbf{z}’|$; The loss $\\mathcal{L}^\\text{BYOL}_\\theta$ is MSE between L2-normalized prediction $\\bar{q}_\\theta(\\mathbf{z})$ and $\\bar{\\mathbf{z}’}$; The other symmetric loss $\\tilde{\\mathcal{L}}^\\text{BYOL}_\\theta$ can be generated by switching $\\mathbf{v}’$ and $\\mathbf{v}$; that is, feeding $\\mathbf{v}’$ to online network and $\\mathbf{v}$ to target network. The final loss is $\\mathcal{L}^\\text{BYOL}_\\theta + \\tilde{\\mathcal{L}}^\\text{BYOL}_\\theta$ and only parameters $\\theta$ are optimized. Unlike most popular contrastive learning based approaches, BYOL does not use negative pairs. Most bootstrapping approaches rely on pseudo-labels or cluster indices, but BYOL directly boostrapps the latent representation.\nIt is quite interesting and surprising that without negative samples, BYOL still works well. Later I ran into this post by Abe Fetterman \u0026 Josh Albrecht, they highlighted two surprising findings while they were trying to reproduce BYOL:\nBYOL generally performs no better than random when batch normalization is removed. The presence of batch normalization implicitly causes a form of contrastive learning. They believe that using negative samples is important for avoiding model collapse (i.e. what if you use all-zeros representation for every data point?). Batch normalization injects dependency on negative samples inexplicitly because no matter how similar a batch of inputs are, the values are re-distributed (spread out $\\sim \\mathcal{N}(0, 1$) and therefore batch normalization prevents model collapse. Strongly recommend you to read the full article if you are working in this area. Memory Bank Computing embeddings for a large number of negative samples in every batch is extremely expensive. One common approach is to store the representation in memory to trade off data staleness for cheaper compute.\nInstance Discrimination with Memoy Bank Instance contrastive learning (Wu et al, 2018) pushes the class-wise supervision to the extreme by considering each instance as a distinct class of its own. It implies that the number of “classes” will be the same as the number of samples in the training dataset. Hence, it is unfeasible to train a softmax layer with these many heads, but instead it can be approximated by NCE.\nThe training pipeline of instance-level contrastive learning. The learned embedding is L2-normalized. (Image source: Wu et al, 2018) Let $\\mathbf{v} = f_\\theta(x)$ be an embedding function to learn and the vector is normalized to have $|\\mathbf{v}|=1$. A non-parametric classifier predicts the probability of a sample $\\mathbf{v}$ belonging to class $i$ with a temperature parameter $\\tau$:\n$$ P(C=i\\vert \\mathbf{v}) = \\frac{\\exp(\\mathbf{v}_i^\\top \\mathbf{v} / \\tau)}{\\sum_{j=1}^n \\exp(\\mathbf{v}_j^\\top \\mathbf{v} / \\tau)} $$ Instead of computing the representations for all the samples every time, they implement an Memory Bank for storing sample representation in the database from past iterations. Let $V=\\{ \\mathbf{v}_i \\}$ be the memory bank and $\\mathbf{f}_i = f_\\theta(\\mathbf{x}_i)$ be the feature generated by forwarding the network. We can use the representation from the memory bank $\\mathbf{v}_i$ instead of the feature forwarded from the network $\\mathbf{f}_i$ when comparing pairwise similarity.\nThe denominator theoretically requires access to the representations of all the samples, but that is too expensive in practice. Instead we can estimate it via Monte Carlo approximation using a random subset of $M$ indices $\\{j_k\\}_{k=1}^M$.\n$$ P(i\\vert \\mathbf{v}) = \\frac{\\exp(\\mathbf{v}^\\top \\mathbf{f}_i / \\tau)}{\\sum_{j=1}^N \\exp(\\mathbf{v}_j^\\top \\mathbf{f}_i / \\tau)} \\simeq \\frac{\\exp(\\mathbf{v}^\\top \\mathbf{f}_i / \\tau)}{\\frac{N}{M} \\sum_{k=1}^M \\exp(\\mathbf{v}_{j_k}^\\top \\mathbf{f}_i / \\tau)} $$ Because there is only one instance per class, the training is unstable and fluctuates a lot. To improve the training smoothness, they introduced an extra term for positive samples in the loss function based on the proximal optimization method. The final NCE loss objective looks like:\n$$ \\begin{aligned} \\mathcal{L}_\\text{instance} \u0026= - \\mathbb{E}_{P_d}\\big[\\log h(i, \\mathbf{v}^{(t-1)}_i) - \\lambda \\|\\mathbf{v}^{(t)}_i - \\mathbf{v}^{(t-1)}_i\\|^2_2\\big] - M\\mathbb{E}_{P_n}\\big[\\log(1 - h(i, \\mathbf{v}'^{(t-1)})\\big] \\\\ h(i, \\mathbf{v}) \u0026= \\frac{P(i\\vert\\mathbf{v})}{P(i\\vert\\mathbf{v}) + MP_n(i)} \\text{ where the noise distribution is uniform }P_n = 1/N \\end{aligned} $$ where $\\{ \\mathbf{v}^{(t-1)} \\}$ are embeddings stored in the memory bank from the previous iteration. The difference between iterations $|\\mathbf{v}^{(t)}_i - \\mathbf{v}^{(t-1)}_i|^2_2$ will gradually vanish as the learned embedding converges.\nMoCo \u0026 MoCo-V2 Momentum Contrast (MoCo; He et al, 2019) provides a framework of unsupervised learning visual representation as a dynamic dictionary look-up. The dictionary is structured as a large FIFO queue of encoded representations of data samples.\nGiven a query sample $\\mathbf{x}_q$, we get a query representation through an encoder $\\mathbf{q} = f_q(\\mathbf{x}_q)$. A list of key representations $\\{\\mathbf{k}_1, \\mathbf{k}_2, \\dots \\}$ in the dictionary are encoded by a momentum encoder $\\mathbf{k}_i = f_k (\\mathbf{x}^k_i)$. Let’s assume among them there is a single positive key $\\mathbf{k}^+$ in the dictionary that matches $\\mathbf{q}$. In the paper, they create $\\mathbf{k}^+$ using a noise copy of $\\mathbf{x}_q$ with different augmentation. Then the InfoNCE contrastive loss with temperature $\\tau$ is used over one positive and $N-1$ negative samples:\n$$ \\mathcal{L}_\\text{MoCo} = - \\log \\frac{\\exp(\\mathbf{q} \\cdot \\mathbf{k}^+ / \\tau)}{\\sum_{i=1}^N \\exp(\\mathbf{q} \\cdot \\mathbf{k}_i / \\tau)} $$ Compared to the memory bank, a queue-based dictionary in MoCo enables us to reuse representations of immediately preceding mini-batches of data.\nThe MoCo dictionary is not differentiable as a queue, so we cannot rely on back-propagation to update the key encoder $f_k$. One naive way might be to use the same encoder for both $f_q$ and $f_k$. Differently, MoCo proposed to use a momentum-based update with a momentum coefficient $m \\in [0, 1)$. Say, the parameters of $f_q$ and $f_k$ are labeled as $\\theta_q$ and $\\theta_k$, respectively.\n$$ \\theta_k \\leftarrow m \\theta_k + (1-m) \\theta_q $$ Illustration of how Momentum Contrast (MoCo) learns visual representations. (Image source: He et al, 2019) The advantage of MoCo compared to SimCLR is that MoCo decouples the batch size from the number of negatives, but SimCLR requires a large batch size in order to have enough negative samples and suffers performance drops when their batch size is reduced.\nTwo designs in SimCLR, namely, (1) an MLP projection head and (2) stronger data augmentation, are proved to be very efficient. MoCo V2 (Chen et al, 2020) combined these two designs, achieving even better transfer performance with no dependency on a very large batch size.\nCURL CURL (Srinivas, et al. 2020) applies the above ideas in Reinforcement Learning. It learns a visual representation for RL tasks by matching embeddings of two data-augmented versions, $o_q$ and $o_k$, of the raw observation $o$ via contrastive loss. CURL primarily relies on random crop data augmentation. The key encoder is implemented as a momentum encoder with weights as EMA of the query encoder weights, same as in MoCo.\nOne significant difference between RL and supervised visual tasks is that RL depends on temporal consistency between consecutive frames. Therefore, CURL applies augmentation consistently on each stack of frames to retain information about the temporal structure of the observation.\nThe architecture of CURL. (Image source: Srinivas, et al. 2020) Feature Clustering DeepCluster DeepCluster (Caron et al. 2018) iteratively clusters features via k-means and uses cluster assignments as pseudo labels to provide supervised signals.\nIllustration of DeepCluster method which iteratively clusters deep features and uses the cluster assignments as pseudo-labels. (Image source: Caron et al. 2018) In each iteration, DeepCluster clusters data points using the prior representation and then produces the new cluster assignments as the classification targets for the new representation. However this iterative process is prone to trivial solutions. While avoiding the use of negative pairs, it requires a costly clustering phase and specific precautions to avoid collapsing to trivial solutions.\nSwAV SwAV (Swapping Assignments between multiple Views; Caron et al. 2020) is an online contrastive learning algorithm. It computes a code from an augmented version of the image and tries to predict this code using another augmented version of the same image.\nComparison of SwAV and [contrastive instance learning](#instance-discrimination-with-memoy-bank). (Image source: Caron et al. 2020) Given features of images with two different augmentations, $\\mathbf{z}_t$ and $\\mathbf{z}_s$, SwAV computes corresponding codes $\\mathbf{q}_t$ and $\\mathbf{q}_s$ and the loss quantifies the fit by swapping two codes using $\\ell(.)$ to measure the fit between a feature and a code.\n$$ \\mathcal{L}_\\text{SwAV}(\\mathbf{z}_t, \\mathbf{z}_s) = \\ell(\\mathbf{z}_t, \\mathbf{q}_s) + \\ell(\\mathbf{z}_s, \\mathbf{q}_t) $$ The swapped fit prediction depends on the cross entropy between the predicted code and a set of $K$ trainable prototype vectors $\\mathbf{C} = \\{\\mathbf{c}_1, \\dots, \\mathbf{c}_K\\}$. The prototype vector matrix is shared across different batches and represents anchor clusters that each instance should be clustered to.\n$$ \\ell(\\mathbf{z}_t, \\mathbf{q}_s) = - \\sum_k \\mathbf{q}^{(k)}_s\\log\\mathbf{p}^{(k)}_t \\text{ where } \\mathbf{p}^{(k)}_t = \\frac{\\exp(\\mathbf{z}_t^\\top\\mathbf{c}_k / \\tau)}{\\sum_{k'}\\exp(\\mathbf{z}_t^\\top \\mathbf{c}_{k'} / \\tau)} $$ In a mini-batch containing $B$ feature vectors $\\mathbf{Z} = [\\mathbf{z}_1, \\dots, \\mathbf{z}_B]$, the mapping matrix between features and prototype vectors is defined as $\\mathbf{Q} = [\\mathbf{q}_1, \\dots, \\mathbf{q}_B] \\in \\mathbb{R}_+^{K\\times B}$. We would like to maximize the similarity between the features and the prototypes:\n$$ \\begin{aligned} \\max_{\\mathbf{Q}\\in\\mathcal{Q}} \u0026\\text{Tr}(\\mathbf{Q}^\\top \\mathbf{C}^\\top \\mathbf{Z}) + \\varepsilon \\mathcal{H}(\\mathbf{Q}) \\\\ \\text{where }\\mathcal{Q} \u0026= \\big\\{ \\mathbf{Q} \\in \\mathbb{R}_{+}^{K \\times B} \\mid \\mathbf{Q}\\mathbf{1}_B = \\frac{1}{K}\\mathbf{1}_K, \\mathbf{Q}^\\top\\mathbf{1}_K = \\frac{1}{B}\\mathbf{1}_B \\big\\} \\end{aligned} $$ where $\\mathcal{H}$ is the entropy, $\\mathcal{H}(\\mathbf{Q}) = - \\sum_{ij} \\mathbf{Q}_{ij} \\log \\mathbf{Q}_{ij}$, controlling the smoothness of the code. The coefficient $\\epsilon$ should not be too large; otherwise, all the samples will be assigned uniformly to all the clusters. The candidate set of solutions for $\\mathbf{Q}$ requires every mapping matrix to have each row sum up to $1/K$ and each column to sum up to $1/B$, enforcing that each prototype gets selected at least $B/K$ times on average.\nSwAV relies on the iterative Sinkhorn-Knopp algorithm (Cuturi 2013) to find the solution for $\\mathbf{Q}$.\nWorking with Supervised Datasets CLIP CLIP (Contrastive Language-Image Pre-training; Radford et al. 2021) jointly trains a text encoder and an image feature extractor over the pretraining task that predicts which caption goes with which image.\nIllustration of CLIP contrastive pre-training over text-image pairs. (Image source: Radford et al. 2021) Given a batch of $N$ (image, text) pairs, CLIP computes the dense cosine similarity matrix between all $N\\times N$ possible (image, text) candidates within this batch. The text and image encoders are jointly trained to maximize the similarity between $N$ correct pairs of (image, text) associations while minimizing the similarity for $N(N-1)$ incorrect pairs via a symmetric cross entropy loss over the dense matrix.\nSee the numy-like pseudo code for CLIP in CLIP algorithm in Numpy style pseudo code. (Image source: Radford et al. 2021)\nCompared to other methods above for learning good visual representation, what makes CLIP really special is “the appreciation of using natural language as a training signal”. It does demand access to supervised dataset in which we know which text matches which image. It is trained on 400 million (text, image) pairs, collected from the Internet. The query list contains all the words occurring at least 100 times in the English version of Wikipedia. Interestingly, they found that Transformer-based language models are 3x slower than a bag-of-words (BoW) text encoder at zero-shot ImageNet classification. Using contrastive objective instead of trying to predict the exact words associated with images (i.e. a method commonly adopted by image caption prediction tasks) can further improve the data efficiency another 4x.\nUsing bag-of-words text encoding and contrastive training objectives can bring in multiple folds of data efficiency improvement. (Image source: Radford et al. 2021) CLIP produces good visual representation that can non-trivially transfer to many CV benchmark datasets, achieving results competitive with supervised baseline. Among tested transfer tasks, CLIP struggles with very fine-grained classification, as well as abstract or systematic tasks such as counting the number of objects. The transfer performance of CLIP models is smoothly correlated with the amount of model compute.\nSupervised Contrastive Learning There are several known issues with cross entropy loss, such as the lack of robustness to noisy labels and the possibility of poor margins. Existing improvement for cross entropy loss involves the curation of better training data, such as label smoothing and data augmentation. Supervised Contrastive Loss (Khosla et al. 2021) aims to leverage label information more effectively than cross entropy, imposing that normalized embeddings from the same class are closer together than embeddings from different classes.\nSupervised vs self-supervised contrastive losses. Supervised contrastive learning considers different samples from the same class as positive examples, in addition to augmented versions. (Image source: Khosla et al. 2021) Given a set of randomly sampled $n$ (image, label) pairs, $\\{\\mathbf{x}_i, y_i\\}_{i=1}^n$, $2n$ training pairs can be created by applying two random augmentations of every sample, $\\{\\tilde{\\mathbf{x}}_i, \\tilde{y}_i\\}_{i=1}^{2n}$.\nSupervised contrastive loss $\\mathcal{L}_\\text{supcon}$ utilizes multiple positive and negative samples, very similar to soft nearest-neighbor loss:\n$$ \\mathcal{L}_\\text{supcon} = - \\sum_{i=1}^{2n} \\frac{1}{2 \\vert N_i \\vert - 1} \\sum_{j \\in N(y_i), j \\neq i} \\log \\frac{\\exp(\\mathbf{z}_i \\cdot \\mathbf{z}_j / \\tau)}{\\sum_{k \\in I, k \\neq i}\\exp({\\mathbf{z}_i \\cdot \\mathbf{z}_k / \\tau})} $$ where $\\mathbf{z}_k=P(E(\\tilde{\\mathbf{x}_k}))$, in which $E(.)$ is an encoder network (augmented image mapped to vector) $P(.)$ is a projection network (one vector mapped to another). $N_i= \\{j \\in I: \\tilde{y}_j = \\tilde{y}_i \\}$ contains a set of indices of samples with label $y_i$. Including more positive samples into the set $N_i$ leads to improved results.\nAccording to their experiments, supervised contrastive loss:\ndoes outperform the base cross entropy, but only by a small amount. outperforms the cross entropy on robustness benchmark (ImageNet-C, which applies common naturally occuring perturbations such as noise, blur and contrast changes to the ImageNet dataset). is less sensitive to hyperparameter changes. Language: Sentence Embedding In this section, we focus on how to learn sentence embedding.\nText Augmentation Most contrastive methods in vision applications depend on creating an augmented version of each image. However, it is more challenging to construct text augmentation which does not alter the semantics of a sentence. In this section we look into three approaches for augmenting text sequences, including lexical edits, back-translation and applying cutoff or dropout.\nLexical Edits EDA (Easy Data Augmentation; Wei \u0026 Zou 2019) defines a set of simple but powerful operations for text augmentation. Given a sentence, EDA randomly chooses and applies one of four simple operations:\nSynonym replacement (SR): Replace $n$ random non-stop words with their synonyms. Random insertion (RI): Place a random synonym of a randomly selected non-stop word in the sentence at a random position. Random swap (RS): Randomly swap two words and repeat $n$ times. Random deletion (RD): Randomly delete each word in the sentence with probability $p$. where $p=\\alpha$ and $n=\\alpha \\times \\text{sentence_length}$, with the intuition that longer sentences can absorb more noise while maintaining the original label. The hyperparameter $\\alpha$ roughly indicates the percent of words in one sentence that may be changed by one augmentation.\nEDA is shown to improve the classification accuracy on several classification benchmark datasets compared to baseline without EDA. The performance lift is more significant on a smaller training set. All the four operations in EDA help improve the classification accuracy, but get to optimal at different $\\alpha$’s.\nEDA leads to performance improvement on several classification benchmarks. (Image source: Wei \u0026 Zou 2019) In Contextual Augmentation (Sosuke Kobayashi, 2018), new substitutes for word $w_i$ at position $i$ can be smoothly sampled from a given probability distribution, $p(.\\mid S\\setminus\\{w_i\\})$, which is predicted by a bidirectional LM like BERT.\nBack-translation CERT (Contrastive self-supervised Encoder Representations from Transformers; Fang et al. (2020); code) generates augmented sentences via back-translation. Various translation models for different languages can be employed for creating different versions of augmentations. Once we have a noise version of text samples, many contrastive learning frameworks introduced above, such as MoCo, can be used to learn sentence embedding.\nDropout and Cutoff Shen et al. (2020) proposed to apply Cutoff to text augmentation, inspired by cross-view training. They proposed three cutoff augmentation strategies:\nToken cutoff removes the information of a few selected tokens. To make sure there is no data leakage, corresponding tokens in the input, positional and other relevant embedding matrices should all be zeroed out., Feature cutoff removes a few feature columns. Span cutoff removes a continuous chunk of texts. Schematic illustration of token, feature and span cutoff augmentation strategies. (Image source: Shen et al. 2020) Multiple augmented versions of one sample can be created. When training, Shen et al. (2020) applied an additional KL-divergence term to measure the consensus between predictions from different augmented samples.\nSimCSE (Gao et al. 2021; code) learns from unsupervised data by predicting a sentence from itself with only dropout noise. In other words, they treat dropout as data augmentation for text sequences. A sample is simply fed into the encoder twice with different dropout masks and these two versions are the positive pair where the other in-batch samples are considered as negative pairs. It feels quite similar to the cutoff augmentation, but dropout is more flexible with less well-defined semantic meaning of what content can be masked off.\nSimCSE creates augmented samples by applying different dropout masks. The supervised version leverages NLI datasets to predict positive (entailment) or negative (contradiction) given a pair of sentences. (Image source: Gao et al. 2021) They ran experiments on 7 STS (Semantic Text Similarity) datasets and computed cosine similarity between sentence embeddings. They also tried out an optional MLM auxiliary objective loss to help avoid catastrophic forgetting of token-level knowledge. This aux loss was found to help improve performance on transfer tasks, but a consistent drop on the main STS tasks.\nExperiment numbers on a collection of STS benchmarks with SimCES. (Image source: Gao et al. 2021) Supervision from NLI The pre-trained BERT sentence embedding without any fine-tuning has been found to have poor performance for semantic similarity tasks. Instead of using the raw embeddings directly, we need to refine the embedding with further fine-tuning.\nNatural Language Inference (NLI) tasks are the main data sources to provide supervised signals for learning sentence embedding; such as SNLI, MNLI, and QQP.\nSentence-BERT SBERT (Sentence-BERT) (Reimers \u0026 Gurevych, 2019) relies on siamese and triplet network architectures to learn sentence embeddings such that the sentence similarity can be estimated by cosine similarity between pairs of embeddings. Note that learning SBERT depends on supervised data, as it is fine-tuned on several NLI datasets.\nThey experimented with a few different prediction heads on top of BERT model:\nSoftmax classification objective: The classification head of the siamese network is built on the concatenation of two embeddings $f(\\mathbf{x}), f(\\mathbf{x}’)$ and $\\vert f(\\mathbf{x}) - f(\\mathbf{x}’) \\vert$. The predicted output is $\\hat{y}=\\text{softmax}(\\mathbf{W}_t [f(\\mathbf{x}); f(\\mathbf{x}’); \\vert f(\\mathbf{x}) - f(\\mathbf{x}’) \\vert])$. They showed that the most important component is the element-wise difference $\\vert f(\\mathbf{x}) - f(\\mathbf{x}’) \\vert$. Regression objective: This is the regression loss on $\\cos(f(\\mathbf{x}), f(\\mathbf{x}’))$, in which the pooling strategy has a big impact. In the experiments, they observed that max performs much worse than mean and CLS-token. Triplet objective: $\\max(0, |f(\\mathbf{x}) - f(\\mathbf{x}^+)|- |f(\\mathbf{x}) - f(\\mathbf{x}^-)| + \\epsilon)$, where $\\mathbf{x}, \\mathbf{x}^+, \\mathbf{x}^-$ are embeddings of the anchor, positive and negative sentences. In the experiments, which objective function works the best depends on the datasets, so there is no universal winner.\nIllustration of Sentence-BERT training framework with softmax classification head and regression head. (Image source: Reimers \u0026 Gurevych, 2019) The SentEval library (Conneau and Kiela, 2018) is commonly used for evaluating the quality of learned sentence embedding. SBERT outperformed other baselines at that time (Aug 2019) on 5 out of 7 tasks.\nThe performance of Sentence-BERT on the SentEval benchmark. (Image source: Reimers \u0026 Gurevych, 2019) BERT-flow The embedding representation space is deemed isotropic if embeddings are uniformly distributed on each dimension; otherwise, it is anisotropic. Li et al, (2020) showed that a pre-trained BERT learns a non-smooth anisotropic semantic space of sentence embeddings and thus leads to poor performance for text similarity tasks without fine-tuning. Empirically, they observed two issues with BERT sentence embedding: Word frequency biases the embedding space. High-frequency words are close to the origin, but low-frequency ones are far away from the origin. Low-frequency words scatter sparsely. The embeddings of low-frequency words tend to be farther to their $k$-NN neighbors, while the embeddings of high-frequency words concentrate more densely.\nBERT-flow (Li et al, 2020; code) was proposed to transform the embedding to a smooth and isotropic Gaussian distribution via normalizing flows.\nIllustration of the flow-based calibration over the original sentence embedding space in BERT-flow. (Image source: Li et al, 2020) Let $\\mathcal{U}$ be the observed BERT sentence embedding space and $\\mathcal{Z}$ be the desired latent space which is a standard Gaussian. Thus, $p_\\mathcal{Z}$ is a Gaussian density function and $f_\\phi: \\mathcal{Z}\\to\\mathcal{U}$ is an invertible transformation:\n$$ \\mathbf{z}\\sim p_\\mathcal{Z}(\\mathbf{z}) \\quad \\mathbf{u}=f_\\phi(\\mathbf{z}) \\quad \\mathbf{z}=f^{-1}_\\phi(\\mathbf{u}) $$ A flow-based generative model learns the invertible mapping function by maximizing the likelihood of $\\mathcal{U}$’s marginal:\n$$ \\max_\\phi\\mathbb{E}_{\\mathbf{u}=\\text{BERT}(s), s\\sim\\mathcal{D}} \\Big[ \\log p_\\mathcal{Z}(f^{-1}_\\phi(\\mathbf{u})) + \\log\\big\\vert\\det\\frac{\\partial f^{-1}_\\phi(\\mathbf{u})}{\\partial\\mathbf{u}}\\big\\vert \\Big] $$ where $s$ is a sentence sampled from the text corpus $\\mathcal{D}$. Only the flow parameters $\\phi$ are optimized while parameters in the pretrained BERT stay unchanged.\nBERT-flow was shown to improve the performance on most STS tasks either with or without supervision from NLI datasets. Because learning normalizing flows for calibration does not require labels, it can utilize the entire dataset including validation and test sets.\nWhitening Operation Su et al. (2021) applied whitening operation to improve the isotropy of the learned representation and also to reduce the dimensionality of sentence embedding.\nThey transform the mean value of the sentence vectors to 0 and the covariance matrix to the identity matrix. Given a set of samples $\\{\\mathbf{x}_i\\}_{i=1}^N$, let $\\tilde{\\mathbf{x}}_i$ and $\\tilde{\\Sigma}$ be the transformed samples and corresponding covariance matrix:\n$$ \\begin{aligned} \\mu \u0026= \\frac{1}{N}\\sum_{i=1}^N \\mathbf{x}_i \\quad \\Sigma = \\frac{1}{N}\\sum_{i=1}^N (\\mathbf{x}_i - \\mu)^\\top (\\mathbf{x}_i - \\mu) \\\\ \\tilde{\\mathbf{x}}_i \u0026= (\\mathbf{x}_i - \\mu)W \\quad \\tilde{\\Sigma} = W^\\top\\Sigma W = I \\text{ thus } \\Sigma = (W^{-1})^\\top W^{-1} \\end{aligned} $$ If we get SVD decomposition of $\\Sigma = U\\Lambda U^\\top$, we will have $W^{-1}=\\sqrt{\\Lambda} U^\\top$ and $W=U\\sqrt{\\Lambda^{-1}}$. Note that within SVD, $U$ is an orthogonal matrix with column vectors as eigenvectors and $\\Lambda$ is a diagonal matrix with all positive elements as sorted eigenvalues.\nA dimensionality reduction strategy can be applied by only taking the first $k$ columns of $W$, named Whitening-$k$.\nPseudo code of the whitening-$k$ operation. (Image source: Su et al. 2021) Whitening operations were shown to outperform BERT-flow and achieve SOTA with 256 sentence dimensionality on many STS benchmarks, either with or without NLI supervision.\nUnsupervised Sentence Embedding Learning Context Prediction Quick-Thought (QT) vectors (Logeswaran \u0026 Lee, 2018) formulate sentence representation learning as a classification problem: Given a sentence and its context, a classifier distinguishes context sentences from other contrastive sentences based on their vector representations (“cloze test”). Such a formulation removes the softmax output layer which causes training slowdown.\nIllustration of how Quick-Thought sentence embedding vectors are learned. (Image source: Logeswaran \u0026 Lee, 2018) Let $f(.)$ and $g(.)$ be two functions that encode a sentence $s$ into a fixed-length vector. Let $C(s)$ be the set of sentences in the context of $s$ and $S(s)$ be the set of candidate sentences including only one sentence $s_c \\in C(s)$ and many other non-context negative sentences. Quick Thoughts model learns to optimize the probability of predicting the only true context sentence $s_c \\in S(s)$. It is essentially NCE loss when considering the sentence $(s, s_c)$ as the positive pairs while other pairs $(s, s’)$ where $s’ \\in S(s), s’\\neq s_c$ as negatives.\n$$ \\mathcal{L}_\\text{QT} = - \\sum_{s \\in \\mathcal{D}} \\sum_{s_c \\in C(s)} \\log p(s_c \\vert s, S(s)) = - \\sum_{s \\in \\mathcal{D}} \\sum_{s_c \\in C(s)}\\frac{\\exp(f(s)^\\top g(s_c))}{\\sum_{s'\\in S(s)} \\exp(f(s)^\\top g(s'))} $$ Mutual Information Maximization IS-BERT (Info-Sentence BERT) (Zhang et al. 2020; code) adopts a self-supervised learning objective based on mutual information maximization to learn good sentence embeddings in the unsupervised manners.\nIllustration of Info-Sentence BERT. (Image source: Zhang et al. 2020) IS-BERT works as follows:\nUse BERT to encode an input sentence $s$ to a token embedding of length $l$, $\\mathbf{h}_{1:l}$.\nThen apply 1-D conv net with different kernel sizes (e.g. 1, 3, 5) to process the token embedding sequence to capture the n-gram local contextual dependencies: $\\mathbf{c}_i = \\text{ReLU}(\\mathbf{w} \\cdot \\mathbf{h}_{i:i+k-1} + \\mathbf{b})$. The output sequences are padded to stay the same sizes of the inputs.\nThe final local representation of the $i$-th token $\\mathcal{F}_\\theta^{(i)} (\\mathbf{x})$ is the concatenation of representations of different kernel sizes.\nThe global sentence representation $\\mathcal{E}_\\theta(\\mathbf{x})$ is computed by applying a mean-over-time pooling layer on the token representations $\\mathcal{F}_\\theta(\\mathbf{x}) = \\{\\mathcal{F}_\\theta^{(i)} (\\mathbf{x}) \\in \\mathbb{R}^d\\}_{i=1}^l$.\nSince the mutual information estimation is generally intractable for continuous and high-dimensional random variables, IS-BERT relies on the Jensen-Shannon estimator (Nowozin et al., 2016, Hjelm et al., 2019) to maximize the mutual information between $\\mathcal{E}_\\theta(\\mathbf{x})$ and $\\mathcal{F}_\\theta^{(i)} (\\mathbf{x})$.\n$$ I^\\text{JSD}_\\omega(\\mathcal{F}_\\theta^{(i)} (\\mathbf{x}); \\mathcal{E}_\\theta(\\mathbf{x})) = \\mathbb{E}_{\\mathbf{x}\\sim P} [-\\text{sp}(-T_\\omega(\\mathcal{F}_\\theta^{(i)} (\\mathbf{x}); \\mathcal{E}_\\theta(\\mathbf{x})))] \\\\ - \\mathbb{E}_{\\mathbf{x}\\sim P, \\mathbf{x}' \\sim\\tilde{P}} [\\text{sp}(T_\\omega(\\mathcal{F}_\\theta^{(i)} (\\mathbf{x}'); \\mathcal{E}_\\theta(\\mathbf{x})))] $$ where $T_\\omega: \\mathcal{F}\\times\\mathcal{E} \\to \\mathbb{R}$ is a learnable network with parameters $\\omega$, generating discriminator scores. The negative sample $\\mathbf{x}’$ is sampled from the distribution $\\tilde{P}=P$. And $\\text{sp}(x)=\\log(1+e^x)$ is the softplus activation function.\nThe unsupervised numbers on SentEval with IS-BERT outperforms most of the unsupervised baselines (Sep 2020), but unsurprisingly weaker than supervised runs. When using labelled NLI datasets, IS-BERT produces results comparable with SBERT (See Fig. 25 \u0026 30).\nThe performance of IS-BERT on the SentEval benchmark. (Image source: Zhang et al. 2020) Citation Cited as:\nWeng, Lilian. (May 2021). Contrastive representation learning. Lil’Log. https://lilianweng.github.io/posts/2021-05-31-contrastive/.\nOr\n@article{weng2021contrastive, title = \"Contrastive Representation Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2021\", month = \"May\", url = \"https://lilianweng.github.io/posts/2021-05-31-contrastive/\" } References [1] Sumit Chopra, Raia Hadsell and Yann LeCun. “Learning a similarity metric discriminatively, with application to face verification.” CVPR 2005.\n[2] Florian Schroff, Dmitry Kalenichenko and James Philbin. “FaceNet: A Unified Embedding for Face Recognition and Clustering.” CVPR 2015.\n[3] Hyun Oh Song et al. “Deep Metric Learning via Lifted Structured Feature Embedding.” CVPR 2016. [code]\n[4] Ruslan Salakhutdinov and Geoff Hinton. “Learning a Nonlinear Embedding by Preserving Class Neighbourhood Structure” AISTATS 2007.\n[5] Michael Gutmann and Aapo Hyvärinen. “Noise-contrastive estimation: A new estimation principle for unnormalized statistical models.” AISTATS 2010.\n[6] Kihyuk Sohn et al. “Improved Deep Metric Learning with Multi-class N-pair Loss Objective” NIPS 2016.\n[7] Nicholas Frosst, Nicolas Papernot and Geoffrey Hinton. “Analyzing and Improving Representations with the Soft Nearest Neighbor Loss.” ICML 2019\n[8] Tongzhou Wang and Phillip Isola. “Understanding Contrastive Representation Learning through Alignment and Uniformity on the Hypersphere.” ICML 2020. [code]\n[9] Zhirong Wu et al. “Unsupervised feature learning via non-parametric instance-level discrimination.” CVPR 2018.\n[10] Ekin D. Cubuk et al. “AutoAugment: Learning augmentation policies from data.” arXiv preprint arXiv:1805.09501 (2018).\n[11] Daniel Ho et al. “Population Based Augmentation: Efficient Learning of Augmentation Policy Schedules.” ICML 2019.\n[12] Ekin D. Cubuk \u0026 Barret Zoph et al. “RandAugment: Practical automated data augmentation with a reduced search space.” arXiv preprint arXiv:1909.13719 (2019).\n[13] Hongyi Zhang et al. “mixup: Beyond Empirical Risk Minimization.” ICLR 2017.\n[14] Sangdoo Yun et al. “CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features.” ICCV 2019.\n[15] Yannis Kalantidis et al. “Mixing of Contrastive Hard Negatives” NeuriPS 2020.\n[16] Ashish Jaiswal et al. “A Survey on Contrastive Self-Supervised Learning.” arXiv preprint arXiv:2011.00362 (2021)\n[17] Jure Zbontar et al. “Barlow Twins: Self-Supervised Learning via Redundancy Reduction.” arXiv preprint arXiv:2103.03230 (2021) [code]\n[18] Alec Radford, et al. “Learning Transferable Visual Models From Natural Language Supervision” arXiv preprint arXiv:2103.00020 (2021)\n[19] Mathilde Caron et al. “Unsupervised Learning of Visual Features by Contrasting Cluster Assignments (SwAV).” NeuriPS 2020.\n[20] Mathilde Caron et al. “Deep Clustering for Unsupervised Learning of Visual Features.” ECCV 2018.\n[21] Prannay Khosla et al. “Supervised Contrastive Learning.” NeurIPS 2020.\n[22] Aaron van den Oord, Yazhe Li \u0026 Oriol Vinyals. “Representation Learning with Contrastive Predictive Coding” arXiv preprint arXiv:1807.03748 (2018).\n[23] Jason Wei and Kai Zou. “EDA: Easy data augmentation techniques for boosting performance on text classification tasks.” EMNLP-IJCNLP 2019.\n[24] Sosuke Kobayashi. “Contextual Augmentation: Data Augmentation by Words with Paradigmatic Relations.” NAACL 2018\n[25] Hongchao Fang et al. “CERT: Contrastive self-supervised learning for language understanding.” arXiv preprint arXiv:2005.12766 (2020).\n[26] Dinghan Shen et al. “A Simple but Tough-to-Beat Data Augmentation Approach for Natural Language Understanding and Generation.” arXiv preprint arXiv:2009.13818 (2020) [code]\n[27] Tianyu Gao et al. “SimCSE: Simple Contrastive Learning of Sentence Embeddings.” arXiv preprint arXiv:2104.08821 (2020). [code]\n[28] Nils Reimers and Iryna Gurevych. “Sentence-BERT: Sentence embeddings using Siamese BERT-networks.” EMNLP 2019.\n[29] Jianlin Su et al. “Whitening sentence representations for better semantics and faster retrieval.” arXiv preprint arXiv:2103.15316 (2021). [code]\n[30] Yan Zhang et al. “An unsupervised sentence embedding method by mutual information maximization.” EMNLP 2020. [code]\n[31] Bohan Li et al. “On the sentence embeddings from pre-trained language models.” EMNLP 2020.\n[32] Lajanugen Logeswaran and Honglak Lee. “An efficient framework for learning sentence representations.” ICLR 2018.\n[33] Joshua Robinson, et al. “Contrastive Learning with Hard Negative Samples.” ICLR 2021.\n[34] Ching-Yao Chuang et al. “Debiased Contrastive Learning.” NeuriPS 2020.\n",
+  "wordCount" : "8210",
+  "inLanguage": "en",
+  "datePublished": "2021-05-31T00:00:00Z",
+  "dateModified": "2021-05-31T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2021-05-31-contrastive/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Contrastive Representation Learning
+    </h1>
+    <div class="post-meta">Date: May 31, 2021  |  Estimated Reading Time: 39 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#contrastive-training-objectives" aria-label="Contrastive Training Objectives">Contrastive Training Objectives</a><ul>
+                        
+                <li>
+                    <a href="#contrastive-loss" aria-label="Contrastive Loss">Contrastive Loss</a></li>
+                <li>
+                    <a href="#triplet-loss" aria-label="Triplet Loss">Triplet Loss</a></li>
+                <li>
+                    <a href="#lifted-structured-loss" aria-label="Lifted Structured Loss">Lifted Structured Loss</a></li>
+                <li>
+                    <a href="#n-pair-loss" aria-label="N-pair Loss">N-pair Loss</a></li>
+                <li>
+                    <a href="#nce" aria-label="NCE">NCE</a></li>
+                <li>
+                    <a href="#infonce" aria-label="InfoNCE">InfoNCE</a></li>
+                <li>
+                    <a href="#soft-nearest-neighbors-loss" aria-label="Soft-Nearest Neighbors Loss">Soft-Nearest Neighbors Loss</a></li>
+                <li>
+                    <a href="#common-setup" aria-label="Common Setup">Common Setup</a></li></ul>
+                </li>
+                <li>
+                    <a href="#key-ingredients" aria-label="Key Ingredients">Key Ingredients</a><ul>
+                        
+                <li>
+                    <a href="#heavy-data-augmentation" aria-label="Heavy Data Augmentation">Heavy Data Augmentation</a></li>
+                <li>
+                    <a href="#large-batch-size" aria-label="Large Batch Size">Large Batch Size</a></li>
+                <li>
+                    <a href="#hard-negative-mining" aria-label="Hard Negative Mining">Hard Negative Mining</a></li></ul>
+                </li>
+                <li>
+                    <a href="#vision-image-embedding" aria-label="Vision: Image Embedding">Vision: Image Embedding</a><ul>
+                        
+                <li>
+                    <a href="#image-augmentations" aria-label="Image Augmentations">Image Augmentations</a><ul>
+                        
+                <li>
+                    <a href="#basic-image-augmentation" aria-label="Basic Image Augmentation">Basic Image Augmentation</a></li>
+                <li>
+                    <a href="#augmentation-strategies" aria-label="Augmentation Strategies">Augmentation Strategies</a></li>
+                <li>
+                    <a href="#image-mixture" aria-label="Image Mixture">Image Mixture</a></li></ul>
+                </li>
+                <li>
+                    <a href="#parallel-augmentation" aria-label="Parallel Augmentation">Parallel Augmentation</a><ul>
+                        
+                <li>
+                    <a href="#simclr" aria-label="SimCLR">SimCLR</a></li>
+                <li>
+                    <a href="#barlow-twins" aria-label="Barlow Twins">Barlow Twins</a></li>
+                <li>
+                    <a href="#byol" aria-label="BYOL">BYOL</a></li></ul>
+                </li>
+                <li>
+                    <a href="#memory-bank" aria-label="Memory Bank">Memory Bank</a><ul>
+                        
+                <li>
+                    <a href="#instance-discrimination-with-memoy-bank" aria-label="Instance Discrimination with Memoy Bank">Instance Discrimination with Memoy Bank</a></li>
+                <li>
+                    <a href="#moco--moco-v2" aria-label="MoCo &amp; MoCo-V2">MoCo &amp; MoCo-V2</a></li>
+                <li>
+                    <a href="#curl" aria-label="CURL">CURL</a></li></ul>
+                </li>
+                <li>
+                    <a href="#feature-clustering" aria-label="Feature Clustering">Feature Clustering</a><ul>
+                        
+                <li>
+                    <a href="#deepcluster" aria-label="DeepCluster">DeepCluster</a></li>
+                <li>
+                    <a href="#swav" aria-label="SwAV">SwAV</a></li></ul>
+                </li>
+                <li>
+                    <a href="#working-with-supervised-datasets" aria-label="Working with Supervised Datasets">Working with Supervised Datasets</a><ul>
+                        
+                <li>
+                    <a href="#clip" aria-label="CLIP">CLIP</a></li>
+                <li>
+                    <a href="#supervised-contrastive-learning" aria-label="Supervised Contrastive Learning">Supervised Contrastive Learning</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#language-sentence-embedding" aria-label="Language: Sentence Embedding">Language: Sentence Embedding</a><ul>
+                        
+                <li>
+                    <a href="#text-augmentation" aria-label="Text Augmentation">Text Augmentation</a><ul>
+                        
+                <li>
+                    <a href="#lexical-edits" aria-label="Lexical Edits">Lexical Edits</a></li>
+                <li>
+                    <a href="#back-translation" aria-label="Back-translation">Back-translation</a></li>
+                <li>
+                    <a href="#dropout-and-cutoff" aria-label="Dropout and Cutoff">Dropout and Cutoff</a></li></ul>
+                </li>
+                <li>
+                    <a href="#supervision-from-nli" aria-label="Supervision from NLI">Supervision from NLI</a><ul>
+                        
+                <li>
+                    <a href="#sentence-bert" aria-label="Sentence-BERT">Sentence-BERT</a></li>
+                <li>
+                    <a href="#bert-flow" aria-label="BERT-flow">BERT-flow</a></li>
+                <li>
+                    <a href="#whitening-operation" aria-label="Whitening Operation">Whitening Operation</a></li></ul>
+                </li>
+                <li>
+                    <a href="#unsupervised-sentence-embedding-learning" aria-label="Unsupervised Sentence Embedding Learning">Unsupervised Sentence Embedding Learning</a><ul>
+                        
+                <li>
+                    <a href="#context-prediction" aria-label="Context Prediction">Context Prediction</a></li>
+                <li>
+                    <a href="#mutual-information-maximization" aria-label="Mutual Information Maximization">Mutual Information Maximization</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- The main idea of contrastive learning is to learn representations such that similar samples stay close to each other, while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised data and has been shown to achieve good performance on a variety of vision and language tasks. -->
+<p>The goal of contrastive representation learning is to learn such an embedding space in which similar sample pairs stay close to each other while dissimilar ones are far apart. Contrastive learning can be applied to both supervised and unsupervised settings. When working with unsupervised data, contrastive learning is one of the most powerful approaches in <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">self-supervised learning</a>.</p>
+<h1 id="contrastive-training-objectives">Contrastive Training Objectives<a hidden class="anchor" aria-hidden="true" href="#contrastive-training-objectives">#</a></h1>
+<p>In early versions of loss functions for contrastive learning, only one positive and one negative sample are involved. The trend in recent training objectives is to include multiple positive and negative pairs in one batch.</p>
+<h2 id="contrastive-loss">Contrastive Loss<a hidden class="anchor" aria-hidden="true" href="#contrastive-loss">#</a></h2>
+<p><strong>Contrastive loss</strong> (<a href="http://yann.lecun.com/exdb/publis/pdf/chopra-05.pdf">Chopra et al. 2005</a>) is one of the earliest training objectives used for deep metric learning in a contrastive fashion.</p>
+<p>Given a list of input samples $\{ \mathbf{x}_i \}$, each has a corresponding label $y_i \in \{1, \dots, L\}$ among $L$ classes. We would like to learn a function $f_\theta(.): \mathcal{X}\to\mathbb{R}^d$ that encodes $x_i$ into an embedding vector such that examples from the same class have similar embeddings and samples from different classes have very different ones. Thus, contrastive loss takes a pair of inputs $(x_i, x_j)$ and minimizes the embedding distance when they are from the same class but maximizes the distance otherwise.</p>
+<div>
+$$
+\mathcal{L}_\text{cont}(\mathbf{x}_i, \mathbf{x}_j, \theta) = \mathbb{1}[y_i=y_j] \| f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \|^2_2 + \mathbb{1}[y_i\neq y_j]\max(0, \epsilon - \|f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j)\|_2)^2
+$$
+</div>
+<p>where $\epsilon$ is a hyperparameter, defining the lower bound distance between samples of different classes.</p>
+<h2 id="triplet-loss">Triplet Loss<a hidden class="anchor" aria-hidden="true" href="#triplet-loss">#</a></h2>
+<p><strong>Triplet loss</strong> was originally proposed in the FaceNet (<a href="https://arxiv.org/abs/1503.03832">Schroff et al. 2015</a>) paper and was used to learn face recognition of the same person at different poses and angles.</p>
+<figure>
+	<img src="triplet-loss.png" style="width: 65%;"  />
+	<figcaption>Illustration of triplet loss given one positive and one negative per anchor. (Image source: <a href="https://arxiv.org/abs/1503.03832" target="_blank">Schroff et al. 2015</a>)</figcaption>
+</figure>
+<p>Given one anchor input $\mathbf{x}$, we select one positive sample $\mathbf{x}^+$ and one negative $\mathbf{x}^-$, meaning that $\mathbf{x}^+$ and $\mathbf{x}$ belong to the same class and $\mathbf{x}^-$ is sampled from another different class. Triplet loss learns to minimize the distance between the anchor $\mathbf{x}$ and positive $\mathbf{x}^+$ and maximize the distance between the anchor $\mathbf{x}$ and negative $\mathbf{x}^-$ at the same time with the following equation:</p>
+<div>
+$$
+\mathcal{L}_\text{triplet}(\mathbf{x}, \mathbf{x}^+, \mathbf{x}^-) = \sum_{\mathbf{x} \in \mathcal{X}} \max\big( 0, \|f(\mathbf{x}) - f(\mathbf{x}^+)\|^2_2 - \|f(\mathbf{x}) - f(\mathbf{x}^-)\|^2_2 + \epsilon \big)
+$$
+</div>
+<p>where the margin parameter $\epsilon$ is configured as the minimum offset between distances of similar vs dissimilar pairs.</p>
+<p>It is crucial to select challenging $\mathbf{x}^-$ to truly improve the model.</p>
+<h2 id="lifted-structured-loss">Lifted Structured Loss<a hidden class="anchor" aria-hidden="true" href="#lifted-structured-loss">#</a></h2>
+<p><strong>Lifted Structured Loss</strong> (<a href="https://arxiv.org/abs/1511.06452">Song et al. 2015</a>) utilizes all the pairwise edges within one training batch for better computational efficiency.</p>
+<figure>
+	<img src="lifted-structured-loss.png" style="width: 50%;"  />
+	<figcaption>Illustration compares contrastive loss, triplet loss and lifted structured loss. Red and blue edges connect similar and dissimilar sample pairs respectively. (Image source: <a href="https://arxiv.org/abs/1511.06452" target="_blank">Song et al. 2015</a>)</figcaption>
+</figure>
+<p>Let $D_{ij} = | f(\mathbf{x}_i) - f(\mathbf{x}_j) |_2$, a structured loss function is defined as</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{struct} &= \frac{1}{2\vert \mathcal{P} \vert} \sum_{(i,j) \in \mathcal{P}} \max(0, \mathcal{L}_\text{struct}^{(ij)})^2 \\
+\text{where } \mathcal{L}_\text{struct}^{(ij)} &= D_{ij} + \color{red}{\max \big( \max_{(i,k)\in \mathcal{N}} \epsilon - D_{ik}, \max_{(j,l)\in \mathcal{N}} \epsilon - D_{jl} \big)}
+\end{aligned}
+$$
+</div>
+<p>where $\mathcal{P}$ contains the set of positive pairs and $\mathcal{N}$ is the set of negative pairs. Note that the dense pairwise squared distance matrix can be easily computed per training batch.</p>
+<p>The <span color='red'>red</span> part in $\mathcal{L}_\text{struct}^{(ij)}$ is used for mining hard negatives. However, it is not smooth and may cause the convergence to a bad local optimum in practice. Thus, it is relaxed to be:</p>
+<div>
+$$
+\mathcal{L}_\text{struct}^{(ij)} = D_{ij} + \log \Big( \sum_{(i,k)\in\mathcal{N}} \exp(\epsilon - D_{ik}) + \sum_{(j,l)\in\mathcal{N}} \exp(\epsilon - D_{jl}) \Big)
+$$
+</div>
+<p>In the paper, they also proposed to enhance the quality of negative samples in each batch by actively incorporating difficult negative samples given a few random positive pairs.</p>
+<h2 id="n-pair-loss">N-pair Loss<a hidden class="anchor" aria-hidden="true" href="#n-pair-loss">#</a></h2>
+<p><strong>Multi-Class N-pair loss</strong> (<a href="https://papers.nips.cc/paper/2016/hash/6b180037abbebea991d8b1232f8a8ca9-Abstract.html">Sohn 2016</a>) generalizes triplet loss to include comparison with multiple negative samples.</p>
+<p>Given a $(N + 1)$-tuplet of training samples, $\{ \mathbf{x}, \mathbf{x}^+, \mathbf{x}^-_1, \dots, \mathbf{x}^-_{N-1} \}$, including one positive and $N-1$ negative ones, N-pair loss is defined as:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{N-pair}(\mathbf{x}, \mathbf{x}^+, \{\mathbf{x}^-_i\}^{N-1}_{i=1}) 
+&= \log\big(1 + \sum_{i=1}^{N-1} \exp(f(\mathbf{x})^\top f(\mathbf{x}^-_i) - f(\mathbf{x})^\top f(\mathbf{x}^+))\big) \\
+&= -\log\frac{\exp(f(\mathbf{x})^\top f(\mathbf{x}^+))}{\exp(f(\mathbf{x})^\top f(\mathbf{x}^+)) + \sum_{i=1}^{N-1} \exp(f(\mathbf{x})^\top f(\mathbf{x}^-_i))}
+\end{aligned}
+$$
+</div>
+<p>If we only sample one negative sample per class, it is equivalent to the softmax loss for multi-class classification.</p>
+<h2 id="nce">NCE<a hidden class="anchor" aria-hidden="true" href="#nce">#</a></h2>
+<p><strong>Noise Contrastive Estimation</strong>, short for <strong>NCE</strong>, is a method for estimating parameters of a statistical model, proposed by <a href="http://proceedings.mlr.press/v9/gutmann10a.html">Gutmann &amp; Hyvarinen</a> in 2010. The idea is to run logistic regression to tell apart the target data from noise. Read more on how NCE is used for learning word embedding <a href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/#noise-contrastive-estimation-nce">here</a>.</p>
+<p>Let $\mathbf{x}$ be the target sample $\sim P(\mathbf{x} \vert C=1; \theta) = p_\theta(\mathbf{x})$ and $\tilde{\mathbf{x}}$ be the noise sample $\sim  P(\tilde{\mathbf{x}} \vert C=0) = q(\tilde{\mathbf{x}})$. Note that the logistic regression models the logit (i.e. log-odds) and in this case we would like to model the logit of a sample $u$ from the target data distribution instead of the noise distribution:</p>
+<div>
+$$
+\ell_\theta(\mathbf{u}) = \log \frac{p_\theta(\mathbf{u})}{q(\mathbf{u})} = \log p_\theta(\mathbf{u}) - \log q(\mathbf{u})
+$$
+</div>
+<p>After converting logits into probabilities with sigmoid $\sigma(.)$, we can apply cross entropy loss:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{NCE} &= - \frac{1}{N} \sum_{i=1}^N \big[ \log \sigma (\ell_\theta(\mathbf{x}_i)) + \log (1 - \sigma (\ell_\theta(\tilde{\mathbf{x}}_i))) \big] \\
+\text{ where }\sigma(\ell) &= \frac{1}{1 + \exp(-\ell)} = \frac{p_\theta}{p_\theta + q}
+\end{aligned}
+$$
+</div>
+<p>Here I listed the original form of NCE loss which works with only one positive and one noise sample. In many follow-up works, contrastive loss incorporating multiple negative samples is also broadly referred to as NCE.</p>
+<h2 id="infonce">InfoNCE<a hidden class="anchor" aria-hidden="true" href="#infonce">#</a></h2>
+<p>The <strong>InfoNCE loss</strong> in CPC (<a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/#contrastive-predictive-coding">Contrastive Predictive Coding</a>; <a href="https://arxiv.org/abs/1807.03748">van den Oord, et al. 2018</a>), inspired by <a href="#NCE">NCE</a>, uses categorical cross-entropy loss to identify the positive sample amongst a set of unrelated noise samples.</p>
+<p>Given a context vector $\mathbf{c}$, the positive sample should be drawn from the conditional distribution $p(\mathbf{x} \vert \mathbf{c})$, while $N-1$ negative samples are drawn from the proposal distribution $p(\mathbf{x})$, independent from the context $\mathbf{c}$. For brevity, let us label all the samples as $X=\{ \mathbf{x}_i \}^N_{i=1}$ among which only one of them $\mathbf{x}_\texttt{pos}$ is a positive sample. The probability of we detecting the positive sample correctly is:</p>
+<div>
+$$
+p(C=\texttt{pos} \vert X, \mathbf{c}) 
+= \frac{p(x_\texttt{pos} \vert \mathbf{c}) \prod_{i=1,\dots,N; i \neq \texttt{pos}} p(\mathbf{x}_i)}{\sum_{j=1}^N \big[ p(\mathbf{x}_j \vert \mathbf{c}) \prod_{i=1,\dots,N; i \neq j} p(\mathbf{x}_i) \big]}
+= \frac{ \frac{p(\mathbf{x}_\texttt{pos}\vert c)}{p(\mathbf{x}_\texttt{pos})} }{ \sum_{j=1}^N \frac{p(\mathbf{x}_j\vert \mathbf{c})}{p(\mathbf{x}_j)} }
+= \frac{f(\mathbf{x}_\texttt{pos}, \mathbf{c})}{ \sum_{j=1}^N f(\mathbf{x}_j, \mathbf{c}) }
+$$
+</div>
+<p>where the scoring function is $f(\mathbf{x}, \mathbf{c}) \propto \frac{p(\mathbf{x}\vert\mathbf{c})}{p(\mathbf{x})}$.</p>
+<p>The InfoNCE loss optimizes the negative log probability of classifying the positive sample correctly:</p>
+<div>
+$$
+\mathcal{L}_\text{InfoNCE} = - \mathbb{E} \Big[\log \frac{f(\mathbf{x}, \mathbf{c})}{\sum_{\mathbf{x}' \in X} f(\mathbf{x}', \mathbf{c})} \Big]
+$$
+</div>
+<p>The fact that $f(x, c)$ estimates the density ratio $\frac{p(x\vert c)}{p(x)}$ has a connection with mutual information optimization. To maximize the the mutual information between input $x$ and context vector $c$, we have:</p>
+<div>
+$$
+I(\mathbf{x}; \mathbf{c}) = \sum_{\mathbf{x}, \mathbf{c}} p(\mathbf{x}, \mathbf{c}) \log\frac{p(\mathbf{x}, \mathbf{c})}{p(\mathbf{x})p(\mathbf{c})} = \sum_{\mathbf{x}, \mathbf{c}} p(\mathbf{x}, \mathbf{c})\log\color{blue}{\frac{p(\mathbf{x}|\mathbf{c})}{p(\mathbf{x})}}
+$$
+</div>
+<p>where the logarithmic term in <span color='blue'>blue</span> is estimated by $f$.</p>
+<p>For sequence prediction tasks, rather than modeling the future observations $p_k(\mathbf{x}_{t+k} \vert \mathbf{c}_t)$ directly (which could be fairly expensive), CPC models a density function to preserve the mutual information between $\mathbf{x}_{t+k}$ and $\mathbf{c}_t$:</p>
+<div>
+$$
+f_k(\mathbf{x}_{t+k}, \mathbf{c}_t) = \exp(\mathbf{z}_{t+k}^\top \mathbf{W}_k \mathbf{c}_t) \propto \frac{p(\mathbf{x}_{t+k}\vert\mathbf{c}_t)}{p(\mathbf{x}_{t+k})}
+$$
+</div>
+<p>where $\mathbf{z}_{t+k}$ is the encoded input and $\mathbf{W}_k$ is a trainable weight matrix.</p>
+<h2 id="soft-nearest-neighbors-loss">Soft-Nearest Neighbors Loss<a hidden class="anchor" aria-hidden="true" href="#soft-nearest-neighbors-loss">#</a></h2>
+<p><strong>Soft-Nearest Neighbors Loss</strong> (<a href="http://proceedings.mlr.press/v2/salakhutdinov07a.html">Salakhutdinov &amp; Hinton 2007</a>, <a href="https://arxiv.org/abs/1902.01889">Frosst et al. 2019</a>) extends it to include multiple positive samples.</p>
+<p>Given a batch of samples, $\{\mathbf{x}_i, y_i)\}^B_{i=1}$ where $y_i$ is the class label of $\mathbf{x}_i$ and a function $f(.,.)$ for measuring similarity between two inputs, the soft nearest neighbor loss at temperature $\tau$ is defined as:</p>
+<div>
+$$
+\mathcal{L}_\text{snn} = -\frac{1}{B}\sum_{i=1}^B \log \frac{\sum_{i\neq j, y_i = y_j, j=1,\dots,B} \exp(- f(\mathbf{x}_i, \mathbf{x}_j) / \tau)}{\sum_{i\neq k, k=1,\dots,B} \exp(- f(\mathbf{x}_i, \mathbf{x}_k) /\tau)}
+$$
+</div>
+<p>The temperature $\tau$ is used for tuning how concentrated the features are in the representation space. For example, when at low temperature, the loss is dominated by the small distances and widely separated representations cannot contribute much and become irrelevant.</p>
+<h2 id="common-setup">Common Setup<a hidden class="anchor" aria-hidden="true" href="#common-setup">#</a></h2>
+<p>We can loosen the definition of &ldquo;classes&rdquo; and &ldquo;labels&rdquo; in soft nearest-neighbor loss to create positive and negative sample pairs out of unsupervised data by, for example, applying data augmentation to create noise versions of original samples.</p>
+<p>Most recent studies follow the following definition of contrastive learning objective to incorporate multiple positive and negative samples. According to the setup in (<a href="https://arxiv.org/abs/2005.10242">Wang &amp; Isola 2020</a>), let $p_\texttt{data}(.)$ be the data distribution over $\mathbb{R}^n$ and $p_\texttt{pos}(., .)$ be the distribution of positive pairs over $\mathbb{R}^{n \times n}$. These two distributions should satisfy:</p>
+<ul>
+<li>Symmetry: $\forall \mathbf{x}, \mathbf{x}^+, p_\texttt{pos}(\mathbf{x}, \mathbf{x}^+) = p_\texttt{pos}(\mathbf{x}^+, \mathbf{x})$</li>
+<li>Matching marginal: $\forall \mathbf{x}, \int p_\texttt{pos}(\mathbf{x}, \mathbf{x}^+) d\mathbf{x}^+ = p_\texttt{data}(\mathbf{x})$</li>
+</ul>
+<p>To learn an encoder $f(\mathbf{x})$ to learn a <em>L2-normalized feature vector</em>, the contrastive learning objective is:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{contrastive} 
+&= \mathbb{E}_{(\mathbf{x},\mathbf{x}^+)\sim p_\texttt{pos}, \{\mathbf{x}^-_i\}^M_{i=1} \overset{\text{i.i.d}}{\sim} p_\texttt{data} } \Big[ -\log\frac{\exp(f(\mathbf{x})^\top f(\mathbf{x}^+) / \tau)}{ \exp(f(\mathbf{x})^\top f(\mathbf{x}^+) / \tau) + \sum_{i=1}^M \exp(f(\mathbf{x})^\top f(\mathbf{x}_i^-) / \tau)} \Big] & \\
+&\approx \mathbb{E}_{(\mathbf{x},\mathbf{x}^+)\sim p_\texttt{pos}, \{\mathbf{x}^-_i\}^M_{i=1} \overset{\text{i.i.d}}{\sim} p_\texttt{data} }\Big[ - f(\mathbf{x})^\top f(\mathbf{x}^+) / \tau + \log\big(\sum_{i=1}^M \exp(f(\mathbf{x})^\top f(\mathbf{x}_i^-) / \tau)\big) \Big] & \scriptstyle{\text{; Assuming infinite negatives}} \\
+&= -\frac{1}{\tau}\mathbb{E}_{(\mathbf{x},\mathbf{x}^+)\sim p_\texttt{pos}}f(\mathbf{x})^\top f(\mathbf{x}^+) + \mathbb{E}_{ \mathbf{x} \sim p_\texttt{data}} \Big[ \log \mathbb{E}_{\mathbf{x}^- \sim p_\texttt{data}} \big[ \sum_{i=1}^M \exp(f(\mathbf{x})^\top f(\mathbf{x}_i^-) / \tau)\big] \Big] &
+\end{aligned}
+$$
+</div>
+<h1 id="key-ingredients">Key Ingredients<a hidden class="anchor" aria-hidden="true" href="#key-ingredients">#</a></h1>
+<h2 id="heavy-data-augmentation">Heavy Data Augmentation<a hidden class="anchor" aria-hidden="true" href="#heavy-data-augmentation">#</a></h2>
+<p>Given a training sample, data augmentation techniques are needed for creating noise versions of itself to feed into the loss as positive samples. Proper data augmentation setup is critical for learning good and generalizable embedding features. It introduces the non-essential variations into examples without modifying semantic meanings and thus encourages the model to learn the essential part of the representation. For example, experiments in <a href="#simclr">SimCLR</a> showed that the composition of random cropping and random color distortion is crucial for good performance on learning visual representation of images.</p>
+<h2 id="large-batch-size">Large Batch Size<a hidden class="anchor" aria-hidden="true" href="#large-batch-size">#</a></h2>
+<p>Using a large batch size during training is another key ingredient in the success of many contrastive learning methods (e.g. <a href="#simclr">SimCLR</a>, <a href="#clip">CLIP</a>), especially when it relies on in-batch negatives. Only when the batch size is big enough, the loss function can cover a diverse enough collection of negative samples, challenging enough for the model to learn meaningful representation to distinguish different examples.</p>
+<h2 id="hard-negative-mining">Hard Negative Mining<a hidden class="anchor" aria-hidden="true" href="#hard-negative-mining">#</a></h2>
+<p>Hard negative samples should have different labels from the anchor sample, but have embedding features very close to the anchor embedding. With access to ground truth labels in supervised datasets, it is easy to identify task-specific hard negatives. For example when learning sentence embedding, we can treat sentence pairs labelled as &ldquo;contradiction&rdquo; in NLI datasets as hard negative pairs (e.g. <a href="#dropout-and-cutoff">SimCSE</a>, or use top incorrect candidates returned by BM25 with most keywords matched as hard negative samples (<a href="https://lilianweng.github.io/posts/2020-10-29-odqa/#DPR">DPR</a>; <a href="https://arxiv.org/abs/2004.04906">Karpukhin et al., 2020</a>).</p>
+<p>However, it becomes tricky to do hard negative mining when we want to remain unsupervised. Increasing training batch size or <a href="#memory-bank">memory bank</a> size implicitly introduces more hard negative samples, but it leads to a heavy burden of large memory usage as a side effect.</p>
+<p><a href="https://arxiv.org/abs/2007.00224">Chuang et al. (2020)</a> studied the sampling bias in contrastive learning and proposed debiased loss. In the unsupervised setting, since we do not know the ground truth labels, we may accidentally sample false negative samples. Sampling bias can lead to significant performance drop.</p>
+<figure>
+	<img src="contrastive-sampling-bias.png" style="width: 100%;"  />
+	<figcaption>Sampling bias which refers to false negative samples in contrastive learning can lead to a big performance drop. (Image source: <a href="https://arxiv.org/abs/2007.00224" target="_blank">Chuang et al., 2020</a>)</figcaption>
+</figure>
+<p>Let us assume the probability of anchor class $c$ is uniform $\rho(c)=\eta^+$ and the probability of observing a different class is $\eta^- = 1-\eta^+$.</p>
+<ul>
+<li>The probability of observing a positive example for $\mathbf{x}$ is $p^+_x(\mathbf{x}&rsquo;)=p(\mathbf{x}&rsquo;\vert \mathbf{h}_{x&rsquo;}=\mathbf{h}_x)$;</li>
+<li>The probability of getting a negative sample for $\mathbf{x}$ is $p^-_x(\mathbf{x}&rsquo;)=p(\mathbf{x}&rsquo;\vert \mathbf{h}_{x&rsquo;}\neq\mathbf{h}_x)$.</li>
+</ul>
+<p>When we are sampling $\mathbf{x}^-$ , we cannot access the true $p^-_x(\mathbf{x}^-)$ and thus $\mathbf{x}^-$ may be sampled from the (undesired) anchor class $c$ with probability $\eta^+$. The actual sampling data distribution becomes:</p>
+<div>
+$$
+p(\mathbf{x}') = \eta^+ p^+_x(\mathbf{x}') + \eta^- p_x^-(\mathbf{x}')
+$$
+</div>
+<p>Thus we can use $p^-_x(\mathbf{x}&rsquo;) = (p(\mathbf{x}&rsquo;) - \eta^+ p^+_x(\mathbf{x}&rsquo;))/\eta^-$ for sampling $\mathbf{x}^-$ to debias the loss. With $N$ samples $\{\mathbf{u}_i\}^N_{i=1}$ from $p$ and $M$ samples $\{ \mathbf{v}_i \}_{i=1}^M$ from $p^+_x$ , we can estimate the expectation of the second term $\mathbb{E}_{\mathbf{x}^-\sim p^-_x}[\exp(f(\mathbf{x})^\top f(\mathbf{x}^-))]$ in the denominator of contrastive learning loss:</p>
+<div>
+$$
+g(\mathbf{x}, \{\mathbf{u}_i\}^N_{i=1}, \{\mathbf{v}_i\}_{i=1}^M) = \max\Big\{ \frac{1}{\eta^-}\Big( \frac{1}{N}\sum_{i=1}^N \exp(f(\mathbf{x})^\top f(\mathbf{u}_i)) - \frac{\eta^+}{M}\sum_{i=1}^M \exp(f(\mathbf{x})^\top f(\mathbf{v}_i)) \Big), \exp(-1/\tau) \Big\}
+$$
+</div>
+<p>where $\tau$ is the temperature and $\exp(-1/\tau)$ is the theoretical lower bound of $\mathbb{E}_{\mathbf{x}^-\sim p^-_x}[\exp(f(\mathbf{x})^\top f(\mathbf{x}^-))]$.</p>
+<p>The final debiased contrastive loss looks like:</p>
+<div>
+$$
+\mathcal{L}^{N,M}_\text{debias}(f) = \mathbb{E}_{\mathbf{x},\{\mathbf{u}_i\}^N_{i=1}\sim p;\;\mathbf{x}^+, \{\mathbf{v}_i\}_{i=1}^M\sim p^+} \Big[ -\log\frac{\exp(f(\mathbf{x})^\top f(\mathbf{x}^+)}{\exp(f(\mathbf{x})^\top f(\mathbf{x}^+) + N g(x,\{\mathbf{u}_i\}^N_{i=1}, \{\mathbf{v}_i\}_{i=1}^M)} \Big]
+$$
+</div>
+<figure>
+	<img src="contrastive-debias-t-SNE.png" style="width: 100%;"  />
+	<figcaption>t-SNE visualization of learned representation with debiased contrastive learning. (Image source: <a href="https://arxiv.org/abs/2007.00224" target="_blank">Chuang et al., 2020</a>)</figcaption>
+</figure>
+<p>Following the above annotation, <a href="https://arxiv.org/abs/2010.04592">Robinson et al. (2021)</a> modified the sampling probabilities to target at hard negatives by up-weighting the probability $p^-_x(x&rsquo;)$ to be proportional to its similarity to the anchor sample. The new sampling probability $q_\beta(x^-)$ is:</p>
+<div>
+$$
+q_\beta(\mathbf{x}^-) \propto \exp(\beta f(\mathbf{x})^\top f(\mathbf{x}^-)) \cdot p(\mathbf{x}^-)
+$$
+</div>
+<p>where $\beta$ is a hyperparameter to tune.</p>
+<p>We can estimate the second term in the denominator $\mathbb{E}_{\mathbf{x}^- \sim q_\beta} [\exp(f(\mathbf{x})^\top f(\mathbf{x}^-))]$ using importance sampling where both the partition functions $Z_\beta, Z^+_\beta$ can be estimated empirically.</p>
+<div>
+$$
+\begin{aligned}
+\mathbb{E}_{\mathbf{u} \sim q_\beta} [\exp(f(\mathbf{x})^\top f(\mathbf{u}))] &= \mathbb{E}_{\mathbf{u} \sim p} [\frac{q_\beta}{p}\exp(f(\mathbf{x})^\top f(\mathbf{u}))] = \mathbb{E}_{\mathbf{u} \sim p} [\frac{1}{Z_\beta}\exp((\beta + 1)f(\mathbf{x})^\top f(\mathbf{u}))] \\
+\mathbb{E}_{\mathbf{v} \sim q^+_\beta} [\exp(f(\mathbf{x})^\top f(\mathbf{v}))] &= \mathbb{E}_{\mathbf{v} \sim p^+} [\frac{q^+_\beta}{p}\exp(f(\mathbf{x})^\top f(\mathbf{v}))] = \mathbb{E}_{\mathbf{v} \sim p} [\frac{1}{Z^+_\beta}\exp((\beta + 1)f(\mathbf{x})^\top f(\mathbf{v}))]
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="contrastive-hard-negatives-code.png" style="width: 100%;"  />
+	<figcaption>Pseudo code for computing NCE loss, debiased contrastive loss, and hard negative sample objective when setting $M=1$. (Image source: <a href="https://arxiv.org/abs/2010.04592" target="_blank">Robinson et al., 2021</a> )</figcaption>
+</figure>
+<h1 id="vision-image-embedding">Vision: Image Embedding<a hidden class="anchor" aria-hidden="true" href="#vision-image-embedding">#</a></h1>
+<h2 id="image-augmentations">Image Augmentations<a hidden class="anchor" aria-hidden="true" href="#image-augmentations">#</a></h2>
+<p>Most approaches for contrastive representation learning in the vision domain rely on creating a noise version of a sample by applying a sequence of data augmentation techniques. The augmentation should significantly change its visual appearance but keep the semantic meaning unchanged.</p>
+<h3 id="basic-image-augmentation">Basic Image Augmentation<a hidden class="anchor" aria-hidden="true" href="#basic-image-augmentation">#</a></h3>
+<p>There are many ways to modify an image while retaining its semantic meaning. We can use any one of the following augmentation or a composition of multiple operations.</p>
+<ul>
+<li>Random cropping and then resize back to the original size.</li>
+<li>Random color distortions</li>
+<li>Random Gaussian blur</li>
+<li>Random color jittering</li>
+<li>Random horizontal flip</li>
+<li>Random grayscale conversion</li>
+<li>Multi-crop augmentation: Use two standard resolution crops and sample a set of additional low resolution crops that cover only small parts of the image. Using low resolution crops reduces the compute cost. (<a href="#swav">SwAV</a>)</li>
+<li>And many more &hellip;</li>
+</ul>
+<h3 id="augmentation-strategies">Augmentation Strategies<a hidden class="anchor" aria-hidden="true" href="#augmentation-strategies">#</a></h3>
+<p>Many frameworks are designed for learning good data augmentation strategies (i.e. a composition of multiple transforms). Here are a few common ones.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/#AutoAugment">AutoAugment</a> (<a href="https://arxiv.org/abs/1805.09501">Cubuk, et al. 2018</a>): Inspired by <a href="https://lilianweng.github.io/posts/2020-08-06-nas/">NAS</a>, AutoAugment frames the problem of learning best data augmentation operations (i.e. shearing, rotation, invert, etc.) for image classification as an RL problem and looks for the combination that leads to the highest accuracy on the evaluation set.</li>
+<li>RandAugment (<a href="https://arxiv.org/abs/1909.13719">Cubuk et al., 2019</a>): RandAugment greatly reduces the search space of AutoAugment by controlling the magnitudes of different transformation operations with a single magnitude parameter.</li>
+<li>PBA (Population based augmentation; <a href="https://arxiv.org/abs/1905.05393">Ho et al., 2019</a>): PBA combined PBT (<a href="https://arxiv.org/abs/1711.09846">Jaderberg et al, 2017</a>) with AutoAugment, using the evolutionary algorithm to train a population of children models in parallel to evolve the best augmentation strategies.</li>
+<li>UDA (Unsupervised Data Augmentation; <a href="https://arxiv.org/abs/1904.12848">Xie et al., 2019</a>): Among a set of possible augmentation strategies, UDA selects those to minimize the KL divergence between the predicted distribution over an unlabelled example and its unlabelled augmented version.</li>
+</ul>
+<h3 id="image-mixture">Image Mixture<a hidden class="anchor" aria-hidden="true" href="#image-mixture">#</a></h3>
+<p>Image mixture methods can construct new training examples from existing data points.</p>
+<ul>
+<li>Mixup (<a href="https://arxiv.org/abs/1710.09412">Zhang et al., 2018</a>): It runs global-level mixture by creating a weighted pixel-wise combination of two existing images $I_1$ and $I_2$: $I_\text{mixup} \gets \alpha I_1 + (1-\alpha) I_2$ and $\alpha \in [0, 1]$.</li>
+<li>Cutmix (<a href="https://arxiv.org/abs/1905.04899">Yun et al., 2019</a>): Cutmix does region-level mixture by generating a new example by combining a local region of one image with the rest of the other image. $I_\text{cutmix} \gets \mathbf{M}_b \odot I_1 + (1-\mathbf{M}_b) \odot I_2$, where $\mathbf{M}_b \in \{0, 1\}^I$ is a binary mask and $\odot$ is element-wise multiplication. It is equivalent to filling the cutout (<a href="https://arxiv.org/abs/1708.04552">DeVries &amp; Taylor 2017</a>) region with the same region from another image.</li>
+<li>MoCHi (&ldquo;Mixing of Contrastive Hard Negatives&rdquo;; <a href="https://arxiv.org/abs/2010.01028">Kalantidis et al. 2020</a>): Given a query $\mathbf{q}$, MoCHi maintains a queue of $K$ negative features $Q=\{\mathbf{n}_1, \dots, \mathbf{n}_K \}$ and sorts these negative features by similarity to the query, $\mathbf{q}^\top \mathbf{n}$, in descending order. The first $N$ items in the queue are considered as the hardest negatives, $Q^N$. Then synthetic hard examples can be generated by $\mathbf{h} = \tilde{\mathbf{h}} / |\tilde{\mathbf{h}}|$ where $\tilde{\mathbf{h}} = \alpha\mathbf{n}_i + (1-\alpha) \mathbf{n}_j$ and $\alpha \in (0, 1)$. Even harder examples can be created by mixing with the query feature, $\mathbf{h}&rsquo; = \tilde{\mathbf{h}&rsquo;} / |\tilde{\mathbf{h}&rsquo;}|_2$ where $\tilde{\mathbf{h}&rsquo;} = \beta\mathbf{q} + (1-\beta) \mathbf{n}_j$ and $\beta \in (0, 0.5)$.</li>
+</ul>
+<h2 id="parallel-augmentation">Parallel Augmentation<a hidden class="anchor" aria-hidden="true" href="#parallel-augmentation">#</a></h2>
+<p>This category of approaches produce two noise versions of one anchor image and aim to learn representation such that these two augmented samples share the same embedding.</p>
+<h3 id="simclr">SimCLR<a hidden class="anchor" aria-hidden="true" href="#simclr">#</a></h3>
+<p><strong>SimCLR</strong> (<a href="https://arxiv.org/abs/2002.05709">Chen et al, 2020</a>) proposed a simple framework for contrastive learning of visual representations. It learns representations for visual inputs by maximizing agreement between differently augmented views of the same sample via a contrastive loss in the latent space.</p>
+<figure>
+	<img src="SimCLR.png" style="width: 45%;"  />
+	<figcaption>A simple framework for contrastive learning of visual representations. (Image source: <a href="https://arxiv.org/abs/2002.05709" target="_blank">Chen et al, 2020</a>)</figcaption>
+</figure>
+<ol>
+<li>Randomly sample a minibatch of $N$ samples and each sample is applied with two different data augmentation operations, resulting in $2N$ augmented samples in total.</li>
+</ol>
+<div>
+$$
+\tilde{\mathbf{x}}_i = t(\mathbf{x}),\quad\tilde{\mathbf{x}}_j = t'(\mathbf{x}),\quad t, t' \sim \mathcal{T}
+$$
+</div>
+<p>where two separate data augmentation operators, $t$ and $t&rsquo;$, are sampled from the same family of augmentations $\mathcal{T}$. Data augmentation includes random crop, resize with random flip, color distortions, and Gaussian blur.</p>
+<ol start="2">
+<li>Given one positive pair, other $2(N-1)$ data points are treated as negative samples. The representation is produced by a base encoder $f(.)$:</li>
+</ol>
+<div>
+$$
+\mathbf{h}_i = f(\tilde{\mathbf{x}}_i),\quad \mathbf{h}_j = f(\tilde{\mathbf{x}}_j)
+$$
+</div>
+<ol start="3">
+<li>The contrastive learning loss is defined using cosine similarity $\text{sim}(.,.)$. Note that the loss operates on an extra projection layer of the representation $g(.)$ rather than on the representation space directly. But only the representation $\mathbf{h}$ is used for downstream tasks.</li>
+</ol>
+<div>
+$$
+\begin{aligned}
+\mathbf{z}_i &= g(\mathbf{h}_i),\quad
+\mathbf{z}_j = g(\mathbf{h}_j) \\
+\mathcal{L}_\text{SimCLR}^{(i,j)} &= - \log\frac{\exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_j) / \tau)}{\sum_{k=1}^{2N} \mathbb{1}_{[k \neq i]} \exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_k) / \tau)}
+\end{aligned}
+$$
+</div>
+<p>where $\mathbb{1}_{[k \neq i]}$ is an indicator function: 1 if $k\neq i$ 0 otherwise.</p>
+<p>SimCLR needs a large batch size to incorporate enough negative samples to achieve good performance.</p>
+<figure>
+	<img src="SimCLR-algo.png" style="width: 55%;"  />
+	<figcaption>The algorithm for SimCLR. (Image source: <a href="https://arxiv.org/abs/2002.05709" target="_blank">Chen et al, 2020</a>).</figcaption>
+</figure>
+<h3 id="barlow-twins">Barlow Twins<a hidden class="anchor" aria-hidden="true" href="#barlow-twins">#</a></h3>
+<p><strong>Barlow Twins</strong> (<a href="https://arxiv.org/abs/2103.03230">Zbontar et al. 2021</a>) feeds two distorted versions of samples into the same network to extract features and learns to make the <em>cross-correlation matrix</em> between these two groups of output features close to the identity. The goal is to keep the representation vectors of different distorted versions of one sample similar, while minimizing the redundancy between these vectors.</p>
+<figure>
+	<img src="barlow-twins.png" style="width: 70%;"  />
+	<figcaption>Illustration of Barlow Twins learning pipeline. (Image source: <a href="https://arxiv.org/abs/2103.03230" target="_blank">Zbontar et al. 2021</a>).</figcaption>
+</figure>
+<p>Let $\mathcal{C}$ be a cross-correlation matrix computed between outputs from two identical networks along the batch dimension. $\mathcal{C}$ is a square matrix with the size same as the feature network&rsquo;s output dimensionality. Each entry in the matrix $\mathcal{C}_{ij}$ is the cosine similarity between network output vector dimension at index $i, j$ and batch index $b$, $\mathbf{z}_{b,i}^A$ and $\mathbf{z}_{b,j}^B$, with a value between -1 (i.e. perfect anti-correlation) and 1 (i.e. perfect correlation).</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{BT} &= \underbrace{\sum_i (1-\mathcal{C}_{ii})^2}_\text{invariance term} + \lambda \underbrace{\sum_i\sum_{i\neq j} \mathcal{C}_{ij}^2}_\text{redundancy reduction term} \\ \text{where } \mathcal{C}_{ij} &= \frac{\sum_b \mathbf{z}^A_{b,i} \mathbf{z}^B_{b,j}}{\sqrt{\sum_b (\mathbf{z}^A_{b,i})^2}\sqrt{\sum_b (\mathbf{z}^B_{b,j})^2}}
+\end{aligned}
+$$
+</div>
+<p>Barlow Twins is competitive with SOTA methods for self-supervised learning. It naturally avoids trivial constants (i.e. collapsed representations), and is robust to different training batch sizes.</p>
+<figure>
+	<img src="barlow-twins-algo.png" style="width: 60%;"  />
+	<figcaption>Algorithm of Barlow Twins in Pytorch style pseudo code. (Image source: <a href="https://arxiv.org/abs/2103.03230" target="_blank">Zbontar et al. 2021</a>).</figcaption>
+</figure>
+<h3 id="byol">BYOL<a hidden class="anchor" aria-hidden="true" href="#byol">#</a></h3>
+<p>Different from the above approaches, interestingly, <strong>BYOL</strong> (Bootstrap Your Own Latent; <a href="https://arxiv.org/abs/2006.07733">Grill, et al 2020</a>) claims to achieve a new state-of-the-art results <em>without using negative samples</em>. It relies on two neural networks, referred to as <em>online</em> and <em>target</em> networks that interact and learn from each other. The target network (parameterized by $\xi$) has the same architecture as the online one (parameterized by $\theta$), but with polyak averaged weights, $\xi \leftarrow \tau \xi + (1-\tau) \theta$.</p>
+<p>The goal is to learn a presentation $y$ that can be used in downstream tasks. The online network parameterized by $\theta$ contains:</p>
+<ul>
+<li>An encoder $f_\theta$;</li>
+<li>A projector $g_\theta$;</li>
+<li>A predictor $q_\theta$.</li>
+</ul>
+<p>The target network has the same network architecture, but with different parameter $\xi$, updated by polyak averaging $\theta$: $\xi \leftarrow \tau \xi + (1-\tau) \theta$.</p>
+<figure>
+	<img src="BYOL.png" style="width: 100%;"  />
+	<figcaption>The model architecture of BYOL. After training, we only care about $f\_\theta$ for producing representation, $y=f\_\theta(x)$, and everything else is discarded. $\text{sg}$ means stop gradient. (Image source: <a href="https://arxiv.org/abs/2006.07733" target="_blank">Grill, et al 2020</a>)</figcaption>
+</figure>
+<p>Given an image $\mathbf{x}$, the BYOL loss is constructed as follows:</p>
+<ul>
+<li>Create two augmented views: $\mathbf{v}=t(\mathbf{x}); \mathbf{v}&rsquo;=t&rsquo;(\mathbf{x})$ with augmentations sampled $t \sim \mathcal{T}, t&rsquo; \sim \mathcal{T}&rsquo;$;</li>
+<li>Then they are encoded into representations, $\mathbf{y}_\theta=f_\theta(\mathbf{v}), \mathbf{y}&rsquo;=f_\xi(\mathbf{v}&rsquo;)$;</li>
+<li>Then they are projected into latent variables, $\mathbf{z}_\theta=g_\theta(\mathbf{y}_\theta), \mathbf{z}&rsquo;=g_\xi(\mathbf{y}&rsquo;)$;</li>
+<li>The online network outputs a prediction $q_\theta(\mathbf{z}_\theta)$;</li>
+<li>Both $q_\theta(\mathbf{z}_\theta)$ and $\mathbf{z}&rsquo;$ are L2-normalized, giving us $\bar{q}_\theta(\mathbf{z}_\theta) = q_\theta(\mathbf{z}_\theta) / | q_\theta(\mathbf{z}_\theta) |$ and $\bar{\mathbf{z}&rsquo;} = \mathbf{z}&rsquo; / |\mathbf{z}&rsquo;|$;</li>
+<li>The loss $\mathcal{L}^\text{BYOL}_\theta$ is MSE between L2-normalized prediction $\bar{q}_\theta(\mathbf{z})$ and $\bar{\mathbf{z}&rsquo;}$;</li>
+<li>The other symmetric loss $\tilde{\mathcal{L}}^\text{BYOL}_\theta$ can be generated by switching $\mathbf{v}&rsquo;$ and $\mathbf{v}$; that is, feeding $\mathbf{v}&rsquo;$ to online network and $\mathbf{v}$ to target network.</li>
+<li>The final loss is $\mathcal{L}^\text{BYOL}_\theta + \tilde{\mathcal{L}}^\text{BYOL}_\theta$ and only  parameters $\theta$ are optimized.</li>
+</ul>
+<p>Unlike most popular contrastive learning based approaches, BYOL does not use negative pairs. Most bootstrapping approaches rely on pseudo-labels or cluster indices, but BYOL directly boostrapps the latent representation.</p>
+<p>It is quite interesting and surprising that <em>without</em> negative samples, BYOL still works well. Later I ran into this <a href="https://untitled-ai.github.io/understanding-self-supervised-contrastive-learning.html">post</a> by Abe Fetterman &amp; Josh Albrecht, they highlighted two surprising findings while they were trying to reproduce BYOL:</p>
+<ol>
+<li>BYOL generally performs no better than random when <em>batch normalization is removed</em>.</li>
+<li>The presence of batch normalization implicitly causes a form of contrastive learning.
+They believe that using negative samples is important for avoiding model collapse (i.e. what if you use all-zeros representation for every data point?). Batch normalization injects dependency on negative samples <em>inexplicitly</em> because no matter how similar a batch of inputs are, the values are re-distributed (spread out $\sim \mathcal{N}(0, 1$) and therefore batch normalization prevents model collapse. Strongly recommend you to read the <a href="https://untitled-ai.github.io/understanding-self-supervised-contrastive-learning.html">full article</a> if you are working in this area.</li>
+</ol>
+<h2 id="memory-bank">Memory Bank<a hidden class="anchor" aria-hidden="true" href="#memory-bank">#</a></h2>
+<p>Computing embeddings for a large number of negative samples in every batch is extremely expensive. One common approach is to store the representation in memory to trade off data staleness for cheaper compute.</p>
+<h3 id="instance-discrimination-with-memoy-bank">Instance Discrimination with Memoy Bank<a hidden class="anchor" aria-hidden="true" href="#instance-discrimination-with-memoy-bank">#</a></h3>
+<p><strong>Instance contrastive learning</strong> (<a href="https://arxiv.org/abs/1805.01978v1">Wu et al, 2018</a>) pushes the class-wise supervision to the extreme by considering each instance as <em>a distinct class of its own</em>. It implies that the number of &ldquo;classes&rdquo; will be the same as the number of samples in the training dataset. Hence, it is unfeasible to train a softmax layer with these many heads, but instead it can be approximated by <a href="#nce">NCE</a>.</p>
+<figure>
+	<img src="instance-level-discrimination.png" style="width: 100%;"  />
+	<figcaption>The training pipeline of instance-level contrastive learning. The learned embedding is L2-normalized. (Image source: <a href="https://arxiv.org/abs/1805.01978v1" target="_blank">Wu et al, 2018</a>)</figcaption>
+</figure>
+<p>Let $\mathbf{v} = f_\theta(x)$ be an embedding function to learn and the vector is normalized to have $|\mathbf{v}|=1$. A non-parametric classifier predicts the probability of a sample $\mathbf{v}$ belonging to class $i$ with a temperature parameter $\tau$:</p>
+<div>
+$$
+P(C=i\vert \mathbf{v}) = \frac{\exp(\mathbf{v}_i^\top \mathbf{v} / \tau)}{\sum_{j=1}^n \exp(\mathbf{v}_j^\top \mathbf{v} / \tau)}
+$$
+</div>
+<p>Instead of computing the representations for all the samples every time, they implement an <strong>Memory Bank</strong> for storing sample representation in the database from past iterations. Let $V=\{ \mathbf{v}_i \}$ be the memory bank and $\mathbf{f}_i = f_\theta(\mathbf{x}_i)$ be the feature generated by forwarding the network. We can use the representation from the memory bank $\mathbf{v}_i$ instead of the feature forwarded from the network $\mathbf{f}_i$ when comparing pairwise similarity.</p>
+<p>The denominator theoretically requires access to the representations of all the samples, but that is too expensive in practice. Instead we can estimate it via Monte Carlo approximation using a random subset of $M$ indices $\{j_k\}_{k=1}^M$.</p>
+<div>
+$$
+P(i\vert \mathbf{v}) 
+= \frac{\exp(\mathbf{v}^\top \mathbf{f}_i / \tau)}{\sum_{j=1}^N \exp(\mathbf{v}_j^\top \mathbf{f}_i / \tau)}
+\simeq \frac{\exp(\mathbf{v}^\top \mathbf{f}_i / \tau)}{\frac{N}{M} \sum_{k=1}^M \exp(\mathbf{v}_{j_k}^\top \mathbf{f}_i / \tau)}
+$$
+</div>
+<p>Because there is only one instance per class, the training is unstable and fluctuates a lot. To improve the training smoothness, they introduced an extra term for positive samples in the loss function based on the <a href="https://web.stanford.edu/~boyd/papers/prox_algs.html">proximal optimization method</a>. The final NCE loss objective looks like:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{instance} &= - \mathbb{E}_{P_d}\big[\log h(i, \mathbf{v}^{(t-1)}_i) - \lambda \|\mathbf{v}^{(t)}_i - \mathbf{v}^{(t-1)}_i\|^2_2\big] - M\mathbb{E}_{P_n}\big[\log(1 - h(i, \mathbf{v}'^{(t-1)})\big] \\
+h(i, \mathbf{v}) &= \frac{P(i\vert\mathbf{v})}{P(i\vert\mathbf{v}) + MP_n(i)} \text{ where the noise distribution is uniform }P_n = 1/N
+\end{aligned}
+$$
+</div>
+<p>where $\{ \mathbf{v}^{(t-1)} \}$ are embeddings stored in the memory bank from the previous iteration. The difference between iterations $|\mathbf{v}^{(t)}_i - \mathbf{v}^{(t-1)}_i|^2_2$ will gradually vanish as the learned embedding converges.</p>
+<h3 id="moco--moco-v2">MoCo &amp; MoCo-V2<a hidden class="anchor" aria-hidden="true" href="#moco--moco-v2">#</a></h3>
+<p><strong>Momentum Contrast</strong> (<strong>MoCo</strong>; <a href="https://arxiv.org/abs/1911.05722">He et al, 2019</a>) provides a framework of unsupervised learning visual representation as a <em>dynamic dictionary look-up</em>. The dictionary is structured as a large FIFO queue of encoded representations of data samples.</p>
+<p>Given a query sample $\mathbf{x}_q$, we get a query representation through an encoder $\mathbf{q} = f_q(\mathbf{x}_q)$. A list of key representations $\{\mathbf{k}_1, \mathbf{k}_2, \dots \}$ in the dictionary are encoded by a momentum encoder $\mathbf{k}_i = f_k (\mathbf{x}^k_i)$. Let&rsquo;s assume among them there is a single <em>positive</em> key $\mathbf{k}^+$ in the dictionary that matches $\mathbf{q}$. In the paper, they create $\mathbf{k}^+$ using a noise copy of $\mathbf{x}_q$ with different <a href="#image-augmentations">augmentation</a>. Then the <a href="#infonce">InfoNCE</a> contrastive loss with temperature $\tau$ is used over one positive and $N-1$ negative samples:</p>
+<div>
+$$
+\mathcal{L}_\text{MoCo} = - \log \frac{\exp(\mathbf{q} \cdot \mathbf{k}^+ / \tau)}{\sum_{i=1}^N \exp(\mathbf{q} \cdot \mathbf{k}_i / \tau)}
+$$
+</div>
+<p>Compared to the <a href="#instance-discrimination-with-memoy-bank">memory bank</a>, a queue-based dictionary in MoCo enables us to reuse representations of immediately preceding mini-batches of data.</p>
+<p>The MoCo dictionary is not differentiable as a queue, so we cannot rely on back-propagation to update the key encoder $f_k$. One naive way might be to use the same encoder for both $f_q$ and $f_k$. Differently, MoCo proposed to use a momentum-based update with a momentum coefficient $m \in [0, 1)$. Say, the parameters of $f_q$ and $f_k$ are labeled as $\theta_q$ and $\theta_k$, respectively.</p>
+<div>
+$$
+\theta_k \leftarrow m \theta_k + (1-m) \theta_q
+$$
+</div>
+<figure>
+	<img src="MoCo.png" style="width: 60%;"  />
+	<figcaption>Illustration of how Momentum Contrast (MoCo) learns visual representations. (Image source:   <a href="https://arxiv.org/abs/1911.05722" target="_blank">He et al, 2019</a>)</figcaption>
+</figure>
+<p>The advantage of MoCo compared to <a href="#simclr">SimCLR</a> is that MoCo decouples the batch size from the number of negatives, but SimCLR requires a large batch size in order to have enough negative samples and suffers performance drops when their batch size is reduced.</p>
+<p>Two designs in SimCLR, namely, (1) an MLP projection head and (2) stronger data augmentation, are proved to be very efficient. <strong>MoCo V2</strong> (<a href="https://arxiv.org/abs/2003.04297">Chen et al, 2020</a>) combined these two designs, achieving even better transfer performance with no dependency on a very large batch size.</p>
+<h3 id="curl">CURL<a hidden class="anchor" aria-hidden="true" href="#curl">#</a></h3>
+<p><strong>CURL</strong> (<a href="https://arxiv.org/abs/2004.04136">Srinivas, et al. 2020</a>) applies the above ideas in <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/">Reinforcement Learning</a>. It learns a visual representation for RL tasks by matching embeddings of two data-augmented versions, $o_q$ and $o_k$, of the raw observation $o$ via contrastive loss. CURL primarily relies on random crop data augmentation. The key encoder is implemented as a momentum encoder with weights as EMA of the query encoder weights, same as in <a href="#moco--moco-v2">MoCo</a>.</p>
+<p>One significant difference between RL and supervised visual tasks is that RL depends on <em>temporal consistency</em> between consecutive frames. Therefore, CURL applies augmentation consistently on each stack of frames to retain information about the temporal structure of the observation.</p>
+<figure>
+	<img src="CURL.png" style="width: 70%;"  />
+	<figcaption>The architecture of CURL. (Image source: <a href="https://arxiv.org/abs/2004.04136" target="_blank">Srinivas, et al. 2020</a>)</figcaption>
+</figure>
+<h2 id="feature-clustering">Feature Clustering<a hidden class="anchor" aria-hidden="true" href="#feature-clustering">#</a></h2>
+<h3 id="deepcluster">DeepCluster<a hidden class="anchor" aria-hidden="true" href="#deepcluster">#</a></h3>
+<p><strong>DeepCluster</strong> (<a href="https://arxiv.org/abs/1807.05520">Caron et al. 2018</a>) iteratively clusters features via k-means and uses cluster assignments as pseudo labels to provide supervised signals.</p>
+<figure>
+	<img src="deepcluster.png" style="width: 80%;"  />
+	<figcaption>Illustration of DeepCluster method which iteratively clusters deep features and uses the cluster assignments as pseudo-labels. (Image source: <a href="https://arxiv.org/abs/1807.05520" target="_blank">Caron et al. 2018</a>)</figcaption>
+</figure>
+<p>In each iteration, DeepCluster clusters data points using the prior representation and then produces the new cluster assignments as the classification targets for the new representation. However this iterative process is prone to trivial solutions. While avoiding the use of negative pairs, it requires a costly clustering phase and specific precautions to avoid collapsing to trivial solutions.</p>
+<h3 id="swav">SwAV<a hidden class="anchor" aria-hidden="true" href="#swav">#</a></h3>
+<p><strong>SwAV</strong> (<em>Swapping Assignments between multiple Views</em>; <a href="https://arxiv.org/abs/2006.09882">Caron et al. 2020</a>) is an online contrastive learning algorithm. It computes a code from an augmented version of the image and tries to predict this code using another augmented version of the same image.</p>
+<figure>
+	<img src="SwAV.png" style="width: 100%;"  />
+	<figcaption>Comparison of SwAV and [contrastive instance learning](#instance-discrimination-with-memoy-bank). (Image source: <a href="https://arxiv.org/abs/2006.09882" target="_blank">Caron et al. 2020</a>)</figcaption>
+</figure>
+<p>Given features of images with two different augmentations, $\mathbf{z}_t$ and $\mathbf{z}_s$, SwAV computes corresponding codes $\mathbf{q}_t$ and $\mathbf{q}_s$ and the loss quantifies the fit by swapping two codes using $\ell(.)$ to measure the fit between a feature and a code.</p>
+<div>
+$$
+\mathcal{L}_\text{SwAV}(\mathbf{z}_t, \mathbf{z}_s) = \ell(\mathbf{z}_t, \mathbf{q}_s) + \ell(\mathbf{z}_s, \mathbf{q}_t)
+$$
+</div>
+<p>The swapped fit prediction depends on the cross entropy between the predicted code and a set of $K$ trainable prototype vectors $\mathbf{C} = \{\mathbf{c}_1, \dots, \mathbf{c}_K\}$. The prototype vector matrix is shared across different batches and represents <em>anchor clusters</em> that each instance should be clustered to.</p>
+<div>
+$$
+\ell(\mathbf{z}_t, \mathbf{q}_s) = - \sum_k \mathbf{q}^{(k)}_s\log\mathbf{p}^{(k)}_t \text{ where } \mathbf{p}^{(k)}_t = \frac{\exp(\mathbf{z}_t^\top\mathbf{c}_k  / \tau)}{\sum_{k'}\exp(\mathbf{z}_t^\top \mathbf{c}_{k'} / \tau)}
+$$
+</div>
+<p>In a mini-batch containing $B$ feature vectors $\mathbf{Z} = [\mathbf{z}_1, \dots, \mathbf{z}_B]$, the mapping matrix between features and prototype vectors is defined as $\mathbf{Q} = [\mathbf{q}_1, \dots, \mathbf{q}_B] \in \mathbb{R}_+^{K\times B}$. We would like to maximize the similarity between the features and the prototypes:</p>
+<div>
+$$
+\begin{aligned}
+\max_{\mathbf{Q}\in\mathcal{Q}} &\text{Tr}(\mathbf{Q}^\top \mathbf{C}^\top \mathbf{Z}) + \varepsilon \mathcal{H}(\mathbf{Q}) \\
+\text{where }\mathcal{Q} &= \big\{ \mathbf{Q} \in \mathbb{R}_{+}^{K \times B} \mid \mathbf{Q}\mathbf{1}_B = \frac{1}{K}\mathbf{1}_K, \mathbf{Q}^\top\mathbf{1}_K = \frac{1}{B}\mathbf{1}_B \big\}
+\end{aligned}
+$$
+</div>
+<p>where $\mathcal{H}$ is the entropy, $\mathcal{H}(\mathbf{Q}) = - \sum_{ij} \mathbf{Q}_{ij} \log \mathbf{Q}_{ij}$, controlling the smoothness of the code. The coefficient $\epsilon$ should not be too large; otherwise, all the samples will be assigned uniformly to all the clusters. The candidate set of solutions for $\mathbf{Q}$ requires every mapping matrix to have each row sum up to $1/K$ and each column to sum up to $1/B$, enforcing that each prototype gets selected at least $B/K$ times on average.</p>
+<p>SwAV relies on the iterative Sinkhorn-Knopp algorithm (<a href="https://arxiv.org/abs/1306.0895">Cuturi 2013</a>) to find the solution for $\mathbf{Q}$.</p>
+<h2 id="working-with-supervised-datasets">Working with Supervised Datasets<a hidden class="anchor" aria-hidden="true" href="#working-with-supervised-datasets">#</a></h2>
+<h3 id="clip">CLIP<a hidden class="anchor" aria-hidden="true" href="#clip">#</a></h3>
+<p><strong>CLIP</strong> (<em>Contrastive Language-Image Pre-training</em>; <a href="https://arxiv.org/abs/2103.00020">Radford et al. 2021</a>) jointly trains a text encoder and an image feature extractor over the pretraining task that predicts which caption goes with which image.</p>
+<figure>
+	<img src="CLIP.png" style="width: 100%;"  />
+	<figcaption>Illustration of CLIP contrastive pre-training over text-image pairs. (Image source: <a href="https://arxiv.org/abs/2103.00020" target="_blank">Radford et al. 2021</a>)</figcaption>
+</figure>
+<p>Given a batch of $N$ (image, text) pairs, CLIP computes the dense cosine similarity matrix between all $N\times N$ possible (image, text) candidates within this batch. The text and image encoders are jointly trained to maximize the similarity between $N$ correct pairs of (image, text) associations while minimizing the similarity for $N(N-1)$ incorrect pairs via a symmetric cross entropy loss over the dense matrix.</p>
+<p>See the numy-like pseudo code for CLIP in <figure>
+<img src="CLIP-algo.png" style="width: 60%;"  />
+<figcaption>CLIP algorithm in Numpy style pseudo code. (Image source: <a href="https://arxiv.org/abs/2103.00020" target="_blank">Radford et al. 2021</a>)</figcaption></p>
+</figure>
+<p>Compared to other methods above for learning good visual representation, what makes CLIP really special is <em>&ldquo;the appreciation of using natural language as a training signal&rdquo;</em>. It does demand access to supervised dataset in which we know which text matches which image. It is trained on 400 million (text, image) pairs, collected from the Internet. The query list contains all the words occurring at least 100 times in the English version of Wikipedia. Interestingly, they found that Transformer-based language models are 3x slower than a bag-of-words (BoW) text encoder at zero-shot ImageNet classification. Using contrastive objective instead of trying to predict the exact words associated with images (i.e. a method commonly adopted by image caption prediction tasks) can further improve the data efficiency another 4x.</p>
+<figure>
+	<img src="CLIP-efficiency.png" style="width: 60%;"  />
+	<figcaption>Using bag-of-words text encoding and contrastive training objectives can bring in multiple folds of data efficiency improvement. (Image source: <a href="https://arxiv.org/abs/2103.00020" target="_blank">Radford et al. 2021</a>)</figcaption>
+</figure>
+<p>CLIP produces good visual representation that can non-trivially transfer to many CV benchmark datasets, achieving results competitive with supervised baseline. Among tested transfer tasks, CLIP struggles with very fine-grained classification, as well as abstract or systematic tasks such as counting the number of objects. The transfer performance of CLIP models is smoothly correlated with the amount of model compute.</p>
+<h3 id="supervised-contrastive-learning">Supervised Contrastive Learning<a hidden class="anchor" aria-hidden="true" href="#supervised-contrastive-learning">#</a></h3>
+<p>There are several known issues with cross entropy loss, such as the lack of robustness to noisy labels and the possibility of poor margins. Existing improvement for cross entropy loss involves the curation of better training data, such as label smoothing and data augmentation. <strong>Supervised Contrastive Loss</strong> (<a href="https://arxiv.org/abs/2004.11362">Khosla et al. 2021</a>) aims to leverage label information more effectively than cross entropy, imposing that normalized embeddings from the same class are closer together than embeddings from different classes.</p>
+<figure>
+	<img src="sup-con.png" style="width: 90%;"  />
+	<figcaption>Supervised vs self-supervised contrastive losses. Supervised contrastive learning considers different samples from the same class as positive examples, in addition to augmented versions. (Image source: <a href="https://arxiv.org/abs/2004.11362" target="_blank">Khosla et al. 2021</a>)</figcaption>
+</figure>
+<p>Given a set of randomly sampled $n$ (image, label) pairs, $\{\mathbf{x}_i, y_i\}_{i=1}^n$, $2n$ training pairs can be created by applying two random augmentations of every sample, $\{\tilde{\mathbf{x}}_i, \tilde{y}_i\}_{i=1}^{2n}$.</p>
+<p>Supervised contrastive loss $\mathcal{L}_\text{supcon}$ utilizes multiple positive and negative samples, very similar to <a href="#soft-nearest-neighbors-loss">soft nearest-neighbor loss</a>:</p>
+<div>
+$$
+\mathcal{L}_\text{supcon} = - \sum_{i=1}^{2n} \frac{1}{2 \vert N_i \vert - 1} \sum_{j \in N(y_i), j \neq i} \log \frac{\exp(\mathbf{z}_i \cdot \mathbf{z}_j / \tau)}{\sum_{k \in I, k \neq i}\exp({\mathbf{z}_i \cdot \mathbf{z}_k / \tau})}
+$$
+</div>
+<p>where $\mathbf{z}_k=P(E(\tilde{\mathbf{x}_k}))$, in which $E(.)$ is an encoder network (augmented image mapped to vector) $P(.)$ is a projection network (one vector mapped to another). $N_i= \{j \in I: \tilde{y}_j = \tilde{y}_i \}$ contains a set of indices of samples with label $y_i$. Including more positive samples into the set $N_i$ leads to improved results.</p>
+<p>According to their experiments, supervised contrastive loss:</p>
+<ul>
+<li>does outperform the base cross entropy, but only by a small amount.</li>
+<li>outperforms the cross entropy on robustness benchmark (ImageNet-C, which applies common naturally occuring perturbations such as noise, blur and contrast changes to the ImageNet dataset).</li>
+<li>is less sensitive to hyperparameter changes.</li>
+</ul>
+<h1 id="language-sentence-embedding">Language: Sentence Embedding<a hidden class="anchor" aria-hidden="true" href="#language-sentence-embedding">#</a></h1>
+<p>In this section, we focus on how to learn sentence embedding.</p>
+<h2 id="text-augmentation">Text Augmentation<a hidden class="anchor" aria-hidden="true" href="#text-augmentation">#</a></h2>
+<p>Most contrastive methods in vision applications depend on creating an augmented version of each image. However, it is more challenging to construct text augmentation which does not alter the semantics of a sentence.  In this section we look into three approaches for augmenting text sequences, including lexical edits, back-translation and applying cutoff or dropout.</p>
+<h3 id="lexical-edits">Lexical Edits<a hidden class="anchor" aria-hidden="true" href="#lexical-edits">#</a></h3>
+<p><strong>EDA</strong> (<em>Easy Data Augmentation</em>; <a href="https://arxiv.org/abs/1901.11196">Wei &amp; Zou 2019</a>) defines a set of simple but powerful operations for text augmentation. Given a sentence, EDA randomly chooses and applies one of four simple operations:</p>
+<ol>
+<li>Synonym replacement (SR): Replace $n$ random non-stop words with their synonyms.</li>
+<li>Random insertion (RI): Place a random synonym of a randomly selected non-stop word in the sentence at a random position.</li>
+<li>Random swap (RS): Randomly swap two words and repeat $n$ times.</li>
+<li>Random deletion (RD): Randomly delete each word in the sentence with probability $p$.</li>
+</ol>
+<p>where $p=\alpha$ and $n=\alpha \times \text{sentence_length}$, with the intuition that longer sentences can absorb more noise while maintaining the original label. The hyperparameter $\alpha$ roughly indicates the percent of words in one sentence that may be changed by one augmentation.</p>
+<p>EDA is shown to improve the classification accuracy on several classification benchmark datasets compared to baseline without EDA. The performance lift is more significant on a smaller training set. All the four operations in EDA help improve the classification accuracy, but get to optimal at different $\alpha$&rsquo;s.</p>
+<figure>
+	<img src="EDA-exp1.png" style="width: 100%;"  />
+	<figcaption>EDA leads to performance improvement on several classification benchmarks. (Image source: <a href="https://arxiv.org/abs/1901.11196" target="_blank">Wei & Zou 2019</a>)</figcaption>
+</figure>
+<p>In <strong>Contextual Augmentation</strong> (<a href="https://arxiv.org/abs/1805.06201">Sosuke Kobayashi, 2018</a>), new substitutes for word $w_i$ at position $i$ can be smoothly sampled from a given probability distribution, $p(.\mid S\setminus\{w_i\})$, which is predicted by a bidirectional LM like BERT.</p>
+<h3 id="back-translation">Back-translation<a hidden class="anchor" aria-hidden="true" href="#back-translation">#</a></h3>
+<p><strong>CERT</strong> (<em>Contrastive self-supervised Encoder Representations from Transformers</em>; <a href="https://arxiv.org/abs/2005.12766">Fang et al. (2020)</a>; <a href="https://github.com/UCSD-AI4H/CERT">code</a>) generates augmented sentences via <strong>back-translation</strong>. Various translation models for different languages can be employed for creating different versions of augmentations. Once we have a noise version of text samples, many contrastive learning frameworks introduced above, such as <a href="#moco--moco-v2">MoCo</a>, can be used to learn sentence embedding.</p>
+<h3 id="dropout-and-cutoff">Dropout and Cutoff<a hidden class="anchor" aria-hidden="true" href="#dropout-and-cutoff">#</a></h3>
+<p><a href="https://arxiv.org/abs/2009.13818">Shen et al. (2020)</a> proposed to apply <strong>Cutoff</strong> to text augmentation, inspired by <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#cross-view-training">cross-view training</a>. They proposed three cutoff augmentation strategies:</p>
+<ol>
+<li><em>Token cutoff</em> removes the information of a few selected tokens. To make sure there is no data leakage, corresponding tokens in the input, positional and other relevant embedding matrices should all be zeroed out.,</li>
+<li><em>Feature cutoff</em> removes a few feature columns.</li>
+<li><em>Span cutoff</em> removes a continuous chunk of texts.</li>
+</ol>
+<figure>
+	<img src="text-cutoff.png" style="width: 80%;"  />
+	<figcaption>Schematic illustration of token, feature and span cutoff augmentation strategies. (Image source: <a href="https://arxiv.org/abs/2009.13818" target="_blank">Shen et al. 2020</a>)</figcaption>
+</figure>
+<p>Multiple augmented versions of one sample can be created. When training, <a href="https://arxiv.org/abs/2009.13818">Shen et al. (2020)</a> applied an additional KL-divergence term to measure the consensus between predictions from different augmented samples.</p>
+<p><a id="simcse"></a><strong>SimCSE</strong> (<a href="https://arxiv.org/abs/2104.08821">Gao et al. 2021</a>; <a href="https://github.com/princeton-nlp/SimCSE">code</a>) learns from unsupervised data by predicting a sentence from itself with only <strong>dropout</strong> noise. In other words, they treat dropout as data augmentation for text sequences. A sample is simply fed into the encoder twice with different dropout masks and these two versions are the positive pair where the other in-batch samples are considered as negative pairs. It feels quite similar to the cutoff augmentation, but dropout is more flexible with less well-defined semantic meaning of what content can be masked off.</p>
+<figure>
+	<img src="SimCSE.png" style="width: 100%;"  />
+	<figcaption>SimCSE creates augmented samples by applying different dropout masks. The supervised version leverages NLI datasets to predict positive (entailment) or negative (contradiction) given a pair of sentences. (Image source: <a href="https://arxiv.org/abs/2104.08821" target="_blank">Gao et al. 2021</a>)</figcaption>
+</figure>
+<p>They ran experiments on 7 STS (Semantic Text Similarity) datasets and computed cosine similarity between sentence embeddings.  They also tried out an optional MLM auxiliary objective loss to help avoid catastrophic forgetting of token-level knowledge. This aux loss was found to help improve performance on transfer tasks, but a consistent drop on the main STS tasks.</p>
+<figure>
+	<img src="SimCSE-STS-exp.png" style="width: 100%;"  />
+	<figcaption>Experiment numbers on a collection of STS benchmarks with SimCES. (Image source: <a href="https://arxiv.org/abs/2104.08821" target="_blank">Gao et al. 2021</a>)</figcaption>
+</figure>
+<h2 id="supervision-from-nli">Supervision from NLI<a hidden class="anchor" aria-hidden="true" href="#supervision-from-nli">#</a></h2>
+<p>The pre-trained BERT sentence embedding without any fine-tuning has been found to have poor performance for semantic similarity tasks. Instead of using the raw embeddings directly, we need to refine the embedding with further fine-tuning.</p>
+<p><strong>Natural Language Inference (NLI)</strong> tasks are the main data sources to provide supervised signals for learning sentence embedding; such as <a href="https://nlp.stanford.edu/projects/snli/">SNLI</a>, <a href="https://cims.nyu.edu/~sbowman/multinli/">MNLI</a>, and <a href="https://www.kaggle.com/c/quora-question-pairs">QQP</a>.</p>
+<h3 id="sentence-bert">Sentence-BERT<a hidden class="anchor" aria-hidden="true" href="#sentence-bert">#</a></h3>
+<p><strong>SBERT (Sentence-BERT)</strong> (<a href="https://arxiv.org/abs/1908.10084">Reimers &amp; Gurevych, 2019</a>) relies on siamese and triplet network architectures to learn sentence embeddings such that the sentence similarity can be estimated by cosine similarity between pairs of embeddings. Note that learning SBERT depends on supervised data, as it is fine-tuned on several NLI datasets.</p>
+<p>They experimented with a few different prediction heads on top of BERT model:</p>
+<ul>
+<li>Softmax classification objective: The classification head of the siamese network is built on the concatenation of two embeddings $f(\mathbf{x}), f(\mathbf{x}&rsquo;)$ and $\vert f(\mathbf{x}) - f(\mathbf{x}&rsquo;) \vert$. The predicted output is $\hat{y}=\text{softmax}(\mathbf{W}_t [f(\mathbf{x}); f(\mathbf{x}&rsquo;); \vert f(\mathbf{x}) - f(\mathbf{x}&rsquo;) \vert])$. They showed that the most important component is the element-wise difference $\vert f(\mathbf{x}) - f(\mathbf{x}&rsquo;) \vert$.</li>
+<li>Regression objective: This is the regression loss on $\cos(f(\mathbf{x}), f(\mathbf{x}&rsquo;))$, in which the pooling strategy has a big impact. In the experiments, they observed that <code>max</code> performs much worse than <code>mean</code> and <code>CLS</code>-token.</li>
+<li>Triplet objective: $\max(0, |f(\mathbf{x}) - f(\mathbf{x}^+)|- |f(\mathbf{x}) - f(\mathbf{x}^-)| + \epsilon)$, where $\mathbf{x}, \mathbf{x}^+, \mathbf{x}^-$ are embeddings of the anchor, positive and negative sentences.</li>
+</ul>
+<p>In the experiments, which objective function works the best depends on the datasets, so there is no universal winner.</p>
+<figure>
+	<img src="SBERT.png" style="width: 80%;"  />
+	<figcaption>Illustration of Sentence-BERT training framework with softmax classification head and regression head. (Image source: <a href="https://arxiv.org/abs/1908.10084" target="_blank">Reimers & Gurevych, 2019</a>)</figcaption>
+</figure>
+<p>The <a href="https://github.com/facebookresearch/SentEval">SentEval</a> library (<a href="https://arxiv.org/abs/1803.05449">Conneau and Kiela, 2018</a>) is commonly used for evaluating the quality of learned sentence embedding. SBERT outperformed other baselines at that time (Aug 2019) on 5 out of 7 tasks.</p>
+<figure>
+	<img src="SBERT-SentEval.png" style="width: 100%;"  />
+	<figcaption>The performance of Sentence-BERT on the SentEval benchmark. (Image source: <a href="https://arxiv.org/abs/1908.10084" target="_blank">Reimers & Gurevych, 2019</a>)</figcaption>
+</figure>
+<h3 id="bert-flow">BERT-flow<a hidden class="anchor" aria-hidden="true" href="#bert-flow">#</a></h3>
+<p><a id='isotropy' ></a>The embedding representation space is deemed <em>isotropic</em> if embeddings are uniformly distributed on each dimension; otherwise, it is <em>anisotropic</em>. <a href="https://arxiv.org/abs/2011.05864">Li et al, (2020)</a> showed that a pre-trained BERT learns a non-smooth <em>anisotropic</em> semantic space of sentence embeddings and thus leads to poor performance for text similarity tasks without fine-tuning. Empirically, they observed two issues with BERT sentence embedding:
+Word frequency biases the embedding space. High-frequency words are close to the origin, but low-frequency ones are far away from the origin.
+Low-frequency words scatter sparsely. The embeddings of low-frequency words tend to be farther to their $k$-NN neighbors, while the embeddings of high-frequency words concentrate more densely.</p>
+<p><strong>BERT-flow</strong> (<a href="https://arxiv.org/abs/2011.05864">Li et al, 2020</a>; <a href="https://github.com/bohanli/BERT-flow">code</a>) was proposed to transform the embedding to a smooth and isotropic Gaussian distribution via <a href="https://lilianweng.github.io/posts/2018-10-13-flow-models/#what-is-normalizing-flows">normalizing flows</a>.</p>
+<figure>
+	<img src="BERT-flow.png" style="width: 50%;"  />
+	<figcaption>Illustration of the flow-based calibration over the original sentence embedding space in BERT-flow. (Image source: <a href="https://arxiv.org/abs/2011.05864" target="_blank">Li et al, 2020</a>)</figcaption>
+</figure>
+<p>Let $\mathcal{U}$ be the observed BERT sentence embedding space and $\mathcal{Z}$ be the desired latent space which is a standard Gaussian. Thus, $p_\mathcal{Z}$ is a Gaussian density function and $f_\phi: \mathcal{Z}\to\mathcal{U}$ is an invertible transformation:</p>
+<div>
+$$
+\mathbf{z}\sim p_\mathcal{Z}(\mathbf{z}) \quad 
+\mathbf{u}=f_\phi(\mathbf{z}) \quad
+\mathbf{z}=f^{-1}_\phi(\mathbf{u}) 
+$$
+</div>
+<p>A flow-based generative model learns the invertible mapping function by maximizing the likelihood of $\mathcal{U}$&rsquo;s marginal:</p>
+<div>
+$$
+\max_\phi\mathbb{E}_{\mathbf{u}=\text{BERT}(s), s\sim\mathcal{D}} \Big[ \log p_\mathcal{Z}(f^{-1}_\phi(\mathbf{u})) + \log\big\vert\det\frac{\partial f^{-1}_\phi(\mathbf{u})}{\partial\mathbf{u}}\big\vert \Big]
+$$
+</div>
+<p>where $s$ is a sentence sampled from the text corpus $\mathcal{D}$. Only the flow parameters $\phi$ are optimized while parameters in the pretrained BERT stay unchanged.</p>
+<p>BERT-flow was shown to improve the performance on most STS tasks either with or without supervision from NLI datasets. Because learning normalizing flows for calibration does not require labels, it can utilize the entire dataset including validation and test sets.</p>
+<h3 id="whitening-operation">Whitening Operation<a hidden class="anchor" aria-hidden="true" href="#whitening-operation">#</a></h3>
+<p><a href="https://arxiv.org/abs/2103.15316">Su et al. (2021)</a> applied <strong>whitening</strong> operation to improve the <a href="#isotropy">isotropy</a> of the learned representation and also to reduce the dimensionality of sentence embedding.</p>
+<p>They transform the mean value of the sentence vectors to 0 and the covariance matrix to the identity matrix. Given a set of samples $\{\mathbf{x}_i\}_{i=1}^N$, let $\tilde{\mathbf{x}}_i$ and $\tilde{\Sigma}$ be the transformed samples and corresponding covariance matrix:</p>
+<div>
+$$
+\begin{aligned}
+\mu &= \frac{1}{N}\sum_{i=1}^N \mathbf{x}_i \quad \Sigma = \frac{1}{N}\sum_{i=1}^N (\mathbf{x}_i - \mu)^\top (\mathbf{x}_i - \mu) \\
+\tilde{\mathbf{x}}_i &= (\mathbf{x}_i - \mu)W \quad \tilde{\Sigma} = W^\top\Sigma W = I \text{ thus } \Sigma = (W^{-1})^\top W^{-1}
+\end{aligned}
+$$
+</div>
+<p>If we get <a href="https://en.wikipedia.org/wiki/Singular_value_decomposition">SVD</a> decomposition of $\Sigma = U\Lambda U^\top$, we will have $W^{-1}=\sqrt{\Lambda} U^\top$ and  $W=U\sqrt{\Lambda^{-1}}$. Note that within SVD, $U$ is an orthogonal matrix with column vectors as eigenvectors and $\Lambda$ is a diagonal matrix with all positive elements as sorted eigenvalues.</p>
+<p>A dimensionality reduction strategy can be applied by only taking the first $k$ columns of $W$, named <code>Whitening</code>-$k$.</p>
+<figure>
+	<img src="whitening-SBERT.png" style="width: 52%;"  />
+	<figcaption>Pseudo code of the whitening-$k$ operation. (Image source: <a href="https://arxiv.org/abs/2103.15316" target="_blank">Su et al. 2021</a>)</figcaption>
+</figure>
+<p>Whitening operations were shown to outperform BERT-flow and achieve SOTA with 256 sentence dimensionality on many STS benchmarks, either with or without NLI supervision.</p>
+<h2 id="unsupervised-sentence-embedding-learning">Unsupervised Sentence Embedding Learning<a hidden class="anchor" aria-hidden="true" href="#unsupervised-sentence-embedding-learning">#</a></h2>
+<h3 id="context-prediction">Context Prediction<a hidden class="anchor" aria-hidden="true" href="#context-prediction">#</a></h3>
+<p><strong>Quick-Thought (QT) vectors</strong> (<a href="https://arxiv.org/abs/1803.02893">Logeswaran &amp; Lee, 2018</a>) formulate sentence representation learning as a <em>classification</em> problem: Given a sentence and its context, a classifier distinguishes context sentences from other contrastive sentences based on their vector representations (<a href="https://lilianweng.github.io/posts/2019-01-31-lm/#MLM">&ldquo;cloze test&rdquo;</a>). Such a formulation removes the softmax output layer which causes training slowdown.</p>
+<figure>
+	<img src="quick-thought.png" style="width: 85%;"  />
+	<figcaption>Illustration of how Quick-Thought sentence embedding vectors are learned. (Image source: <a href="https://arxiv.org/abs/1803.02893" target="_blank">Logeswaran & Lee, 2018</a>)</figcaption>
+</figure>
+<p>Let $f(.)$ and $g(.)$ be two functions that encode a sentence $s$ into a fixed-length vector. Let $C(s)$ be the set of sentences in the context of $s$ and $S(s)$ be the set of candidate sentences including only one sentence $s_c \in C(s)$ and many other non-context negative sentences. Quick Thoughts model learns to optimize the probability of predicting the only true context sentence $s_c \in S(s)$. It is essentially NCE loss when considering the sentence $(s, s_c)$ as the positive pairs while other pairs $(s, s&rsquo;)$ where $s&rsquo; \in S(s), s&rsquo;\neq s_c$ as negatives.</p>
+<div>
+$$
+\mathcal{L}_\text{QT} 
+= - \sum_{s \in \mathcal{D}} \sum_{s_c \in C(s)} \log p(s_c \vert s, S(s)) 
+= - \sum_{s \in \mathcal{D}} \sum_{s_c \in C(s)}\frac{\exp(f(s)^\top g(s_c))}{\sum_{s'\in S(s)} \exp(f(s)^\top g(s'))}
+$$
+</div>
+<h3 id="mutual-information-maximization">Mutual Information Maximization<a hidden class="anchor" aria-hidden="true" href="#mutual-information-maximization">#</a></h3>
+<p><strong>IS-BERT (Info-Sentence BERT)</strong> (<a href="https://arxiv.org/abs/2009.12061">Zhang et al. 2020</a>; <a href="https://github.com/yanzhangnlp/IS-BERT">code</a>) adopts a self-supervised learning objective based on <em>mutual information maximization</em> to learn good sentence embeddings in the <em>unsupervised</em> manners.</p>
+<figure>
+	<img src="IS-BERT.png" style="width: 100%;"  />
+	<figcaption>Illustration of Info-Sentence BERT. (Image source: <a href="https://arxiv.org/abs/2009.12061" target="_blank">Zhang et al. 2020</a>)</figcaption>
+</figure>
+<p>IS-BERT works as follows:</p>
+<ol>
+<li>
+<p>Use BERT to encode an input sentence $s$ to a token embedding of length $l$, $\mathbf{h}_{1:l}$.</p>
+</li>
+<li>
+<p>Then apply 1-D conv net with different kernel sizes (e.g. 1, 3, 5) to process the token embedding sequence to capture the n-gram local contextual dependencies: $\mathbf{c}_i = \text{ReLU}(\mathbf{w} \cdot \mathbf{h}_{i:i+k-1} + \mathbf{b})$. The output sequences are padded to stay the same sizes of the inputs.</p>
+</li>
+<li>
+<p>The final local representation of the $i$-th token $\mathcal{F}_\theta^{(i)} (\mathbf{x})$ is the concatenation of representations of different kernel sizes.</p>
+</li>
+<li>
+<p>The global sentence representation $\mathcal{E}_\theta(\mathbf{x})$ is computed by applying a mean-over-time pooling layer on the token representations $\mathcal{F}_\theta(\mathbf{x}) = \{\mathcal{F}_\theta^{(i)} (\mathbf{x}) \in \mathbb{R}^d\}_{i=1}^l$.</p>
+</li>
+</ol>
+<p>Since the mutual information estimation is generally intractable for continuous and high-dimensional random variables, IS-BERT relies on the Jensen-Shannon estimator (<a href="https://arxiv.org/abs/1606.00709">Nowozin et al., 2016</a>, <a href="https://arxiv.org/abs/1808.06670">Hjelm et al., 2019</a>) to maximize the mutual information between $\mathcal{E}_\theta(\mathbf{x})$ and $\mathcal{F}_\theta^{(i)} (\mathbf{x})$.</p>
+<div>
+$$
+I^\text{JSD}_\omega(\mathcal{F}_\theta^{(i)} (\mathbf{x}); \mathcal{E}_\theta(\mathbf{x})) = \mathbb{E}_{\mathbf{x}\sim P} [-\text{sp}(-T_\omega(\mathcal{F}_\theta^{(i)} (\mathbf{x}); \mathcal{E}_\theta(\mathbf{x})))] \\ - \mathbb{E}_{\mathbf{x}\sim P, \mathbf{x}' \sim\tilde{P}} [\text{sp}(T_\omega(\mathcal{F}_\theta^{(i)} (\mathbf{x}'); \mathcal{E}_\theta(\mathbf{x})))]
+$$
+</div>
+<p>where $T_\omega: \mathcal{F}\times\mathcal{E} \to \mathbb{R}$ is a learnable network with parameters $\omega$, generating discriminator scores. The negative sample $\mathbf{x}&rsquo;$ is sampled from the distribution $\tilde{P}=P$. And $\text{sp}(x)=\log(1+e^x)$ is the softplus activation function.</p>
+<p>The unsupervised numbers on SentEval with IS-BERT outperforms most of the unsupervised baselines (Sep 2020), but unsurprisingly weaker than supervised runs. When using labelled NLI datasets, IS-BERT produces results comparable with SBERT (See Fig. 25 &amp; 30).</p>
+<figure>
+	<img src="IS-BERT-SentEval.png" style="width: 90%;"  />
+	<figcaption>The performance of IS-BERT on the SentEval benchmark. (Image source: <a href="https://arxiv.org/abs/2009.12061" target="_blank">Zhang et al. 2020</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (May 2021). Contrastive representation learning. Lil&rsquo;Log. https://lilianweng.github.io/posts/2021-05-31-contrastive/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2021contrastive,
+  title   = &#34;Contrastive Representation Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2021&#34;,
+  month   = &#34;May&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2021-05-31-contrastive/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Sumit Chopra, Raia Hadsell and Yann LeCun. <a href="http://yann.lecun.com/exdb/publis/pdf/chopra-05.pdf">&ldquo;Learning a similarity metric discriminatively, with application to face verification.&rdquo;</a> CVPR 2005.</p>
+<p>[2] Florian Schroff, Dmitry Kalenichenko and James Philbin. <a href="https://arxiv.org/abs/1503.03832">&ldquo;FaceNet: A Unified Embedding for Face Recognition and Clustering.&rdquo;</a> CVPR 2015.</p>
+<p>[3] Hyun Oh Song et al. <a href="https://arxiv.org/abs/1511.06452">&ldquo;Deep Metric Learning via Lifted Structured Feature Embedding.&rdquo;</a> CVPR 2016. [<a href="https://github.com/rksltnl/Deep-Metric-Learning-CVPR16">code</a>]</p>
+<p>[4] Ruslan Salakhutdinov and Geoff Hinton. <a href="http://proceedings.mlr.press/v2/salakhutdinov07a.html">&ldquo;Learning a Nonlinear Embedding by Preserving Class Neighbourhood Structure&rdquo;</a> AISTATS 2007.</p>
+<p>[5] Michael Gutmann and Aapo Hyvärinen. <a href="http://proceedings.mlr.press/v9/gutmann10a.html">&ldquo;Noise-contrastive estimation: A new estimation principle for unnormalized statistical models.&rdquo;</a> AISTATS 2010.</p>
+<p>[6] Kihyuk Sohn et al. <a href="https://papers.nips.cc/paper/2016/hash/6b180037abbebea991d8b1232f8a8ca9-Abstract.html">&ldquo;Improved Deep Metric Learning with Multi-class N-pair Loss Objective&rdquo;</a> NIPS 2016.</p>
+<p>[7] Nicholas Frosst, Nicolas Papernot and Geoffrey Hinton. <a href="http://proceedings.mlr.press/v97/frosst19a.html">&ldquo;Analyzing and Improving Representations with the Soft Nearest Neighbor Loss.&rdquo;</a> ICML 2019</p>
+<p>[8] Tongzhou Wang and Phillip Isola. <a href="https://arxiv.org/abs/2005.10242">&ldquo;Understanding Contrastive Representation Learning through Alignment and Uniformity on the Hypersphere.&rdquo;</a> ICML 2020. [<a href="https://ssnl.github.io/hypersphere/">code</a>]</p>
+<p>[9] Zhirong Wu et al. <a href="https://arxiv.org/abs/1805.01978">&ldquo;Unsupervised feature learning via non-parametric instance-level discrimination.&rdquo;</a> CVPR 2018.</p>
+<p>[10] Ekin D. Cubuk et al. <a href="https://arxiv.org/abs/1805.09501">&ldquo;AutoAugment: Learning augmentation policies from data.&rdquo;</a> arXiv preprint arXiv:1805.09501 (2018).</p>
+<p>[11] Daniel Ho et al. <a href="https://arxiv.org/abs/1905.05393">&ldquo;Population Based Augmentation: Efficient Learning of Augmentation Policy Schedules.&rdquo;</a> ICML 2019.</p>
+<p>[12] Ekin D. Cubuk &amp; Barret Zoph et al. <a href="https://arxiv.org/abs/1909.13719">&ldquo;RandAugment: Practical automated data augmentation with a reduced search space.&rdquo;</a> arXiv preprint arXiv:1909.13719 (2019).</p>
+<p>[13] Hongyi Zhang et al. <a href="https://arxiv.org/abs/1710.09412">&ldquo;mixup: Beyond Empirical Risk Minimization.&rdquo;</a> ICLR 2017.</p>
+<p>[14] Sangdoo Yun et al. <a href="https://arxiv.org/abs/1905.04899">&ldquo;CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features.&rdquo;</a> ICCV 2019.</p>
+<p>[15] Yannis Kalantidis et al. <a href="https://arxiv.org/abs/2010.01028">&ldquo;Mixing of Contrastive Hard Negatives&rdquo;</a> NeuriPS 2020.</p>
+<p>[16] Ashish Jaiswal et al. <a href="https://arxiv.org/abs/2011.00362">&ldquo;A Survey on Contrastive Self-Supervised Learning.&rdquo;</a> arXiv preprint arXiv:2011.00362 (2021)</p>
+<p>[17] Jure Zbontar et al. <a href="https://arxiv.org/abs/2103.03230">&ldquo;Barlow Twins: Self-Supervised Learning via Redundancy Reduction.&rdquo;</a> arXiv preprint arXiv:2103.03230 (2021) [<a href="https://github.com/facebookresearch/barlowtwins">code</a>]</p>
+<p>[18] Alec Radford, et al. <a href="https://arxiv.org/abs/2103.00020">&ldquo;Learning Transferable Visual Models From Natural Language Supervision&rdquo;</a> arXiv preprint arXiv:2103.00020 (2021)</p>
+<p>[19] Mathilde Caron et al. <a href="https://arxiv.org/abs/2006.09882">&ldquo;Unsupervised Learning of Visual Features by Contrasting Cluster Assignments (SwAV).&rdquo;</a> NeuriPS 2020.</p>
+<p>[20] Mathilde Caron et al. <a href="https://arxiv.org/abs/1807.05520">&ldquo;Deep Clustering for Unsupervised Learning of Visual Features.&rdquo;</a> ECCV 2018.</p>
+<p>[21] Prannay Khosla et al. <a href="https://arxiv.org/abs/2004.11362">&ldquo;Supervised Contrastive Learning.&rdquo;</a> NeurIPS 2020.</p>
+<p>[22] Aaron van den Oord, Yazhe Li &amp; Oriol Vinyals. <a href="https://arxiv.org/abs/1807.03748">&ldquo;Representation Learning with Contrastive Predictive Coding&rdquo;</a> arXiv preprint arXiv:1807.03748 (2018).</p>
+<p>[23] Jason Wei and Kai Zou. <a href="https://arxiv.org/abs/1901.11196">&ldquo;EDA: Easy data augmentation techniques for boosting performance on text classification tasks.&rdquo;</a>  EMNLP-IJCNLP 2019.</p>
+<p>[24] Sosuke Kobayashi. <a href="https://arxiv.org/abs/1805.06201">&ldquo;Contextual Augmentation: Data Augmentation by Words with Paradigmatic Relations.&rdquo;</a> NAACL 2018</p>
+<p>[25] Hongchao Fang et al. <a href="https://arxiv.org/abs/2005.12766">&ldquo;CERT: Contrastive self-supervised learning for language understanding.&rdquo;</a> arXiv preprint arXiv:2005.12766 (2020).</p>
+<p>[26] Dinghan Shen et al. <a href="https://arxiv.org/abs/2009.13818">&ldquo;A Simple but Tough-to-Beat Data Augmentation Approach for Natural Language Understanding and Generation.&rdquo;</a> arXiv preprint arXiv:2009.13818 (2020) [<a href="https://github.com/dinghanshen/cutoff">code</a>]</p>
+<p>[27] Tianyu Gao et al. <a href="https://arxiv.org/abs/2104.08821">&ldquo;SimCSE: Simple Contrastive Learning of Sentence Embeddings.&rdquo;</a> arXiv preprint arXiv:2104.08821 (2020). [<a href="https://github.com/princeton-nlp/SimCSE">code</a>]</p>
+<p>[28] Nils Reimers and Iryna Gurevych. <a href="https://arxiv.org/abs/1908.10084">&ldquo;Sentence-BERT: Sentence embeddings using Siamese BERT-networks.&rdquo;</a> EMNLP 2019.</p>
+<p>[29] Jianlin Su et al. <a href="https://arxiv.org/abs/2103.15316">&ldquo;Whitening sentence representations for better semantics and faster retrieval.&rdquo;</a> arXiv preprint arXiv:2103.15316 (2021). [<a href="https://github.com/bojone/BERT-whitening">code</a>]</p>
+<p>[30] Yan Zhang et al. <a href="https://arxiv.org/abs/2009.12061">&ldquo;An unsupervised sentence embedding method by mutual information maximization.&rdquo;</a> EMNLP 2020. [<a href="https://github.com/yanzhangnlp/IS-BERT">code</a>]</p>
+<p>[31] Bohan Li et al. <a href="https://arxiv.org/abs/2011.05864">&ldquo;On the sentence embeddings from pre-trained language models.&rdquo;</a> EMNLP 2020.</p>
+<p>[32] Lajanugen Logeswaran and Honglak Lee. <a href="https://arxiv.org/abs/1803.02893">&ldquo;An efficient framework for learning sentence representations.&rdquo;</a> ICLR 2018.</p>
+<p>[33] Joshua Robinson, et al. <a href="https://arxiv.org/abs/2010.04592">&ldquo;Contrastive Learning with Hard Negative Samples.&rdquo;</a> ICLR 2021.</p>
+<p>[34] Ching-Yao Chuang et al. <a href="https://arxiv.org/abs/2007.00224">&ldquo;Debiased Contrastive Learning.&rdquo;</a> NeuriPS 2020.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/representation-learning/">Representation-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/unsupervised-learning/">Unsupervised-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data-augmentation/">Data-Augmentation</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/">
+    <span class="title">« </span>
+    <br>
+    <span>What are Diffusion Models?</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/">
+    <span class="title"> »</span>
+    <br>
+    <span>Reducing Toxicity in Language Models</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Contrastive%20Representation%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f&amp;hashtags=representation-learning%2clong-read%2clanguage-model%2cunsupervised-learning%2cdata-augmentation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f&amp;title=Contrastive%20Representation%20Learning&amp;summary=Contrastive%20Representation%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f&title=Contrastive%20Representation%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Contrastive%20Representation%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Contrastive Representation Learning on telegram"
+        href="https://telegram.me/share/url?text=Contrastive%20Representation%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-05-31-contrastive%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
