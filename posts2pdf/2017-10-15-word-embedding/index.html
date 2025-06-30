@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Learning Word Embedding | Lil&#39;Log</title>
+<meta name="keywords" content="nlp, language-model" />
+<meta name="description" content="
+Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0).">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Learning Word Embedding" />
+<meta property="og:description" content="
+Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0)." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2017-10-15-word-embedding/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2017-10-15T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-10-15T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Learning Word Embedding"/>
+<meta name="twitter:description" content="
+Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0)."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Learning Word Embedding",
+      "item": "https://lilianweng.github.io/posts/2017-10-15-word-embedding/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Learning Word Embedding",
+  "name": "Learning Word Embedding",
+  "description": " Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0).\n",
+  "keywords": [
+    "nlp", "language-model"
+  ],
+  "articleBody": " Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0).\nHowever, one-hot encoding is impractical computationally when dealing with the entire vocabulary, as the representation demands hundreds of thousands of dimensions. Word embedding represents words and phrases in vectors of (non-binary) numeric values with much lower and thus denser dimensions. An intuitive assumption for good word embedding is that they can approximate the similarity between words (i.e., “cat” and “kitten” are similar words, and thus they are expected to be close in the reduced vector space) or disclose hidden semantic relationships (i.e., the relationship between “cat” and “kitten” is an analogy to the one between “dog” and “puppy”). Contextual information is super useful for learning word meaning and relationship, as similar words may appear in the similar context often.\nThere are two main approaches for learning word embedding, both relying on the contextual knowledge.\nCount-based: The first one is unsupervised, based on matrix factorization of a global word co-occurrence matrix. Raw co-occurrence counts do not work well, so we want to do smart things on top. Context-based: The second approach is supervised. Given a local context, we want to design a model to predict the target words and in the meantime, this model learns the efficient word embedding representation. Count-Based Vector Space Model Count-based vector space models heavily rely on the word frequency and co-occurrence matrix with the assumption that words in the same contexts share similar or related semantic meanings. The models map count-based statistics like co-occurrences between neighboring words down to a small and dense word vectors. PCA, topic models, and neural probabilistic language models are all good examples of this category.\nDifferent from the count-based approaches, context-based methods build predictive models that directly target at predicting a word given its neighbors. The dense word vectors are part of the model parameters. The best vector representation of each word is learned during the model training process.\nContext-Based: Skip-Gram Model Suppose that you have a sliding window of a fixed size moving along a sentence: the word in the middle is the “target” and those on its left and right within the sliding window are the context words. The skip-gram model (Mikolov et al., 2013) is trained to predict the probabilities of a word being a context word for the given target.\nThe following example demonstrates multiple pairs of target and context words as training samples, generated by a 5-word window sliding along the sentence.\n“The man who passes the sentence should swing the sword.” – Ned Stark\nSliding window (size = 5) Target word Context [The man who] the man, who [The man who passes] man the, who, passes [The man who passes the] who the, man, passes, the [man who passes the sentence] passes man, who, the, sentence … … … [sentence should swing the sword] swing sentence, should, the, sword [should swing the sword] the should, swing, sword [swing the sword] sword swing, the {:.info} Each context-target pair is treated as a new observation in the data. For example, the target word “swing” in the above case produces four training samples: (“swing”, “sentence”), (“swing”, “should”), (“swing”, “the”), and (“swing”, “sword”).\nThe skip-gram model. Both the input vector $\\mathbf{x}$ and the output $\\mathbf{y}$ are one-hot encoded word representations. The hidden layer is the word embedding of size $N$. Given the vocabulary size $V$, we are about to learn word embedding vectors of size $N$. The model learns to predict one context word (output) using one target word (input) at a time.\nAccording to Fig. 1,\nBoth input word $w_i$ and the output word $w_j$ are one-hot encoded into binary vectors $\\mathbf{x}$ and $\\mathbf{y}$ of size $V$. First, the multiplication of the binary vector $\\mathbf{x}$ and the word embedding matrix $W$ of size $V \\times N$ gives us the embedding vector of the input word $w_i$: the i-th row of the matrix $W$. This newly discovered embedding vector of dimension $N$ forms the hidden layer. The multiplication of the hidden layer and the word context matrix $W’$ of size $N \\times V$ produces the output one-hot encoded vector $\\mathbf{y}$. The output context matrix $W’$ encodes the meanings of words as context, different from the embedding matrix $W$. NOTE: Despite the name, $W’$ is independent of $W$, not a transpose or inverse or whatsoever. Context-Based: Continuous Bag-of-Words (CBOW) The Continuous Bag-of-Words (CBOW) is another similar model for learning word vectors. It predicts the target word (i.e. “swing”) from source context words (i.e., “sentence should the sword”).\nThe CBOW model. Word vectors of multiple context words are averaged to get a fixed-length vector as in the hidden layer. Other symbols have the same meanings as in Fig 1. Because there are multiple contextual words, we average their corresponding word vectors, constructed by the multiplication of the input vector and the matrix $W$. Because the averaging stage smoothes over a lot of the distributional information, some people believe the CBOW model is better for small dataset.\nLoss Functions Both the skip-gram model and the CBOW model should be trained to minimize a well-designed loss/objective function. There are several loss functions we can incorporate to train these language models. In the following discussion, we will use the skip-gram model as an example to describe how the loss is computed.\nFull Softmax The skip-gram model defines the embedding vector of every word by the matrix $W$ and the context vector by the output matrix $W’$. Given an input word $w_I$, let us label the corresponding row of $W$ as vector $v_{w_I}$ (embedding vector) and its corresponding column of $W’$ as $v’_{w_I}$ (context vector). The final output layer applies softmax to compute the probability of predicting the output word $w_O$ given $w_I$, and therefore:\n$$ p(w_O \\vert w_I) = \\frac{\\exp({v'_{w_O}}^{\\top} v_{w_I})}{\\sum_{i=1}^V \\exp({v'_{w_i}}^{\\top} v_{w_I})} $$ This is accurate as presented in However, when $V$ is extremely large, calculating the denominator by going through all the words for every single sample is computationally impractical. The demand for more efficient conditional probability estimation leads to the new methods like hierarchical softmax.\nHierarchical Softmax Morin and Bengio (2005) proposed hierarchical softmax to make the sum calculation faster with the help of a binary tree structure. The hierarchical softmax encodes the language model’s output softmax layer into a tree hierarchy, where each leaf is one word and each internal node stands for relative probabilities of the children nodes.\nAn illustration of the hierarchical softmax binary tree. The leaf nodes in white are words in the vocabulary. The gray inner nodes carry information on the probabilities of reaching its child nodes. One path starting from the root to the leaf $w\\_i$. $n(w\\_i, j)$ denotes the j-th node on this path. (Image source: word2vec Parameter Learning Explained) Each word $w_i$ has a unique path from the root down to its corresponding leaf. The probability of picking this word is equivalent to the probability of taking this path from the root down through the tree branches. Since we know the embedding vector $v_n$ of the internal node $n$, the probability of getting the word can be computed by the product of taking left or right turn at every internal node stop.\nAccording to Fig. 3, the probability of one node is ($\\sigma$ is the sigmoid function):\n$$ \\begin{align} p(\\text{turn right} \\to \\dots w_I \\vert n) \u0026= \\sigma({v'_n}^{\\top} v_{w_I})\\\\ p(\\text{turn left } \\to \\dots w_I \\vert n) \u0026= 1 - p(\\text{turn right} \\vert n) = \\sigma(-{v'_n}^{\\top} v_{w_I}) \\end{align} $$ The final probability of getting a context word $w_O$ given an input word $w_I$ is:\n$$ p(w_O \\vert w_I) = \\prod_{k=1}^{L(w_O)} \\sigma(\\mathbb{I}_{\\text{turn}}(n(w_O, k), n(w_O, k+1)) \\cdot {v'_{n(w_O, k)}}^{\\top} v_{w_I}) $$ where $L(w_O)$ is the depth of the path leading to the word $w_O$ and $\\mathbb{I}_{\\text{turn}}$ is a specially indicator function which returns 1 if $n(w_O, k+1)$ is the left child of $n(w_O, k)$ otherwise -1. The internal nodes’ embeddings are learned during the model training. The tree structure helps greatly reduce the complexity of the denominator estimation from O(V) (vocabulary size) to O(log V) (the depth of the tree) at the training time. However, at the prediction time, we still to compute the probability of every word and pick the best, as we don’t know which leaf to reach for in advance.\nA good tree structure is crucial to the model performance. Several handy principles are: group words by frequency like what is implemented by Huffman tree for simple speedup; group similar words into same or close branches (i.e. use predefined word clusters, WordNet).\nCross Entropy Another approach completely steers away from the softmax framework. Instead, the loss function measures the cross entropy between the predicted probabilities $p$ and the true binary labels $\\mathbf{y}$.\nFirst, let’s recall that the cross entropy between two distributions $p$ and $q$ is measured as $ H(p, q) = -\\sum_x p(x) \\log q(x) $. In our case, the true label $y_i$ is 1 only when $w_i$ is the output word; $y_j$ is 0 otherwise. The loss function $\\mathcal{L}_\\theta$ of the model with parameter config $\\theta$ aims to minimize the cross entropy between the prediction and the ground truth, as lower cross entropy indicates high similarity between two distributions.\n$$ \\mathcal{L}_\\theta = - \\sum_{i=1}^V y_i \\log p(w_i | w_I) = - \\log p(w_O \\vert w_I) $$ Recall that,\n$$ p(w_O \\vert w_I) = \\frac{\\exp({v'_{w_O}}^{\\top} v_{w_I})}{\\sum_{i=1}^V \\exp({v'_{w_i}}^{\\top} v_{w_I})} $$ Therefore,\n$$ \\mathcal{L}_{\\theta} = - \\log \\frac{\\exp({v'_{w_O}}^{\\top}{v_{w_I}})}{\\sum_{i=1}^V \\exp({v'_{w_i}}^{\\top}{v_{w_I} })} = - {v'_{w_O}}^{\\top}{v_{w_I} } + \\log \\sum_{i=1}^V \\exp({v'_{w_i} }^{\\top}{v_{w_I}}) $$ To start training the model using back-propagation with SGD, we need to compute the gradient of the loss function. For simplicity, let’s label $z_{IO} = {v’_{w_O}}^{\\top}{v_{w_I}}$.\n$$ \\begin{align} \\nabla_\\theta \\mathcal{L}_{\\theta} \u0026= \\nabla_\\theta\\big( - z_{IO} + \\log \\sum_{i=1}^V e^{z_{Ii}} \\big) \\\\ \u0026= - \\nabla_\\theta z_{IO} + \\nabla_\\theta \\big( \\log \\sum_{i=1}^V e^{z_{Ii}} \\big) \\\\ \u0026= - \\nabla_\\theta z_{IO} + \\frac{1}{\\sum_{i=1}^V e^{z_{Ii}}} \\sum_{i=1}^V e^{z_{Ii}} \\nabla_\\theta z_{Ii} \\\\ \u0026= - \\nabla_\\theta z_{IO} + \\sum_{i=1}^V \\frac{e^{z_{Ii}}}{\\sum_{i=1}^V e^{z_{Ii}}} \\nabla_\\theta z_{Ii} \\\\ \u0026= - \\nabla_\\theta z_{IO} + \\sum_{i=1}^V p(w_i \\vert w_I) \\nabla_\\theta z_{Ii} \\\\ \u0026= - \\nabla_\\theta z_{IO} + \\mathbb{E}_{w_i \\sim Q(\\tilde{w})} \\nabla_\\theta z_{Ii} \\end{align} $$ where $Q(\\tilde{w})$ is the distribution of noise samples.\nAccording to the formula above, the correct output word has a positive reinforcement according to the first term (the larger $\\nabla_\\theta z_{IO}$ the better loss we have), while other words have a negative impact as captured by the second term.\nHow to estimate $\\mathbb{E}_{w_i \\sim Q(\\tilde{w})} \\nabla_\\theta {v’_{w_i}}^{\\top}{v_{w_I}}$ with a sample set of noise words rather than scanning through the entire vocabulary is the key of using cross-entropy-based sampling approach.\nNoise Contrastive Estimation (NCE) The Noise Contrastive Estimation (NCE) metric intends to differentiate the target word from noise samples using a logistic regression classifier (Gutmann and Hyvärinen, 2010).\nGiven an input word $w_I$, the correct output word is known as $w$. In the meantime, we sample $N$ other words from the noise sample distribution $Q$, denoted as $\\tilde{w}_1, \\tilde{w}_2, \\dots, \\tilde{w}_N \\sim Q$. Let’s label the decision of the binary classifier as $d$ and $d$$ can only take a binary value.\n$$ \\mathcal{L}_\\theta = - [ \\log p(d=1 \\vert w, w_I) + \\sum_{i=1, \\tilde{w}_i \\sim Q}^N \\log p(d=0|\\tilde{w}_i, w_I) ] $$ When $N$ is big enough, according to the Law of large numbers,\n$$ \\mathcal{L}_\\theta = - [ \\log p(d=1 \\vert w, w_I) + N\\mathbb{E}_{\\tilde{w}_i \\sim Q} \\log p(d=0|\\tilde{w}_i, w_I)] $$ To compute the probability $p(d=1 \\vert w, w_I)$, we can start with the joint probability $p(d, w \\vert w_I)$. Among $w, \\tilde{w}_1, \\tilde{w}_2, \\dots, \\tilde{w}_N$, we have 1 out of (N+1) chance to pick the true word $w$, which is sampled from the conditional probability $p(w \\vert w_I)$; meanwhile, we have N out of (N+1) chances to pick a noise word, each sampled from $q(\\tilde{w}) \\sim Q$. Thus,\n$$ p(d, w | w_I) = \\begin{cases} \\frac{1}{N+1} p(w \\vert w_I) \u0026 \\text{if } d=1 \\\\ \\frac{N}{N+1} q(\\tilde{w}) \u0026 \\text{if } d=0 \\end{cases} $$ Then we can figure out $p(d=1 \\vert w, w_I)$ and $p(d=0 \\vert w, w_I)$:\n$$ \\begin{align} p(d=1 \\vert w, w_I) \u0026= \\frac{p(d=1, w \\vert w_I)}{p(d=1, w \\vert w_I) + p(d=0, w \\vert w_I)} \u0026= \\frac{p(w \\vert w_I)}{p(w \\vert w_I) + Nq(\\tilde{w})} \\end{align} $$ $$ \\begin{align} p(d=0 \\vert w, w_I) \u0026= \\frac{p(d=0, w \\vert w_I)}{p(d=1, w \\vert w_I) + p(d=0, w \\vert w_I)} \u0026= \\frac{Nq(\\tilde{w})}{p(w \\vert w_I) + Nq(\\tilde{w})} \\end{align} $$ Finally the loss function of NCE’s binary classifier becomes:\n$$ \\begin{align} \\mathcal{L}_\\theta \u0026 = - [ \\log p(d=1 \\vert w, w_I) + \\sum_{\\substack{i=1 \\\\ \\tilde{w}_i \\sim Q}}^N \\log p(d=0|\\tilde{w}_i, w_I)] \\\\ \u0026 = - [ \\log \\frac{p(w \\vert w_I)}{p(w \\vert w_I) + Nq(\\tilde{w})} + \\sum_{\\substack{i=1 \\\\ \\tilde{w}_i \\sim Q}}^N \\log \\frac{Nq(\\tilde{w}_i)}{p(w \\vert w_I) + Nq(\\tilde{w}_i)}] \\end{align} $$ However, $p(w \\vert w_I)$ still involves summing up the entire vocabulary in the denominator. Let’s label the denominator as a partition function of the input word, $Z(w_I)$. A common assumption is $Z(w) \\approx 1$ given that we expect the softmax output layer to be normalized (Minh and Teh, 2012). Then the loss function is simplified to:\n$$ \\mathcal{L}_\\theta = - [ \\log \\frac{\\exp({v'_w}^{\\top}{v_{w_I}})}{\\exp({v'_w}^{\\top}{v_{w_I}}) + Nq(\\tilde{w})} + \\sum_{\\substack{i=1 \\\\ \\tilde{w}_i \\sim Q}}^N \\log \\frac{Nq(\\tilde{w}_i)}{\\exp({v'_w}^{\\top}{v_{w_I}}) + Nq(\\tilde{w}_i)}] $$ The noise distribution $Q$ is a tunable parameter and we would like to design it in a way so that:\nintuitively it should be very similar to the real data distribution; and it should be easy to sample from. For example, the sampling implementation (log_uniform_candidate_sampler) of NCE loss in tensorflow assumes that such noise samples follow a log-uniform distribution, also known as Zipfian’s law. The probability of a given word in logarithm is expected to be reversely proportional to its rank, while high-frequency words are assigned with lower ranks. In this case, $q(\\tilde{w}) = \\frac{1}{ \\log V}(\\log (r_{\\tilde{w}} + 1) - \\log r_{\\tilde{w}})$, where $r_{\\tilde{w}} \\in [1, V]$ is the rank of a word by frequency in descending order.\nNegative Sampling (NEG) The Negative Sampling (NEG) proposed by Mikolov et al. (2013) is a simplified variation of NCE loss. It is especially famous for training Google’s word2vec project. Different from NCE Loss which attempts to approximately maximize the log probability of the softmax output, negative sampling did further simplification because it focuses on learning high-quality word embedding rather than modeling the word distribution in natural language.\nNEG approximates the binary classifier’s output with sigmoid functions as follows:\n$$ \\begin{align} p(d=1 \\vert w_, w_I) \u0026= \\sigma({v'_{w}}^\\top v_{w_I}) \\\\ p(d=0 \\vert w, w_I) \u0026= 1 - \\sigma({v'_{w}}^\\top v_{w_I}) = \\sigma(-{v'_{w}}^\\top v_{w_I}) \\end{align} $$ The final NCE loss function looks like:\n$$ \\mathcal{L}_\\theta = - [ \\log \\sigma({v'_{w}}^\\top v_{w_I}) + \\sum_{\\substack{i=1 \\\\ \\tilde{w}_i \\sim Q}}^N \\log \\sigma(-{v'_{\\tilde{w}_i}}^\\top v_{w_I})] $$ Other Tips for Learning Word Embedding Mikolov et al. (2013) suggested several helpful practices that could result in good word embedding learning outcomes.\nSoft sliding window. When pairing the words within the sliding window, we could assign less weight to more distant words. One heuristic is — given a maximum window size parameter defined, $s_{\\text{max}}$, the actual window size is randomly sampled between 1 and $s_{\\text{max}}$ for every training sample. Thus, each context word has the probability of 1/(its distance to the target word) being observed, while the adjacent words are always observed.\nSubsampling frequent words. Extremely frequent words might be too general to differentiate the context (i.e. think about stopwords). While on the other hand, rare words are more likely to carry distinct information. To balance the frequent and rare words, Mikolov et al. proposed to discard words $w$ with probability $1-\\sqrt{t/f(w)}$ during sampling. Here $f(w)$ is the word frequency and $t$ is an adjustable threshold.\nLearning phrases first. A phrase often stands as a conceptual unit, rather than a simple composition of individual words. For example, we cannot really tell “New York” is a city name even we know the meanings of “new” and “york”. Learning such phrases first and treating them as word units before training the word embedding model improves the outcome quality. A simple data-driven approach is based on unigram and bigram counts: $s_{\\text{phrase}} = \\frac{C(w_i w_j) - \\delta}{ C(w_i)C(w_j)}$, where $C(.)$ is simple count of an unigram $w_i$ or bigram $w_i w_j$ and $\\delta$ is a discounting threshold to prevent super infrequent words and phrases. Higher scores indicate higher chances of being phrases. To form phrases longer than two words, we can scan the vocabulary multiple times with decreasing score cutoff values.\nGloVe: Global Vectors The Global Vector (GloVe) model proposed by Pennington et al. (2014) aims to combine the count-based matrix factorization and the context-based skip-gram model together.\nWe all know the counts and co-occurrences can reveal the meanings of words. To distinguish from $p(w_O \\vert w_I)$ in the context of a word embedding word, we would like to define the co-ocurrence probability as:\n$$ p_{\\text{co}}(w_k \\vert w_i) = \\frac{C(w_i, w_k)}{C(w_i)} $$ $C(w_i, w_k)$ counts the co-occurrence between words $w_i$ and $w_k$.\nSay, we have two words, $w_i$=“ice” and $w_j$=“steam”. The third word $\\tilde{w}_k$=“solid” is related to “ice” but not “steam”, and thus we expect $p_{\\text{co}}(\\tilde{w}_k \\vert w_i)$ to be much larger than $p_{\\text{co}}(\\tilde{w}_k \\vert w_j)$ and therefore $\\frac{p_{\\text{co}}(\\tilde{w}_k \\vert w_i)}{p_{\\text{co}}(\\tilde{w}_k \\vert w_j)}$ to be very large. If the third word $\\tilde{w}_k$ = “water” is related to both or $\\tilde{w}_k$ = “fashion” is unrelated to either of them, $\\frac{p_{\\text{co}}(\\tilde{w}_k \\vert w_i)}{p_{\\text{co}}(\\tilde{w}_k \\vert w_j)}$ is expected to be close to one.\nThe intuition here is that the word meanings are captured by the ratios of co-occurrence probabilities rather than the probabilities themselves. The global vector models the relationship between two words regarding to the third context word as:\n$$ F(w_i, w_j, \\tilde{w}_k) = \\frac{p_{\\text{co}}(\\tilde{w}_k \\vert w_i)}{p_{\\text{co}}(\\tilde{w}_k \\vert w_j)} $$ Further, since the goal is to learn meaningful word vectors, $F$ is designed to be a function of the linear difference between two words $w_i - w_j$:\n$$ F((w_i - w_j)^\\top \\tilde{w}_k) = \\frac{p_{\\text{co}}(\\tilde{w}_k \\vert w_i)}{p_{\\text{co}}(\\tilde{w}_k \\vert w_j)} $$ With the consideration of $F$ being symmetric between target words and context words, the final solution is to model $F$ as an exponential function. Please read the original paper (Pennington et al., 2014) for more details of the equations.\n$$ \\begin{align} F({w_i}^\\top \\tilde{w}_k) \u0026= \\exp({w_i}^\\top \\tilde{w}_k) = p_{\\text{co}}(\\tilde{w}_k \\vert w_i) \\\\ F((w_i - w_j)^\\top \\tilde{w}_k) \u0026= \\exp((w_i - w_j)^\\top \\tilde{w}_k) = \\frac{\\exp(w_i^\\top \\tilde{w}_k)}{\\exp(w_j^\\top \\tilde{w}_k)} = \\frac{p_{\\text{co}}(\\tilde{w}_k \\vert w_i)}{p_{\\text{co}}(\\tilde{w}_k \\vert w_j)} \\end{align} $$ Finally,\n$$ {w_i}^\\top \\tilde{w}_k = \\log p_{\\text{co}}(\\tilde{w}_k \\vert w_i) = \\log \\frac{C(w_i, \\tilde{w}_k)}{C(w_i)} = \\log C(w_i, \\tilde{w}_k) - \\log C(w_i) $$ Since the second term $-\\log C(w_i)$ is independent of $k$, we can add bias term $b_i$ for $w_i$ to capture $-\\log C(w_i)$. To keep the symmetric form, we also add in a bias $\\tilde{b}_k$ for $\\tilde{w}_k$.\n$$ \\log C(w_i, \\tilde{w}_k) = {w_i}^\\top \\tilde{w}_k + b_i + \\tilde{b}_k $$ The loss function for the GloVe model is designed to preserve the above formula by minimizing the sum of the squared errors:\n$$ \\mathcal{L}_\\theta = \\sum_{i=1, j=1}^V f(C(w_i,w_j)) ({w_i}^\\top \\tilde{w}_j + b_i + \\tilde{b}_j - \\log C(w_i, \\tilde{w}_j))^2 $$ The weighting schema $f(c)$ is a function of the co-occurrence of $w_i$ and $w_j$ and it is an adjustable model configuration. It should be close to zero as $c \\to 0$; should be non-decreasing as higher co-occurrence should have more impact; should saturate when $c$ become extremely large. The paper proposed the following weighting function.\n$$ f(c) = \\begin{cases} (\\frac{c}{c_{\\max}})^\\alpha \u0026 \\text{if } c \u003c c_{\\max} \\text{, } c_{\\max} \\text{ is adjustable.} \\\\ 1 \u0026 \\text{if } \\text{otherwise} \\end{cases} $$ Examples: word2vec on “Game of Thrones” After reviewing all the theoretical knowledge above, let’s try a little experiment in word embedding extracted from “the Games of Thrones corpus”. The process is super straightforward using gensim.\nStep 1: Extract words\nimport sys from nltk.corpus import stopwords from nltk.tokenize import sent_tokenize STOP_WORDS = set(stopwords.words('english')) def get_words(txt): return filter( lambda x: x not in STOP_WORDS, re.findall(r'\\b(\\w+)\\b', txt) ) def parse_sentence_words(input_file_names): \"\"\"Returns a list of a list of words. Each sublist is a sentence.\"\"\" sentence_words = [] for file_name in input_file_names: for line in open(file_name): line = line.strip().lower() line = line.decode('unicode_escape').encode('ascii','ignore') sent_words = map(get_words, sent_tokenize(line)) sent_words = filter(lambda sw: len(sw) \u003e 1, sent_words) if len(sent_words) \u003e 1: sentence_words += sent_words return sentence_words # You would see five .txt files after unzip 'a_song_of_ice_and_fire.zip' input_file_names = [\"001ssb.txt\", \"002ssb.txt\", \"003ssb.txt\", \"004ssb.txt\", \"005ssb.txt\"] GOT_SENTENCE_WORDS= parse_sentence_words(input_file_names) Step 2: Feed a word2vec model\nfrom gensim.models import Word2Vec # size: the dimensionality of the embedding vectors. # window: the maximum distance between the current and predicted word within a sentence. model = Word2Vec(GOT_SENTENCE_WORDS, size=128, window=3, min_count=5, workers=4) model.wv.save_word2vec_format(\"got_word2vec.txt\", binary=False) Step 3: Check the results\nIn the GoT word embedding space, the top similar words to “king” and “queen” are:\nmodel.most_similar('king', topn=10) (word, similarity with ‘king’) model.most_similar('queen', topn=10) (word, similarity with ‘queen’) (‘kings’, 0.897245) (‘cersei’, 0.942618) (‘baratheon’, 0.809675) (‘joffrey’, 0.933756) (‘son’, 0.763614) (‘margaery’, 0.931099) (‘robert’, 0.708522) (‘sister’, 0.928902) (’lords’, 0.698684) (‘prince’, 0.927364) (‘joffrey’, 0.696455) (‘uncle’, 0.922507) (‘prince’, 0.695699) (‘varys’, 0.918421) (‘brother’, 0.685239) (’ned’, 0.917492) (‘aerys’, 0.684527) (‘melisandre’, 0.915403) (‘stannis’, 0.682932) (‘robb’, 0.915272) Cited as:\n@article{weng2017wordembedding, title = \"Learning word embedding\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2017\", url = \"https://lilianweng.github.io/posts/2017-10-15-word-embedding/\" } References [1] Tensorflow Tutorial Vector Representations of Words.\n[2] “Word2Vec Tutorial - The Skip-Gram Model” by Chris McCormick.\n[3] “On word embeddings - Part 2: Approximating the Softmax” by Sebastian Ruder.\n[4] Xin Rong. word2vec Parameter Learning Explained\n[5] Mikolov, Tomas, Kai Chen, Greg Corrado, and Jeffrey Dean. “Efficient estimation of word representations in vector space.” arXiv preprint arXiv:1301.3781 (2013).\n[6] Frederic Morin and Yoshua Bengio. “Hierarchical Probabilistic Neural Network Language Model.” Aistats. Vol. 5. 2005.\n[7] Michael Gutmann and Aapo Hyvärinen. “Noise-contrastive estimation: A new estimation principle for unnormalized statistical models.” Proc. Intl. Conf. on Artificial Intelligence and Statistics. 2010.\n[8] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg Corrado, and Jeffrey Dean. “Distributed representations of words and phrases and their compositionality.” Advances in neural information processing systems. 2013.\n[9] Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean. “Efficient estimation of word representations in vector space.” arXiv preprint arXiv:1301.3781 (2013).\n[10] Marco Baroni, Georgiana Dinu, and Germán Kruszewski. “Don’t count, predict! A systematic comparison of context-counting vs. context-predicting semantic vectors.” ACL (1). 2014.\n[11] Jeffrey Pennington, Richard Socher, and Christopher Manning. “Glove: Global vectors for word representation.” Proc. Conf. on empirical methods in natural language processing (EMNLP). 2014.\n",
+  "wordCount" : "3739",
+  "inLanguage": "en",
+  "datePublished": "2017-10-15T00:00:00Z",
+  "dateModified": "2017-10-15T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2017-10-15-word-embedding/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Learning Word Embedding
+    </h1>
+    <div class="post-meta">Date: October 15, 2017  |  Estimated Reading Time: 18 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#count-based-vector-space-model" aria-label="Count-Based Vector Space Model">Count-Based Vector Space Model</a></li>
+                <li>
+                    <a href="#context-based-skip-gram-model" aria-label="Context-Based: Skip-Gram Model">Context-Based: Skip-Gram Model</a></li>
+                <li>
+                    <a href="#context-based-continuous-bag-of-words-cbow" aria-label="Context-Based: Continuous Bag-of-Words (CBOW)">Context-Based: Continuous Bag-of-Words (CBOW)</a></li>
+                <li>
+                    <a href="#loss-functions" aria-label="Loss Functions">Loss Functions</a><ul>
+                        
+                <li>
+                    <a href="#full-softmax" aria-label="Full Softmax">Full Softmax</a></li>
+                <li>
+                    <a href="#hierarchical-softmax" aria-label="Hierarchical Softmax">Hierarchical Softmax</a></li>
+                <li>
+                    <a href="#cross-entropy" aria-label="Cross Entropy">Cross Entropy</a></li>
+                <li>
+                    <a href="#noise-contrastive-estimation-nce" aria-label="Noise Contrastive Estimation (NCE)">Noise Contrastive Estimation (NCE)</a></li>
+                <li>
+                    <a href="#negative-sampling-neg" aria-label="Negative Sampling (NEG)">Negative Sampling (NEG)</a></li></ul>
+                </li>
+                <li>
+                    <a href="#other-tips-for-learning-word-embedding" aria-label="Other Tips for Learning Word Embedding">Other Tips for Learning Word Embedding</a></li>
+                <li>
+                    <a href="#glove-global-vectors" aria-label="GloVe: Global Vectors">GloVe: Global Vectors</a></li>
+                <li>
+                    <a href="#examples-word2vec-on-game-of-thrones" aria-label="Examples: word2vec on &ldquo;Game of Thrones&rdquo;">Examples: word2vec on &ldquo;Game of Thrones&rdquo;</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Word embedding is a dense representation of words in the form of numeric vectors. It can be learned using a variety of language models. The word embedding representation is able to reveal many hidden relationships between words. For example, vector("cat") - vector("kitten") is similar to vector("dog") - vector("puppy"). This post introduces several models for learning word embedding and how their loss functions are designed for the purpose. -->
+<p>Human vocabulary comes in free text. In order to make a machine learning model understand and process the natural language, we need to transform the free-text words into numeric values. One of the simplest transformation approaches is to do a one-hot encoding in which each distinct word stands for one dimension of the resulting vector and a binary value indicates whether the word presents (1) or not (0).</p>
+<p>However, one-hot encoding is impractical computationally when dealing with the entire vocabulary, as the representation demands hundreds of thousands of dimensions. Word embedding represents words and phrases in vectors of (non-binary) numeric values with much lower and thus denser dimensions. An intuitive assumption for good word embedding is that they can approximate the similarity between words (i.e., &ldquo;cat&rdquo; and &ldquo;kitten&rdquo; are similar words, and thus they are expected to be close in the reduced vector space) or disclose hidden semantic relationships (i.e., the relationship between &ldquo;cat&rdquo; and &ldquo;kitten&rdquo; is an analogy to the one between &ldquo;dog&rdquo; and &ldquo;puppy&rdquo;). Contextual information is super useful for learning word meaning and relationship, as similar words may appear in the similar context often.</p>
+<p>There are two main approaches for learning word embedding, both relying on the contextual knowledge.</p>
+<ul>
+<li><strong>Count-based</strong>: The first one is unsupervised, based on matrix factorization of a global word co-occurrence matrix. Raw co-occurrence counts do not work well, so we want to do smart things on top.</li>
+<li><strong>Context-based</strong>: The second approach is supervised. Given a local context, we want to design a model to predict the target words and in the meantime, this model learns the efficient word embedding representation.</li>
+</ul>
+<h1 id="count-based-vector-space-model">Count-Based Vector Space Model<a hidden class="anchor" aria-hidden="true" href="#count-based-vector-space-model">#</a></h1>
+<p>Count-based vector space models heavily rely on the word frequency and co-occurrence matrix with the assumption that words in the same contexts share similar or related semantic meanings. The models map count-based statistics like co-occurrences between neighboring words down to a small and dense word vectors. PCA, topic models, and neural probabilistic language models are all good examples of this category.</p>
+<hr>
+<p>Different from the count-based approaches, context-based methods build predictive models that directly target at predicting a word given its neighbors. The dense word vectors are part of the model parameters. The best vector representation of each word is learned during the model training process.</p>
+<h1 id="context-based-skip-gram-model">Context-Based: Skip-Gram Model<a hidden class="anchor" aria-hidden="true" href="#context-based-skip-gram-model">#</a></h1>
+<p>Suppose that you have a sliding window of a fixed size moving along a sentence: the word in the middle is the &ldquo;target&rdquo; and those on its left and right within the sliding window are the context words. The skip-gram model (<a href="https://arxiv.org/pdf/1301.3781.pdf">Mikolov et al., 2013</a>) is trained to predict the probabilities of a word being a context word for the given target.</p>
+<p>The following example demonstrates multiple pairs of target and context words as training samples, generated by a 5-word window sliding along the sentence.</p>
+<blockquote>
+<p>&ldquo;The man who passes the sentence should swing the sword.&rdquo; &ndash; Ned Stark</p>
+</blockquote>
+<table>
+  <thead>
+      <tr>
+          <th>Sliding window (size = 5)</th>
+          <th>Target word</th>
+          <th>Context</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>[The man who]</td>
+          <td>the</td>
+          <td>man, who</td>
+      </tr>
+      <tr>
+          <td>[The man who passes]</td>
+          <td>man</td>
+          <td>the, who, passes</td>
+      </tr>
+      <tr>
+          <td>[The man who passes the]</td>
+          <td>who</td>
+          <td>the, man, passes, the</td>
+      </tr>
+      <tr>
+          <td>[man who passes the sentence]</td>
+          <td>passes</td>
+          <td>man, who, the, sentence</td>
+      </tr>
+      <tr>
+          <td>&hellip;</td>
+          <td>&hellip;</td>
+          <td>&hellip;</td>
+      </tr>
+      <tr>
+          <td>[sentence should swing the sword]</td>
+          <td>swing</td>
+          <td>sentence, should, the, sword</td>
+      </tr>
+      <tr>
+          <td>[should swing the sword]</td>
+          <td>the</td>
+          <td>should, swing, sword</td>
+      </tr>
+      <tr>
+          <td>[swing the sword]</td>
+          <td>sword</td>
+          <td>swing, the</td>
+      </tr>
+      <tr>
+          <td>{:.info}</td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<p>Each context-target pair is treated as a new observation in the data. For example, the target word &ldquo;swing&rdquo; in the above case produces four training samples: (&ldquo;swing&rdquo;, &ldquo;sentence&rdquo;), (&ldquo;swing&rdquo;, &ldquo;should&rdquo;), (&ldquo;swing&rdquo;, &ldquo;the&rdquo;), and (&ldquo;swing&rdquo;, &ldquo;sword&rdquo;).</p>
+<figure>
+	<img src="word2vec-skip-gram.png" style="width: 640px;"  />
+	<figcaption>The skip-gram model. Both the input vector $\mathbf{x}$ and the output $\mathbf{y}$ are one-hot encoded word representations. The hidden layer is the word embedding of size $N$.</figcaption>
+</figure>
+<p>Given the vocabulary size $V$, we are about to learn word embedding vectors of size $N$. The model learns to predict one context word (output) using one target word (input) at a time.</p>
+<p>According to Fig. 1,</p>
+<ul>
+<li>Both input word $w_i$ and the output word $w_j$ are one-hot encoded into binary vectors $\mathbf{x}$ and $\mathbf{y}$ of size $V$.</li>
+<li>First, the multiplication of the binary vector $\mathbf{x}$ and the word embedding matrix $W$ of size $V \times N$ gives us the embedding vector of the input word $w_i$: the i-th row of the matrix $W$.</li>
+<li>This newly discovered embedding vector of dimension $N$ forms the hidden layer.</li>
+<li>The multiplication of the hidden layer and the word context matrix $W’$ of size $N \times V$ produces the output one-hot encoded vector $\mathbf{y}$.</li>
+<li>The output context matrix $W’$ encodes the meanings of words as context, different from the embedding matrix $W$. NOTE: Despite the name, $W’$ is independent of $W$, not a transpose or inverse or whatsoever.</li>
+</ul>
+<h1 id="context-based-continuous-bag-of-words-cbow">Context-Based: Continuous Bag-of-Words (CBOW)<a hidden class="anchor" aria-hidden="true" href="#context-based-continuous-bag-of-words-cbow">#</a></h1>
+<p>The Continuous Bag-of-Words (CBOW) is another similar model for learning word vectors. It predicts the target word (i.e. &ldquo;swing&rdquo;) from source context words (i.e., &ldquo;sentence should the sword&rdquo;).</p>
+<figure>
+	<img src="word2vec-cbow.png" style="width: 640px;"  />
+	<figcaption>The CBOW model. Word vectors of multiple context words are averaged to get a fixed-length vector as in the hidden layer. Other symbols have the same meanings as in Fig 1.</figcaption>
+</figure>
+<p>Because there are multiple contextual words, we average their corresponding word vectors, constructed by the multiplication of the input vector and the matrix $W$. Because the averaging stage smoothes over a lot of the distributional information, some people believe the CBOW model is better for small dataset.</p>
+<h1 id="loss-functions">Loss Functions<a hidden class="anchor" aria-hidden="true" href="#loss-functions">#</a></h1>
+<p>Both the skip-gram model and the CBOW model should be trained to minimize a well-designed loss/objective function. There are several loss functions we can incorporate to train these language models. In the following discussion, we will use the skip-gram model as an example to describe how the loss is computed.</p>
+<h2 id="full-softmax">Full Softmax<a hidden class="anchor" aria-hidden="true" href="#full-softmax">#</a></h2>
+<p>The skip-gram model defines the embedding vector of every word by the matrix $W$ and the context vector by the output matrix $W&rsquo;$. Given an input word $w_I$, let us label the corresponding row of $W$ as vector $v_{w_I}$ (embedding vector) and its corresponding column of $W&rsquo;$ as $v&rsquo;_{w_I}$ (context vector). The final output layer applies softmax to compute the probability of predicting the output word $w_O$ given $w_I$, and therefore:</p>
+<div>
+$$
+p(w_O \vert w_I) = \frac{\exp({v'_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v'_{w_i}}^{\top} v_{w_I})}
+$$
+</div>
+<p>This is accurate as presented in However, when $V$ is extremely large, calculating the denominator by going through all the words for every single sample is computationally impractical. The demand for more efficient conditional probability estimation leads to the new methods like <em>hierarchical softmax</em>.</p>
+<h2 id="hierarchical-softmax">Hierarchical Softmax<a hidden class="anchor" aria-hidden="true" href="#hierarchical-softmax">#</a></h2>
+<p>Morin and Bengio (<a href="https://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf">2005</a>) proposed hierarchical softmax to make the sum calculation faster with the help of a binary tree structure. The hierarchical softmax encodes the language model&rsquo;s output softmax layer into a tree hierarchy, where each leaf is one word and each internal node stands for relative probabilities of the children nodes.</p>
+<figure>
+	<img src="word2vec-hierarchical-softmax.png" style="width: 420px;"  />
+	<figcaption>An illustration of the hierarchical softmax binary tree. The leaf nodes in white are words in the vocabulary. The gray inner nodes carry information on the probabilities of reaching its child nodes. One path starting from the root to the leaf $w\_i$. $n(w\_i, j)$ denotes the j-th node on this path. (Image source: <a href="https://arxiv.org/pdf/1411.2738.pdf" target="_blank">word2vec Parameter Learning Explained</a>)</figcaption>
+</figure>
+<p>Each word $w_i$ has a unique path from the root down to its corresponding leaf. The probability of picking this word is equivalent to the probability of taking this path from the root down through the tree branches. Since we know the embedding vector $v_n$ of the internal node $n$, the probability of getting the word can be computed by the product of taking left or right turn at every internal node stop.</p>
+<p>According to Fig. 3, the probability of one node is ($\sigma$ is the sigmoid function):</p>
+<div>
+$$
+\begin{align}
+p(\text{turn right} \to \dots w_I \vert n) &= \sigma({v'_n}^{\top} v_{w_I})\\
+p(\text{turn left } \to \dots w_I \vert n) &= 1 - p(\text{turn right} \vert n) = \sigma(-{v'_n}^{\top} v_{w_I})
+\end{align}
+$$
+</div>
+<p>The final probability of getting a context word $w_O$ given an input word $w_I$ is:</p>
+<div>
+$$
+p(w_O \vert w_I) = \prod_{k=1}^{L(w_O)} \sigma(\mathbb{I}_{\text{turn}}(n(w_O, k), n(w_O, k+1)) \cdot {v'_{n(w_O, k)}}^{\top} v_{w_I})
+$$
+</div>
+<p>where $L(w_O)$ is the depth of the path leading to the word $w_O$ and $\mathbb{I}_{\text{turn}}$ is a specially indicator function which returns 1 if $n(w_O, k+1)$ is the left child of $n(w_O, k)$ otherwise -1. The internal nodes&rsquo; embeddings are learned during the model training. The tree structure helps greatly reduce the complexity of the denominator estimation from O(V) (vocabulary size) to O(log V) (the depth of the tree) at the training time. However, at the prediction time, we still to compute the probability of every word and pick the best, as we don&rsquo;t know which leaf to reach for in advance.</p>
+<p>A good tree structure is crucial to the model performance. Several handy principles are: group words by frequency like what is implemented by Huffman tree for simple speedup; group similar words into same or close branches (i.e. use predefined word clusters, WordNet).</p>
+<!-- Morin and Bengio use the synsets in WordNet as clusters for the tree. Mnih and Hinton learn the tree structure with a clustering algorithm that recursively partitions the words in two clusters. -->
+<h2 id="cross-entropy">Cross Entropy<a hidden class="anchor" aria-hidden="true" href="#cross-entropy">#</a></h2>
+<p>Another approach completely steers away from the softmax framework. Instead, the loss function measures the cross entropy between the predicted probabilities $p$ and the true binary labels $\mathbf{y}$.</p>
+<p>First, let&rsquo;s recall that the cross entropy between two distributions $p$ and $q$ is measured as $ H(p, q) = -\sum_x p(x) \log q(x) $. In our case, the true label $y_i$ is 1 only when $w_i$ is the output word; $y_j$ is 0 otherwise. The loss function $\mathcal{L}_\theta$ of the model with parameter config $\theta$ aims to minimize the cross entropy between the prediction and the ground truth, as lower cross entropy indicates high similarity between two distributions.</p>
+<div>
+$$
+\mathcal{L}_\theta = - \sum_{i=1}^V y_i \log p(w_i | w_I) = - \log p(w_O \vert w_I)
+$$
+</div>
+<p>Recall that,</p>
+<div>
+$$
+p(w_O \vert w_I) = \frac{\exp({v'_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v'_{w_i}}^{\top} v_{w_I})}
+$$
+</div>
+<p>Therefore,</p>
+<div>
+$$
+\mathcal{L}_{\theta} 
+= - \log \frac{\exp({v'_{w_O}}^{\top}{v_{w_I}})}{\sum_{i=1}^V \exp({v'_{w_i}}^{\top}{v_{w_I} })}
+= - {v'_{w_O}}^{\top}{v_{w_I} } + \log \sum_{i=1}^V \exp({v'_{w_i} }^{\top}{v_{w_I}})
+$$
+</div>
+<p>To start training the model using back-propagation with SGD, we need to compute the gradient of the loss function. For simplicity, let&rsquo;s label $z_{IO} = {v&rsquo;_{w_O}}^{\top}{v_{w_I}}$.</p>
+<div>
+$$
+\begin{align}
+\nabla_\theta \mathcal{L}_{\theta}
+&= \nabla_\theta\big( - z_{IO} + \log \sum_{i=1}^V e^{z_{Ii}} \big) \\ 
+&= - \nabla_\theta z_{IO} + \nabla_\theta \big( \log \sum_{i=1}^V e^{z_{Ii}} \big) \\
+&= - \nabla_\theta z_{IO} + \frac{1}{\sum_{i=1}^V e^{z_{Ii}}} \sum_{i=1}^V e^{z_{Ii}} \nabla_\theta z_{Ii} \\
+&= - \nabla_\theta z_{IO} + \sum_{i=1}^V \frac{e^{z_{Ii}}}{\sum_{i=1}^V e^{z_{Ii}}} \nabla_\theta z_{Ii} \\
+&= - \nabla_\theta z_{IO} + \sum_{i=1}^V p(w_i \vert w_I) \nabla_\theta z_{Ii} \\
+&= - \nabla_\theta z_{IO} + \mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta z_{Ii}
+\end{align}
+$$
+</div>
+<p>where $Q(\tilde{w})$ is the distribution of noise samples.</p>
+<p>According to the formula above, the correct output word has a positive reinforcement according to the first term (the larger $\nabla_\theta z_{IO}$ the better loss we have), while other words have a negative impact as captured by the second term.</p>
+<p>How to estimate $\mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta {v&rsquo;_{w_i}}^{\top}{v_{w_I}}$ with a sample set of noise words rather than scanning through the entire vocabulary is the key of using cross-entropy-based sampling approach.</p>
+<h2 id="noise-contrastive-estimation-nce">Noise Contrastive Estimation (NCE)<a hidden class="anchor" aria-hidden="true" href="#noise-contrastive-estimation-nce">#</a></h2>
+<p>The Noise Contrastive Estimation (NCE) metric intends to differentiate the target word from noise samples using a logistic regression classifier (<a href="http://proceedings.mlr.press/v9/gutmann10a/gutmann10a.pdf">Gutmann and Hyvärinen, 2010</a>).</p>
+<p>Given an input word $w_I$, the correct output word is known as $w$. In the meantime, we sample $N$ other words from the noise sample distribution $Q$, denoted as $\tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N \sim Q$. Let&rsquo;s label the decision of the binary classifier as $d$ and $d$$ can only take a binary value.</p>
+<div>
+$$
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) + \sum_{i=1, \tilde{w}_i \sim Q}^N \log p(d=0|\tilde{w}_i, w_I) ]
+$$
+</div>
+<p>When $N$ is big enough, according to <a href="https://en.wikipedia.org/wiki/Law_of_large_numbers">the Law of large numbers</a>,</p>
+<div>
+$$
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) +  N\mathbb{E}_{\tilde{w}_i \sim Q} \log p(d=0|\tilde{w}_i, w_I)]
+$$
+</div>
+<p>To compute the probability $p(d=1 \vert w, w_I)$, we can start with the joint probability $p(d, w \vert w_I)$. Among $w, \tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N$, we have 1 out of (N+1) chance to pick the true word $w$, which is sampled from the conditional probability $p(w \vert w_I)$; meanwhile, we have N out of (N+1) chances to pick a noise word, each sampled from $q(\tilde{w}) \sim Q$. Thus,</p>
+<div>
+$$
+p(d, w | w_I) = 
+  \begin{cases}
+  \frac{1}{N+1} p(w \vert w_I) & \text{if } d=1 \\
+  \frac{N}{N+1} q(\tilde{w}) & \text{if } d=0
+  \end{cases}
+$$
+</div>
+<p>Then we can figure out $p(d=1 \vert w, w_I)$ and $p(d=0 \vert w, w_I)$:</p>
+<div>
+$$
+\begin{align}
+p(d=1 \vert w, w_I) 
+&= \frac{p(d=1, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&= \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+$$
+</div>
+<div>
+$$
+\begin{align}
+p(d=0 \vert w, w_I) 
+&= \frac{p(d=0, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&= \frac{Nq(\tilde{w})}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+$$
+</div>
+<p>Finally the loss function of NCE&rsquo;s binary classifier becomes:</p>
+<div>
+$$
+\begin{align}
+\mathcal{L}_\theta 
+& = - [ \log p(d=1 \vert w, w_I) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log p(d=0|\tilde{w}_i, w_I)] \\
+& = - [ \log \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{p(w \vert w_I) + Nq(\tilde{w}_i)}]
+\end{align}
+$$
+</div>
+<p>However, $p(w \vert w_I)$ still involves summing up the entire vocabulary in the denominator. Let’s label the denominator as a partition function of the input word, $Z(w_I)$. A common assumption is $Z(w) \approx 1$ given that we expect the softmax output layer to be normalized (<a href="https://www.cs.toronto.edu/~amnih/papers/ncelm.pdf">Minh and Teh, 2012</a>). Then the loss function is simplified to:</p>
+<div>
+$$
+\mathcal{L}_\theta = - [ \log \frac{\exp({v'_w}^{\top}{v_{w_I}})}{\exp({v'_w}^{\top}{v_{w_I}}) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{\exp({v'_w}^{\top}{v_{w_I}}) + Nq(\tilde{w}_i)}]
+$$
+</div>
+<p>The noise distribution $Q$ is a tunable parameter and we would like to design it in a way so that:</p>
+<ul>
+<li>intuitively it should be very similar to the real data distribution; and</li>
+<li>it should be easy to sample from.</li>
+</ul>
+<p>For example, the sampling implementation (<a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/candidate_sampling_ops.py#L83">log_uniform_candidate_sampler</a>) of NCE loss in tensorflow assumes that such noise samples follow a log-uniform distribution, also known as <a href="https://en.wikipedia.org/wiki/Zipf%27s_law">Zipfian’s law</a>. The probability of a given word in logarithm is expected to be reversely proportional to its rank, while high-frequency words are assigned with lower ranks. In this case, $q(\tilde{w}) = \frac{1}{ \log V}(\log (r_{\tilde{w}} + 1) - \log r_{\tilde{w}})$, where $r_{\tilde{w}} \in [1, V]$ is the rank of a word by frequency in descending order.</p>
+<h2 id="negative-sampling-neg">Negative Sampling (NEG)<a hidden class="anchor" aria-hidden="true" href="#negative-sampling-neg">#</a></h2>
+<p>The Negative Sampling (NEG) proposed by Mikolov et al. (<a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">2013</a>) is a simplified variation of NCE loss. It is especially famous for training Google&rsquo;s <a href="https://code.google.com/archive/p/word2vec/">word2vec</a> project. Different from NCE Loss which attempts to approximately maximize the log probability of the softmax output, negative sampling did further simplification because it focuses on learning high-quality word embedding rather than modeling the word distribution in natural language.</p>
+<p>NEG approximates the binary classifier&rsquo;s output with sigmoid functions as follows:</p>
+<div>
+$$
+\begin{align}
+p(d=1 \vert w_, w_I) &= \sigma({v'_{w}}^\top v_{w_I}) \\
+p(d=0 \vert w, w_I) &= 1 - \sigma({v'_{w}}^\top v_{w_I}) = \sigma(-{v'_{w}}^\top v_{w_I})
+\end{align}
+$$
+</div>
+<p>The final NCE loss function looks like:</p>
+<div>
+$$
+\mathcal{L}_\theta = - [ \log \sigma({v'_{w}}^\top v_{w_I}) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \sigma(-{v'_{\tilde{w}_i}}^\top v_{w_I})]
+$$
+</div>
+<h1 id="other-tips-for-learning-word-embedding">Other Tips for Learning Word Embedding<a hidden class="anchor" aria-hidden="true" href="#other-tips-for-learning-word-embedding">#</a></h1>
+<p>Mikolov et al. (<a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">2013</a>) suggested several helpful practices that could result in good word embedding learning outcomes.</p>
+<ul>
+<li>
+<p><strong>Soft sliding window</strong>. When pairing the words within the sliding window, we could assign less weight to more distant words. One heuristic is &mdash; given a maximum window size parameter defined, $s_{\text{max}}$, the actual window size is randomly sampled between 1 and $s_{\text{max}}$ for every training sample. Thus, each context word has the probability of 1/(its distance to the target word) being observed, while the adjacent words are always observed.</p>
+</li>
+<li>
+<p><strong>Subsampling frequent words</strong>. Extremely frequent words might be too general to differentiate the context (i.e. think about stopwords). While on the other hand, rare words are more likely to carry distinct information. To balance the frequent and rare words, Mikolov et al. proposed to discard words $w$ with probability $1-\sqrt{t/f(w)}$ during sampling. Here $f(w)$ is the word frequency and $t$ is an adjustable threshold.</p>
+</li>
+<li>
+<p><strong>Learning phrases first</strong>. A phrase often stands as a conceptual unit, rather than a simple composition of individual words. For example, we cannot really tell &ldquo;New York&rdquo; is a city name even we know the meanings of &ldquo;new&rdquo; and &ldquo;york&rdquo;. Learning such phrases first and treating them as word units before training the word embedding model improves the outcome quality. A simple data-driven approach is based on unigram and bigram counts: $s_{\text{phrase}} = \frac{C(w_i w_j) - \delta}{ C(w_i)C(w_j)}$, where $C(.)$ is simple count of an unigram $w_i$ or bigram $w_i w_j$ and $\delta$ is a discounting threshold to prevent super infrequent words and phrases. Higher scores indicate higher chances of being phrases. To form phrases longer than two words, we can scan the vocabulary multiple times with decreasing score cutoff values.</p>
+</li>
+</ul>
+<h1 id="glove-global-vectors">GloVe: Global Vectors<a hidden class="anchor" aria-hidden="true" href="#glove-global-vectors">#</a></h1>
+<p>The Global Vector (GloVe) model proposed by Pennington et al. (<a href="http://www.aclweb.org/anthology/D14-1162">2014</a>) aims to combine the count-based matrix factorization and the context-based skip-gram model together.</p>
+<p>We all know the counts and co-occurrences can reveal the meanings of words. To distinguish from $p(w_O \vert w_I)$ in the context of a word embedding word, we would like to define the co-ocurrence probability as:</p>
+<div>
+$$
+p_{\text{co}}(w_k \vert w_i) = \frac{C(w_i, w_k)}{C(w_i)}
+$$
+</div>
+<p>$C(w_i, w_k)$ counts the co-occurrence between words $w_i$ and $w_k$.</p>
+<p>Say, we have two words, $w_i$=&ldquo;ice&rdquo; and $w_j$=&ldquo;steam&rdquo;. The third word $\tilde{w}_k$=&ldquo;solid&rdquo; is related to &ldquo;ice&rdquo; but not &ldquo;steam&rdquo;, and thus we expect $p_{\text{co}}(\tilde{w}_k \vert w_i)$ to be much larger than $p_{\text{co}}(\tilde{w}_k \vert w_j)$ and therefore $\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}$ to be very large. If the third word $\tilde{w}_k$ = &ldquo;water&rdquo; is related to both or $\tilde{w}_k$ = &ldquo;fashion&rdquo; is unrelated to either of them, $\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}$ is expected to be close to one.</p>
+<p>The intuition here is that the word meanings are captured by the ratios of co-occurrence probabilities rather than the probabilities themselves. The global vector models the relationship between two words regarding to the third context word as:</p>
+<div>
+$$
+F(w_i, w_j, \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+$$
+</div>
+<p>Further, since the goal is to learn meaningful word vectors, $F$ is designed to be a function of the linear difference between two words $w_i - w_j$:</p>
+<div>
+$$
+F((w_i - w_j)^\top \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+$$
+</div>
+<p>With the consideration of $F$ being symmetric between target words and context words, the final solution is to model $F$ as an <strong>exponential</strong> function. Please read the original paper (<a href="http://www.aclweb.org/anthology/D14-1162">Pennington et al., 2014</a>) for more details of the equations.</p>
+<div>
+$$
+\begin{align}
+F({w_i}^\top \tilde{w}_k) &= \exp({w_i}^\top \tilde{w}_k) = p_{\text{co}}(\tilde{w}_k \vert w_i) \\
+F((w_i - w_j)^\top \tilde{w}_k) &= \exp((w_i - w_j)^\top \tilde{w}_k) = \frac{\exp(w_i^\top \tilde{w}_k)}{\exp(w_j^\top \tilde{w}_k)} = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+\end{align}
+$$
+</div>
+<p>Finally,</p>
+<div>
+$$
+{w_i}^\top \tilde{w}_k = \log p_{\text{co}}(\tilde{w}_k \vert w_i) = \log \frac{C(w_i, \tilde{w}_k)}{C(w_i)} = \log C(w_i, \tilde{w}_k) - \log C(w_i)
+$$
+</div>
+<p>Since the second term $-\log C(w_i)$ is independent of $k$, we can add bias term $b_i$ for $w_i$ to capture $-\log C(w_i)$. To keep the symmetric form, we also add in a bias $\tilde{b}_k$ for $\tilde{w}_k$.</p>
+<div>
+$$
+\log C(w_i, \tilde{w}_k) = {w_i}^\top \tilde{w}_k + b_i + \tilde{b}_k
+$$
+</div>
+<p>The loss function for the GloVe model is designed to preserve the above formula by minimizing the sum of the squared errors:</p>
+<div>
+$$
+\mathcal{L}_\theta = \sum_{i=1, j=1}^V f(C(w_i,w_j)) ({w_i}^\top \tilde{w}_j + b_i + \tilde{b}_j - \log C(w_i, \tilde{w}_j))^2
+$$
+</div>
+<p>The weighting schema $f(c)$ is a function of the co-occurrence of $w_i$ and $w_j$ and it is an adjustable model configuration. It should be close to zero as $c \to 0$; should be non-decreasing as higher co-occurrence should have more impact; should saturate when $c$ become extremely large. The paper proposed the following weighting function.</p>
+<div>
+$$
+f(c) = 
+  \begin{cases}
+  (\frac{c}{c_{\max}})^\alpha & \text{if } c < c_{\max} \text{, } c_{\max} \text{ is adjustable.} \\
+  1 & \text{if } \text{otherwise}
+  \end{cases}
+$$
+</div>
+<h1 id="examples-word2vec-on-game-of-thrones">Examples: word2vec on &ldquo;Game of Thrones&rdquo;<a hidden class="anchor" aria-hidden="true" href="#examples-word2vec-on-game-of-thrones">#</a></h1>
+<p>After reviewing all the theoretical knowledge above, let&rsquo;s try a little experiment in word embedding extracted from &ldquo;the Games of Thrones corpus&rdquo;. The process is super straightforward using <a href="https://radimrehurek.com/gensim/models/word2vec.html">gensim</a>.</p>
+<p><strong>Step 1: Extract words</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> sys
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> nltk.corpus <span style="color:#f92672">import</span> stopwords
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> nltk.tokenize <span style="color:#f92672">import</span> sent_tokenize
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>STOP_WORDS <span style="color:#f92672">=</span> set(stopwords<span style="color:#f92672">.</span>words(<span style="color:#e6db74">&#39;english&#39;</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_words</span>(txt):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> filter(
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">lambda</span> x: x <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> STOP_WORDS, 
+</span></span><span style="display:flex;"><span>        re<span style="color:#f92672">.</span>findall(<span style="color:#e6db74">r</span><span style="color:#e6db74">&#39;\b(\w+)\b&#39;</span>, txt)
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">parse_sentence_words</span>(input_file_names):
+</span></span><span style="display:flex;"><span>   <span style="color:#e6db74">&#34;&#34;&#34;Returns a list of a list of words. Each sublist is a sentence.&#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    sentence_words <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> file_name <span style="color:#f92672">in</span> input_file_names:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> line <span style="color:#f92672">in</span> open(file_name):
+</span></span><span style="display:flex;"><span>            line <span style="color:#f92672">=</span> line<span style="color:#f92672">.</span>strip()<span style="color:#f92672">.</span>lower()
+</span></span><span style="display:flex;"><span>            line <span style="color:#f92672">=</span> line<span style="color:#f92672">.</span>decode(<span style="color:#e6db74">&#39;unicode_escape&#39;</span>)<span style="color:#f92672">.</span>encode(<span style="color:#e6db74">&#39;ascii&#39;</span>,<span style="color:#e6db74">&#39;ignore&#39;</span>)
+</span></span><span style="display:flex;"><span>            sent_words <span style="color:#f92672">=</span> map(get_words, sent_tokenize(line))
+</span></span><span style="display:flex;"><span>            sent_words <span style="color:#f92672">=</span> filter(<span style="color:#66d9ef">lambda</span> sw: len(sw) <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span>, sent_words)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> len(sent_words) <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span>:
+</span></span><span style="display:flex;"><span>                sentence_words <span style="color:#f92672">+=</span> sent_words
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> sentence_words
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># You would see five .txt files after unzip &#39;a_song_of_ice_and_fire.zip&#39;</span>
+</span></span><span style="display:flex;"><span>input_file_names <span style="color:#f92672">=</span> [<span style="color:#e6db74">&#34;001ssb.txt&#34;</span>, <span style="color:#e6db74">&#34;002ssb.txt&#34;</span>, <span style="color:#e6db74">&#34;003ssb.txt&#34;</span>, 
+</span></span><span style="display:flex;"><span>                    <span style="color:#e6db74">&#34;004ssb.txt&#34;</span>, <span style="color:#e6db74">&#34;005ssb.txt&#34;</span>]
+</span></span><span style="display:flex;"><span>GOT_SENTENCE_WORDS<span style="color:#f92672">=</span> parse_sentence_words(input_file_names)
+</span></span></code></pre></div><p><strong>Step 2: Feed a word2vec model</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> gensim.models <span style="color:#f92672">import</span> Word2Vec
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># size: the dimensionality of the embedding vectors.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># window: the maximum distance between the current and predicted word within a sentence.</span>
+</span></span><span style="display:flex;"><span>model <span style="color:#f92672">=</span> Word2Vec(GOT_SENTENCE_WORDS, size<span style="color:#f92672">=</span><span style="color:#ae81ff">128</span>, window<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span>, min_count<span style="color:#f92672">=</span><span style="color:#ae81ff">5</span>, workers<span style="color:#f92672">=</span><span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>model<span style="color:#f92672">.</span>wv<span style="color:#f92672">.</span>save_word2vec_format(<span style="color:#e6db74">&#34;got_word2vec.txt&#34;</span>, binary<span style="color:#f92672">=</span><span style="color:#66d9ef">False</span>)
+</span></span></code></pre></div><p><strong>Step 3: Check the results</strong></p>
+<p>In the GoT word embedding space, the top similar words to &ldquo;king&rdquo; and &ldquo;queen&rdquo; are:</p>
+<table>
+  <thead>
+      <tr>
+          <th><code>model.most_similar('king', topn=10)</code><br/> (word, similarity with &lsquo;king&rsquo;)</th>
+          <th><code>model.most_similar('queen', topn=10)</code><br/> (word, similarity with &lsquo;queen&rsquo;)</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>(&lsquo;kings&rsquo;, 0.897245)</td>
+          <td>(&lsquo;cersei&rsquo;, 0.942618)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;baratheon&rsquo;, 0.809675)</td>
+          <td>(&lsquo;joffrey&rsquo;, 0.933756)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;son&rsquo;, 0.763614)</td>
+          <td>(&lsquo;margaery&rsquo;, 0.931099)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;robert&rsquo;, 0.708522)</td>
+          <td>(&lsquo;sister&rsquo;, 0.928902)</td>
+      </tr>
+      <tr>
+          <td>(&rsquo;lords&rsquo;, 0.698684)</td>
+          <td>(&lsquo;prince&rsquo;, 0.927364)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;joffrey&rsquo;, 0.696455)</td>
+          <td>(&lsquo;uncle&rsquo;, 0.922507)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;prince&rsquo;, 0.695699)</td>
+          <td>(&lsquo;varys&rsquo;, 0.918421)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;brother&rsquo;, 0.685239)</td>
+          <td>(&rsquo;ned&rsquo;, 0.917492)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;aerys&rsquo;, 0.684527)</td>
+          <td>(&lsquo;melisandre&rsquo;, 0.915403)</td>
+      </tr>
+      <tr>
+          <td>(&lsquo;stannis&rsquo;, 0.682932)</td>
+          <td>(&lsquo;robb&rsquo;, 0.915272)</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2017wordembedding,
+  title   = &#34;Learning word embedding&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2017&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2017-10-15-word-embedding/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Tensorflow Tutorial <a href="https://www.tensorflow.org/tutorials/word2vec">Vector Representations of Words</a>.</p>
+<p>[2] <a href="http://mccormickml.com/2016/04/19/word2vec-tutorial-the-skip-gram-model/">&ldquo;Word2Vec Tutorial - The Skip-Gram Model&rdquo;</a> by Chris McCormick.</p>
+<p>[3] <a href="http://ruder.io/word-embeddings-softmax/">&ldquo;On word embeddings - Part 2: Approximating the Softmax&rdquo;</a> by Sebastian Ruder.</p>
+<p>[4] Xin Rong. <a href="https://arxiv.org/pdf/1411.2738.pdf">word2vec Parameter Learning Explained</a></p>
+<p>[5] Mikolov, Tomas, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://arxiv.org/pdf/1301.3781.pdf">&ldquo;Efficient estimation of word representations in vector space.&rdquo;</a> arXiv preprint arXiv:1301.3781 (2013).</p>
+<p>[6] Frederic Morin and Yoshua Bengio. <a href="https://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf">&ldquo;Hierarchical Probabilistic Neural Network Language Model.&rdquo;</a> Aistats. Vol. 5. 2005.</p>
+<p>[7] Michael Gutmann and Aapo Hyvärinen. <a href="http://proceedings.mlr.press/v9/gutmann10a/gutmann10a.pdf">&ldquo;Noise-contrastive estimation: A new estimation principle for unnormalized statistical models.&rdquo;</a> Proc. Intl. Conf. on Artificial Intelligence and Statistics. 2010.</p>
+<p>[8] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf">&ldquo;Distributed representations of words and phrases and their compositionality.&rdquo;</a> Advances in neural information processing systems. 2013.</p>
+<p>[9] Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://arxiv.org/pdf/1301.3781.pdf">&ldquo;Efficient estimation of word representations in vector space.&rdquo;</a> arXiv preprint arXiv:1301.3781 (2013).</p>
+<p>[10] Marco Baroni, Georgiana Dinu, and Germán Kruszewski. <a href="http://anthology.aclweb.org/P/P14/P14-1023.pdf">&ldquo;Don&rsquo;t count, predict! A systematic comparison of context-counting vs. context-predicting semantic vectors.&rdquo;</a> ACL (1). 2014.</p>
+<p>[11] Jeffrey Pennington, Richard Socher, and Christopher Manning. <a href="http://www.aclweb.org/anthology/D14-1162">&ldquo;Glove: Global vectors for word representation.&rdquo;</a> Proc. Conf. on empirical methods in natural language processing (EMNLP). 2014.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/">
+    <span class="title">« </span>
+    <br>
+    <span>Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/">
+    <span class="title"> »</span>
+    <br>
+    <span>Anatomize Deep Learning with Information Theory</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on twitter"
+        href="https://twitter.com/intent/tweet/?text=Learning%20Word%20Embedding&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f&amp;hashtags=nlp%2clanguage-model">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f&amp;title=Learning%20Word%20Embedding&amp;summary=Learning%20Word%20Embedding&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f&title=Learning%20Word%20Embedding">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on whatsapp"
+        href="https://api.whatsapp.com/send?text=Learning%20Word%20Embedding%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning Word Embedding on telegram"
+        href="https://telegram.me/share/url?text=Learning%20Word%20Embedding&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-15-word-embedding%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
