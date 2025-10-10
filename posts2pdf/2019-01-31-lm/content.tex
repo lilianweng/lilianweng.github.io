@@ -1,25 +1,3 @@
-\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
-
-\begin{itemize}
-\tightlist
-\item
-  \textbar{}
-\end{itemize}
-
-\begin{itemize}
-\tightlist
-\item
-  \href{https://lilianweng.github.io/}{{Posts}}
-\item
-  \href{https://lilianweng.github.io/archives}{{Archive}}
-\item
-  \href{https://lilianweng.github.io/search/}{{Search}}
-\item
-  \href{https://lilianweng.github.io/tags/}{{Tags}}
-\item
-  \href{https://lilianweng.github.io/faq}{{FAQ}}
-\end{itemize}
-
 \section{Generalized Language Models}\label{generalized-language-models}
 
 Date: January 31, 2019 \textbar{} Estimated Reading Time: 36 min \textbar{} Author: Lilian Weng
@@ -402,19 +380,19 @@ The most substantial upgrade that OpenAI GPT proposed is to get rid of the task-
 
 Let's take classification as an example. Say, in the labeled dataset, each input has \$n\$ tokens, \$\textbackslash mathbf\{x\} = (x\_1, \textbackslash dots, x\_n)\$, and one label \$y\$. GPT first processes the input sequence \$\textbackslash mathbf\{x\}\$ through the pre-trained transformer decoder and the last layer output for the last token \$x\_n\$ is \$\textbackslash mathbf\{h\}\_L\^{}\{(n)\}\$. Then with only one new trainable weight matrix \$\textbackslash mathbf\{W\}\_y\$, it can predict a distribution over class labels.
 
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \includegraphics{GPT-classification.png}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ P(y\textbackslash mid x\_1, \textbackslash dots, x\_n) = \textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\_L\^{}\{(n)\}\textbackslash mathbf\{W\}\_y) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The loss is to minimize the negative log-likelihood for true labels. In addition, adding the LM loss as an auxiliary loss is found to be beneficial, because:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -424,83 +402,83 @@ The loss is to minimize the negative log-likelihood for true labels. In addition
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{cls\} \&= \textbackslash sum\_\{(\textbackslash mathbf\{x\}, y) \textbackslash in \textbackslash mathcal\{D\}\} \textbackslash log P(y\textbackslash mid x\_1, \textbackslash dots, x\_n) = \textbackslash sum\_\{(\textbackslash mathbf\{x\}, y) \textbackslash in \textbackslash mathcal\{D\}\} \textbackslash log \textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\_L\^{}\{(n)\}(\textbackslash mathbf\{x\})\textbackslash mathbf\{W\}\_y) \textbackslash\textbackslash{} \textbackslash mathcal\{L\}\_\textbackslash text\{LM\} \&= -\textbackslash sum\_\{i\} \textbackslash log p(x\_i\textbackslash mid x\_\{i-k\}, \textbackslash dots, x\_\{i-1\}) \textbackslash\textbackslash{} \textbackslash mathcal\{L\} \&= \textbackslash mathcal\{L\}\_\textbackslash text\{cls\} + \textbackslash lambda \textbackslash mathcal\{L\}\_\textbackslash text\{LM\} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 With similar designs, no customized model structure is needed for other end tasks (see Fig. 7). If the task input contains multiple sentences, a special delimiter token (\texttt{\$}) is added between each pair of sentences. The embedding for this delimiter token is a new parameter we need to learn, but it should be pretty minimal.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 For the sentence similarity task, because the ordering does not matter, both orderings are included. For the multiple choice task, the context is paired with every answer candidate.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{GPT-downstream-tasks.png}
 \caption{Training objects in slightly modified GPT transformer models for downstream tasks. (Image source: \href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{original paper})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Summary}: It is super neat and encouraging to see that such a general framework is capable to beat SOTA on most language tasks at that time (June 2018). At the first stage, generative pre-training of a language model can absorb as much free text as possible. Then at the second stage, the model is fine-tuned on specific tasks with a small labeled dataset and a minimal set of new parameters to learn.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 One limitation of GPT is its uni-directional nature --- the model is only trained to predict the future left-to-right context.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{BERT\hyperref[bert]{\#}}{BERT\#}}\label{bert}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{BERT}, short for \textbf{Bidirectional Encoder Representations from Transformers} (\href{https://arxiv.org/abs/1810.04805}{Devlin, et al., 2019}) is a direct descendant to \hyperref[gpt]{GPT}: train a large language model on free text and then fine-tune on specific tasks without customized network architectures.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Compared to GPT, the largest difference and improvement of BERT is to make training \textbf{bi-directional}. The model learns to predict both context on the left and right. The paper according to the ablation study claimed that:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{quote}
 ``bidirectional nature of our model is the single most important new contribution''
 \end{quote}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Pre-training Tasks\hyperref[pre-training-tasks]{\#}}{Pre-training Tasks\#}}\label{pre-training-tasks}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The model architecture of BERT is a multi-layer bidirectional Transformer encoder.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{transformer-encoder-2.png}
 \caption{Recap of Transformer Encoder model architecture. (Image source: \href{https://arxiv.org/abs/1706.03762}{Transformer paper})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 To encourage the bi-directional prediction and sentence-level understanding, BERT is trained with two tasks instead of the basic language task (that is, to predict the next token given context).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 *\phantomsection\label{MLM}{}\textbf{Task 1: Mask language model (MLM)}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{quote}
 From \href{https://en.wikipedia.org/wiki/Cloze_test}{Wikipedia}: ``A cloze test (also cloze deletion test) is an exercise, test, or assessment consisting of a portion of language with certain items, words, or signs removed (cloze text), where the participant is asked to replace the missing language item. \ldots{} The exercise was first described by W.L. Taylor in 1953.''
 \end{quote}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 It is unsurprising to believe that a representation that learns the context around a word rather than just after the word is able to better capture its meaning, both syntactically and semantically. BERT encourages the model to do so by training on the \emph{``mask language model'' task}:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -520,15 +498,15 @@ It is unsurprising to believe that a representation that learns the context arou
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{NSP}{}\textbf{Task 2: Next sentence prediction}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Motivated by the fact that many downstream tasks involve the understanding of relationships between sentences (i.e., \hyperref[qa]{QA}, \hyperref[nli]{NLI}), BERT added another auxiliary task on training a \emph{binary classifier} for telling whether one sentence is the next sentence of the other:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -546,25 +524,25 @@ Motivated by the fact that many downstream tasks involve the understanding of re
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The training data for both auxiliary tasks above can be trivially generated from any monolingual corpus. Hence the scale of training is unbounded. The training loss is the sum of the mean masked LM likelihood and mean next sentence prediction likelihood.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{language-model-comparison.png}
 \caption{Comparison of BERT, OpenAI GPT and ELMo model architectures. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Input Embedding\hyperref[input-embedding]{\#}}{Input Embedding\#}}\label{input-embedding}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The input embedding is the sum of three parts:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -576,87 +554,87 @@ The input embedding is the sum of three parts:
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{BERT-input-embedding.png}
 \caption{BERT input representation. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Note that the first token is always forced to be \texttt{{[}CLS{]}} --- a placeholder that will be used later for prediction in downstream tasks.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Use BERT in Downstream Tasks\hyperref[use-bert-in-downstream-tasks]{\#}}{Use BERT in Downstream Tasks\#}}\label{use-bert-in-downstream-tasks}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 BERT fine-tuning requires only a few new parameters added, just like OpenAI GPT.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 For classification tasks, we get the prediction by taking the final hidden state of the special first token \texttt{{[}CLS{]}}, \$\textbackslash mathbf\{h\}\^{}\textbackslash text\{{[}CLS{]}\}\_L\$, and multiplying it with a small weight matrix, \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{{[}CLS{]}\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{cls\})\$.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 For \hyperref[qa]{QA} tasks like SQuAD, we need to predict the text span in the given paragraph for an given question. BERT predicts two probability distributions of every token, being the start and the end of the text span. Only two new small matrices, \$\textbackslash mathbf\{W\}\_\textbackslash text\{s\}\$ and \$\textbackslash mathbf\{W\}\_\textbackslash text\{e\}\$, are newly learned during fine-tuning and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{(i)\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{s\})\$ and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{(i)\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{e\})\$ define two probability distributions.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Overall the add-on part for end task fine-tuning is very minimal --- one or two weight matrices to convert the Transform hidden states to an interpretable format. Check the paper for implementation details for other cases.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{BERT-downstream-tasks.png}
 \caption{Training objects in slightly modified BERT models for downstream tasks. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 A summary table compares differences between fine-tuning of \hyperref[gpt]{OpenAI GPT} and BERT.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbar{} \textbar{} \textbf{OpenAI GPT} \textbar{} \textbf{BERT} \textbar{} \textbar{} Special char \textbar{} \texttt{{[}SEP{]}} and \texttt{{[}CLS{]}} are only introduced at fine-tuning stage. \textbar{} \texttt{{[}SEP{]}} and \texttt{{[}CLS{]}} and sentence A/B embeddings are learned at the pre-training stage. \textbar{} \textbar{} Training process \textbar{} 1M steps, batch size 32k words. \textbar{} 1M steps, batch size 128k words. \textbar{} \textbar{} Fine-tuning \textbar{} lr = 5e-5 for all fine-tuning tasks. \textbar{} Use task-specific lr for fine-tuning. \textbar{}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{ALBERT\hyperref[albert]{\#}}{ALBERT\#}}\label{albert}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{ALBERT} (\href{https://arxiv.org/abs/1909.11942}{Lan, et al. 2019}), short for \textbf{A Lite BERT}, is a light-weighted version of \hyperref[BERT]{BERT} model. An ALBERT model can be trained 1.7x faster with 18x fewer parameters, compared to a BERT model of similar configuration. ALBERT incorporates three changes as follows: the first two help reduce parameters and memory consumption and hence speed up the training speed, while the third one proposes a more chanllenging training task to replace the next sentence prediction (NSP) objective.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Factorized Embedding Parameterization\hyperref[factorized-embedding-parameterization]{\#}}{Factorized Embedding Parameterization\#}}\label{factorized-embedding-parameterization}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 In BERT, the WordPiece tokenization embedding size \$E\$ is configured to be the same as the hidden state size \$H\$. That is saying, if we want to increase the model size (larger \$H\$), we need to learn a larger tokenization embedding too, which is expensive because it depends on the vocabulary size (\$V\$).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Conceptually, because the tokenization embedding is expected to learn \emph{context-independent} representation and the hidden states are \emph{context-dependent}, it makes sense to separate the size of the hidden layers from the size of vocabulary embedding. Using factorized embedding parameterization, the large vocabulary embedding matrix of size \$V \textbackslash times H\$ is decomposed into two small matrices of size \$V \textbackslash times E\$ and \$E \textbackslash times H\$. Given \$H \textbackslash gt E\$ or even \$H \textbackslash gg E\$, factorization can result in significant parameter reduction.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Cross-layer Parameter Sharing\hyperref[cross-layer-parameter-sharing]{\#}}{Cross-layer Parameter Sharing\#}}\label{cross-layer-parameter-sharing}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Parameter sharing across layers can happen in many ways: (a) only share feed-forward part; (b) only share attention parameters; or (c) share all the parameters. This technique reduces the number of parameters by a ton and does not damage the performance too much.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Sentence-Order Prediction (SOP)\hyperref[sentence-order-prediction-sop]{\#}}{Sentence-Order Prediction (SOP)\#}}\label{sentence-order-prediction-sop}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Interestingly, the \hyperref[NSP]{next sentence prediction (NSP)} task of BERT turned out to be too easy. ALBERT instead adopted a sentence-order prediction (SOP) \href{https://lilianweng.github.io/posts/2019-11-10-self-supervised/}{self-supervised} loss,
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -666,27 +644,27 @@ Interestingly, the \hyperref[NSP]{next sentence prediction (NSP)} task of BERT t
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 For the NSP task, the model can make reasonable predictions if it is able to detect topics when A and B are from different contexts. In comparison, SOP is harder as it requires the model to fully understand the coherence and ordering between segments.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{GPT-2\hyperref[gpt-2]{\#}}{GPT-2\#}}\label{gpt-2}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The \href{https://blog.openai.com/better-language-models/}{OpenAI} \href{https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf}{GPT-2} language model is a direct successor to \hyperref[gpt]{GPT}. GPT-2 has 1.5B parameters, 10x more than the original GPT, and it achieves SOTA results on 7 out of 8 tested language modeling datasets in a \emph{zero-shot transfer setting} without any task-specific fine-tuning. The pre-training dataset contains 8 million Web pages collected by crawling qualified outbound links from \href{https://www.reddit.com/}{Reddit}. Large improvements by OpenAI GPT-2 are specially noticeable on small datasets and datasets used for measuring \emph{long-term dependency}.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Zero-Shot Transfer\hyperref[zero-shot-transfer]{\#}}{Zero-Shot Transfer\#}}\label{zero-shot-transfer}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The pre-training task for GPT-2 is solely language modeling. All the downstream language tasks are framed as predicting conditional probabilities and there is no task-specific fine-tuning.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -706,31 +684,31 @@ The pre-training task for GPT-2 is solely language modeling. All the downstream 
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{BPE on Byte Sequences\hyperref[bpe-on-byte-sequences]{\#}}{BPE on Byte Sequences\#}}\label{bpe-on-byte-sequences}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Same as the original GPT, GPT-2 uses \hyperref[byte-pair-encoding]{BPE} but on \href{https://en.wikipedia.org/wiki/UTF-8}{UTF-8} byte sequences. Each byte can represent 256 different values in 8 bits, while UTF-8 can use up to 4 bytes for one character, supporting up to \$2\^{}\{31\}\$ characters in total. Therefore, with byte sequence representation we only need a vocabulary of size 256 and do not need to worry about pre-processing, tokenization, etc. Despite of the benefit, current byte-level LMs still have non-negligible performance gap with the SOTA word-level LMs.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 BPE merges frequently co-occurred byte pairs in a greedy manner. To prevent it from generating multiple versions of common words (i.e. \texttt{dog.}, \texttt{dog!} and \texttt{dog?} for the word \texttt{dog}), GPT-2 prevents BPE from merging characters across categories (thus \texttt{dog} would not be merged with punctuations like \texttt{.}, \texttt{!} and \texttt{?}). This tricks help increase the quality of the final byte segmentation.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Using the byte sequence representation, GPT-2 is able to assign a probability to any Unicode string, regardless of any pre-processing steps.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \subsection{\texorpdfstring{Model Modifications\hyperref[model-modifications]{\#}}{Model Modifications\#}}\label{model-modifications}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Compared to GPT, other than having many more transformer layers and parameters, GPT-2 incorporates only a few architecture modifications:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -746,15 +724,15 @@ Compared to GPT, other than having many more transformer layers and parameters, 
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{RoBERTa\hyperref[roberta]{\#}}{RoBERTa\#}}\label{roberta}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{RoBERTa} (short for \textbf{R}obustly \textbf{o}ptimized \textbf{BERT} \textbf{a}pproach; \href{https://arxiv.org/abs/1907.11692}{Liu, et al. 2019}) refers to a new receipt for training BERT to achieve better results, as they found that the original BERT model is significantly undertrained. The receipt contains the following learnings:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -768,85 +746,85 @@ Compared to GPT, other than having many more transformer layers and parameters, 
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 RoBERTa also added a new dataset \href{https://commoncrawl.org/2016/10/news-dataset-available/}{CommonCrawl News} and further confirmed that pretraining with \emph{more data helps} improve the performance on downstream tasks. It was trained with the \hyperref[bpe-on-byte-sequences]{BPE on byte sequences}, same as in \hyperref[gpt-2]{GPT-2}. They also found that choices of hyperparameters have a big impact on the model performance.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{T5\hyperref[t5]{\#}}{T5\#}}\label{t5}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The language model \textbf{T5} is short for \textbf{``Text-to-Text Transfer Transformer''} (\href{https://arxiv.org/abs/1910.10683}{Raffel et al., 2020}). The encoder-decoder implementation follows the \href{https://arxiv.org/abs/1706.03762}{original Transformer} architecture: tokens → embedding → encoder → decoder → output. T5 adopts the framework ``Natural Language Decathlon'' (\href{https://arxiv.org/abs/1806.08730}{McCann et al., 2018}), where many common NLP tasks are translated into question-answering over a context. Instead of an explicit QA format, T5 uses short task prefixes to distinguish task intentions and separately fine-tunes the model on every individual task. The text-to-text framework enables easier transfer learning evaluation with the same model on a diverse set of tasks.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{T5.png}
 \caption{A diagram of T5 task evaluation. The text-to-text framework casts every task into a generic form: feeding input text to predict some target text. (Image source: \href{https://arxiv.org/abs/1910.10683}{Raffel et al., 2020})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The model is trained on Web corpus extracted from Apr 2019 with various filters applied. The model is fine-tuned for each downstream task separately via ``adapter layers'' (add an extra layer for training) or ``gradual unfreezing'' (see \hyperref[ulmfit]{ULMFiT}). Both fine-tuning approaches only update partial parameters while keeping the majority of the model parameters unchanged. T5-11B achieved SOTA results on many NLP tasks.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 As the authors mentioned in the paper ``\ldots our goal is not to propose new methods but instead to provide a comprehensive perspective on where the field stands'', the T5 long paper described a lot of training setup and evaluation processes in detail, a good read for people who are interested in training a LM from scratch.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{GPT-3\hyperref[gpt-3]{\#}}{GPT-3\#}}\label{gpt-3}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{GPT-3} (\href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020}) has the same architecture as \hyperref[gpt-2]{GPT-2} but contains 175B parameters, 10x larger than GPT-2 (1.5B). In addition, GPT-3 uses alternating dense and locally banded sparse attention patterns, same as in \href{https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/\#sparse-attention-matrix-factorization-sparse-transformers}{sparse transformer}. In order to fit such a huge model across multiple GPUs, GPT-3 is trained with partitions along both width and depth dimension. The training data is a filtered version of Common Crawl mixed with a few other high-quality curated datasets. To avoid the contamination that downstream tasks might appear in the training data, the authors attempted to remove all the overlaps with all the studied benchmark dataset from the training dataset. Unfortunately the filtering process is not perfect due to a bug.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{GPT3-train-data.png}
 \caption{Training datasets for GPT-3. Note that the occurrence of each dataset during training is not proportional to the dataset size. (Table source: \href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 For all the downstream evaluation, GPT-3 is tested in the few-shot setting without any gradient-based fine-tuning. Here the few-shot examples are provided as part of the prompt. GPT-3 achieves strong performance on many NLP datasets, comparable with fine-tuned BERT models.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{GPT3-eval.png}
 \caption{The evaluation performance increases with the model size and the number of examples. (Image source: \href{https://papers.nips.cc/paper/2020/hash/1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html}{Brown et al., 2020})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{XLNet\hyperref[xlnet]{\#}}{XLNet\#}}\label{xlnet}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The \emph{Autoregressive (AR)} model such as GPT and \emph{autoencoder (AE)} model such as BERT are two most common ways for language modeling. However, each has their own disadvantages: AR does not learn the bidirectional context, which is needed by downstream tasks like reading comprehension and AE assumes masked positions are independent given all other unmasked tokens which oversimplifies the long context dependency.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{XLNet} (\href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019}) generalizes the AE method to incorporate the benefits of AR. XLNet proposed the \textbf{permutation language modeling} objective. For a text sequence, it samples a factorization order \$\textbackslash mathbf\{z\}\$ and decomposes the likelihood \$p\_\textbackslash theta(\textbackslash mathbf\{x\})\$ according to this factorization order,
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{XLNet\} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash sum\_\{t=1\}\^{}T \textbackslash log p\_\textbackslash theta (X\_\{z\_t\} = x \textbackslash mid \textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\textbackslash Big{]} \textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash log \textbackslash frac\{ \textbackslash exp(e(x)\^{}\textbackslash top \textbackslash color\{red\}\{h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\}) \}\{ \textbackslash sum\_\{x\textquotesingle\} \textbackslash exp(e(x\textquotesingle)\^{}\textbackslash top \textbackslash color\{red\}\{h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\}) \} \textbackslash Big{]} \textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash log \textbackslash frac\{ \textbackslash exp(e(x)\^{}\textbackslash top \textbackslash color\{blue\}\{g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}, z\_t)\}) \}\{ \textbackslash sum\_\{x\textquotesingle\} \textbackslash exp(e(x\textquotesingle)\^{}\textbackslash top \textbackslash color\{blue\}\{g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}, z\_t)\}) \} \textbackslash Big{]} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 where \$\textbackslash mathcal\{Z\}\_T\$ is a set of all possible permutation of length \$T\$; \$z\_t\$ and \$\textbackslash mathbf\{z\}\_\{\textless t\}\$ denote the \$t\$-th element and the first \$t-1\$ elements of a permutation \$\textbackslash mathbf\{z\} \textbackslash in \textbackslash mathcal\{Z\}\_T\$.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Note that the naive representation of the hidden state of the context, \$h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\})\$ in red, does not depend on which position the model tries to predict, as the permutation breaks the default ordering. Therefore, XLNet re-parameterized it to a function of the target position too, \$g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\}, z\_t)\$ in blue.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 However, two different requirements on \$g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\}, z\_t)\$ lead to a two-stream self-attention design to accommodate:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -856,63 +834,63 @@ However, two different requirements on \$g\_\textbackslash theta (\textbackslash
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{XLNet-two-stream-attention.png}
 \caption{The illustration of two-stream self-attention mechanism in XLNet. (Image source: \href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Conceptually, the two streams of representations are updated as follows,
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} g\_\{z\_t\}\^{}\{(m)\} \&\textbackslash gets \textbackslash text\{Attention\}(Q = g\^{}\{(m-1)\}\_\{z\_t\}, KV=\textbackslash mathbf\{h\}\^{}\{(m-1)\}\_\{\textbackslash color\{red\}\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}\}; \textbackslash theta) \&\textbackslash text\{(query stream: use \}z\_t\textbackslash text\{ but cannot see \}x\_\{z\_t\}\textbackslash text\{)\}\textbackslash\textbackslash{} h\_\{z\_t\}\^{}\{(m)\} \&\textbackslash gets \textbackslash text\{Attention\}(Q = h\^{}\{(m-1)\}\_\{z\_t\}, KV=\textbackslash mathbf\{h\}\^{}\{(m-1)\}\_\{\textbackslash color\{blue\}\{\textbackslash mathbf\{z\}\_\{\textbackslash leq t\}\}\}; \textbackslash theta) \&\textbackslash text\{(content stream: use both \}x\_\{z\_t\}\textbackslash text\{ and \}x\_\{z\_t\}\textbackslash text\{)\}\textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Given the difficulty of optimization in permutation language modeling, XLNet is set to only predict the last chunk of tokens in a factorization order.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The name in XLNet actually comes from \href{https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/\#longer-attention-span-transformer-xl}{Transformer-XL}. It incorporates the design of Transformer-XL to extend the attention span by reusing hidden states from previous segments.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{XLNet-glue.png}
 \caption{Comparison of model performance of XLNet with a couple other language models on GLUE, all single-task, no ensembles. (Image source: \href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{BART\hyperref[bart]{\#}}{BART\#}}\label{bart}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{BART} (\href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019}) is a denoising autoencoder to recover the original text from a randomly corrupted version. It combines \textbf{B}idirectional and \textbf{A}uto\textbf{R}egressive \textbf{T}ransformer: precisely, jointly training BERT-like bidirectional encoder and GPT-like autoregressive decoder together. The loss is simply just to minimize the negative log-likelihood.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{BART.png}
 \caption{A schematic comparison of BART with BERT and GPT. (Image source: \href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 They experimented with a variety of noising transformations, including token masking, token deletion, text infilling (i.e. A randomly sampled text span, which may contain multiple tokens, is replaced with a \texttt{{[}MASK{]}} token), sentence permutation, documentation rotation (i.e. A document is rotated to begin with a random token.). The best noising approach they discovered is text infilling and sentence shuffling.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{BART-perf.png}
 \caption{Comparison of different language modeling pre-training objectives. (Image source: \href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Learnings from their experiments:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -932,55 +910,55 @@ Learnings from their experiments:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{ELECTRA\hyperref[electra]{\#}}{ELECTRA\#}}\label{electra}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Most current pre-training large language models demand a lot of computation resources, raising concerns about their cost and accessibility. \textbf{ELECTRA} (``Efficiently Learning an Encoder that Classifies Token Replacements Accurately''; \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020}) aims to improve the \emph{pre-training efficiency}, which frames the language modeling as a discrimination task instead of generation task.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{ELECTRA-overview.png}
 \caption{Illustration of ELECTRA model architecture. (Image source: \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 ELECTRA proposes a new pretraining task, called ``Replaced Token Detection'' (RTD). Let's randomly sample \$k\$ positions to be masked. Each selected token in the original text is replaced by a plausible alternative predicted by a small language model, known as the generator \$G\$. The discriminator \$D\$ predicts whether each token is original or replaced.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} \textbackslash boldsymbol\{m\} \&= {[}m\_1, \textbackslash dots, m\_k{]} \textbackslash text\{ where \} m\_i \textbackslash sim \textbackslash text\{unif\}\textbackslash\{1, n\textbackslash\}\textbackslash text\{ for \} i=1, \textbackslash dots, k \textbackslash\textbackslash{} \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\} \&= \textbackslash text\{REPLACE\}(\textbackslash boldsymbol\{x\}, \textbackslash boldsymbol\{m\}, \textbackslash texttt\{{[}MASK{]}\}) \textbackslash\textbackslash{} \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\} \&= \textbackslash text\{REPLACE\}(\textbackslash boldsymbol\{x\}, \textbackslash boldsymbol\{m\}, \textbackslash tilde\{\textbackslash boldsymbol\{x\}\}) \textbackslash text\{ where \} \textbackslash tilde\{x\}\_t \textbackslash sim p\_G(x\_i \textbackslash mid \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\}) \textbackslash text\{ for \} i \textbackslash in \textbackslash boldsymbol\{m\} \textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The loss for the generator is the negative log-likelihood just as in other language models. The loss for the discriminator is the cross-entropy. Note that the generator is not adversarially trained to fool the discriminator but simply to optimize the NLL, since their experiments show negative results.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{MLM\}(\textbackslash mathbf\{x\}, \textbackslash theta\_G) \&= \textbackslash mathbb\{E\}\textbackslash Big(\textbackslash sum\_\{i \textbackslash in \textbackslash boldsymbol\{m\}\} -\textbackslash log p\_G (x\_i \textbackslash mid \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\} )\textbackslash Big) \textbackslash\textbackslash{} \textbackslash mathcal\{L\}\_\textbackslash text\{Disc\}(\textbackslash mathbf\{x\}, \textbackslash theta\_D) \&= \textbackslash mathbb\{E\}\textbackslash Big( - \textbackslash mathbb\{1\}{[}x\^{}\textbackslash text\{corrupt\}\_t = x\_t{]} \textbackslash log D(\textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\}, t) - \textbackslash mathbb\{1\}{[}x\^{}\textbackslash text\{corrupt\}\_t \textbackslash neq x\_t{]} \textbackslash log (1 - \textbackslash log D(\textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\}, t)) \textbackslash Big) \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 They found it more beneficial to only share the embeddings between generator \& discriminator while using a small generator (1/4 to 1/2 the discriminator size), rather than sharing all the weights (i.e. two models have to be the same size then). In addition, joint training of the generator and discriminator works better than two-stage training of each alternatively.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 After pretraining the generator is discarded and only the ELECTRA discriminator is fine-tuned further for downstream tasks. The following table shows ELECTRA's performance on the GLUE dev set.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{5.0e-3\linewidth}
+
 \centering
 \includegraphics{ELECTRA-perf.png}
 \caption{Comparison of ELECTRA with other language models on the GLUE dev set. (Image source: \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{Summary\hyperref[summary]{\#}}{Summary\#}}\label{summary}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{longtable}[]{@{}lll@{}}
 \toprule\noalign{}
 & Base model & Pretraining Tasks \\
@@ -1005,51 +983,51 @@ ELECTRA & same as BERT & replace token detection \\
 \end{longtable}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{Metric: Perplexity\hyperref[metric-perplexity]{\#}}{Metric: Perplexity\#}}\label{metric-perplexity}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Perplexity is often used as an intrinsic evaluation metric for gauging how well a language model can capture the real word distribution conditioned on the context.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 A \href{https://en.wikipedia.org/wiki/Perplexity}{perplexity} of a discrete proability distribution \$p\$ is defined as the exponentiation of the entropy:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ 2\^{}\{H(p)\} = 2\^{}\{-\textbackslash sum\_x p(x) \textbackslash log\_2 p(x)\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Given a sentence with \$N\$ words, \$s = (w\_1, \textbackslash dots, w\_N)\$, the entropy looks as follows, simply assuming that each word has the same frequency, \$\textbackslash frac\{1\}\{N\}\$:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ H(s) = -\textbackslash sum\_\{i=1\}\^{}N P(w\_i) \textbackslash log\_2 p(w\_i) = -\textbackslash sum\_\{i=1\}\^{}N \textbackslash frac\{1\}\{N\} \textbackslash log\_2 p(w\_i) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 The perplexity for the sentence becomes:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} 2\^{}\{H(s)\} \&= 2\^{}\{-\textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash log\_2 p(w\_i)\} = (2\^{}\{\textbackslash sum\_\{i=1\}\^{}N \textbackslash log\_2 p(w\_i)\})\^{}\{-\textbackslash frac\{1\}\{N\}\} = (p(w\_1) \textbackslash dots p(w\_N))\^{}\{-\textbackslash frac\{1\}\{N\}\} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 A good language model should predict high word probabilities. Therefore, the smaller perplexity the better.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{Common Tasks and Datasets\hyperref[common-tasks-and-datasets]{\#}}{Common Tasks and Datasets\#}}\label{common-tasks-and-datasets}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{qa}{} \textbf{Question-Answering}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1061,11 +1039,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Commonsense Reasoning}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1075,11 +1053,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{nli}{} \textbf{Natural Language Inference (NLI)}: also known as \textbf{Text Entailment}, an exercise to discern in logic whether one sentence can be inferred from another.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1095,11 +1073,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{ner}{} \textbf{Named Entity Recognition (NER)}: labels sequences of words in a text which are the names of things, such as person and company names, or gene and protein names
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1113,11 +1091,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Sentiment Analysis}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1127,11 +1105,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{srl}{} \textbf{Semantic Role Labeling (SRL)}: models the predicate-argument structure of a sentence, and is often described as answering ``Who did what to whom''.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1139,11 +1117,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Sentence similarity}: also known as \emph{paraphrase detection}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1153,11 +1131,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Sentence Acceptability}: a task to annotate sentences for grammatical acceptability.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1165,11 +1143,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Text Chunking}: To divide a text in syntactically correlated parts of words.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1177,15 +1155,15 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \phantomsection\label{pos}{} \textbf{Part-of-Speech (POS) Tagging}: tag parts of speech to each token, such as noun, verb, adjective, etc. the Wall Street Journal portion of the Penn Treebank (Marcus et al., 1993).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Machine Translation}: See \href{https://nlp.stanford.edu/projects/nmt/}{Standard NLP} page.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1197,11 +1175,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Coreference Resolution}: cluster mentions in text that refer to the same underlying real world entities.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1209,11 +1187,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Long-range Dependency}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1223,11 +1201,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Multi-task benchmark}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1237,11 +1215,11 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \textbf{Unsupervised pretraining dataset}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1253,15 +1231,15 @@ A good language model should predict high word probabilities. Therefore, the sma
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 Cited as:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{verbatim}
 @article{weng2019LM,
   title   = "Generalized Language Models",
@@ -1273,99 +1251,99 @@ Cited as:
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \section{\texorpdfstring{Reference\hyperref[reference]{\#}}{Reference\#}}\label{reference}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}1{]} Bryan McCann, et al. \href{https://arxiv.org/abs/1708.00107}{``Learned in translation: Contextualized word vectors.''} NIPS. 2017.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}2{]} Kevin Clark et al. \href{https://arxiv.org/abs/1809.08370}{``Semi-Supervised Sequence Modeling with Cross-View Training.''} EMNLP 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}3{]} Matthew E. Peters, et al. \href{https://arxiv.org/abs/1802.05365}{``Deep contextualized word representations.''} NAACL-HLT 2017.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}4{]} OpenAI Blog \href{https://blog.openai.com/language-unsupervised/}{``Improving Language Understanding with Unsupervised Learning''}, June 11, 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}5{]} OpenAI Blog \href{https://blog.openai.com/better-language-models/}{``Better Language Models and Their Implications.''} Feb 14, 2019.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}6{]} Jeremy Howard and Sebastian Ruder. \href{https://arxiv.org/abs/1801.06146}{``Universal language model fine-tuning for text classification.''} ACL 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}7{]} Alec Radford et al. \href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{``Improving Language Understanding by Generative Pre-Training''}. OpenAI Blog, June 11, 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}8{]} Jacob Devlin, et al. \href{https://arxiv.org/abs/1810.04805}{``BERT: Pre-training of deep bidirectional transformers for language understanding.''} arXiv:1810.04805 (2018).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}9{]} Mike Schuster, and Kaisuke Nakajima. \href{https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/37842.pdf}{``Japanese and Korean voice search.''} ICASSP. 2012.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}10{]} Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}11{]} Ashish Vaswani, et al. \href{https://arxiv.org/abs/1706.03762}{``Attention is all you need.''} NIPS 2017.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}12{]} Peter J. Liu, et al. \href{https://arxiv.org/abs/1801.10198}{``Generating wikipedia by summarizing long sequences.''} ICLR 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}13{]} Sebastian Ruder. \href{http://ruder.io/10-exciting-ideas-of-2018-in-nlp/}{``10 Exciting Ideas of 2018 in NLP''} Dec 2018.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}14{]} Alec Radford, et al. \href{https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf}{``Language Models are Unsupervised Multitask Learners.''}. 2019.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}15{]} Rico Sennrich, et al. \href{https://arxiv.org/abs/1508.07909}{``Neural machine translation of rare words with subword units.''} arXiv preprint arXiv:1508.07909. 2015.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}16{]} Zhenzhong Lan, et al. \href{https://arxiv.org/abs/1909.11942}{``ALBERT: A Lite BERT for Self-supervised Learning of Language Representations.''} arXiv Preprint arXiv:1909.11942 (2019).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}17{]} Yinhan Liu, et al. \href{https://arxiv.org/abs/1907.11692}{``RoBERTa: A Robustly Optimized BERT Pretraining Approach.''} arXiv Preprint arXiv:1907.11692 (2019).
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}18{]} Tom B Brown, et al. \href{https://arxiv.org/abs/2005.14165}{``Language Models are Few-Shot Learners''} NeuriPS 2020.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}19{]} Zhilin Yang et al. \href{https://arxiv.org/abs/1906.08237}{``XLNet: Generalized Autoregressive Pretraining for Language Understanding.''} NeuriPS 2019.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}20{]} Mike Lewis et al. \href{https://arxiv.org/abs/1910.13461}{``BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension.''} ACL 2020.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}21{]} Kevin Clark et al. \href{https://arxiv.org/abs/2003.10555}{``ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators.''} ICLR 2020.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 {[}22{]} Colin Raffel, et al. \href{https://arxiv.org/abs/1910.10683}{``Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer''} JMLR 2020.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -1383,20 +1361,10 @@ Cited as:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
+
 \href{https://lilianweng.github.io/posts/2019-03-14-overfit/}{{« }\\
 {Are Deep Neural Networks Dramatically Overfitted?}} \href{https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/}{{ »}\\
 {Object Detection Part 4: Fast Detection Models}}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
-\href{https://twitter.com/intent/tweet/?text=Generalized\%20Language\%20Models&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f&hashtags=architecture\%2cnlp\%2clong-read\%2ctransformer\%2cattention\%2clanguage-model}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f&title=Generalized\%20Language\%20Models&summary=Generalized\%20Language\%20Models&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f&title=Generalized\%20Language\%20Models}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f}{} \href{https://api.whatsapp.com/send?text=Generalized\%20Language\%20Models\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f}{} \href{https://telegram.me/share/url?text=Generalized\%20Language\%20Models&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-01-31-lm\%2f}{}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
-{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
-\end{minipage}
-\hfill
-\begin{minipage}[t]{5.0e-3\linewidth}
-\phantomsection\label{top-link}\hyperref[top]{}
-\end{minipage}
+

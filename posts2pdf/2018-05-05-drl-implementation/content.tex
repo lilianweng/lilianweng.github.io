@@ -1,25 +1,3 @@
-\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
-
-\begin{itemize}
-\tightlist
-\item
-  \textbar{}
-\end{itemize}
-
-\begin{itemize}
-\tightlist
-\item
-  \href{https://lilianweng.github.io/}{{Posts}}
-\item
-  \href{https://lilianweng.github.io/archives}{{Archive}}
-\item
-  \href{https://lilianweng.github.io/search/}{{Search}}
-\item
-  \href{https://lilianweng.github.io/tags/}{{Tags}}
-\item
-  \href{https://lilianweng.github.io/faq}{{FAQ}}
-\end{itemize}
-
 \section{Implementing Deep Reinforcement Learning Models with Tensorflow + OpenAI Gym}\label{implementing-deep-reinforcement-learning-models-with-tensorflow-openai-gym}
 
 Date: May 5, 2018 \textbar{} Estimated Reading Time: 13 min \textbar{} Author: Lilian Weng
@@ -136,19 +114,19 @@ env = gym.make("MsPacman-v0")
 
 \begin{figure}
 \centering
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \includegraphics{pacman-original.gif}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 The formats of action and observation of an environment are defined by \texttt{env.action\_space} and \texttt{env.observation\_space}, respectively.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 Types of gym \href{https://gym.openai.com/docs/\#spaces}{spaces}:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -158,15 +136,15 @@ Types of gym \href{https://gym.openai.com/docs/\#spaces}{spaces}:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 We interact with the env through two major api calls:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \textbf{\texttt{ob\ =\ env.reset()}}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -176,11 +154,11 @@ We interact with the env through two major api calls:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \textbf{\texttt{ob\_next,\ reward,\ done,\ info\ =\ env.step(action)}}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -190,23 +168,23 @@ We interact with the env through two major api calls:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \section{\texorpdfstring{Naive Q-Learning\hyperref[naive-q-learning]{\#}}{Naive Q-Learning\#}}\label{naive-q-learning}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/\#q-learning-off-policy-td-control}{Q-learning} (Watkins \& Dayan, 1992) learns the action value (``Q-value'') and update it according to the \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/\#bellman-equations}{Bellman equation}. The key point is while estimating what is the next action, it does not follow the current policy but rather adopt the best Q value (the part in red) independently.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \$\$ Q(s, a) \textbackslash leftarrow (1 - \textbackslash alpha) Q(s, a) + \textbackslash alpha (r + \textbackslash gamma \textbackslash color\{red\}\{\textbackslash max\_\{a\textquotesingle{} \textbackslash in \textbackslash mathcal\{A\}\} Q(s\textquotesingle, a\textquotesingle)\}) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 In a naive implementation, the Q value for all (s, a) pairs can be simply tracked in a dict. No complicated machine learning model is involved yet.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 from collections import defaultdict
 Q = defaultdict(float)
@@ -223,11 +201,11 @@ def update_Q(s, r, a, s_next, done):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 Most gym environments have a multi-dimensional continuous observation space (\texttt{gym.spaces.Box}). To make sure our Q dictionary will not explode by trying to memorize an infinite number of keys, we apply a wrapper to discretize the observation. The concept of \href{https://github.com/openai/gym/tree/master/gym/wrappers}{wrappers} is very powerful, with which we are capable to customize observation, action, step function, etc. of an env. No matter how many wrappers are applied, \texttt{env.unwrapped} always gives back the internal original environment object.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 import gym
 
@@ -264,11 +242,11 @@ env = DiscretizedObservationWrapper(
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 Let's plug in the interaction with a gym env and update the Q function every time a new transition is generated. When picking the action, we use ε-greedy to force exploration.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 import gym
 import numpy as np
@@ -306,35 +284,35 @@ for step in range(n_steps):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 Often we start with a high \texttt{epsilon} and gradually decrease it during the training, known as ``epsilon annealing''. The full code of \texttt{QLearningPolicy} is available \href{https://github.com/lilianweng/deep-reinforcement-learning-gym/blob/master/playground/policies/qlearning.py}{here}.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \section{\texorpdfstring{Deep Q-Network\hyperref[deep-q-network]{\#}}{Deep Q-Network\#}}\label{deep-q-network}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/\#deep-q-network}{Deep Q-network} is a seminal piece of work to make the training of Q-learning more stable and more data-efficient, when the Q value is approximated with a nonlinear function. Two key ingredients are experience replay and a separately updated target network.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 The main loss function looks like the following,
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} \& Y(s, a, r, s\textquotesingle) = r + \textbackslash gamma \textbackslash max\_\{a\textquotesingle\} Q\_\{\textbackslash theta\^{}\{-\}\}(s\textquotesingle, a\textquotesingle) \textbackslash\textbackslash{} \& \textbackslash mathcal\{L\}(\textbackslash theta) = \textbackslash mathbb\{E\}\_\{(s, a, r, s\textquotesingle) \textbackslash sim U(D)\} \textbackslash Big{[} \textbackslash big( Y(s, a, r, s\textquotesingle) - Q\_\textbackslash theta(s, a) \textbackslash big)\^{}2 \textbackslash Big{]} \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 The Q network can be a multi-layer dense neural network, a convolutional network, or a recurrent network, depending on the problem. In the \href{https://github.com/lilianweng/deep-reinforcement-learning-gym/blob/master/playground/policies/dqn.py}{full implementation} of the DQN policy, it is determined by the \texttt{model\_type} parameter, one of (``dense'', ``conv'', ``lstm'').
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 In the following example, I'm using a 2-layer densely connected neural network to learn Q values for the cart pole balancing problem.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 import gym
 env = gym.make('CartPole-v1')
@@ -343,11 +321,11 @@ observation_size = env.observation_space.shape[0]
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 We have a helper function for creating the networks below:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 import tensorflow as tf
 def dense_nn(inputs, layers_sizes, scope_name):
@@ -370,11 +348,11 @@ def dense_nn(inputs, layers_sizes, scope_name):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 The Q-network and the target network are updated with a batch of transitions (state, action, reward, state\_next, done\_flag). The input tensors are:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 batch_size = 32  # A tunable hyperparameter.
 
@@ -386,22 +364,22 @@ done_flags = tf.placeholder(tf.float32, shape=(batch_size,), name='done')
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 We have two networks of the same structure. Both have the same network architectures with the state observation as the inputs and Q values over all the actions as the outputs.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 q = dense(states, [32, 32, 2], name='Q_primary')
 q_target = dense(states_next, [32, 32, 2], name='Q_target')
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 The target network ``Q\_target'' takes the \texttt{states\_next} tensor as the input, because we use its prediction to select the optimal next state in the Bellman equation.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 \begin{verbatim}
 # The prediction by the primary Q network for the actual actions.
 action_one_hot = tf.one_hot(actions, act_size, 1.0, 0.0, name='action_one_hot')
@@ -417,21 +395,21 @@ optimizer = tf.train.AdamOptimizer(0.001).minimize(loss, name="adam_optim")
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.5e-2\linewidth}
+
 Note that \href{https://www.tensorflow.org/api_docs/python/tf/stop_gradient}{tf.stop\_gradient()} on the target y, because the target network should stay fixed during the loss-minimizing gradient update.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{2.5e-2\linewidth}
+
 \centering
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \includegraphics{dqn-tensorboard-graph.png}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The target network is updated by copying the primary Q network parameters over every \texttt{C} number of steps (``hard update'') or polyak averaging towards the primary network (``soft update'')
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # Get all the variables in the Q primary network.
 q_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="Q_primary")
@@ -449,42 +427,42 @@ def update_target_q_net_soft(tau=0.05):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \subsection{\texorpdfstring{Double Q-Learning\hyperref[double-q-learning]{\#}}{Double Q-Learning\#}}\label{double-q-learning}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 If we look into the standard form of the Q value target, \$Y(s, a) = r + \textbackslash gamma \textbackslash max\_\{a' \textbackslash in \textbackslash mathcal\{A\}\} Q\_\textbackslash theta (s', a')\$, it is easy to notice that we use \$Q\_\textbackslash theta\$ to select the best next action at state s' and then apply the action value predicted by the same \$Q\_\textbackslash theta\$. This two-step reinforcing procedure could potentially lead to overestimation of an (already) overestimated value, further leading to training instability. The solution proposed by double Q-learning (\href{http://papers.nips.cc/paper/3964-double-q-learning.pdf}{Hasselt, 2010}) is to decouple the action selection and action value estimation by using two Q networks, \$Q\_1\$ and \$Q\_2\$: when \$Q\_1\$ is being updated, \$Q\_2\$ decides the best next action, and vice versa.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \$\$ Y\_1(s, a, r, s\textquotesingle) = r + \textbackslash gamma Q\_1 (s\textquotesingle, \textbackslash arg\textbackslash max\_\{a\textquotesingle{} \textbackslash in \textbackslash mathcal\{A\}\}Q\_2(s\textquotesingle, a\textquotesingle))\textbackslash\textbackslash{} Y\_2(s, a, r, s\textquotesingle) = r + \textbackslash gamma Q\_2 (s\textquotesingle, \textbackslash arg\textbackslash max\_\{a\textquotesingle{} \textbackslash in \textbackslash mathcal\{A\}\}Q\_1(s\textquotesingle, a\textquotesingle)) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 To incorporate double Q-learning into DQN, the minimum modification (\href{https://arxiv.org/pdf/1509.06461.pdf}{Hasselt, Guez, \& Silver, 2016}) is to use the primary Q network to select the action while the action value is estimated by the target network:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \$\$ Y(s, a, r, s\textquotesingle) = r + \textbackslash gamma Q\_\{\textbackslash theta\^{}\{-\}\}(s\textquotesingle, \textbackslash arg\textbackslash max\_\{a\textquotesingle{} \textbackslash in \textbackslash mathcal\{A\}\} Q\_\textbackslash theta(s\textquotesingle, a\textquotesingle)) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 In the code, we add a new tensor for getting the action selected by the primary Q network as the input and a tensor operation for selecting this action.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 actions_next = tf.placeholder(tf.int32, shape=(None,), name='action_next')
 actions_selected_by_q = tf.argmax(q, axis=-1, name='action_selected')
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The prediction target y in the loss function becomes:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 actions_next_flatten = actions_next + tf.range(0, batch_size) * q_target.shape[1]
 max_q_next_target = tf.gather(tf.reshape(q_target, [-1]), actions_next_flatten)
@@ -492,52 +470,52 @@ y = rewards + (1. - done_flags) * gamma * max_q_next_by_target
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 Here I used \href{https://www.tensorflow.org/api_docs/python/tf/gather}{tf.gather()} to select the action values of interests.
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{2.1951219512195124e-2\linewidth}
+
 \centering
 \includegraphics{tf_gather.png}
 \caption{(Image source: {tf.gather() docs})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 During the episode rollout, we compute the \texttt{actions\_next} by feeding the next states' data into the \texttt{actions\_selected\_by\_q} operation.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # batch_data is a dict with keys, ‘s', ‘a', ‘r', ‘s_next' and ‘done', containing a batch of transitions.
 actions_next = sess.run(actions_selected_by_q, {states: batch_data['s_next']})
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \subsection{\texorpdfstring{Dueling Q-Network\hyperref[dueling-q-network]{\#}}{Dueling Q-Network\#}}\label{dueling-q-network}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The dueling Q-network (\href{https://arxiv.org/pdf/1511.06581.pdf}{Wang et al., 2016}) is equipped with an enhanced network architecture: the output layer branches out into two heads, one for predicting state value, V, and the other for \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/\#value-function}{advantage}, A. The Q-value is then reconstructed, \$Q(s, a) = V(s) + A(s, a)\$.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \$\$ \textbackslash begin\{aligned\} A(s, a) \&= Q(s, a) - V(s)\textbackslash\textbackslash{} V(s) \&= \textbackslash sum\_a Q(s, a) \textbackslash pi(a \textbackslash vert s) = \textbackslash sum\_a (V(s) + A(s, a)) \textbackslash pi(a \textbackslash vert s) = V(s) + \textbackslash sum\_a A(s, a)\textbackslash pi(a \textbackslash vert s)\textbackslash\textbackslash{} \textbackslash text\{Thus, \}\& \textbackslash sum\_a A(s, a)\textbackslash pi(a \textbackslash vert s) = 0 \textbackslash end\{aligned\} \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 To make sure the estimated advantage values sum up to zero, \$\textbackslash sum\_a A(s, a)\textbackslash pi(a \textbackslash vert s) = 0\$, we deduct the mean value from the prediction.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \$\$ Q(s, a) = V(s) + (A(s, a) - \textbackslash frac\{1\}\{\textbar\textbackslash mathcal\{A\}\textbar\} \textbackslash sum\_a A(s, a)) \$\$
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The code change is straightforward:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 q_hidden = dense_nn(states, [32], name='Q_primary_hidden')
 adv = dense_nn(q_hidden, [32, env.action_space.n], name='Q_primary_adv')
@@ -548,29 +526,29 @@ q = v + (adv - tf.reduce_mean(adv, reduction_indices=1, keepdims=True))
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{2.1951219512195124e-2\linewidth}
+
 \centering
 \includegraphics{dueling-q-network.png}
 \caption{(Image source: \href{https://arxiv.org/pdf/1511.06581.pdf}{Wang et al., 2016})}
 \end{subfigure}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 Check the \href{https://github.com/lilianweng/deep-reinforcement-learning-gym/blob/master/playground/policies/dqn.py}{code} for the complete flow.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \section{\texorpdfstring{Monte-Carlo Policy Gradient\hyperref[monte-carlo-policy-gradient]{\#}}{Monte-Carlo Policy Gradient\#}}\label{monte-carlo-policy-gradient}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 I reviewed a number of popular policy gradient methods in my \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/}{last post}. Monte-Carlo policy gradient, also known as \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#reinforce}{REINFORCE}, is a classic on-policy method that learns the policy model explicitly. It uses the return estimated from a full on-policy trajectory and updates the policy parameters with policy gradient.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The returns are computed during rollouts and then fed into the Tensorflow graph as inputs.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # Inputs
 states = tf.placeholder(tf.float32, shape=(None, obs_size), name='state')
@@ -579,11 +557,11 @@ returns = tf.placeholder(tf.float32, shape=(None,), name='return')
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The policy network is contructed. We update the policy parameters by minimizing the loss function, \$\textbackslash mathcal\{L\} = - (G\_t - V(s)) \textbackslash log \textbackslash pi(a \textbackslash vert s)\$. \href{https://www.tensorflow.org/api_docs/python/tf/nn/sparse_softmax_cross_entropy_with_logits}{tf.nn.sparse\_softmax\_cross\_entropy\_with\_logits()} asks for the raw logits as inputs, rather then the probabilities after softmax, and that's why we do not have a softmax layer on top of the policy network.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # Policy network
 pi = dense_nn(states, [32, 32, env.action_space.n], name='pi_network')
@@ -597,11 +575,11 @@ with tf.variable_scope('pi_optimize'):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 During the episode rollout, the return is calculated as follows:
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # env = gym.make(...)
 # gamma = 0.99
@@ -645,19 +623,19 @@ for _ in range(n_episodes):
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The full implementation of REINFORCE is \href{https://github.com/lilianweng/deep-reinforcement-learning-gym/blob/master/playground/policies/reinforce.py}{here}.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \section{\texorpdfstring{Actor-Critic\hyperref[actor-critic]{\#}}{Actor-Critic\#}}\label{actor-critic}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#actor-critic}{actor-critic} algorithm learns two models at the same time, the actor for learning the best policy and the critic for estimating the state value.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{enumerate}
 \tightlist
 \item
@@ -675,11 +653,11 @@ The \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#actor-
 \end{enumerate}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 Overall the implementation looks pretty similar to REINFORCE with an extra critic network. The full implementation is here.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 \begin{verbatim}
 # Inputs
 states = tf.placeholder(tf.float32, shape=(None, observation_size), name='state')
@@ -711,41 +689,41 @@ train_ops = [optim_c, optim_a]
 \end{verbatim}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{2.1951219512195124e-2\linewidth}
+
 The tensorboard graph is always helpful:
 \end{minipage}
 \hfill
-\begin{subfigure}[t]{2.1951219512195124e-2\linewidth}
+
 \centering
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 \includegraphics{actor-critic-tensorboard-graph.png}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 \section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 {[}1{]} \href{https://www.tensorflow.org/api_docs/}{Tensorflow API Docs}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 {[}2{]} Christopher JCH Watkins, and Peter Dayan. \href{https://link.springer.com/content/pdf/10.1007/BF00992698.pdf}{``Q-learning.''} Machine learning 8.3-4 (1992): 279-292.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 {[}3{]} Hado Van Hasselt, Arthur Guez, and David Silver. \href{https://arxiv.org/pdf/1509.06461.pdf}{``Deep Reinforcement Learning with Double Q-Learning.''} AAAI. Vol. 16. 2016.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 {[}4{]} Hado van Hasselt. \href{http://papers.nips.cc/paper/3964-double-q-learning.pdf}{``Double Q-learning.''} NIPS, 23:2613--2621, 2010.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 {[}5{]} Ziyu Wang, et al. \href{https://arxiv.org/pdf/1511.06581.pdf}{Dueling network architectures for deep reinforcement learning.} ICML. 2016.
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 \begin{itemize}
 \tightlist
 \item
@@ -757,26 +735,10 @@ The tensorboard graph is always helpful:
 \end{itemize}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
+
 \href{https://lilianweng.github.io/posts/2018-06-24-attention/}{{« }\\
 {Attention? Attention!}} \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/}{{ »}\\
 {Policy Gradient Algorithms}}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
-\href{https://twitter.com/intent/tweet/?text=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f&hashtags=tutorial\%2ctensorflow\%2creinforcement-learning}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f&title=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym&summary=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f&title=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f}{} \href{https://api.whatsapp.com/send?text=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f}{} \href{https://telegram.me/share/url?text=Implementing\%20Deep\%20Reinforcement\%20Learning\%20Models\%20with\%20Tensorflow\%20\%2b\%20OpenAI\%20Gym&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-05-05-drl-implementation\%2f}{}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
-{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
-\end{minipage}
-\hfill
-\begin{minipage}[t]{7.5e-2\linewidth}
-\phantomsection\label{top-link}\hyperref[top]{}
-\end{minipage}
-\caption{}
-\end{subfigure}
-\caption{}
-\end{subfigure}
-\caption{}
 \end{figure}
