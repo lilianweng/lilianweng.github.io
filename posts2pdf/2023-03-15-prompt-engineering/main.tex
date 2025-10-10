@@ -1,0 +1,750 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Prompt Engineering}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={Prompt Engineering},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{Prompt Engineering}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Prompt Engineering}\label{prompt-engineering}
+
+Date: March 15, 2023 \textbar{} Estimated Reading Time: 21 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[basic-prompting]{Basic Prompting}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[zero-shot]{Zero-Shot}
+  \item
+    \hyperref[few-shot]{Few-shot}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[tips-for-example-selection]{Tips for Example Selection}
+    \item
+      \hyperref[tips-for-example-ordering]{Tips for Example Ordering}
+    \end{itemize}
+  \end{itemize}
+\item
+  \hyperref[instruction-prompting]{Instruction Prompting}
+\item
+  \hyperref[self-consistency-sampling]{Self-Consistency Sampling}
+\item
+  \hyperref[chain-of-thought-cot]{Chain-of-Thought (CoT)}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[types-of-cot-prompts]{Types of CoT prompts}
+  \item
+    \hyperref[tips-and-extensions]{Tips and Extensions}
+  \end{itemize}
+\item
+  \hyperref[automatic-prompt-design]{Automatic Prompt Design}
+\item
+  \hyperref[augmented-language-models]{Augmented Language Models}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[retrieval]{Retrieval}
+  \item
+    \hyperref[programming-language]{Programming Language}
+  \item
+    \hyperref[external-apis]{External APIs}
+  \end{itemize}
+\item
+  \hyperref[citation]{Citation}
+\item
+  \hyperref[useful-resources]{Useful Resources}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+\textbf{Prompt Engineering}, also known as \textbf{In-Context Prompting}, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes \emph{without} updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.
+
+This post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my \href{https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/}{previous post} on controllable text generation.
+
+{{[}My personal spicy take{]}} In my opinion, some prompt engineering papers are not worthy 8 pages long, since those tricks can be explained in one or a few sentences and the rest is all about benchmarking. An easy-to-use and shared benchmark infrastructure should be more beneficial to the community. Iterative prompting or external tool use would not be trivial to set up. Also non-trivial to align the whole research community to adopt it.
+
+\section{\texorpdfstring{Basic Prompting\hyperref[basic-prompting]{\#}}{Basic Prompting\#}}\label{basic-prompting}
+
+Zero-shot and few-shot learning are two most basic approaches for prompting the model, pioneered by many LLM papers and commonly used for benchmarking LLM performance.
+
+\subsection{\texorpdfstring{Zero-Shot\hyperref[zero-shot]{\#}}{Zero-Shot\#}}\label{zero-shot}
+
+\textbf{Zero-shot learning} is to simply feed the task text to the model and ask for results.
+
+(All the sentiment analysis examples are from SST-2)
+
+\begin{verbatim}
+Text: i'll bet the video game is a lot more fun than the film.
+Sentiment:
+\end{verbatim}
+
+\subsection{\texorpdfstring{Few-shot\hyperref[few-shot]{\#}}{Few-shot\#}}\label{few-shot}
+
+\textbf{Few-shot learning} presents a set of high-quality demonstrations, each consisting of both input and desired output, on the target task. As the model first sees good examples, it can better understand human intention and criteria for what kinds of answers are wanted. Therefore, few-shot learning often leads to better performance than zero-shot. However, it comes at the cost of more token consumption and may hit the context length limit when input and output text are long.
+
+\begin{verbatim}
+Text: (lawrence bounces) all over the stage, dancing, running, sweating, mopping his face and generally displaying the wacky talent that brought him fame in the first place.
+Sentiment: positive
+
+Text: despite all evidence to the contrary, this clunker has somehow managed to pose as an actual feature movie, the kind that charges full admission and gets hyped on tv and purports to amuse small children and ostensible adults.
+Sentiment: negative
+
+Text: for the first time in years, de niro digs deep emotionally, perhaps because he's been stirred by the powerful work of his co-stars.
+Sentiment: positive
+
+Text: i'll bet the video game is a lot more fun than the film.
+Sentiment:
+\end{verbatim}
+
+Many studies looked into how to construct in-context examples to maximize the performance and observed that \textbf{choice of prompt format, training examples, and the order of the examples can lead to dramatically different performance}, from near random guess to near SoTA.
+
+\href{https://arxiv.org/abs/2102.09690}{Zhao et al. (2021)} investigated the case of few-shot classification and proposed that several biases with LLM (they use GPT-3 in the experiments) contribute to such high variance: (1) \emph{Majority label bias} exists if distribution of labels among the examples is unbalanced; (2) \emph{Recency bias} refers to the tendency where the model may repeat the label at the end; (3) \emph{Common token bias} indicates that LLM tends to produce common tokens more often than rare tokens. To conquer such bias, they proposed a method to calibrate the label probabilities output by the model to be uniform when the input string is \texttt{N/A}.
+
+\subsubsection{\texorpdfstring{Tips for Example Selection\hyperref[tips-for-example-selection]{\#}}{Tips for Example Selection\#}}\label{tips-for-example-selection}
+
+\begin{itemize}
+\item
+  Choose examples that are semantically similar to the test example using \$k\$-NN clustering in the embedding space (\href{https://arxiv.org/abs/2101.06804}{Liu et al., 2021})
+\item
+  To select a diverse and representative set of examples, \href{https://arxiv.org/abs/2209.01975}{Su et al. (2022)} proposed to use a graph-based approach: (1) First, construct a directed graph \$G=(V, E)\$ based on the embedding (e.g. by \href{https://arxiv.org/abs/1908.10084}{SBERT} or \href{https://arxiv.org/abs/2201.10005}{other} \href{https://platform.openai.com/docs/guides/embeddings}{embedding} \href{https://openai.com/blog/new-and-improved-embedding-model}{models}) cosine similarity between samples, where each node points to its \$k\$ nearest neighbors; (2) Start with a set of selected samples \$\textbackslash mathcal\{L\}=\textbackslash emptyset\$ and a set of remaining samples \$\textbackslash mathcal\{U\}\$. Each sample \$u \textbackslash in \textbackslash mathcal\{U\}\$ is scored by \$\$ \textbackslash text\{score\}(u) = \textbackslash sum\_\{v \textbackslash in \textbackslash\{v \textbackslash mid (u, v) \textbackslash in E, v\textbackslash in \textbackslash mathcal\{U\}\textbackslash\}\} s(v)\textbackslash quad\textbackslash text\{where \}s(v)=\textbackslash rho\^{}\{- \textbackslash vert \textbackslash\{\textbackslash ell \textbackslash in \textbackslash mathcal\{L\} \textbackslash vert (v, \textbackslash ell)\textbackslash in E \textbackslash\}\textbackslash vert\},\textbackslash quad\textbackslash rho \textgreater{} 1 \$\$ such that \$s(v)\$ is low if many of \$v\$'s neighbors are selected and thus the scoring encourages to pick diverse samples.
+\item
+  \href{https://arxiv.org/abs/2112.08633}{Rubin et al. (2022)} proposed to train embeddings via \href{https://lilianweng.github.io/posts/2021-05-31-contrastive/}{contrastive learning} specific to one training dataset for in-context learning sample selection. Given each training pair \$(x, y)\$, the quality of one example \$e\_i\$ (formatted input-output pair) can be measured by a conditioned probability assigned by LM: \$\textbackslash text\{score\}(e\_i) = P\_\textbackslash text\{LM\}(y \textbackslash mid e\_i, x)\$. We can identify other examples with top-\$k\$ and bottom-\$k\$ scores as positive and negative sets of candidates for every training pair and use that for contrastive learning.
+\item
+  Some researchers tried \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/\#q-learning-off-policy-td-control}{Q-Learning} to do sample selection. (\href{https://arxiv.org/abs/2211.04486}{Zhang et al. 2022})
+\item
+  Motivated by uncertainty-based \href{https://lilianweng.github.io/posts/2022-02-20-active-learning/}{active learning}, \href{https://arxiv.org/abs/2302.12246}{Diao et al. (2023)} suggested to identify examples with high disagreement or entropy among multiple sampling trials. Then annotate these examples to be used in few-shot prompts.
+\end{itemize}
+
+\subsubsection{\texorpdfstring{Tips for Example Ordering\hyperref[tips-for-example-ordering]{\#}}{Tips for Example Ordering\#}}\label{tips-for-example-ordering}
+
+\begin{itemize}
+\tightlist
+\item
+  A general suggestion is to keep the selection of examples diverse, relevant to the test sample and in random order to avoid majority label bias and recency bias.
+\item
+  Increasing model sizes or including more training examples does not reduce variance among different permutations of in-context examples. Same order may work well for one model but badly for another. When the validation set is limited, consider choosing the order such that the model does not produce extremely unbalanced predictions or being overconfident about its predictions. (\href{https://arxiv.org/abs/2104.08786}{Lu et al. 2022})
+\end{itemize}
+
+\section{\texorpdfstring{Instruction Prompting\hyperref[instruction-prompting]{\#}}{Instruction Prompting\#}}\label{instruction-prompting}
+
+The purpose of presenting few-shot examples in the prompt is to explain our intent to the model; in other words, describe the task instruction to the model in the form of demonstrations. However, few-shot can be expensive in terms of token usage and restricts the input length due to limited context length. So, why not just give the instruction directly?
+
+\emph{Instructed LM} (e.g. \href{https://openai.com/research/instruction-following}{InstructGPT}, \href{https://github.com/allenai/natural-instructions}{natural instruction}) finetunes a pretrained model with high-quality tuples of (task instruction, input, ground truth output) to make LM better understand user intention and follow instruction. \href{https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/\#rl-fine-tuning-with-human-preferences}{RLHF} (Reinforcement Learning from Human Feedback) is a common method to do so. The benefit of instruction following style fine-tuning improves the model to be more aligned with human intention and greatly reduces the cost of communication.
+
+When interacting with instruction models, we should describe the task requirement in details, trying to be \emph{specific} and \emph{precise} and avoiding say ``not do something'' but rather specify what to do.
+
+\begin{verbatim}
+Please label the sentiment towards the movie of the given movie review. The sentiment label should be "positive" or "negative". 
+Text: i'll bet the video game is a lot more fun than the film. 
+Sentiment:
+\end{verbatim}
+
+Explaining the desired audience is another smart way to give instructions
+
+\begin{itemize}
+\tightlist
+\item
+  For example to produce education materials for kids,
+\end{itemize}
+
+\begin{verbatim}
+Describe what is quantum physics to a 6-year-old.
+\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  And safe content,
+\end{itemize}
+
+\begin{verbatim}
+... in language that is safe for work.
+\end{verbatim}
+
+\emph{In-context instruction learning} (\href{https://arxiv.org/abs/2302.14691}{Ye et al. 2023}) combines few-shot learning with instruction prompting. It incorporates multiple demonstration examples across different tasks in the prompt, each demonstration consisting of instruction, task input and output. Note that their experiments were only on classification tasks and the instruction prompt contains all label options.
+
+\begin{verbatim}
+Definition: Determine the speaker of the dialogue, "agent" or "customer".
+Input: I have successfully booked your tickets.
+Ouput: agent
+
+Definition: Determine which category the question asks for, "Quantity" or "Location".
+Input: What's the oldest building in US?
+Ouput: Location
+
+Definition: Classify the sentiment of the given movie review, "positive" or "negative".
+Input: i'll bet the video game is a lot more fun than the film.
+Output:
+\end{verbatim}
+
+\section{\texorpdfstring{Self-Consistency Sampling\hyperref[self-consistency-sampling]{\#}}{Self-Consistency Sampling\#}}\label{self-consistency-sampling}
+
+\textbf{Self-consistency sampling} (\href{https://arxiv.org/abs/2203.11171}{Wang et al. 2022a}) is to sample multiple outputs with temperature \textgreater{} 0 and then selecting the best one out of these candidates. The criteria for selecting the best candidate can vary from task to task. A general solution is to pick \textbf{majority vote}. For tasks that are easy to validate such as a programming question with unit tests, we can simply run through the interpreter and verify the correctness with unit tests.
+
+\section{\texorpdfstring{Chain-of-Thought (CoT)\hyperref[chain-of-thought-cot]{\#}}{Chain-of-Thought (CoT)\#}}\label{chain-of-thought-cot}
+
+\textbf{Chain-of-thought (CoT) prompting} (\href{https://arxiv.org/abs/2201.11903}{Wei et al. 2022}) generates a sequence of short sentences to describe reasoning logics step by step, known as \emph{reasoning chains} or \emph{rationales}, to eventually lead to the final answer. The benefit of CoT is more pronounced for \textbf{complicated reasoning tasks}, while using \textbf{large models} (e.g. with more than 50B parameters). Simple tasks only benefit slightly from CoT prompting.
+
+\subsection{\texorpdfstring{Types of CoT prompts\hyperref[types-of-cot-prompts]{\#}}{Types of CoT prompts\#}}\label{types-of-cot-prompts}
+
+Two main types of CoT prompting:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Few-shot CoT}. It is to prompt the model with a few demonstrations, each containing manually written (or model-generated) high-quality reasoning chains.
+\end{itemize}
+
+(All the math reasoning examples are from \href{https://github.com/openai/grade-school-math}{GSM8k})
+
+\begin{verbatim}
+Question: Tom and Elizabeth have a competition to climb a hill. Elizabeth takes 30 minutes to climb the hill. Tom takes four times as long as Elizabeth does to climb the hill. How many hours does it take Tom to climb up the hill?
+Answer: It takes Tom 30*4 = <<30*4=120>>120 minutes to climb the hill.
+It takes Tom 120/60 = <<120/60=2>>2 hours to climb the hill.
+So the answer is 2.
+===
+Question: Jack is a soccer player. He needs to buy two pairs of socks and a pair of soccer shoes. Each pair of socks cost $9.50, and the shoes cost $92. Jack has $40. How much more money does Jack need?
+Answer: The total cost of two pairs of socks is $9.50 x 2 = $<<9.5*2=19>>19.
+The total cost of the socks and the shoes is $19 + $92 = $<<19+92=111>>111.
+Jack need $111 - $40 = $<<111-40=71>>71 more.
+So the answer is 71.
+===
+Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be?
+Answer:
+\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Zero-shot CoT}. Use natural language statement like \texttt{Let\textquotesingle{}s\ think\ step\ by\ step} to explicitly encourage the model to first generate reasoning chains and then to prompt with \texttt{Therefore,\ the\ answer\ is} to produce answers (\href{https://arxiv.org/abs/2205.11916}{Kojima et al. 2022} ). Or a similar statement \texttt{Let\textquotesingle{}s\ work\ this\ out\ it\ a\ step\ by\ step\ to\ be\ sure\ we\ have\ the\ right\ answer} (\href{https://arxiv.org/abs/2211.01910}{Zhou et al. 2022}).
+\end{itemize}
+
+\begin{verbatim}
+Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be?
+Answer: Let's think step by step.
+\end{verbatim}
+
+\subsection{\texorpdfstring{Tips and Extensions\hyperref[tips-and-extensions]{\#}}{Tips and Extensions\#}}\label{tips-and-extensions}
+
+\begin{itemize}
+\item
+  \hyperref[self-consistency-sampling]{Self-consistency sampling} can improve reasoning accuracy by sampling a number of diverse answers and then taking the majority vote. (\href{https://arxiv.org/abs/2203.11171}{Wang et al. 2022a})
+\item
+  Another approach for ensemble learning is to alter the example order or use model generated rationales to replace human-written ones to introduce randomness during multiple sample trials. Then aggregate model outputs with a majority vote to get final answer. (\href{https://arxiv.org/abs/2207.00747}{Wang et al. 2022b})
+\item
+  If training examples are only associated with true answers (easy to verify!) but no rationales, we can follow the \emph{STaR} (Self-Taught Reasoner; \href{https://arxiv.org/abs/2203.14465}{Zelikman et al. 2022}) method : (1) Ask LLM to generate reasoning chains and only keep those leading to correct answers; (2) Then fine-tune the model with generated rationales and repeat the process until convergence. Note that higher temperature is more likely to generate incorrect rationales with correct answers. If training examples do not have ground truth answers, maybe consider using majority votes as the ``correct'' answers.
+\item
+  Prompts with demonstrations of higher reasoning complexity can achieve better performance, where complexity is measured by the number of reasoning steps in the chains. When separating reasoning steps, newline \texttt{\textbackslash{}n} symbol works better than \texttt{step\ i}, period \texttt{.} or semicolon \texttt{;}. (\href{https://arxiv.org/abs/2210.00720}{Fu et al. 2023})
+\item
+  \emph{Complexity-based consistency} is to explicitly prefer complex chains among all the generations by taking majority vote among only top \$k\$ complex chains. (\href{https://arxiv.org/abs/2210.00720}{Fu et al. 2023})
+\item
+  Later, \href{https://arxiv.org/abs/2302.12822}{Shum et al. (2023)} found that in their experiments CoT prompts with only complex examples can improve the accuracy of complex questions, but perform poorly in simple questions; evidence shown on GSM8k.
+\item
+  Changing \texttt{Q:} to \texttt{Question:} is found to be helpful. (\href{https://arxiv.org/abs/2210.00720}{Fu et al. 2023})
+\item
+  \href{https://arxiv.org/abs/2205.03401}{Ye \& Durrett (2022)} found that the benefit of including explanations in the prompt is small to moderate for NLP tasks that involve reasoning over text (i.e. QA and NLI) and the effects vary by models. They observed that explanations are more likely to be nonfactual than be inconsistent (i.e. whether explanation entails prediction). Nonfactual explanations most likely lead to incorrect predictions.
+\item
+  \emph{Self-Ask} (\href{https://arxiv.org/abs/2210.03350}{Press et al. 2022}) is a method to repeatedly prompt the model to \emph{ask following-up questions} to construct the thought process iteratively. Follow-up questions can be answered by search engine results. Similarly, \emph{IRCoT} (Interleaving Retrieval CoT; \href{https://arxiv.org/abs/2212.10509}{Trivedi et al. 2022}) and \emph{ReAct} (Reason + Act; \href{https://arxiv.org/abs/2210.03629}{Yao et al. 2023}) combines iterative CoT prompting with queries to Wikipedia APIs to search for relevant entities and content and then add it back into the context.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{SelfAsk-search.png}
+\caption{How Self-Ask works with external search queries.\\
+(Image source: \href{https://arxiv.org/abs/2210.03350}{Press et al. 2022}).}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{Tree of Thoughts} (\href{https://arxiv.org/abs/2305.10601}{Yao et al. 2023}) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, essentially creating a tree structure. The search process can be BFS or DFS while each state is evaluated by a classifier (via a prompt) or majority vote.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{tree-of-thoughts.png}
+\caption{How Self-Ask works with external search queries.\\
+(Image source: \href{https://arxiv.org/abs/2305.10601}{Yao et al. 2022}).}
+\end{figure}
+
+\section{\texorpdfstring{Automatic Prompt Design\hyperref[automatic-prompt-design]{\#}}{Automatic Prompt Design\#}}\label{automatic-prompt-design}
+
+Prompt is a sequence of prefix tokens that increase the probability of getting desired output given input. Therefore we can treat them as trainable parameters and \href{https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/\#smart-prompt-design}{optimize them directly} on the embedding space via gradient descent, such as \textbf{AutoPrompt} (\href{https://arxiv.org/abs/2010.15980}{Shin et al., 2020}, \textbf{Prefix-Tuning} (\href{https://arxiv.org/abs/2101.00190}{Li \& Liang (2021)}), \textbf{P-tuning} (\href{https://arxiv.org/abs/2103.10385}{Liu et al. 2021}) and \textbf{Prompt-Tuning} (\href{https://arxiv.org/abs/2104.08691}{Lester et al. 2021}). \href{https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/\#smart-prompt-design}{This section in my ``Controllable Neural Text Generation'' post} has a good coverage of them. The trend from AutoPrompt to Prompt-Tuning is that the setup gets gradually simplified.
+
+\textbf{APE} (Automatic Prompt Engineer; \href{https://arxiv.org/abs/2211.01910}{Zhou et al. 2022}) is a method to search over a pool of model-generated instruction candidates and then filters the candidate set according to a chosen score function to ultimately choose the best candidate with highest score.
+
+\begin{enumerate}
+\item
+  Prompt LLM to generate instruction candidates based on a small set of demonstrations in the form of input-output pairs. E.g. \texttt{\{\{Given\ desired\ input-output\ pairs\}\}\textbackslash{}n\textbackslash{}nThe\ instruction\ is}.
+\item
+  Given a dataset of \$\textbackslash mathcal\{D\}\_\textbackslash text\{train\} = \textbackslash\{(x, y)\textbackslash\}\$, we would like to find an instruction \$\textbackslash rho\$ such that \$\textbackslash rho\^{}* = \textbackslash arg\textbackslash max\_\textbackslash rho \textbackslash mathbb\{E\}\_\{(x, y) \textbackslash in \textbackslash mathcal\{D\}\_\textbackslash text\{train\}\} {[}f(\textbackslash rho, x, y){]}\$, where \$f(.)\$ is a per-sample score function, such as execution accuracy \$\textbackslash mathbb\{1\}{[}\textbackslash text\{LM\}(.\textbackslash vert \textbackslash rho, x)=y{]}\$ or log probability: \$p\_\textbackslash text\{LM\}(y \textbackslash mid \textbackslash rho, x)\$.
+\item
+  Use an iterative Monte Carlo search method to improve the best candidates by proposing semantically similar variants via prompts like \texttt{Generate\ a\ variation\ of\ the\ following\ instruction\ while\ keeping\ the\ semantic\ meaning.\textbackslash{}n\textbackslash{}nInput:\ ...\textbackslash{}n\textbackslash{}nOutput:...}
+\end{enumerate}
+
+To construct chain-of-thought prompts automatically, \href{https://arxiv.org/abs/2302.12822}{Shum et al. (2023)} suggested augment-prune-select, a three-step process:
+
+\begin{enumerate}
+\tightlist
+\item
+  \emph{Augment}: Generate multiple pseudo-chains of thought given question using few-shot or zero-shot CoT prompts;
+\item
+  \emph{Prune}: Prune pseudo chains based on whether generated answers match ground truths.
+\item
+  \emph{Select}: Apply a variance-reduced policy gradient strategy to learn the probability distribution over selected examples, while considering the probability distribution over examples as policy and the validation set accuracy as reward.
+\end{enumerate}
+
+\href{https://arxiv.org/abs/2210.03493}{Zhang et al. (2023)} instead adopted \emph{clustering} techniques to sample questions and then generates chains. They observed that LLMs tend to make certain types of mistakes. One type of errors can be similar in the emebedding space and thus get grouped together. By only sampling one or a few from frequent-error clusters, we can prevent too many wrong demonstrations of one error type and collect a diverse set of examples.
+
+\begin{enumerate}
+\tightlist
+\item
+  \emph{Question clustering}: Embed questions and run \$k\$-means for clustering.
+\item
+  \emph{Demonstration selection}: Select a set of representative questions from each cluster; i.e. one demonstration from one cluster. Samples in each cluster are sorted by distance to the cluster centroid and those closer to the centroid are selected first.
+\item
+  \emph{Rationale generation}: Use zero-shot CoT to generate reasoning chains for selected questions and construct few-shot prompt to run inference.
+\end{enumerate}
+
+\section{\texorpdfstring{Augmented Language Models\hyperref[augmented-language-models]{\#}}{Augmented Language Models\#}}\label{augmented-language-models}
+
+A survey on augmented language models by \href{https://arxiv.org/abs/2302.07842}{Mialon et al. (2023)} has great coverage over multiple categories of language models augmented with reasoning skills and the ability of using external tools. Recommend it.
+
+\subsection{\texorpdfstring{Retrieval\hyperref[retrieval]{\#}}{Retrieval\#}}\label{retrieval}
+
+Often we need to complete tasks that require latest knowledge after the model pretraining time cutoff or internal/private knowledge base. In that case, the model would not know the context if we don't explicitly provide it in the prompt. Many methods for \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Open Domain Question Answering} depend on first doing retrieval over a knowledge base and then incorporating the retrieved content as part of the prompt. The accuracy of such a process depends on the quality of both retrieval and generation steps.
+
+\href{https://arxiv.org/abs/2203.05115}{Lazaridou et al. (2022)} studied how to use Google Search for document retrieval to augment LLMs. Given a question \$q\$, clean text is extracted out of 20 URLs returned by Google, resulting in a set of documents. Because these documents are long, each document is split into paragraphs of 6 sentences, \$\textbackslash\{p\textbackslash\}\$. Paragraphs are ranked by TF-IDF based cosine similarity between evidence paragraphs and the query. Only the most relevant paragraph is used in the prompt to produce an answer \$a\$.
+
+For closed-book QA, each demonstration is formatted as follows to construct few-shot prompts. Swapping the question with the evidence (longer distance between questions and answers) is found to consistently yield lower results across all datasets.
+
+\begin{verbatim}
+Evidence: ...
+Question: ...
+Answer: ...
+\end{verbatim}
+
+The answer probability is computed in three ways:
+
+\begin{enumerate}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/\#RAG}{RAG} style, \$p(a\_i \textbackslash mid q) = \textbackslash sum\_\{i=1\}\^{}n p\_\textbackslash text\{tf-idf\} (p\_i \textbackslash mid q) \textbackslash cdot p\_\textbackslash text\{LM\}(a\_i \textbackslash mid q, p\_i)\$, where \$p\_\textbackslash text\{tf-idf\} (p\_i \textbackslash mid q)\$ is the normalized cosine similarities between the TF-IDF passage and question representations.
+\item
+  Noisy channel inference, \$p(a\_i\textbackslash mid q) = \textbackslash frac\{p\_\textbackslash text\{LM\}(q \textbackslash mid a\_i, p\_i) \textbackslash cdot p\_\textbackslash text\{LM\}(a\_i \textbackslash mid p\_i)\}\{p\_\textbackslash text\{LM\}(q \textbackslash mid p\_i)\}\$
+\item
+  Product-of-Experts (PoE), combines all probabilities used above in addition to \$p\_\textbackslash text\{LM\}(p\_i \textbackslash mid q)\$.
+\end{enumerate}
+
+According to their experiments on generation and classification tasks, among three answer reranking scores - PoE \textgreater{} Noisy channel \textgreater{} RAG. Among individual probabilities, \$p\_\textbackslash text\{LM\}(a \textbackslash mid q, p\_i)\$ and \$p\_\textbackslash text\{LM\}(q \textbackslash mid p\_i, a)\$ are found to be most informative. \$p\_\textbackslash text\{LM\}(q \textbackslash mid p\_i, a)\$ captures how well the question can be explained by LM given evidence paragraph and answer and can reliably be used for reranking answer candidates.
+
+One observation with \href{https://situatedqa.github.io/}{SituatedQA} dataset for questions grounded in different dates is that despite LM (pretraining cutoff is year 2020) has access to latest information via Google Search, its performance on post-2020 questions are still a lot \emph{worse} than on pre-2020 questions. This suggests the existence of some discrepencies or conflicting parametric between contextual information and model internal knowledge.
+
+Interestingly it is found to be beneficial even with only ``internal retrieval'', that is, to generate knowledge about a topic before answering the question (\href{https://arxiv.org/abs/2110.08387}{Liu et al. 2022}). First we can use the following template to extract knowledge:
+
+\begin{verbatim}
+Generate some knowledge about the input. Examples:
+
+Input: What type of water formation is formed by clouds?
+Knowledge: Clouds are made of water vapor.
+
+Input: {question}
+Knowledge:
+\end{verbatim}
+
+And then with model-generated knowledge, prompt the LM further to get the answer.
+
+\subsection{\texorpdfstring{Programming Language\hyperref[programming-language]{\#}}{Programming Language\#}}\label{programming-language}
+
+Both \textbf{PAL} (Program-aided language models); \href{https://arxiv.org/abs/2211.10435}{Gao et al. 2022}) and \textbf{PoT} (Program of Thoughts prompting; \href{https://arxiv.org/abs/2211.12588}{Chen et al. 2022}) ask LLM to generate programming language statements to resolve natural language reasoning problems, hence offloading the solution step to a runtime such as a Python interpreter. Such setup decouples complex computation and reasoning. It relies on a LM with good enough coding skills.
+
+\begin{figure}
+\centering
+\includegraphics{PoT.png}
+\caption{Comparing CoT and PoT. (Image source: \href{https://arxiv.org/abs/2211.12588}{Chen et al. 2022}).}
+\end{figure}
+
+\subsection{\texorpdfstring{External APIs\hyperref[external-apis]{\#}}{External APIs\#}}\label{external-apis}
+
+\textbf{TALM} (Tool Augmented Language Models; \href{https://arxiv.org/abs/2205.12255}{Parisi et al. 2022}) is a language model augmented with text-to-text API calls. LM is guided to generate \texttt{\textbar{}tool-call} and \texttt{tool\ input\ text} conditioned on task input text to construct API call requests. When \texttt{\textbar{}result} shows up, the specified tool API is called and the returned result gets appended to the text sequence. The final output is generated following \texttt{\textbar{}output} token.
+
+\begin{figure}
+\centering
+\includegraphics{TALM.png}
+\caption{The format of API calls in TALM. (Image source: \href{https://arxiv.org/abs/2205.12255}{Parisi et al. 2022}).}
+\end{figure}
+
+TALM adopts a self-play approach to iteratively bootstrap the dataset of tool use examples and finetune LM with it. This self-play, defined as a model interacting with a tool API, iteratively expands the dataset based on whether a newly added tool API can improve the model outputs. Same idea is adopted in Toolformer too, described in more details below. The pipeline loosely mimics a RL process where LM is the policy network and it is trained by policy gradient with a binary reward signal.
+
+\begin{figure}
+\centering
+\includegraphics{TALM-iteration.png}
+\caption{Self-play iterations help boost the model performance.\\
+(Image source: \href{https://arxiv.org/abs/2205.12255}{Parisi et al. 2022}).}
+\end{figure}
+
+\textbf{Toolformer} (\href{https://arxiv.org/abs/2302.04761}{Schick et al. 2023}) is a LM that can use external tools via simple APIs, which is built in a self-supervised manner and only requires a handful of demonstrations for each API. The toolbox of Toolformer includes:
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{Calculator} to help LM with the lack of precise math skills;
+\item
+  \emph{Q\&A system} to help with unfaithful content and hallucination;
+\item
+  \emph{Search engine} to provide up-to-date information after pretraining cut off time;
+\item
+  \emph{Translation system} to improve performance on low resource language;
+\item
+  \emph{Calendar} to make LM be aware of time progression.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{toolformer.png}
+\caption{Illustration of how to build Toolformer.\\
+(Image source: \href{https://arxiv.org/abs/2302.04761}{Schick et al. 2023}).}
+\end{figure}
+
+Toolformer is trained as follows:
+
+\emph{Prompting to annotate potential API calls}. Ask a pre-trained LM to annotate a dataset via few-shot learning with API call usage examples. Formatting example:
+
+\begin{figure}
+\centering
+\includegraphics{toolformer-annotation.png}
+\caption{How dataset is annotated to do API calls.\\
+(Image source: \href{https://arxiv.org/abs/2302.04761}{Schick et al. 2023}).}
+\end{figure}
+
+\begin{verbatim}
+- Each API call is represented as a tuple of (API name, corresponding input), $c=(a_c, i_c)$ and its corresponding result is denoted as $r$. The API call sequences with and without results are labeled as follows, respectively:
+
+    <div>
+    $$
+    \begin{aligned}
+    e(c) &= \langle\texttt{API}\rangle a_c(i_c) \langle\texttt{/API}\rangle \\
+    e(c, r) &= \langle\texttt{API}\rangle a_c(i_c) \to r \langle\texttt{/API}\rangle
+    \end{aligned}
+    $$
+    </div>
+
+- Sample API calls based on the probabilities $p_\text{LM}(\langle\texttt{API}\rangle \mid \text{prompt}(\mathbf{x}), \mathbf{x}_{1:i})$ and select top $k$ candidate positions for doing API calls at position $i$ if the probability is larger than a threshold.
+
+- Then we sample potential API calls from the LM given the sequence $[\text{prompt}(\mathbf{x}), x_1, \dots, x_{i-1}, \langle\texttt{API}\rangle]$ as prefix and $\langle\texttt{/API}\rangle$ as suffix.
+\end{verbatim}
+
+\begin{enumerate}
+\setcounter{enumi}{1}
+\item
+  \emph{Filter annotations based on whether API calls help model predict future tokens.} Use a self-supervised loss to decide which API calls are actually helpful.
+
+  \begin{itemize}
+  \item
+    Execute each API call \$c\_i\$ to get corresponding result \$r\_i\$.
+  \item
+    Compute weighted cross entropy loss for the LM over tokens \$x\_i, \textbackslash dots, x\_n\$ when the model is prefixed with the prompt. Two versions are computed, one with API result and the other with empty sequence \$\textbackslash varepsilon\$.
+
+    \$\$ \textbackslash begin\{aligned\} L\^{}+\_i \&= L\_i(e(c\_i, r\_i)) \textbackslash\textbackslash{} L\^{}-\_i \&= \textbackslash min(L\_i(\textbackslash varepsilon), L\_i(e(c\_i, \textbackslash varepsilon))) \textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+
+    Only API calls with \$L\^{}-\_i - L\^{}+\_i\$ larger than a threshold are kept, meaning that adding this API call and its results help the model predict future tokens.
+  \end{itemize}
+\item
+  \emph{Fine-tune LM on this annotated dataset.} The new training sequences are constructed as \$\textbackslash mathbf\{x\}\^{}* = x\_\{1:i-1\}, e(c\_i, r\_i), x\_\{i:n\}\$ . The training data is a combination of the original dataset (e.g. a subset of CCNet, as in the paper) and its augmented version.
+\end{enumerate}
+
+At inference time, decoding runs until the model produces ``\$\textbackslash to\$ " token, indicating that it is expecting response from an API call next.
+
+Toolformer currently does not support tool use in a chain (i.e. using the output of one tool as an input for another tool) or in an interactive way (i.e. adopt API response after human selection). Both are interesting future directions to expand the model for.
+
+\section{\texorpdfstring{Citation\hyperref[citation]{\#}}{Citation\#}}\label{citation}
+
+Cited as:
+
+\begin{quote}
+Weng, Lilian. (Mar 2023). Prompt Engineering. Lil'Log. https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/.
+\end{quote}
+
+Or
+
+\begin{verbatim}
+@article{weng2023prompt,
+  title   = "Prompt Engineering",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2023",
+  month   = "Mar",
+  url     = "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/"
+}
+\end{verbatim}
+
+\section{\texorpdfstring{Useful Resources\hyperref[useful-resources]{\#}}{Useful Resources\#}}\label{useful-resources}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://github.com/openai/openai-cookbook}{OpenAI Cookbook} has many in-depth examples for how to utilize LLM efficiently.
+\item
+  \href{https://langchain.readthedocs.io/en/latest/}{LangChain}, a library for combining language models with other components to build applications.
+\item
+  \href{https://github.com/dair-ai/Prompt-Engineering-Guide}{Prompt Engineering Guide} repo contains a pretty comprehensive collection of education materials on prompt engineering.
+\item
+  \href{https://learnprompting.org/docs/intro}{learnprompting.org}
+\item
+  \href{https://promptperfect.jina.ai}{PromptPerfect}
+\item
+  \href{https://github.com/microsoft/semantic-kernel}{Semantic Kernel}
+\end{itemize}
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Zhao et al. \href{https://arxiv.org/abs/2102.09690}{``Calibrate Before Use: Improving Few-shot Performance of Language Models.''} ICML 2021
+
+{[}2{]} Liu et al. \href{https://arxiv.org/abs/2101.06804}{``What Makes Good In-Context Examples for GPT-3?''} arXiv preprint arXiv:2101.06804 (2021).
+
+{[}3{]} Lu et al. \href{https://arxiv.org/abs/2104.08786}{``Fantastically Ordered Prompts and Where to Find Them: Overcoming Few-Shot Prompt Order Sensitivity.''} ACL 2022
+
+{[}4{]} Ye et al. \href{https://arxiv.org/abs/2302.14691}{``In-Context Instruction Learning.''} arXiv preprint arXiv:2302.14691 (2023).
+
+{[}5{]} Su et al. \href{https://arxiv.org/abs/2209.01975}{``Selective annotation makes language models better few-shot learners.''} arXiv preprint arXiv:2209.01975 (2022).
+
+{[}6{]} Rubin et al. \href{https://arxiv.org/abs/2112.08633}{``Learning to retrieve prompts for in-context learning.''} NAACL-HLT 2022
+
+{[}7{]} Wei et al. \href{https://arxiv.org/abs/2201.11903}{``Chain of thought prompting elicits reasoning in large language models.''} NeurIPS 2022
+
+{[}8{]} Wang et al. \href{https://arxiv.org/abs/2203.11171}{``Self-Consistency Improves Chain of Thought Reasoning in Language Models.''} ICLR 2023.
+
+{[}9{]} Diao et al. \href{https://arxiv.org/abs/2302.12246}{``Active Prompting with Chain-of-Thought for Large Language Models.''} arXiv preprint arXiv:2302.12246 (2023).
+
+{[}10{]} Zelikman et al. \href{https://arxiv.org/abs/2203.14465}{``STaR: Bootstrapping Reasoning With Reasoning.''} arXiv preprint arXiv:2203.14465 (2022).
+
+{[}11{]} Ye \& Durrett. \href{https://arxiv.org/abs/2205.03401}{``The unreliability of explanations in few-shot in-context learning.''} arXiv preprint arXiv:2205.03401 (2022).
+
+{[}12{]} Trivedi et al. \href{https://arxiv.org/abs/2212.10509}{``Interleaving retrieval with chain-of-thought reasoning for knowledge-intensive multi-step questions.''} arXiv preprint arXiv:2212.10509 (2022).
+
+{[}13{]} Press et al. \href{https://arxiv.org/abs/2210.03350}{``Measuring and narrowing the compositionality gap in language models.''} arXiv preprint arXiv:2210.03350 (2022).
+
+{[}14{]} Yao et al. \href{https://arxiv.org/abs/2210.03629}{``ReAct: Synergizing reasoning and acting in language models.''} ICLR 2023.
+
+{[}15{]} Fu et al. \href{https://arxiv.org/abs/2210.00720}{``Complexity-based prompting for multi-step reasoning.''} arXiv preprint arXiv:2210.00720 (2022).
+
+{[}16{]} Wang et al. \href{https://arxiv.org/abs/2207.00747}{``Rationale-augmented ensembles in language models.''} arXiv preprint arXiv:2207.00747 (2022).
+
+{[}17{]} Zhang et al. \href{https://arxiv.org/abs/2210.03493}{``Automatic chain of thought prompting in large language models.''} arXiv preprint arXiv:2210.03493 (2022).
+
+{[}18{]} Shum et al. \href{https://arxiv.org/abs/2302.12822}{``Automatic Prompt Augmentation and Selection with Chain-of-Thought from Labeled Data.''} arXiv preprint arXiv:2302.12822 (2023).
+
+{[}19{]} Zhou et al. \href{https://arxiv.org/abs/2211.01910}{``Large Language Models Are Human-Level Prompt Engineers.''} ICLR 2023.
+
+{[}20{]} Lazaridou et al. \href{https://arxiv.org/abs/2203.05115}{``Internet augmented language models through few-shot prompting for open-domain question answering.''} arXiv preprint arXiv:2203.05115 (2022).
+
+{[}21{]} Chen et al. \href{https://arxiv.org/abs/2211.12588}{``Program of Thoughts Prompting: Disentangling Computation from Reasoning for Numerical Reasoning Tasks.''} arXiv preprint arXiv:2211.12588 (2022).
+
+{[}22{]} Gao et al. \href{https://arxiv.org/abs/2211.10435}{``PAL: Program-aided language models.''} arXiv preprint arXiv:2211.10435 (2022).
+
+{[}23{]} Parisi et al. \href{https://arxiv.org/abs/2205.12255}{``TALM: Tool Augmented Language Models''} arXiv preprint arXiv:2205.12255 (2022).
+
+{[}24{]} Schick et al. \href{https://arxiv.org/abs/2302.04761}{``Toolformer: Language Models Can Teach Themselves to Use Tools.''} arXiv preprint arXiv:2302.04761 (2023).
+
+{[}25{]} Mialon et al. \href{https://arxiv.org/abs/2302.07842}{``Augmented Language Models: a Survey''} arXiv preprint arXiv:2302.07842 (2023).
+
+{[}26{]} Yao et al. \href{https://arxiv.org/abs/2305.10601}{``Tree of Thoughts: Deliberate Problem Solving with Large Language Models.''} arXiv preprint arXiv:2305.10601 (2023).
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/nlp/}{Nlp}
+\item
+  \href{https://lilianweng.github.io/tags/language-model/}{Language-Model}
+\item
+  \href{https://lilianweng.github.io/tags/alignment/}{Alignment}
+\item
+  \href{https://lilianweng.github.io/tags/steerability/}{Steerability}
+\item
+  \href{https://lilianweng.github.io/tags/prompting/}{Prompting}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2023-06-23-agent/}{{« }\\
+{LLM Powered Autonomous Agents}} \href{https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/}{{ »}\\
+{The Transformer Family Version 2.0}}
+
+\href{https://twitter.com/intent/tweet/?text=Prompt\%20Engineering&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f&hashtags=nlp\%2clanguage-model\%2calignment\%2csteerability\%2cprompting}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f&title=Prompt\%20Engineering&summary=Prompt\%20Engineering&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f&title=Prompt\%20Engineering}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f}{} \href{https://api.whatsapp.com/send?text=Prompt\%20Engineering\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f}{} \href{https://telegram.me/share/url?text=Prompt\%20Engineering&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2023-03-15-prompt-engineering\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/}{Telegram}
+\end{center}
+
+
+
+\end{document}

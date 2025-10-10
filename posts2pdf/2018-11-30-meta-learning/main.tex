@@ -1,0 +1,1168 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Meta-Learning: Learning to Learn Fast}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={Meta-Learning: Learning to Learn Fast},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{Meta-Learning: Learning to Learn Fast}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2018-11-30-meta-learning/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Meta-Learning: Learning to Learn Fast}\label{meta-learning-learning-to-learn-fast}
+
+Date: November 30, 2018 \textbar{} Estimated Reading Time: 30 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[define-the-meta-learning-problem]{Define the Meta-Learning Problem}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[a-simple-view]{A Simple View}
+  \item
+    \hyperref[training-in-the-same-way-as-testing]{Training in the Same Way as Testing}
+  \item
+    \hyperref[learner-and-meta-learner]{Learner and Meta-Learner}
+  \item
+    \hyperref[common-approaches]{Common Approaches}
+  \end{itemize}
+\item
+  \hyperref[metric-based]{Metric-Based}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[convolutional-siamese-neural-network]{Convolutional Siamese Neural Network}
+  \item
+    \hyperref[matching-networks]{Matching Networks}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[simple-embedding]{Simple Embedding}
+    \item
+      \hyperref[full-context-embeddings]{Full Context Embeddings}
+    \end{itemize}
+  \item
+    \hyperref[relation-network]{Relation Network}
+  \item
+    \hyperref[prototypical-networks]{Prototypical Networks}
+  \end{itemize}
+\item
+  \hyperref[model-based]{Model-Based}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[memory-augmented-neural-networks]{Memory-Augmented Neural Networks}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[mann-for-meta-learning]{MANN for Meta-Learning}
+    \item
+      \hyperref[addressing-mechanism-for-meta-learning]{Addressing Mechanism for Meta-Learning}
+    \end{itemize}
+  \item
+    \hyperref[meta-networks]{Meta Networks}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[fast-weights]{Fast Weights}
+    \item
+      \hyperref[model-components]{Model Components}
+    \item
+      \hyperref[training-process]{Training Process}
+    \end{itemize}
+  \end{itemize}
+\item
+  \hyperref[optimization-based]{Optimization-Based}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[lstm-meta-learner]{LSTM Meta-Learner}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[why-lstm]{Why LSTM?}
+    \item
+      \hyperref[model-setup]{Model Setup}
+    \end{itemize}
+  \item
+    \hyperref[maml]{MAML}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[first-order-maml]{First-Order MAML}
+    \end{itemize}
+  \item
+    \hyperref[reptile]{Reptile}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[the-optimization-assumption]{The Optimization Assumption}
+    \item
+      \hyperref[reptile-vs-fomaml]{Reptile vs FOMAML}
+    \end{itemize}
+  \end{itemize}
+\item
+  \hyperref[reference]{Reference}
+\end{itemize}
+
+{{[}Updated on 2019-10-01: thanks to Tianhao, we have this post translated in \href{https://wei-tianhao.github.io/blog/2019/09/17/meta-learning.html}{Chinese}!{]}}
+
+A good machine learning model often requires training with a large number of samples. Humans, in contrast, learn new concepts and skills much faster and more efficiently. Kids who have seen cats and birds only a few times can quickly tell them apart. People who know how to ride a bike are likely to discover the way to ride a motorcycle fast with little or even no demonstration. Is it possible to design a machine learning model with similar properties --- learning new concepts and skills fast with a few training examples? That's essentially what \textbf{meta-learning} aims to solve.
+
+We expect a good meta-learning model capable of well adapting or generalizing to new tasks and new environments that have never been encountered during training time. The adaptation process, essentially a mini learning session, happens during test but with a limited exposure to the new task configurations. Eventually, the adapted model can complete new tasks. This is why meta-learning is also known as \href{https://www.cs.cmu.edu/~rsalakhu/papers/LakeEtAl2015Science.pdf}{learning to learn}.
+
+The tasks can be any well-defined family of machine learning problems: supervised learning, reinforcement learning, etc. For example, here are a couple concrete meta-learning tasks:
+
+\begin{itemize}
+\tightlist
+\item
+  A classifier trained on non-cat images can tell whether a given image contains a cat after seeing a handful of cat pictures.
+\item
+  A game bot is able to quickly master a new game.
+\item
+  A mini robot completes the desired task on an uphill surface during test even through it was only trained in a flat surface environment.
+\end{itemize}
+
+\section{\texorpdfstring{Define the Meta-Learning Problem\hyperref[define-the-meta-learning-problem]{\#}}{Define the Meta-Learning Problem\#}}\label{define-the-meta-learning-problem}
+
+In this post, we focus on the case when each desired task is a supervised learning problem like image classification. There is a lot of interesting literature on meta-learning with reinforcement learning problems (aka ``Meta Reinforcement Learning''), but we would not cover them here.
+
+\subsection{\texorpdfstring{A Simple View\hyperref[a-simple-view]{\#}}{A Simple View\#}}\label{a-simple-view}
+
+A good meta-learning model should be trained over a variety of learning tasks and optimized for the best performance on a distribution of tasks, including potentially unseen tasks. Each task is associated with a dataset \$\textbackslash mathcal\{D\}\$, containing both feature vectors and true labels. The optimal model parameters are:
+
+\$\$ \textbackslash theta\^{}* = \textbackslash arg\textbackslash min\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash mathcal\{D\}\textbackslash sim p(\textbackslash mathcal\{D\})\} {[}\textbackslash mathcal\{L\}\_\textbackslash theta(\textbackslash mathcal\{D\}){]} \$\$
+
+It looks very similar to a normal learning task, but \emph{one dataset} is considered as \emph{one data sample}.
+
+\emph{Few-shot classification} is an instantiation of meta-learning in the field of supervised learning. The dataset \$\textbackslash mathcal\{D\}\$ is often split into two parts, a support set \$S\$ for learning and a prediction set \$B\$ for training or testing, \$\textbackslash mathcal\{D\}=\textbackslash langle S, B\textbackslash rangle\$. Often we consider a \emph{K-shot N-class classification} task: the support set contains K labelled examples for each of N classes.
+
+\begin{figure}
+\centering
+\includegraphics{few-shot-classification.png}
+\caption{An example of 4-shot 2-class image classification. (Image thumbnails are from \href{https://www.pinterest.com/}{Pinterest})}
+\end{figure}
+
+\subsection{\texorpdfstring{Training in the Same Way as Testing\hyperref[training-in-the-same-way-as-testing]{\#}}{Training in the Same Way as Testing\#}}\label{training-in-the-same-way-as-testing}
+
+A dataset \$\textbackslash mathcal\{D\}\$ contains pairs of feature vectors and labels, \$\textbackslash mathcal\{D\} = \textbackslash\{(\textbackslash mathbf\{x\}\_i, y\_i)\textbackslash\}\$ and each label belongs to a known label set \$\textbackslash mathcal\{L\}\^{}\textbackslash text\{label\}\$. Let's say, our classifier \$f\_\textbackslash theta\$ with parameter \$\textbackslash theta\$ outputs a probability of a data point belonging to the class \$y\$ given the feature vector \$\textbackslash mathbf\{x\}\$, \$P\_\textbackslash theta(y\textbackslash vert\textbackslash mathbf\{x\})\$.
+
+The optimal parameters should maximize the probability of true labels across multiple training batches \$B \textbackslash subset \textbackslash mathcal\{D\}\$:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta\^{}* \&= \{\textbackslash arg\textbackslash max\}\_\{\textbackslash theta\} \textbackslash mathbb\{E\}\_\{(\textbackslash mathbf\{x\}, y)\textbackslash in \textbackslash mathcal\{D\}\}{[}P\_\textbackslash theta(y \textbackslash vert \textbackslash mathbf\{x\}){]} \&\textbackslash\textbackslash{} \textbackslash theta\^{}* \&= \{\textbackslash arg\textbackslash max\}\_\{\textbackslash theta\} \textbackslash mathbb\{E\}\_\{B\textbackslash subset \textbackslash mathcal\{D\}\}{[}\textbackslash sum\_\{(\textbackslash mathbf\{x\}, y)\textbackslash in B\}P\_\textbackslash theta(y \textbackslash vert \textbackslash mathbf\{x\}){]} \& \textbackslash scriptstyle\{\textbackslash text\{; trained with mini-batches.\}\} \textbackslash end\{aligned\} \$\$
+
+In few-shot classification, the goal is to reduce the prediction error on data samples with unknown labels given a small support set for ``fast learning'' (think of how ``fine-tuning'' works). To make the training process mimics what happens during inference, we would like to ``fake'' datasets with a subset of labels to avoid exposing all the labels to the model and modify the optimization procedure accordingly to encourage fast learning:
+
+\begin{enumerate}
+\tightlist
+\item
+  Sample a subset of labels, \$L\textbackslash subset\textbackslash mathcal\{L\}\^{}\textbackslash text\{label\}\$.
+\item
+  Sample a support set \$S\^{}L \textbackslash subset \textbackslash mathcal\{D\}\$ and a training batch \$B\^{}L \textbackslash subset \textbackslash mathcal\{D\}\$. Both of them only contain data points with labels belonging to the sampled label set \$L\$, \$y \textbackslash in L, \textbackslash forall (x, y) \textbackslash in S\^{}L, B\^{}L\$.
+\item
+  The support set is part of the model input.
+\item
+  The final optimization uses the mini-batch \$B\^{}L\$ to compute the loss and update the model parameters through backpropagation, in the same way as how we use it in the supervised learning.
+\end{enumerate}
+
+You may consider each pair of sampled dataset \$(S\^{}L, B\^{}L)\$ as one data point. The model is trained such that it can generalize to other datasets. Symbols in red are added for meta-learning in addition to the supervised learning objective.
+
+\$\$ \textbackslash theta = \textbackslash arg\textbackslash max\_\textbackslash theta \textbackslash color\{red\}\{E\_\{L\textbackslash subset\textbackslash mathcal\{L\}\}{[}\} E\_\{\textbackslash color\{red\}\{S\^{}L \textbackslash subset\textbackslash mathcal\{D\}, \}B\^{}L \textbackslash subset\textbackslash mathcal\{D\}\} {[}\textbackslash sum\_\{(x, y)\textbackslash in B\^{}L\} P\_\textbackslash theta(x, y\textbackslash color\{red\}\{, S\^{}L\}){]} \textbackslash color\{red\}\{{]}\} \$\$
+
+The idea is to some extent similar to using a pre-trained model in image classification (ImageNet) or language modeling (big text corpora) when only a limited set of task-specific data samples are available. Meta-learning takes this idea one step further, rather than fine-tuning according to one down-steam task, it optimizes the model to be good at many, if not all.
+
+\subsection{\texorpdfstring{Learner and Meta-Learner\hyperref[learner-and-meta-learner]{\#}}{Learner and Meta-Learner\#}}\label{learner-and-meta-learner}
+
+Another popular view of meta-learning decomposes the model update into two stages:
+
+\begin{itemize}
+\tightlist
+\item
+  A classifier \$f\_\textbackslash theta\$ is the ``learner'' model, trained for operating a given task;
+\item
+  In the meantime, a optimizer \$g\_\textbackslash phi\$ learns how to update the learner model's parameters via the support set \$S\$, \$\textbackslash theta' = g\_\textbackslash phi(\textbackslash theta, S)\$.
+\end{itemize}
+
+Then in final optimization step, we need to update both \$\textbackslash theta\$ and \$\textbackslash phi\$ to maximize:
+
+\$\$ \textbackslash mathbb\{E\}\_\{L\textbackslash subset\textbackslash mathcal\{L\}\}{[} \textbackslash mathbb\{E\}\_\{S\^{}L \textbackslash subset\textbackslash mathcal\{D\}, B\^{}L \textbackslash subset\textbackslash mathcal\{D\}\} {[}\textbackslash sum\_\{(\textbackslash mathbf\{x\}, y)\textbackslash in B\^{}L\} P\_\{g\_\textbackslash phi(\textbackslash theta, S\^{}L)\}(y \textbackslash vert \textbackslash mathbf\{x\}){]}{]} \$\$
+
+\subsection{\texorpdfstring{Common Approaches\hyperref[common-approaches]{\#}}{Common Approaches\#}}\label{common-approaches}
+
+There are three common approaches to meta-learning: metric-based, model-based, and optimization-based. Oriol Vinyals has a nice summary in his \href{http://metalearning-symposium.ml/files/vinyals.pdf}{talk} at meta-learning symposium @ NIPS 2018:
+
+\textbar{} ------------- \textbar{} ------------- \textbar{} ------------- \textbar{} ------------- \textbar{}
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+& Model-based & Metric-based & Optimization-based \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Key idea} & RNN; memory & Metric learning & Gradient descent \\
+\textbf{How \$P\_\textbackslash theta(y \textbackslash vert \textbackslash mathbf\{x\})\$ is modeled?} & \$f\_\textbackslash theta(\textbackslash mathbf\{x\}, S)\$ & \$\textbackslash sum\_\{(\textbackslash mathbf\{x\}\_i, y\_i) \textbackslash in S\} k\_\textbackslash theta(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i)y\_i\$ (*) & \$P\_\{g\_\textbackslash phi(\textbackslash theta, S\^{}L)\}(y \textbackslash vert \textbackslash mathbf\{x\})\$ \\
+\end{longtable}
+
+(*) \$k\_\textbackslash theta\$ is a kernel function measuring the similarity between \$\textbackslash mathbf\{x\}\_i\$ and \$\textbackslash mathbf\{x\}\$.
+
+Next we are gonna review classic models in each approach.
+
+\section{\texorpdfstring{Metric-Based\hyperref[metric-based]{\#}}{Metric-Based\#}}\label{metric-based}
+
+The core idea in metric-based meta-learning is similar to nearest neighbors algorithms (i.e., \href{https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm}{k-NN} classificer and \href{https://en.wikipedia.org/wiki/K-means_clustering}{k-means} clustering) and \href{https://en.wikipedia.org/wiki/Kernel_density_estimation}{kernel density estimation}. The predicted probability over a set of known labels \$y\$ is a weighted sum of labels of support set samples. The weight is generated by a kernel function \$k\_\textbackslash theta\$, measuring the similarity between two data samples.
+
+\$\$ P\_\textbackslash theta(y \textbackslash vert \textbackslash mathbf\{x\}, S) = \textbackslash sum\_\{(\textbackslash mathbf\{x\}\_i, y\_i) \textbackslash in S\} k\_\textbackslash theta(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i)y\_i \$\$
+
+To learn a good kernel is crucial to the success of a metric-based meta-learning model. \href{https://en.wikipedia.org/wiki/Similarity_learning\#Metric_learning}{Metric learning} is well aligned with this intention, as it aims to learn a metric or distance function over objects. The notion of a good metric is problem-dependent. It should represent the relationship between inputs in the task space and facilitate problem solving.
+
+All the models introduced below learn embedding vectors of input data explicitly and use them to design proper kernel functions.
+
+\subsection{\texorpdfstring{Convolutional Siamese Neural Network\hyperref[convolutional-siamese-neural-network]{\#}}{Convolutional Siamese Neural Network\#}}\label{convolutional-siamese-neural-network}
+
+The \href{https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf}{Siamese Neural Network} is composed of two twin networks and their outputs are jointly trained on top with a function to learn the relationship between pairs of input data samples. The twin networks are identical, sharing the same weights and network parameters. In other words, both refer to the same embedding network that learns an efficient embedding to reveal relationship between pairs of data points.
+
+\href{http://www.cs.toronto.edu/~rsalakhu/papers/oneshot1.pdf}{Koch, Zemel \& Salakhutdinov (2015)} proposed a method to use the siamese neural network to do one-shot image classification. First, the siamese network is trained for a verification task for telling whether two input images are in the same class. It outputs the probability of two images belonging to the same class. Then, during test time, the siamese network processes all the image pairs between a test image and every image in the support set. The final prediction is the class of the support image with the highest probability.
+
+\begin{figure}
+\centering
+\includegraphics{siamese-conv-net.png}
+\caption{The architecture of convolutional siamese neural network for few-show image classification.}
+\end{figure}
+
+\begin{enumerate}
+\tightlist
+\item
+  First, convolutional siamese network learns to encode two images into feature vectors via a embedding function \$f\_\textbackslash theta\$ which contains a couple of convolutional layers.
+\item
+  The L1-distance between two embeddings is \$\textbackslash vert f\_\textbackslash theta(\textbackslash mathbf\{x\}\_i) - f\_\textbackslash theta(\textbackslash mathbf\{x\}\_j) \textbackslash vert\$.
+\item
+  The distance is converted to a probability \$p\$ by a linear feedforward layer and sigmoid. It is the probability of whether two images are drawn from the same class.
+\item
+  Intuitively the loss is cross entropy because the label is binary.
+\end{enumerate}
+
+\$\$ \textbackslash begin\{aligned\} p(\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j) \&= \textbackslash sigma(\textbackslash mathbf\{W\}\textbackslash vert f\_\textbackslash theta(\textbackslash mathbf\{x\}\_i) - f\_\textbackslash theta(\textbackslash mathbf\{x\}\_j) \textbackslash vert) \textbackslash\textbackslash{} \textbackslash mathcal\{L\}(B) \&= \textbackslash sum\_\{(\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j, y\_i, y\_j)\textbackslash in B\} \textbackslash mathbf\{1\}\_\{y\_i=y\_j\}\textbackslash log p(\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j) + (1-\textbackslash mathbf\{1\}\_\{y\_i=y\_j\})\textbackslash log (1-p(\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j)) \textbackslash end\{aligned\} \$\$
+
+Images in the training batch \$B\$ can be augmented with distortion. Of course, you can replace the L1 distance with other distance metric, L2, cosine, etc. Just make sure they are differential and then everything else works the same.
+
+Given a support set \$S\$ and a test image \$\textbackslash mathbf\{x\}\$, the final predicted class is:
+
+\$\$ \textbackslash hat\{c\}\_S(\textbackslash mathbf\{x\}) = c(\textbackslash arg\textbackslash max\_\{\textbackslash mathbf\{x\}\_i \textbackslash in S\} P(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i)) \$\$
+
+where \$c(\textbackslash mathbf\{x\})\$ is the class label of an image \$\textbackslash mathbf\{x\}\$ and \$\textbackslash hat\{c\}(.)\$ is the predicted label.
+
+The assumption is that the learned embedding can be generalized to be useful for measuring the distance between images of unknown categories. This is the same assumption behind transfer learning via the adoption of a pre-trained model; for example, the convolutional features learned in the model pre-trained with ImageNet are expected to help other image tasks. However, the benefit of a pre-trained model decreases when the new task diverges from the original task that the model was trained on.
+
+\subsection{\texorpdfstring{Matching Networks\hyperref[matching-networks]{\#}}{Matching Networks\#}}\label{matching-networks}
+
+The task of \textbf{Matching Networks} (\href{http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf}{Vinyals et al., 2016}) is to learn a classifier \$c\_S\$ for any given (small) support set \$S=\textbackslash\{x\_i, y\_i\textbackslash\}\_\{i=1\}\^{}k\$ (\emph{k-shot} classification). This classifier defines a probability distribution over output labels \$y\$ given a test example \$\textbackslash mathbf\{x\}\$. Similar to other metric-based models, the classifier output is defined as a sum of labels of support samples weighted by attention kernel \$a(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i)\$ - which should be proportional to the similarity between \$\textbackslash mathbf\{x\}\$ and \$\textbackslash mathbf\{x\}\_i\$.
+
+\begin{figure}
+\centering
+\includegraphics{matching-networks.png}
+\caption{The architecture of Matching Networks. (Image source: \href{http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf}{original paper})}
+\end{figure}
+
+\$\$ c\_S(\textbackslash mathbf\{x\}) = P(y \textbackslash vert \textbackslash mathbf\{x\}, S) = \textbackslash sum\_\{i=1\}\^{}k a(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i) y\_i \textbackslash text\{, where \}S=\textbackslash\{(\textbackslash mathbf\{x\}\_i, y\_i)\textbackslash\}\_\{i=1\}\^{}k \$\$
+
+The attention kernel depends on two embedding functions, \$f\$ and \$g\$, for encoding the test sample and the support set samples respectively. The attention weight between two data points is the cosine similarity, \$\textbackslash text\{cosine\}(.)\$, between their embedding vectors, normalized by softmax:
+
+\$\$ a(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\_i) = \textbackslash frac\{\textbackslash exp(\textbackslash text\{cosine\}(f(\textbackslash mathbf\{x\}), g(\textbackslash mathbf\{x\}\_i))\}\{\textbackslash sum\_\{j=1\}\^{}k\textbackslash exp(\textbackslash text\{cosine\}(f(\textbackslash mathbf\{x\}), g(\textbackslash mathbf\{x\}\_j))\} \$\$
+
+\subsubsection{\texorpdfstring{Simple Embedding\hyperref[simple-embedding]{\#}}{Simple Embedding\#}}\label{simple-embedding}
+
+In the simple version, an embedding function is a neural network with a single data sample as input. Potentially we can set \$f=g\$.
+
+\subsubsection{\texorpdfstring{Full Context Embeddings\hyperref[full-context-embeddings]{\#}}{Full Context Embeddings\#}}\label{full-context-embeddings}
+
+The embedding vectors are critical inputs for building a good classifier. Taking a single data point as input might not be enough to efficiently gauge the entire feature space. Therefore, the Matching Network model further proposed to enhance the embedding functions by taking as input the whole support set \$S\$ in addition to the original input, so that the learned embedding can be adjusted based on the relationship with other support samples.
+
+\begin{itemize}
+\item
+  \$g\_\textbackslash theta(\textbackslash mathbf\{x\}\_i, S)\$ uses a bidirectional LSTM to encode \$\textbackslash mathbf\{x\}\_i\$ in the context of the entire support set \$S\$.
+\item
+  \$f\_\textbackslash theta(\textbackslash mathbf\{x\}, S)\$ encodes the test sample \$\textbackslash mathbf\{x\}\$ visa an LSTM with read attention over the support set \$S\$.
+
+  \begin{enumerate}
+  \tightlist
+  \item
+    First the test sample goes through a simple neural network, such as a CNN, to extract basic features, \$f'(\textbackslash mathbf\{x\})\$.
+  \item
+    Then an LSTM is trained with a read attention vector over the support set as part of the hidden state:\\
+  \end{enumerate}
+
+  \$\$ \textbackslash begin\{aligned\} \textbackslash hat\{\textbackslash mathbf\{h\}\}\_t, \textbackslash mathbf\{c\}\_t \&= \textbackslash text\{LSTM\}(f\textquotesingle(\textbackslash mathbf\{x\}), {[}\textbackslash mathbf\{h\}\_\{t-1\}, \textbackslash mathbf\{r\}\_\{t-1\}{]}, \textbackslash mathbf\{c\}\_\{t-1\}) \textbackslash\textbackslash{} \textbackslash mathbf\{h\}\_t \&= \textbackslash hat\{\textbackslash mathbf\{h\}\}\_t + f\textquotesingle(\textbackslash mathbf\{x\}) \textbackslash\textbackslash{} \textbackslash mathbf\{r\}\_\{t-1\} \&= \textbackslash sum\_\{i=1\}\^{}k a(\textbackslash mathbf\{h\}\_\{t-1\}, g(\textbackslash mathbf\{x\}\_i)) g(\textbackslash mathbf\{x\}\_i) \textbackslash\textbackslash{} a(\textbackslash mathbf\{h\}\_\{t-1\}, g(\textbackslash mathbf\{x\}\_i)) \&= \textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\_\{t-1\}\^{}\textbackslash top g(\textbackslash mathbf\{x\}\_i)) = \textbackslash frac\{\textbackslash exp(\textbackslash mathbf\{h\}\_\{t-1\}\^{}\textbackslash top g(\textbackslash mathbf\{x\}\_i))\}\{\textbackslash sum\_\{j=1\}\^{}k \textbackslash exp(\textbackslash mathbf\{h\}\_\{t-1\}\^{}\textbackslash top g(\textbackslash mathbf\{x\}\_j))\} \textbackslash end\{aligned\} \$\$
+
+  \begin{enumerate}
+  \setcounter{enumi}{2}
+  \tightlist
+  \item
+    Eventually \$f(\textbackslash mathbf\{x\}, S)=\textbackslash mathbf\{h\}\_K\$ if we do K steps of ``read''.
+  \end{enumerate}
+\end{itemize}
+
+This embedding method is called ``Full Contextual Embeddings (FCE)''. Interestingly it does help improve the performance on a hard task (few-shot classification on mini ImageNet), but makes no difference on a simple task (Omniglot).
+
+The training process in Matching Networks is designed to match inference at test time, see the details in the earlier \hyperref[training-in-the-same-way-as-testing]{section}. It is worthy of mentioning that the Matching Networks paper refined the idea that training and testing conditions should match.
+
+\$\$ \textbackslash theta\^{}* = \textbackslash arg\textbackslash max\_\textbackslash theta \textbackslash mathbb\{E\}\_\{L\textbackslash subset\textbackslash mathcal\{L\}\}{[} \textbackslash mathbb\{E\}\_\{S\^{}L \textbackslash subset\textbackslash mathcal\{D\}, B\^{}L \textbackslash subset\textbackslash mathcal\{D\}\} {[}\textbackslash sum\_\{(\textbackslash mathbf\{x\}, y)\textbackslash in B\^{}L\} P\_\textbackslash theta(y\textbackslash vert\textbackslash mathbf\{x\}, S\^{}L){]}{]} \$\$
+
+\subsection{\texorpdfstring{Relation Network\hyperref[relation-network]{\#}}{Relation Network\#}}\label{relation-network}
+
+\textbf{Relation Network (RN)} (\href{http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf}{Sung et al., 2018}) is similar to \hyperref[convolutional-siamese-neural-network]{siamese network} but with a few differences:
+
+\begin{enumerate}
+\tightlist
+\item
+  The relationship is not captured by a simple L1 distance in the feature space, but predicted by a CNN classifier \$g\_\textbackslash phi\$. The relation score between a pair of inputs, \$\textbackslash mathbf\{x\}\_i\$ and \$\textbackslash mathbf\{x\}\_j\$, is \$r\_\{ij\} = g\_\textbackslash phi({[}\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j{]})\$ where \${[}.,.{]}\$ is concatenation.
+\item
+  The objective function is MSE loss instead of cross-entropy, because conceptually RN focuses more on predicting relation scores which is more like regression, rather than binary classification, \$\textbackslash mathcal\{L\}(B) = \textbackslash sum\_\{(\textbackslash mathbf\{x\}\_i, \textbackslash mathbf\{x\}\_j, y\_i, y\_j)\textbackslash in B\} (r\_\{ij\} - \textbackslash mathbf\{1\}\_\{y\_i=y\_j\})\^{}2\$.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\includegraphics{relation-network.png}
+\caption{Relation Network architecture for a 5-way 1-shot problem with one query example. (Image source: \href{http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf}{original paper})}
+\end{figure}
+
+(Note: There is another \href{https://deepmind.com/blog/neural-approach-relational-reasoning/}{Relation Network} for relational reasoning, proposed by DeepMind. Don't get confused.)
+
+\subsection{\texorpdfstring{Prototypical Networks\hyperref[prototypical-networks]{\#}}{Prototypical Networks\#}}\label{prototypical-networks}
+
+\textbf{Prototypical Networks} (\href{http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf}{Snell, Swersky \& Zemel, 2017}) use an embedding function \$f\_\textbackslash theta\$ to encode each input into a \$M\$-dimensional feature vector. A \emph{prototype} feature vector is defined for every class \$c \textbackslash in \textbackslash mathcal\{C\}\$, as the mean vector of the embedded support data samples in this class.
+
+\$\$ \textbackslash mathbf\{v\}\_c = \textbackslash frac\{1\}\{\textbar S\_c\textbar\} \textbackslash sum\_\{(\textbackslash mathbf\{x\}\_i, y\_i) \textbackslash in S\_c\} f\_\textbackslash theta(\textbackslash mathbf\{x\}\_i) \$\$
+
+\begin{figure}
+\centering
+\includegraphics{prototypical-networks.png}
+\caption{Prototypical networks in the few-shot and zero-shot scenarios. (Image source: \href{http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf}{original paper})}
+\end{figure}
+
+The distribution over classes for a given test input \$\textbackslash mathbf\{x\}\$ is a softmax over the inverse of distances between the test data embedding and prototype vectors.
+
+\$\$ P(y=c\textbackslash vert\textbackslash mathbf\{x\})=\textbackslash text\{softmax\}(-d\_\textbackslash varphi(f\_\textbackslash theta(\textbackslash mathbf\{x\}), \textbackslash mathbf\{v\}\_c)) = \textbackslash frac\{\textbackslash exp(-d\_\textbackslash varphi(f\_\textbackslash theta(\textbackslash mathbf\{x\}), \textbackslash mathbf\{v\}\_c))\}\{\textbackslash sum\_\{c\textquotesingle{} \textbackslash in \textbackslash mathcal\{C\}\}\textbackslash exp(-d\_\textbackslash varphi(f\_\textbackslash theta(\textbackslash mathbf\{x\}), \textbackslash mathbf\{v\}\_\{c\textquotesingle\}))\} \$\$
+
+where \$d\_\textbackslash varphi\$ can be any distance function as long as \$\textbackslash varphi\$ is differentiable. In the paper, they used the squared euclidean distance.
+
+The loss function is the negative log-likelihood: \$\textbackslash mathcal\{L\}(\textbackslash theta) = -\textbackslash log P\_\textbackslash theta(y=c\textbackslash vert\textbackslash mathbf\{x\})\$.
+
+\section{\texorpdfstring{Model-Based\hyperref[model-based]{\#}}{Model-Based\#}}\label{model-based}
+
+Model-based meta-learning models make no assumption on the form of \$P\_\textbackslash theta(y\textbackslash vert\textbackslash mathbf\{x\})\$. Rather it depends on a model designed specifically for fast learning --- a model that updates its parameters rapidly with a few training steps. This rapid parameter update can be achieved by its internal architecture or controlled by another meta-learner model.
+
+\subsection{\texorpdfstring{Memory-Augmented Neural Networks\hyperref[memory-augmented-neural-networks]{\#}}{Memory-Augmented Neural Networks\#}}\label{memory-augmented-neural-networks}
+
+A family of model architectures use external memory storage to facilitate the learning process of neural networks, including \href{https://lilianweng.github.io/posts/2018-06-24-attention/\#neural-turing-machines}{Neural Turing Machines} and \href{https://arxiv.org/abs/1410.3916}{Memory Networks}. With an explicit storage buffer, it is easier for the network to rapidly incorporate new information and not to forget in the future. Such a model is known as \textbf{MANN}, short for ``\textbf{Memory-Augmented Neural Network}''. Note that recurrent neural networks with only \emph{internal memory} such as vanilla RNN or LSTM are not MANNs.
+
+Because MANN is expected to encode new information fast and thus to adapt to new tasks after only a few samples, it fits well for meta-learning. Taking the Neural Turing Machine (NTM) as the base model, \href{http://proceedings.mlr.press/v48/santoro16.pdf}{Santoro et al. (2016)} proposed a set of modifications on the training setup and the memory retrieval mechanisms (or ``addressing mechanisms'', deciding how to assign attention weights to memory vectors). Please go through \href{https://lilianweng.github.io/posts/2018-06-24-attention/\#neural-turing-machines}{the NTM section} in my other post first if you are not familiar with this matter before reading forward.
+
+As a quick recap, NTM couples a controller neural network with external memory storage. The controller learns to read and write memory rows by soft attention, while the memory serves as a knowledge repository. The attention weights are generated by its addressing mechanism: content-based + location based.
+
+\begin{figure}
+\centering
+\includegraphics{NTM.png}
+\caption{The architecture of Neural Turing Machine (NTM). The memory at time t, \$\textbackslash mathbf\{M\}\textbackslash\_t\$ is a matrix of size \$N \textbackslash times M\$, containing N vector rows and each has M dimensions.}
+\end{figure}
+
+\subsubsection{\texorpdfstring{MANN for Meta-Learning\hyperref[mann-for-meta-learning]{\#}}{MANN for Meta-Learning\#}}\label{mann-for-meta-learning}
+
+To use MANN for meta-learning tasks, we need to train it in a way that the memory can encode and capture information of new tasks fast and, in the meantime, any stored representation is easily and stably accessible.
+
+The training described in \href{http://proceedings.mlr.press/v48/santoro16.pdf}{Santoro et al., 2016} happens in an interesting way so that the memory is forced to hold information for longer until the appropriate labels are presented later. In each training episode, the truth label \$y\_t\$ is presented with \textbf{one step offset}, \$(\textbackslash mathbf\{x\}\_\{t+1\}, y\_t)\$: it is the true label for the input at the previous time step t, but presented as part of the input at time step t+1.
+
+\begin{figure}
+\centering
+\includegraphics{mann-meta-learning.png}
+\caption{Task setup in MANN for meta-learning (Image source: \href{http://proceedings.mlr.press/v48/santoro16.pdf}{original paper}).}
+\end{figure}
+
+In this way, MANN is motivated to memorize the information of a new dataset, because the memory has to hold the current input until the label is present later and then retrieve the old information to make a prediction accordingly.
+
+Next let us see how the memory is updated for efficient information retrieval and storage.
+
+\subsubsection{\texorpdfstring{Addressing Mechanism for Meta-Learning\hyperref[addressing-mechanism-for-meta-learning]{\#}}{Addressing Mechanism for Meta-Learning\#}}\label{addressing-mechanism-for-meta-learning}
+
+Aside from the training process, a new pure content-based addressing mechanism is utilized to make the model better suitable for meta-learning.
+
+\textbf{» How to read from memory?}\\
+The read attention is constructed purely based on the content similarity.
+
+First, a key feature vector \$\textbackslash mathbf\{k\}\_t\$ is produced at the time step t by the controller as a function of the input \$\textbackslash mathbf\{x\}\$. Similar to NTM, a read weighting vector \$\textbackslash mathbf\{w\}\_t\^{}r\$ of N elements is computed as the cosine similarity between the key vector and every memory vector row, normalized by softmax. The read vector \$\textbackslash mathbf\{r\}\_t\$ is a sum of memory records weighted by such weightings:
+
+\$\$ \textbackslash mathbf\{r\}\_i = \textbackslash sum\_\{i=1\}\^{}N w\_t\^{}r(i)\textbackslash mathbf\{M\}\_t(i) \textbackslash text\{, where \} w\_t\^{}r(i) = \textbackslash text\{softmax\}(\textbackslash frac\{\textbackslash mathbf\{k\}\_t \textbackslash cdot \textbackslash mathbf\{M\}\_t(i)\}\{\textbackslash\textbar\textbackslash mathbf\{k\}\_t\textbackslash\textbar{} \textbackslash cdot \textbackslash\textbar\textbackslash mathbf\{M\}\_t(i)\textbackslash\textbar\}) \$\$
+
+where \$M\_t\$ is the memory matrix at time t and \$M\_t(i)\$ is the i-th row in this matrix.
+
+\textbf{» How to write into memory?}\\
+The addressing mechanism for writing newly received information into memory operates a lot like the \href{https://en.wikipedia.org/wiki/Cache_replacement_policies}{cache replacement} policy. The \textbf{Least Recently Used Access (LRUA)} writer is designed for MANN to better work in the scenario of meta-learning. A LRUA write head prefers to write new content to either the \emph{least used} memory location or the \emph{most recently used} memory location.
+
+\begin{itemize}
+\tightlist
+\item
+  Rarely used locations: so that we can preserve frequently used information (see \href{https://en.wikipedia.org/wiki/Least_frequently_used}{LFU});
+\item
+  The last used location: the motivation is that once a piece of information is retrieved once, it probably won't be called again for a while (see \href{https://en.wikipedia.org/wiki/Cache_replacement_policies\#Most_recently_used_(MRU)}{MRU}).
+\end{itemize}
+
+There are many cache replacement algorithms and each of them could potentially replace the design here with better performance in different use cases. Furthermore, it would be a good idea to learn the memory usage pattern and addressing strategies rather than arbitrarily set it.
+
+The preference of LRUA is carried out in a way that everything is differentiable:
+
+\begin{enumerate}
+\tightlist
+\item
+  The usage weight \$\textbackslash mathbf\{w\}\^{}u\_t\$ at time t is a sum of current read and write vectors, in addition to the decayed last usage weight, \$\textbackslash gamma \textbackslash mathbf\{w\}\^{}u\_\{t-1\}\$, where \$\textbackslash gamma\$ is a decay factor.
+\item
+  The write vector is an interpolation between the previous read weight (prefer ``the last used location'') and the previous least-used weight (prefer ``rarely used location''). The interpolation parameter is the sigmoid of a hyperparameter \$\textbackslash alpha\$.
+\item
+  The least-used weight \$\textbackslash mathbf\{w\}\^{}\{lu\}\$ is scaled according to usage weights \$\textbackslash mathbf\{w\}\_t\^{}u\$, in which any dimension remains at 1 if smaller than the n-th smallest element in the vector and 0 otherwise.
+\end{enumerate}
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{w\}\_t\^{}u \&= \textbackslash gamma \textbackslash mathbf\{w\}\_\{t-1\}\^{}u + \textbackslash mathbf\{w\}\_t\^{}r + \textbackslash mathbf\{w\}\_t\^{}w \textbackslash\textbackslash{} \textbackslash mathbf\{w\}\_t\^{}r \&= \textbackslash text\{softmax\}(\textbackslash text\{cosine\}(\textbackslash mathbf\{k\}\_t, \textbackslash mathbf\{M\}\_t(i))) \textbackslash\textbackslash{} \textbackslash mathbf\{w\}\_t\^{}w \&= \textbackslash sigma(\textbackslash alpha)\textbackslash mathbf\{w\}\_\{t-1\}\^{}r + (1-\textbackslash sigma(\textbackslash alpha))\textbackslash mathbf\{w\}\^{}\{lu\}\_\{t-1\}\textbackslash\textbackslash{} \textbackslash mathbf\{w\}\_t\^{}\{lu\} \&= \textbackslash mathbf\{1\}\_\{w\_t\^{}u(i) \textbackslash leq m(\textbackslash mathbf\{w\}\_t\^{}u, n)\} \textbackslash text\{, where \}m(\textbackslash mathbf\{w\}\_t\^{}u, n)\textbackslash text\{ is the \}n\textbackslash text\{-th smallest element in vector \}\textbackslash mathbf\{w\}\_t\^{}u\textbackslash text\{.\} \textbackslash end\{aligned\} \$\$
+
+Finally, after the least used memory location, indicated by \$\textbackslash mathbf\{w\}\_t\^{}\{lu\}\$, is set to zero, every memory row is updated:
+
+\$\$ \textbackslash mathbf\{M\}\_t(i) = \textbackslash mathbf\{M\}\_\{t-1\}(i) + w\_t\^{}w(i)\textbackslash mathbf\{k\}\_t, \textbackslash forall i \$\$
+
+\subsection{\texorpdfstring{Meta Networks\hyperref[meta-networks]{\#}}{Meta Networks\#}}\label{meta-networks}
+
+\textbf{Meta Networks} (\href{https://arxiv.org/abs/1703.00837}{Munkhdalai \& Yu, 2017}), short for \textbf{MetaNet}, is a meta-learning model with architecture and training process designed for \emph{rapid} generalization across tasks.
+
+\subsubsection{\texorpdfstring{Fast Weights\hyperref[fast-weights]{\#}}{Fast Weights\#}}\label{fast-weights}
+
+The rapid generalization of MetaNet relies on ``fast weights''. There are a handful of papers on this topic, but I haven't read all of them in detail and I failed to find a very concrete definition, only a vague agreement on the concept. Normally weights in the neural networks are updated by stochastic gradient descent in an objective function and this process is known to be slow. One faster way to learn is to utilize one neural network to predict the parameters of another neural network and the generated weights are called \emph{fast weights}. In comparison, the ordinary SGD-based weights are named \emph{slow weights}.
+
+In MetaNet, loss gradients are used as \emph{meta information} to populate models that learn fast weights. Slow and fast weights are combined to make predictions in neural networks.
+
+\begin{figure}
+\centering
+\includegraphics{combine-slow-fast-weights.png}
+\caption{Combining slow and fast weights in a MLP. \$\textbackslash bigoplus\$ is element-wise sum. (Image source: \href{https://arxiv.org/abs/1703.00837}{original paper}).}
+\end{figure}
+
+\subsubsection{\texorpdfstring{Model Components\hyperref[model-components]{\#}}{Model Components\#}}\label{model-components}
+
+\begin{quote}
+Disclaimer: Below you will find my annotations are different from those in the paper. imo, the paper is poorly written, but the idea is still interesting. So I'm presenting the idea in my own language.
+\end{quote}
+
+Key components of MetaNet are:
+
+\begin{itemize}
+\tightlist
+\item
+  An embedding function \$f\_\textbackslash theta\$, parameterized by \$\textbackslash theta\$, encodes raw inputs into feature vectors. Similar to \hyperref[convolutional-siamese-neural-network]{Siamese Neural Network}, these embeddings are trained to be useful for telling whether two inputs are of the same class (verification task).
+\item
+  A base learner model \$g\_\textbackslash phi\$, parameterized by weights \$\textbackslash phi\$, completes the actual learning task.
+\end{itemize}
+
+If we stop here, it looks just like \hyperref[relation-network]{Relation Network}. MetaNet, in addition, explicitly models the fast weights of both functions and then aggregates them back into the model (See Fig. 8).
+
+Therefore we need additional two functions to output fast weights for \$f\$ and \$g\$ respectively.
+
+\begin{itemize}
+\tightlist
+\item
+  \$F\_w\$: a LSTM parameterized by \$w\$ for learning fast weights \$\textbackslash theta\^{}+\$ of the embedding function \$f\$. It takes as input gradients of \$f\$'s embedding loss for verification task.
+\item
+  \$G\_v\$: a neural network parameterized by \$v\$ learning fast weights \$\textbackslash phi\^{}+\$ for the base learner \$g\$ from its loss gradients. In MetaNet, the learner's loss gradients are viewed as the \emph{meta information} of the task.
+\end{itemize}
+
+Ok, now let's see how meta networks are trained. The training data contains multiple pairs of datasets: a support set \$S=\textbackslash\{\textbackslash mathbf\{x\}'\_i, y'\_i\textbackslash\}\_\{i=1\}\^{}K\$ and a test set \$U=\textbackslash\{\textbackslash mathbf\{x\}\_i, y\_i\textbackslash\}\_\{i=1\}\^{}L\$. Recall that we have four networks and four sets of model parameters to learn, \$(\textbackslash theta, \textbackslash phi, w, v)\$.
+
+\begin{figure}
+\centering
+\includegraphics{meta-network.png}
+\caption{Fig.9. The MetaNet architecture.}
+\end{figure}
+
+\subsubsection{\texorpdfstring{Training Process\hyperref[training-process]{\#}}{Training Process\#}}\label{training-process}
+
+\begin{enumerate}
+\item
+  Sample a random pair of inputs at each time step t from the support set \$S\$, \$(\textbackslash mathbf\{x\}'\_i, y'\_i)\$ and \$(\textbackslash mathbf\{x\}'\_j, y\_j)\$. Let \$\textbackslash mathbf\{x\}\_\{(t,1)\}=\textbackslash mathbf\{x\}'\_i\$ and \$\textbackslash mathbf\{x\}\_\{(t,2)\}=\textbackslash mathbf\{x\}'\_j\$.\\
+  for \$t = 1, \textbackslash dots, K\$:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    a. Compute a loss for representation learning; i.e., cross entropy for the verification task:\\
+    \$\textbackslash mathcal\{L\}\^{}\textbackslash text\{emb\}\_t = \textbackslash mathbf\{1\}\_\{y'\_i=y'\_j\} \textbackslash log P\_t + (1 - \textbackslash mathbf\{1\}\_\{y'\_i=y'\_j\})\textbackslash log(1 - P\_t)\textbackslash text\{, where \}P\_t = \textbackslash sigma(\textbackslash mathbf\{W\}\textbackslash vert f\_\textbackslash theta(\textbackslash mathbf\{x\}\_\{(t,1)\}) - f\_\textbackslash theta(\textbackslash mathbf\{x\}\_\{(t,2)\})\textbackslash vert)\$
+  \end{itemize}
+\item
+  Compute the task-level fast weights: \$\textbackslash theta\^{}+ = F\_w(\textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}\^{}\textbackslash text\{emb\}\_1, \textbackslash dots, \textbackslash mathcal\{L\}\^{}\textbackslash text\{emb\}\_T)\$
+\item
+  Next go through examples in the support set \$S\$ and compute the example-level fast weights. Meanwhile, update the memory with learned representations.\\
+  for \$i=1, \textbackslash dots, K\$:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    a. The base learner outputs a probability distribution: \$P(\textbackslash hat\{y\}\_i \textbackslash vert \textbackslash mathbf\{x\}\_i) = g\_\textbackslash phi(\textbackslash mathbf\{x\}\_i)\$ and the loss can be cross-entropy or MSE: \$\textbackslash mathcal\{L\}\^{}\textbackslash text\{task\}\_i = y'\_i \textbackslash log g\_\textbackslash phi(\textbackslash mathbf\{x\}'\_i) + (1- y'\_i) \textbackslash log (1 - g\_\textbackslash phi(\textbackslash mathbf\{x\}'\_i))\$
+  \item
+    b. Extract meta information (loss gradients) of the task and compute the example-level fast weights: \$\textbackslash phi\_i\^{}+ = G\_v(\textbackslash nabla\_\textbackslash phi\textbackslash mathcal\{L\}\^{}\textbackslash text\{task\}\_i)\$
+
+    \begin{itemize}
+    \tightlist
+    \item
+      Then store \$\textbackslash phi\^{}+\_i\$ into \$i\$-th location of the ``value'' memory \$\textbackslash mathbf\{M\}\$.\\
+    \end{itemize}
+  \item
+    d. Encode the support sample into a task-specific input representation using both slow and fast weights: \$r'\_i = f\_\{\textbackslash theta, \textbackslash theta\^{}+\}(\textbackslash mathbf\{x\}'\_i)\$
+
+    \begin{itemize}
+    \tightlist
+    \item
+      Then store \$r'\_i\$ into \$i\$-th location of the ``key'' memory \$\textbackslash mathbf\{R\}\$.
+    \end{itemize}
+  \end{itemize}
+\item
+  Finally it is the time to construct the training loss using the test set \$U=\textbackslash\{\textbackslash mathbf\{x\}\_i, y\_i\textbackslash\}\_\{i=1\}\^{}L\$.\\
+  Starts with \$\textbackslash mathcal\{L\}\_\textbackslash text\{train\}=0\$:\\
+  for \$j=1, \textbackslash dots, L\$:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    a. Encode the test sample into a task-specific input representation: \$r\_j = f\_\{\textbackslash theta, \textbackslash theta\^{}+\}(\textbackslash mathbf\{x\}\_j)\$
+  \item
+    b. The fast weights are computed by attending to representations of support set samples in memory \$\textbackslash mathbf\{R\}\$. The attention function is of your choice. Here MetaNet uses cosine similarity:\\
+  \end{itemize}
+
+  \$\$ \textbackslash begin\{aligned\} a\_j \&= \textbackslash text\{cosine\}(\textbackslash mathbf\{R\}, r\_j) = {[}\textbackslash frac\{r\textquotesingle\_1\textbackslash cdot r\_j\}\{\textbackslash\textbar r\textquotesingle\_1\textbackslash\textbar\textbackslash cdot\textbackslash\textbar r\_j\textbackslash\textbar\}, \textbackslash dots, \textbackslash frac\{r\textquotesingle\_N\textbackslash cdot r\_j\}\{\textbackslash\textbar r\textquotesingle\_N\textbackslash\textbar\textbackslash cdot\textbackslash\textbar r\_j\textbackslash\textbar\}{]}\textbackslash\textbackslash{} \textbackslash phi\^{}+\_j \&= \textbackslash text\{softmax\}(a\_j)\^{}\textbackslash top \textbackslash mathbf\{M\} \textbackslash end\{aligned\} \$\$
+
+  \begin{itemize}
+  \tightlist
+  \item
+    c. Update the training loss: \$\textbackslash mathcal\{L\}\_\textbackslash text\{train\} \textbackslash leftarrow \textbackslash mathcal\{L\}\_\textbackslash text\{train\} + \textbackslash mathcal\{L\}\^{}\textbackslash text\{task\}(g\_\{\textbackslash phi, \textbackslash phi\^{}+\}(\textbackslash mathbf\{x\}\_i), y\_i) \$
+  \end{itemize}
+\item
+  Update all the parameters \$(\textbackslash theta, \textbackslash phi, w, v)\$ using \$\textbackslash mathcal\{L\}\_\textbackslash text\{train\}\$.
+\end{enumerate}
+
+\section{\texorpdfstring{Optimization-Based\hyperref[optimization-based]{\#}}{Optimization-Based\#}}\label{optimization-based}
+
+Deep learning models learn through backpropagation of gradients. However, the gradient-based optimization is neither designed to cope with a small number of training samples, nor to converge within a small number of optimization steps. Is there a way to adjust the optimization algorithm so that the model can be good at learning with a few examples? This is what optimization-based approach meta-learning algorithms intend for.
+
+\subsection{\texorpdfstring{LSTM Meta-Learner\hyperref[lstm-meta-learner]{\#}}{LSTM Meta-Learner\#}}\label{lstm-meta-learner}
+
+The optimization algorithm can be explicitly modeled. \href{https://openreview.net/pdf?id=rJY0-Kcll}{Ravi \& Larochelle (2017)} did so and named it ``meta-learner'', while the original model for handling the task is called ``learner''. The goal of the meta-learner is to efficiently update the learner's parameters using a small support set so that the learner can adapt to the new task quickly.
+
+Let's denote the learner model as \$M\_\textbackslash theta\$ parameterized by \$\textbackslash theta\$, the meta-learner as \$R\_\textbackslash Theta\$ with parameters \$\textbackslash Theta\$, and the loss function \$\textbackslash mathcal\{L\}\$.
+
+\subsubsection{\texorpdfstring{Why LSTM?\hyperref[why-lstm]{\#}}{Why LSTM?\#}}\label{why-lstm}
+
+The meta-learner is modeled as a LSTM, because:
+
+\begin{enumerate}
+\tightlist
+\item
+  There is similarity between the gradient-based update in backpropagation and the cell-state update in LSTM.
+\item
+  Knowing a history of gradients benefits the gradient update; think about how \href{http://ruder.io/optimizing-gradient-descent/index.html\#momentum}{momentum} works.
+\end{enumerate}
+
+The update for the learner's parameters at time step t with a learning rate \$\textbackslash alpha\_t\$ is:
+
+\$\$ \textbackslash theta\_t = \textbackslash theta\_\{t-1\} - \textbackslash alpha\_t \textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t \$\$
+
+It has the same form as the cell state update in LSTM, if we set forget gate \$f\_t=1\$, input gate \$i\_t = \textbackslash alpha\_t\$, cell state \$c\_t = \textbackslash theta\_t\$, and new cell state \$\textbackslash tilde\{c\}\_t = -\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t\$:
+
+\$\$ \textbackslash begin\{aligned\} c\_t \&= f\_t \textbackslash odot c\_\{t-1\} + i\_t \textbackslash odot \textbackslash tilde\{c\}\_t\textbackslash\textbackslash{} \&= \textbackslash theta\_\{t-1\} - \textbackslash alpha\_t\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t \textbackslash end\{aligned\} \$\$
+
+While fixing \$f\_t=1\$ and \$i\_t=\textbackslash alpha\_t\$ might not be the optimal, both of them can be learnable and adaptable to different datasets.
+
+\$\$ \textbackslash begin\{aligned\} f\_t \&= \textbackslash sigma(\textbackslash mathbf\{W\}\_f \textbackslash cdot {[}\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t, \textbackslash mathcal\{L\}\_t, \textbackslash theta\_\{t-1\}, f\_\{t-1\}{]} + \textbackslash mathbf\{b\}\_f) \& \textbackslash scriptstyle\{\textbackslash text\{; how much to forget the old value of parameters.\}\}\textbackslash\textbackslash{} i\_t \&= \textbackslash sigma(\textbackslash mathbf\{W\}\_i \textbackslash cdot {[}\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t, \textbackslash mathcal\{L\}\_t, \textbackslash theta\_\{t-1\}, i\_\{t-1\}{]} + \textbackslash mathbf\{b\}\_i) \& \textbackslash scriptstyle\{\textbackslash text\{; corresponding to the learning rate at time step t.\}\}\textbackslash\textbackslash{} \textbackslash tilde\{\textbackslash theta\}\_t \&= -\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\}\textbackslash mathcal\{L\}\_t \&\textbackslash\textbackslash{} \textbackslash theta\_t \&= f\_t \textbackslash odot \textbackslash theta\_\{t-1\} + i\_t \textbackslash odot \textbackslash tilde\{\textbackslash theta\}\_t \&\textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+
+\subsubsection{\texorpdfstring{Model Setup\hyperref[model-setup]{\#}}{Model Setup\#}}\label{model-setup}
+
+\begin{figure}
+\centering
+\includegraphics{lstm-meta-learner.png}
+\caption{How the learner \$M\textbackslash\_\textbackslash theta\$ and the meta-learner \$R\textbackslash\_\textbackslash Theta\$ are trained. (Image source: \href{https://openreview.net/pdf?id=rJY0-Kcll)}{original paper} with more annotations)}
+\end{figure}
+
+The training process mimics what happens during test, since it has been proved to be beneficial in \hyperref[matching-networks]{Matching Networks}. During each training epoch, we first sample a dataset \$\textbackslash mathcal\{D\} = (\textbackslash mathcal\{D\}\_\textbackslash text\{train\}, \textbackslash mathcal\{D\}\_\textbackslash text\{test\}) \textbackslash in \textbackslash hat\{\textbackslash mathcal\{D\}\}\_\textbackslash text\{meta-train\}\$ and then sample mini-batches out of \$\textbackslash mathcal\{D\}\_\textbackslash text\{train\}\$ to update \$\textbackslash theta\$ for \$T\$ rounds. The final state of the learner parameter \$\textbackslash theta\_T\$ is used to train the meta-learner on the test data \$\textbackslash mathcal\{D\}\_\textbackslash text\{test\}\$.
+
+Two implementation details to pay extra attention to:
+
+\begin{enumerate}
+\tightlist
+\item
+  How to compress the parameter space in LSTM meta-learner? As the meta-learner is modeling parameters of another neural network, it would have hundreds of thousands of variables to learn. Following the \href{https://arxiv.org/abs/1606.04474}{idea} of sharing parameters across coordinates,
+\item
+  To simplify the training process, the meta-learner assumes that the loss \$\textbackslash mathcal\{L\}\_t\$ and the gradient \$\textbackslash nabla\_\{\textbackslash theta\_\{t-1\}\} \textbackslash mathcal\{L\}\_t\$ are independent.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\includegraphics{train-meta-learner.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\subsection{\texorpdfstring{MAML\hyperref[maml]{\#}}{MAML\#}}\label{maml}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\textbf{MAML}, short for \textbf{Model-Agnostic Meta-Learning} (\href{https://arxiv.org/abs/1703.03400}{Finn, et al. 2017}) is a fairly general optimization algorithm, compatible with any model that learns through gradient descent.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Let's say our model is \$f\_\textbackslash theta\$ with parameters \$\textbackslash theta\$. Given a task \$\textbackslash tau\_i\$ and its associated dataset \$(\textbackslash mathcal\{D\}\^{}\{(i)\}\_\textbackslash text\{train\}, \textbackslash mathcal\{D\}\^{}\{(i)\}\_\textbackslash text\{test\})\$, we can update the model parameters by one or more gradient descent steps (the following example only contains one step):
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash theta\textquotesingle\_i = \textbackslash theta - \textbackslash alpha \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}\_\{\textbackslash tau\_i\}(f\_\textbackslash theta) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+where \$\textbackslash mathcal\{L\}\^{}\{(0)\}\$ is the loss computed using the mini data batch with id (0).
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.0227272727272727e-2\linewidth}
+\centering
+\includegraphics{maml.png}
+\caption{Diagram of MAML. (Image source: \href{https://arxiv.org/abs/1703.03400}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Well, the above formula only optimizes for one task. To achieve a good generalization across a variety of tasks, we would like to find the optimal \$\textbackslash theta\^{}*\$ so that the task-specific fine-tuning is more efficient. Now, we sample a new data batch with id (1) for updating the meta-objective. The loss, denoted as \$\textbackslash mathcal\{L\}\^{}\{(1)\}\$, depends on the mini batch (1). The superscripts in \$\textbackslash mathcal\{L\}\^{}\{(0)\}\$ and \$\textbackslash mathcal\{L\}\^{}\{(1)\}\$ only indicate different data batches, and they refer to the same loss objective for the same task.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta\^{}* \&= \textbackslash arg\textbackslash min\_\textbackslash theta \textbackslash sum\_\{\textbackslash tau\_i \textbackslash sim p(\textbackslash tau)\} \textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\^{}\{(1)\} (f\_\{\textbackslash theta\textquotesingle\_i\}) = \textbackslash arg\textbackslash min\_\textbackslash theta \textbackslash sum\_\{\textbackslash tau\_i \textbackslash sim p(\textbackslash tau)\} \textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\^{}\{(1)\} (f\_\{\textbackslash theta - \textbackslash alpha\textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\^{}\{(0)\}(f\_\textbackslash theta)\}) \& \textbackslash\textbackslash{} \textbackslash theta \&\textbackslash leftarrow \textbackslash theta - \textbackslash beta \textbackslash nabla\_\{\textbackslash theta\} \textbackslash sum\_\{\textbackslash tau\_i \textbackslash sim p(\textbackslash tau)\} \textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\^{}\{(1)\} (f\_\{\textbackslash theta - \textbackslash alpha\textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\^{}\{(0)\}(f\_\textbackslash theta)\}) \& \textbackslash scriptstyle\{\textbackslash text\{; updating rule\}\} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.0227272727272727e-2\linewidth}
+\centering
+\includegraphics{maml-algo.png}
+\caption{The general form of MAML algorithm. (Image source: \href{https://arxiv.org/abs/1703.03400}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\subsubsection{\texorpdfstring{First-Order MAML\hyperref[first-order-maml]{\#}}{First-Order MAML\#}}\label{first-order-maml}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The meta-optimization step above relies on second derivatives. To make the computation less expensive, a modified version of MAML omits second derivatives, resulting in a simplified and cheaper implementation, known as \textbf{First-Order MAML (FOMAML)}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Let's consider the case of performing \$k\$ inner gradient steps, \$k\textbackslash geq1\$. Starting with the initial model parameter \$\textbackslash theta\_\textbackslash text\{meta\}\$:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta\_0 \&= \textbackslash theta\_\textbackslash text\{meta\}\textbackslash\textbackslash{} \textbackslash theta\_1 \&= \textbackslash theta\_0 - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_0)\textbackslash\textbackslash{} \textbackslash theta\_2 \&= \textbackslash theta\_1 - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_1)\textbackslash\textbackslash{} \&\textbackslash dots\textbackslash\textbackslash{} \textbackslash theta\_k \&= \textbackslash theta\_\{k-1\} - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_\{k-1\}) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Then in the outer loop, we sample a new data batch for updating the meta-objective.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta\_\textbackslash text\{meta\} \&\textbackslash leftarrow \textbackslash theta\_\textbackslash text\{meta\} - \textbackslash beta g\_\textbackslash text\{MAML\} \& \textbackslash scriptstyle\{\textbackslash text\{; update for meta-objective\}\} \textbackslash\textbackslash{[}2mm{]} \textbackslash text\{where \} g\_\textbackslash text\{MAML\} \&= \textbackslash nabla\_\{\textbackslash theta\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \&\textbackslash\textbackslash{[}2mm{]} \&= \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \textbackslash cdot (\textbackslash nabla\_\{\textbackslash theta\_\{k-1\}\} \textbackslash theta\_k) \textbackslash dots (\textbackslash nabla\_\{\textbackslash theta\_0\} \textbackslash theta\_1) \textbackslash cdot (\textbackslash nabla\_\{\textbackslash theta\} \textbackslash theta\_0) \& \textbackslash scriptstyle\{\textbackslash text\{; following the chain rule\}\} \textbackslash\textbackslash{} \&= \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \textbackslash cdot \textbackslash Big( \textbackslash prod\_\{i=1\}\^{}k \textbackslash nabla\_\{\textbackslash theta\_\{i-1\}\} \textbackslash theta\_i \textbackslash Big) \textbackslash cdot I \& \textbackslash\textbackslash{} \&= \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \textbackslash cdot \textbackslash prod\_\{i=1\}\^{}k \textbackslash nabla\_\{\textbackslash theta\_\{i-1\}\} (\textbackslash theta\_\{i-1\} - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_\{i-1\})) \& \textbackslash\textbackslash{} \&= \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \textbackslash cdot \textbackslash prod\_\{i=1\}\^{}k (I - \textbackslash alpha\textbackslash nabla\_\{\textbackslash theta\_\{i-1\}\}(\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_\{i-1\}))) \& \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The MAML gradient is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ g\_\textbackslash text\{MAML\} = \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \textbackslash cdot \textbackslash prod\_\{i=1\}\^{}k (I - \textbackslash alpha \textbackslash color\{red\}\{\textbackslash nabla\_\{\textbackslash theta\_\{i-1\}\}(\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_\{i-1\}))\}) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The First-Order MAML ignores the second derivative part in red. It is simplified as follows, equivalent to the derivative of the last inner gradient update result.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ g\_\textbackslash text\{FOMAML\} = \textbackslash nabla\_\{\textbackslash theta\_k\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_k) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\subsection{\texorpdfstring{Reptile\hyperref[reptile]{\#}}{Reptile\#}}\label{reptile}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\textbf{Reptile} (\href{https://arxiv.org/abs/1803.02999}{Nichol, Achiam \& Schulman, 2018}) is a remarkably simple meta-learning optimization algorithm. It is similar to MAML in many ways, given that both rely on meta-optimization through gradient descent and both are model-agnostic.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The Reptile works by repeatedly:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\begin{enumerate}
+\tightlist
+\item
+  sampling a task,
+\item
+  training on it by multiple gradient descent steps,
+\item
+  and then moving the model weights towards the new parameters.
+\end{enumerate}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+See the algorithm below: \$\textbackslash text\{SGD\}(\textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}, \textbackslash theta, k)\$ performs stochastic gradient update for k steps on the loss \$\textbackslash mathcal\{L\}\_\{\textbackslash tau\_i\}\$ starting with initial parameter \$\textbackslash theta\$ and returns the final parameter vector. The batch version samples multiple tasks instead of one within each iteration. The reptile gradient is defined as \$(\textbackslash theta - W)/\textbackslash alpha\$, where \$\textbackslash alpha\$ is the stepsize used by the SGD operation.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.0227272727272727e-2\linewidth}
+\centering
+\includegraphics{reptile-algo.png}
+\caption{The batched version of Reptile algorithm. (Image source: \href{https://arxiv.org/abs/1803.02999}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+At a glance, the algorithm looks a lot like an ordinary SGD. However, because the task-specific optimization can take more than one step. it eventually makes \$\textbackslash text\{SGD\}(\textbackslash mathbb\{E\} \_\textbackslash tau{[}\textbackslash mathcal\{L\}\_\{\textbackslash tau\}{]}, \textbackslash theta, k)\$ diverge from \$\textbackslash mathbb\{E\}\_\textbackslash tau {[}\textbackslash text\{SGD\}(\textbackslash mathcal\{L\}\_\{\textbackslash tau\}, \textbackslash theta, k){]}\$ when k \textgreater{} 1.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\subsubsection{\texorpdfstring{The Optimization Assumption\hyperref[the-optimization-assumption]{\#}}{The Optimization Assumption\#}}\label{the-optimization-assumption}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Assuming that a task \$\textbackslash tau \textbackslash sim p(\textbackslash tau)\$ has a manifold of optimal network configuration, \$\textbackslash mathcal\{W\}\_\{\textbackslash tau\}\^{}*\$. The model \$f\_\textbackslash theta\$ achieves the best performance for task \$\textbackslash tau\$ when \$\textbackslash theta\$ lays on the surface of \$\textbackslash mathcal\{W\}\_\{\textbackslash tau\}\^{}*\$. To find a solution that is good across tasks, we would like to find a parameter close to all the optimal manifolds of all tasks:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash theta\^{}* = \textbackslash arg\textbackslash min\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash tau \textbackslash sim p(\textbackslash tau)\} {[}\textbackslash frac\{1\}\{2\} \textbackslash text\{dist\}(\textbackslash theta, \textbackslash mathcal\{W\}\_\textbackslash tau\^{}*)\^{}2{]} \$\$
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.0227272727272727e-2\linewidth}
+\centering
+\includegraphics{reptile-optim.png}
+\caption{The Reptile algorithm updates the parameter alternatively to be closer to the optimal manifolds of different tasks. (Image source: \href{https://arxiv.org/abs/1803.02999}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Let's use the L2 distance as \$\textbackslash text\{dist\}(.)\$ and the distance between a point \$\textbackslash theta\$ and a set \$\textbackslash mathcal\{W\}\_\textbackslash tau\^{}*\$ equals to the distance between \$\textbackslash theta\$ and a point \$W\_\{\textbackslash tau\}\^{}*(\textbackslash theta)\$ on the manifold that is closest to \$\textbackslash theta\$:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash text\{dist\}(\textbackslash theta, \textbackslash mathcal\{W\}\_\{\textbackslash tau\}\^{}*) = \textbackslash text\{dist\}(\textbackslash theta, W\_\{\textbackslash tau\}\^{}*(\textbackslash theta)) \textbackslash text\{, where \}W\_\{\textbackslash tau\}\^{}*(\textbackslash theta) = \textbackslash arg\textbackslash min\_\{W\textbackslash in\textbackslash mathcal\{W\}\_\{\textbackslash tau\}\^{}*\} \textbackslash text\{dist\}(\textbackslash theta, W) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The gradient of the squared euclidean distance is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash nabla\_\textbackslash theta{[}\textbackslash frac\{1\}\{2\}\textbackslash text\{dist\}(\textbackslash theta, \textbackslash mathcal\{W\}\_\{\textbackslash tau\_i\}\^{}*)\^{}2{]} \&= \textbackslash nabla\_\textbackslash theta{[}\textbackslash frac\{1\}\{2\}\textbackslash text\{dist\}(\textbackslash theta, W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta))\^{}2{]} \& \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta{[}\textbackslash frac\{1\}\{2\}(\textbackslash theta - W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta))\^{}2{]} \& \textbackslash\textbackslash{} \&= \textbackslash theta - W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta) \& \textbackslash scriptstyle\{\textbackslash text\{; See notes.\}\} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Notes: According to the Reptile paper, \emph{``the gradient of the squared euclidean distance between a point \$\textbackslash Theta\$ and a set \$S\$ is the vector \$2(\textbackslash Theta − p)\$, where p is the closest point in \$S\$ to \$\textbackslash Theta\$''}. Technically the closest point in \$S\$ is also a function of \$\textbackslash Theta\$, but I'm not sure why the gradient does not need to worry about the derivative of \$p\$. (Please feel free to leave me a comment or send me an email about this if you have ideas.)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Thus the update rule for one stochastic gradient step is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash theta = \textbackslash theta - \textbackslash alpha \textbackslash nabla\_\textbackslash theta{[}\textbackslash frac\{1\}\{2\} \textbackslash text\{dist\}(\textbackslash theta, \textbackslash mathcal\{W\}\_\{\textbackslash tau\_i\}\^{}*)\^{}2{]} = \textbackslash theta - \textbackslash alpha(\textbackslash theta - W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta)) = (1-\textbackslash alpha)\textbackslash theta + \textbackslash alpha W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The closest point on the optimal task manifold \$W\_\{\textbackslash tau\_i\}\^{}*(\textbackslash theta)\$ cannot be computed exactly, but Reptile approximates it using \$\textbackslash text\{SGD\}(\textbackslash mathcal\{L\}\_\textbackslash tau, \textbackslash theta, k)\$.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\subsubsection{\texorpdfstring{Reptile vs FOMAML\hyperref[reptile-vs-fomaml]{\#}}{Reptile vs FOMAML\#}}\label{reptile-vs-fomaml}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+To demonstrate the deeper connection between Reptile and MAML, let's expand the update formula with an example performing two gradient steps, k=2 in \$\textbackslash text\{SGD\}(.)\$. Same as defined \hyperref[maml]{above}, \$\textbackslash mathcal\{L\}\^{}\{(0)\}\$ and \$\textbackslash mathcal\{L\}\^{}\{(1)\}\$ are losses using different mini-batches of data. For ease of reading, we adopt two simplified annotations: \$g\^{}\{(i)\}\_j = \textbackslash nabla\_\{\textbackslash theta\} \textbackslash mathcal\{L\}\^{}\{(i)\}(\textbackslash theta\_j)\$ and \$H\^{}\{(i)\}\_j = \textbackslash nabla\^{}2\_\{\textbackslash theta\} \textbackslash mathcal\{L\}\^{}\{(i)\}(\textbackslash theta\_j)\$.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta\_0 \&= \textbackslash theta\_\textbackslash text\{meta\}\textbackslash\textbackslash{} \textbackslash theta\_1 \&= \textbackslash theta\_0 - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_0)= \textbackslash theta\_0 - \textbackslash alpha g\^{}\{(0)\}\_0 \textbackslash\textbackslash{} \textbackslash theta\_2 \&= \textbackslash theta\_1 - \textbackslash alpha\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_1) = \textbackslash theta\_0 - \textbackslash alpha g\^{}\{(0)\}\_0 - \textbackslash alpha g\^{}\{(1)\}\_1 \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+According to the \hyperref[first-order-maml]{early section}, the gradient of FOMAML is the last inner gradient update result. Therefore, when k=1:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_\textbackslash text\{FOMAML\} \&= \textbackslash nabla\_\{\textbackslash theta\_1\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_1) = g\^{}\{(1)\}\_1 \textbackslash\textbackslash{} g\_\textbackslash text\{MAML\} \&= \textbackslash nabla\_\{\textbackslash theta\_1\} \textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_1) \textbackslash cdot (I - \textbackslash alpha\textbackslash nabla\^{}2\_\{\textbackslash theta\} \textbackslash mathcal\{L\}\^{}\{(0)\}(\textbackslash theta\_0)) = g\^{}\{(1)\}\_1 - \textbackslash alpha H\^{}\{(0)\}\_0 g\^{}\{(1)\}\_1 \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The Reptile gradient is defined as:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ g\_\textbackslash text\{Reptile\} = (\textbackslash theta\_0 - \textbackslash theta\_2) / \textbackslash alpha = g\^{}\{(0)\}\_0 + g\^{}\{(1)\}\_1 \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Up to now we have:
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.0227272727272727e-2\linewidth}
+\centering
+\includegraphics{reptile_vs_FOMAML.png}
+\caption{Reptile versus FOMAML in one loop of meta-optimization. (Image source: \href{https://www.slideshare.net/YoonhoLee4/on-firstorder-metalearning-algorithms}{slides} on Reptile by Yoonho Lee.)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_\textbackslash text\{FOMAML\} \&= g\^{}\{(1)\}\_1 \textbackslash\textbackslash{} g\_\textbackslash text\{MAML\} \&= g\^{}\{(1)\}\_1 - \textbackslash alpha H\^{}\{(0)\}\_0 g\^{}\{(1)\}\_1 \textbackslash\textbackslash{} g\_\textbackslash text\{Reptile\} \&= g\^{}\{(0)\}\_0 + g\^{}\{(1)\}\_1 \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Next let's try further expand \$g\^{}\{(1)\}\_1\$ using \href{https://en.wikipedia.org/wiki/Taylor_series}{Taylor expansion}. Recall that Taylor expansion of a function \$f(x)\$ that is differentiable at a number \$a\$ is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ f(x) = f(a) + \textbackslash frac\{f\textquotesingle(a)\}\{1!\}(x-a) + \textbackslash frac\{f\textquotesingle\textquotesingle(a)\}\{2!\}(x-a)\^{}2 + \textbackslash dots = \textbackslash sum\_\{i=0\}\^{}\textbackslash infty \textbackslash frac\{f\^{}\{(i)\}(a)\}\{i!\}(x-a)\^{}i \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+We can consider \$\textbackslash nabla\_\{\textbackslash theta\}\textbackslash mathcal\{L\}\^{}\{(1)\}(.)\$ as a function and \$\textbackslash theta\_0\$ as a value point. The Taylor expansion of \$g\_1\^{}\{(1)\}\$ at the value point \$\textbackslash theta\_0\$ is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_1\^{}\{(1)\} \&= \textbackslash nabla\_\{\textbackslash theta\}\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_1) \textbackslash\textbackslash{} \&= \textbackslash nabla\_\{\textbackslash theta\}\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_0) + \textbackslash nabla\^{}2\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_0)(\textbackslash theta\_1 - \textbackslash theta\_0) + \textbackslash frac\{1\}\{2\}\textbackslash nabla\^{}3\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_0)(\textbackslash theta\_1 - \textbackslash theta\_0)\^{}2 + \textbackslash dots \& \textbackslash\textbackslash{} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + \textbackslash frac\{\textbackslash alpha\^{}2\}\{2\}\textbackslash nabla\^{}3\_\textbackslash theta\textbackslash mathcal\{L\}\^{}\{(1)\}(\textbackslash theta\_0) (g\_0\^{}\{(0)\})\^{}2 + \textbackslash dots \& \textbackslash scriptstyle\{\textbackslash text\{; because \}\textbackslash theta\_1-\textbackslash theta\_0=-\textbackslash alpha g\_0\^{}\{(0)\}\} \textbackslash\textbackslash{} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Plug in the expanded form of \$g\_1\^{}\{(1)\}\$ into the MAML gradients with one step inner gradient update:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_\textbackslash text\{FOMAML\} \&= g\^{}\{(1)\}\_1 = g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} g\_\textbackslash text\{MAML\} \&= g\^{}\{(1)\}\_1 - \textbackslash alpha H\^{}\{(0)\}\_0 g\^{}\{(1)\}\_1 \textbackslash\textbackslash{} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2) - \textbackslash alpha H\^{}\{(0)\}\_0 (g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2))\textbackslash\textbackslash{} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} - \textbackslash alpha H\^{}\{(0)\}\_0 g\_0\^{}\{(1)\} + \textbackslash alpha\^{}2 \textbackslash alpha H\^{}\{(0)\}\_0 H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} - \textbackslash alpha H\^{}\{(0)\}\_0 g\_0\^{}\{(1)\} + O(\textbackslash alpha\^{}2) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+The Reptile gradient becomes:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_\textbackslash text\{Reptile\} \&= g\^{}\{(0)\}\_0 + g\^{}\{(1)\}\_1 \textbackslash\textbackslash{} \&= g\^{}\{(0)\}\_0 + g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+So far we have the formula of three types of gradients:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} g\_\textbackslash text\{FOMAML\} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} g\_\textbackslash text\{MAML\} \&= g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} - \textbackslash alpha H\^{}\{(0)\}\_0 g\_0\^{}\{(1)\} + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} g\_\textbackslash text\{Reptile\} \&= g\^{}\{(0)\}\_0 + g\_0\^{}\{(1)\} - \textbackslash alpha H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + O(\textbackslash alpha\^{}2) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+During training, we often average over multiple data batches. In our example, the mini batches (0) and (1) are interchangeable since both are drawn at random. The expectation \$\textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\}\$ is averaged over two data batches, ids (0) and (1), for task \$\textbackslash tau\$.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Let,
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \$A = \textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\} {[}g\_0\^{}\{(0)\}{]} = \textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\} {[}g\_0\^{}\{(1)\}{]}\$; it is the average gradient of task loss. We expect to improve the model parameter to achieve better task performance by following this direction pointed by \$A\$.
+\item
+  \$B = \textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\} {[}H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\}{]} = \textbackslash frac\{1\}\{2\}\textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\} {[}H\^{}\{(1)\}\_0 g\_0\^{}\{(0)\} + H\^{}\{(0)\}\_0 g\_0\^{}\{(1)\}{]} = \textbackslash frac\{1\}\{2\}\textbackslash mathbb\{E\}\_\{\textbackslash tau,0,1\} {[}\textbackslash nabla\_\textbackslash theta(g\^{}\{(0)\}\_0 g\_0\^{}\{(1)\}){]}\$; it is the direction (gradient) that increases the inner product of gradients of two different mini batches for the same task. We expect to improve the model parameter to achieve better generalization over different data by following this direction pointed by \$B\$.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+To conclude, both MAML and Reptile aim to optimize for the same goal, better task performance (guided by A) and better generalization (guided by B), when the gradient update is approximated by first three leading terms.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbb\{E\}\_\{\textbackslash tau,1,2\}{[}g\_\textbackslash text\{FOMAML\}{]} \&= A - \textbackslash alpha B + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} \textbackslash mathbb\{E\}\_\{\textbackslash tau,1,2\}{[}g\_\textbackslash text\{MAML\}{]} \&= A - 2\textbackslash alpha B + O(\textbackslash alpha\^{}2)\textbackslash\textbackslash{} \textbackslash mathbb\{E\}\_\{\textbackslash tau,1,2\}{[}g\_\textbackslash text\{Reptile\}{]} \&= 2A - \textbackslash alpha B + O(\textbackslash alpha\^{}2) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+It is not clear to me whether the ignored term \$O(\textbackslash alpha\^{}2)\$ might play a big impact on the parameter learning. But given that FOMAML is able to obtain a similar performance as the full version of MAML, it might be safe to say higher-level derivatives would not be critical during gradient descent update.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+Cited as:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\begin{verbatim}
+@article{weng2018metalearning,
+  title   = "Meta-Learning: Learning to Learn Fast",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2018",
+  url     = "https://lilianweng.github.io/posts/2018-11-30-meta-learning/"
+}
+\end{verbatim}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\section{\texorpdfstring{Reference\hyperref[reference]{\#}}{Reference\#}}\label{reference}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}1{]} Brenden M. Lake, Ruslan Salakhutdinov, and Joshua B. Tenenbaum. \href{https://www.cs.cmu.edu/~rsalakhu/papers/LakeEtAl2015Science.pdf}{``Human-level concept learning through probabilistic program induction.''} Science 350.6266 (2015): 1332-1338.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}2{]} Oriol Vinyals' talk on \href{http://metalearning-symposium.ml/files/vinyals.pdf}{``Model vs Optimization Meta Learning''}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}3{]} Gregory Koch, Richard Zemel, and Ruslan Salakhutdinov. \href{http://www.cs.toronto.edu/~rsalakhu/papers/oneshot1.pdf}{``Siamese neural networks for one-shot image recognition.''} ICML Deep Learning Workshop. 2015.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}4{]} Oriol Vinyals, et al. \href{http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf}{``Matching networks for one shot learning.''} NIPS. 2016.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}5{]} Flood Sung, et al. \href{http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf}{``Learning to compare: Relation network for few-shot learning.''} CVPR. 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}6{]} Jake Snell, Kevin Swersky, and Richard Zemel. \href{http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf}{``Prototypical Networks for Few-shot Learning.''} CVPR. 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}7{]} Adam Santoro, et al. \href{http://proceedings.mlr.press/v48/santoro16.pdf}{``Meta-learning with memory-augmented neural networks.''} ICML. 2016.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}8{]} Alex Graves, Greg Wayne, and Ivo Danihelka. \href{https://arxiv.org/abs/1410.5401}{``Neural turing machines.''} arXiv preprint arXiv:1410.5401 (2014).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}9{]} Tsendsuren Munkhdalai and Hong Yu. \href{https://arxiv.org/abs/1703.00837}{``Meta Networks.''} ICML. 2017.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}10{]} Sachin Ravi and Hugo Larochelle. \href{https://openreview.net/pdf?id=rJY0-Kcll}{``Optimization as a Model for Few-Shot Learning.''} ICLR. 2017.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}11{]} Chelsea Finn's BAIR blog on \href{https://bair.berkeley.edu/blog/2017/07/18/learning-to-learn/}{``Learning to Learn''}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}12{]} Chelsea Finn, Pieter Abbeel, and Sergey Levine. \href{https://arxiv.org/abs/1703.03400}{``Model-agnostic meta-learning for fast adaptation of deep networks.''} ICML 2017.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}13{]} Alex Nichol, Joshua Achiam, John Schulman. \href{https://arxiv.org/abs/1803.02999}{``On First-Order Meta-Learning Algorithms.''} arXiv preprint arXiv:1803.02999 (2018).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{[}14{]} \href{https://www.slideshare.net/YoonhoLee4/on-firstorder-metalearning-algorithms}{Slides on Reptile} by Yoonho Lee.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/meta-learning/}{Meta-Learning}
+\item
+  \href{https://lilianweng.github.io/tags/long-read/}{Long-Read}
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\href{https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/}{{« }\\
+{Object Detection Part 4: Fast Detection Models}} \href{https://lilianweng.github.io/posts/2018-10-13-flow-models/}{{ »}\\
+{Flow-based Deep Generative Models}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\href{https://twitter.com/intent/tweet/?text=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f&hashtags=meta-learning\%2clong-read}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f&title=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast&summary=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f&title=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f}{} \href{https://api.whatsapp.com/send?text=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f}{} \href{https://telegram.me/share/url?text=Meta-Learning\%3a\%20Learning\%20to\%20Learn\%20Fast&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-11-30-meta-learning\%2f}{}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.0227272727272727e-2\linewidth}
+\phantomsection\label{top-link}\hyperref[top]{}
+\end{minipage}
+\caption{}
+\end{figure}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{Telegram}
+\end{center}
+
+
+
+\end{document}

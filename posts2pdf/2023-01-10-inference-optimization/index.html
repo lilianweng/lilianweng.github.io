@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Large Transformer Model Inference Optimization | Lil&#39;Log</title>
+<meta name="keywords" content="language-model, long-read&#34;, architecture, attention, transformer, foundation" />
+<meta name="description" content="[Updated on 2023-01-24: add a small section on Distillation.]
+Large transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.
+Why is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Large Transformer Model Inference Optimization" />
+<meta property="og:description" content="[Updated on 2023-01-24: add a small section on Distillation.]
+Large transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.
+Why is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-01-10T10:00:00-07:00" />
+<meta property="article:modified_time" content="2023-01-10T10:00:00-07:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Large Transformer Model Inference Optimization"/>
+<meta name="twitter:description" content="[Updated on 2023-01-24: add a small section on Distillation.]
+Large transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.
+Why is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Large Transformer Model Inference Optimization",
+      "item": "https://lilianweng.github.io/posts/2023-01-10-inference-optimization/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Large Transformer Model Inference Optimization",
+  "name": "Large Transformer Model Inference Optimization",
+  "description": "[Updated on 2023-01-24: add a small section on Distillation.]\nLarge transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.\nWhy is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):\n",
+  "keywords": [
+    "language-model", "long-read\"", "architecture", "attention", "transformer", "foundation"
+  ],
+  "articleBody": "[Updated on 2023-01-24: add a small section on Distillation.]\nLarge transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.\nWhy is it hard to run inference for large transformer models? Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (Pope et al. 2022):\nLarge memory footprint. Both model parameters and intermediate states are needed in memory at inference time. For example, The KV cache should be stored in memory during decoding time; E.g. For a batch size of 512 and context length of 2048, the KV cache totals 3TB, that is 3x the model size (!). Inference cost from the attention mechanism scales quadratically with input sequence length. Low parallelizability. Inference generation is executed in an autoregressive fashion, making the decoding process hard to parallel. In this post, we will look into several approaches for making transformer inference more efficient. Some are general network compression methods, while others are specific to transformer architecture.\nMethods Overview We in general consider the following as goals for model inference optimization:\nReduce the memory footprint of the model by using fewer GPU devices and less GPU memory; Reduce the desired computation complexity by lowering the number of FLOPs needed; Reduce the inference latency and make things run faster. Several methods can be used to make inference cheaper in memory or/and faster in time.\nApply various parallelism to scale up the model across a large number of GPUs. Smart parallelism of model components and data makes it possible to run a model of trillions of parameters. Memory offloading to offload temporarily unused data to the CPU and read them back when needed later. This helps with memory usage but causes higher latency. Smart batching strategy; E.g. EffectiveTransformer packs consecutive sequences together to remove padding within one batch. Network compression techniques, such as pruning, quantization, distillation. A model of smaller size, in terms of parameter count or bitwidth, should demand less memory and run faster. Improvement specific to a target model architecture. Many architectural changes, especially those for attention layers, help with transformer decoding speed. Check the previous post on large model training on different types of training parallelism and memory saving designs including CPU memory offloading. This post focuses on network compression techniques and architecture-specific improvement for transformer models.\nDistillation Knowledge Distillation (KD; Hinton et al. 2015, Gou et al. 2020) is a straightforward way to build a smaller, cheaper model (“student model”) to speed up inference by transferring skills from a pre-trained expensive model (“teacher model”) into the student. There is no much restriction on how the student architecture should be constructed, except for a matched output space with the teacher in order to construct a proper learning objective.\nThe generic framework of teacher-student knowledge distillation training. (Image source: Gou et al. 2020) Given a dataset, a student model is trained to mimic outputs of a teacher via distillation loss. Usually a neural network has a softmax layer; For example, a LLM outputs a probability distribution over tokens. Let’s denote the logits layer right before softmax as $\\mathbf{z}_t$ and $\\mathbf{z}_s$ for teacher and student models, respectively. The distillation loss minimizes the difference between two softmax outputs with a high temperature $T$. When ground truth labels $\\mathbf{y}$ are known, we can combine it with a supervised learning objective between ground truth and the student’s soft logits using e.g. cross-entropy.\n$$ \\mathcal{L}_\\text{KD} = \\mathcal{L}_\\text{distll}(\\text{softmax}(\\mathbf{z}_t, T), \\text{softmax}(\\mathbf{z}_s, T)) + \\lambda\\mathcal{L}_\\text{CE}(\\mathbf{y}, \\mathbf{z}_s) $$ where $\\lambda$ is a hyperparameter to balance between soft and hard learning objectives. A common choice for $\\mathcal{L}_\\text{distll}$ is KL divergence / cross entropy.\nA successful early trial is DistilBERT (Sanh et al. 2019) that is able to reduce the parameters of a BERT by 40% while maintaining 97% performance of BERT on fine-tuned downstream tasks and running 71% faster. The loss of pre-training DistilBERT is a combination of soft distillation loss, supervised training loss (i.e. Masked language modeling loss $\\mathcal{L}_\\text{MLM}$ in the case of BERT) and a special cosine embedding loss to align the hidden state vectors between teacher and student.\nDistillation can be easily combined with quantization, pruning or sparsification techniques, where the teacher model is the original full-precision, dense model and the student is quantized, pruned, or trimmed to have higher sparsity level.\nQuantization There are two common approaches for applying quantization on a deep neural network:\nPost-Training Quantization (PTQ): A model is first trained to convergence and then we convert its weights to lower precision without more training. It is usually quite cheap to implement, in comparison to training. Quantization-Aware Training (QAT): Quantization is applied during pre-training or further fine-tuning. QAT is able to attain better performance but requires extra computation resources and access to representative training data. We should be aware of the gap between theoretical optimal quantization strategy and the hardware kernel support. Due to the lack of GPU kernel support for certain types of matrix multiplication (e.g. INT4 x FP16), not all the methods below result in speedup for the actual inference.\nChallenges for Transformer Quantization Many studies on Transformer model quantization have the same observation: A simple low-precision (e.g. 8-bit) post-training quantization leads to significant performance drop mainly due to the high dynamic ranges of activation and a naive activation quantization strategy fails to maintain the capacity.\nOnly quantizing model weights to 8-bit while keeping activation at full precision (`W8A32`) achieves much better results when activations are quantized to 8-bit irrespective of whether weights are in lower precision (`W8A8` and `W32A8`). (Image source: Bondarenko et al. 2021) Bondarenko et al. (2021) observed in a small BERT model that FFN’s input and output have very different dynamic ranges due to strong outliers in the output tensor. Therefore per-tensor quantization for the FFN’s residual sum is likely to cause a notable error.\nAs the model size continues to grow to billions of parameters, outlier features of high magnitude start to emerge in all transformer layers, causing failure of simple low-bit quantization. Dettmers et al. (2022) observed such a phenomenon for OPT models larger than 6.7B parameters. Larger models have more layers with extreme outliers and these outlier features have a significant impact on the model performance. The scale of activation outliers in a few dimensions can be ~100× larger than most of the other values.\nThe mean zero-shot accuracy over a set of language tasks (WinoGrande, HellaSwag, PIQA, LAMBADA) of OPT models of increasing sizes. (Image source: Dettmers et al. 2022) Post-training quantization (PTQ) Mixed-precision quantization The most straightforward approach for resolving the above quantization challenge is to implement quantization at different precision for weights vs activation.\nGOBO (Zadeh et al. 2020) is one of the first models to apply post-training quantization on transformers (i.e. a small BERT model). It assumes that model weights of each layer follow a Gaussian distribution and therefore detects outliers by tracking mean and standard deviation per layer. Outlier features remain in original form, while other values are split into multiple bins and only corresponding bin indices of weights and the centroid values are stored.\nBased on the observation that only certain activation layers (e.g. residual connections after FFN) in BERT cause big performance drop, Bondarenko et al. (2021) adopted mixed-precision quantization by using 16-bit quantization on problematic activations but 8-bit on others.\nMixed-precision quantization in LLM.int8() (Dettmers et al. 2022) is implemented via two mixed-precision decompositions:\nBecause matrix multiplication contains a set of independent inner products between row and column vectors, we can impose independent quantization per inner product: Each row and column are scaled by the absolution maximum values and then quantized to INT8. Outlier activation features (e.g. 20x larger than other dimensions) remain in FP16 but they represent only a tiny fraction of total weights. How to identify outliers is empirical. Two mixed-precision decompositions of `LLM.int8()`. (Image source: Dettmers et al. 2022) Quantization at fine-grained granularity Comparison of quantization at different granularity. $d$ is the model size / hidden state dimension and $h$ is the number of heads in one MHSA (multi-head self-attention) component. Naively quantizing the entire weight matrix in one layer (“per-tensor” or “per-layer” quantization) is easiest to implement but does not lead to good granularity of quantization.\nQ-BERT (Shen, Dong \u0026 Ye, et al. 2020) applied group-wise quantization to a fine-tuned BERT model, treating an individual matrix $W$ with respect to each head in MHSA (multi-head self-attention) as one group and then applies Hessian based mixed precision quantization.\nPer-embedding group (PEG) activation quantization was motivated by the observation that outlier values only appear in a few out of $d$ (hidden state / model size) dimensions (Bondarenko et al. 2021). Per-embedding is pretty computationally expensive. In comparison, PEG quantization splits the activation tensor into several evenly sized groups along the embedding dimension where elements in the same group share quantization parameters. To ensure all outliers are grouped together, they apply a deterministic range-based permutation of embedding dimensions, where dimensions are sorted by their value ranges.\nZeroQuant (Yao et al. 2022) uses group-wise quantization for weights, same as in Q-BERT, and token-wise quantization for activation. To avoid expensive quantization and de-quantization computation, ZeroQuant built customized kernel to fuse quantization operation with its previous operator.\nSecond order information for quantization Q-BERT (Shen, Dong \u0026 Ye, et al. 2020) developed Hessian AWare Quantization (HAWQ) for its mixed-precision quantization. The motivation is that parameters with higher Hessian spectrum (i.e., larger top eigenvalues) are more sensitive to quantization and thus require higher precision. It is essentially a way to identify outliers.\nIn another viewpoint, the problem of quantization is an optimization problem. Given a weight matrix $\\mathbf{W}$ and an input matrix $\\mathbf{X}$ , we want to find a quantized weight matrix $\\hat{\\mathbf{W}}$ to minimize the MSE:\n$$ \\hat{\\mathbf{W}}^* = {\\arg\\min}_{\\hat{\\mathbf{W}}} | \\mathbf{W}\\mathbf{X} - \\hat{\\mathbf{W}}\\mathbf{X}| $$\nGPTQ (Frantar et al. 2022) treats the weight matrix $\\mathbf{W}$ as a collection of row vectors ${\\mathbf{w}}$ and applies quantization to each row independently. GPTQ iteratively quantizes more weights that are selected greedily to minimize the quantization error. The update on selected weights has a closed-form formula, utilizing Hessian matrices. Read more details in the paper and the OBQ (Optimal Brain Quantization; Frantar \u0026 Alistarh 2022) method if interested. GPTQ can reduce the bitwidth of weights in OPT-175B down to 3 or 4 bits without much performance loss, but it only applies to model weights not activation.\nOutlier smoothing It is known that activations are harder to quantize than weights in transformer models. SmoothQuant (Xiao \u0026 Lin 2022) proposed a smart solution to smooth outlier features from activations to weights via mathematically equivalent transformation and then enable quantization on both weights and activations (W8A8). Because of this, SmoothQuant has better hardware efficiency than mixed-precision quantization.\nSmoothQuant migrates the scale variance from activations to weights offline to reduce the difficulty of activation quantization. Both the resulting new weight and activation matrices are easy to quantize. (Image source: ",
+  "wordCount" : "1844",
+  "inLanguage": "en",
+  "datePublished": "2023-01-10T10:00:00-07:00",
+  "dateModified": "2023-01-10T10:00:00-07:00",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2023-01-10-inference-optimization/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Large Transformer Model Inference Optimization
+    </h1>
+    <div class="post-meta">Date: January 10, 2023  |  Estimated Reading Time: 9 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#methods-overview" aria-label="Methods Overview">Methods Overview</a></li>
+                <li>
+                    <a href="#distillation" aria-label="Distillation">Distillation</a></li>
+                <li>
+                    <a href="#quantization" aria-label="Quantization">Quantization</a><ul>
+                        
+                <li>
+                    <a href="#challenges-for-transformer-quantization" aria-label="Challenges for Transformer Quantization">Challenges for Transformer Quantization</a></li>
+                <li>
+                    <a href="#post-training-quantization-ptq" aria-label="Post-training quantization (PTQ)">Post-training quantization (PTQ)</a><ul>
+                        
+                <li>
+                    <a href="#mixed-precision-quantization" aria-label="Mixed-precision quantization">Mixed-precision quantization</a></li>
+                <li>
+                    <a href="#quantization-at-fine-grained-granularity" aria-label="Quantization at fine-grained granularity">Quantization at fine-grained granularity</a></li>
+                <li>
+                    <a href="#second-order-information-for-quantization" aria-label="Second order information for quantization">Second order information for quantization</a></li>
+                <li>
+                    <a href="#outlier-smoothing" aria-label="Outlier smoothing">Outlier smoothing</a></li></ul>
+                </li>
+                <li>
+                    <a href="#quantization-aware-training-qat" aria-label="Quantization-aware training (QAT)">Quantization-aware training (QAT)</a></li></ul>
+                </li>
+                <li>
+                    <a href="#pruning" aria-label="Pruning">Pruning</a><ul>
+                        
+                <li>
+                    <a href="#how-to-prune" aria-label="How to prune?">How to prune?</a></li>
+                <li>
+                    <a href="#how-to-retrain" aria-label="How to retrain?">How to retrain?</a></li></ul>
+                </li>
+                <li>
+                    <a href="#sparsity" aria-label="Sparsity">Sparsity</a><ul>
+                        
+                <li>
+                    <a href="#nm-sparsity-via-pruning" aria-label="N:M Sparsity via Pruning">N:M Sparsity via Pruning</a></li>
+                <li>
+                    <a href="#sparsified-transformer" aria-label="Sparsified Transformer">Sparsified Transformer</a></li>
+                <li>
+                    <a href="#mixture-of-experts" aria-label="Mixture-of-Experts">Mixture-of-Experts</a><ul>
+                        
+                <li>
+                    <a href="#routing-strategy-improvement" aria-label="Routing Strategy Improvement">Routing Strategy Improvement</a></li>
+                <li>
+                    <a href="#kernel-improvement" aria-label="Kernel Improvement">Kernel Improvement</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#architectural-optimization" aria-label="Architectural Optimization">Architectural Optimization</a><ul>
+                        
+                <li>
+                    <a href="#sparse-attention-patterns" aria-label="Sparse Attention Patterns">Sparse Attention Patterns</a></li>
+                <li>
+                    <a href="#recurrence" aria-label="Recurrence">Recurrence</a></li>
+                <li>
+                    <a href="#memory-saving-designs" aria-label="Memory Saving Designs">Memory Saving Designs</a></li>
+                <li>
+                    <a href="#adaptive-attention" aria-label="Adaptive Attention">Adaptive Attention</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><span class="update">[Updated on 2023-01-24: add a small section on <a href="#distillation">Distillation</a>.]</span><br/></p>
+<p>Large transformer models are mainstream nowadays, creating SoTA results for a variety of tasks. They are powerful but very expensive to train and use. The extremely high inference cost, in both time and memory, is a big bottleneck for adopting a powerful transformer for solving real-world tasks at scale.</p>
+<p><strong>Why is it hard to run inference for large transformer models?</strong> Besides the increasing size of SoTA models, there are two main factors contributing to the inference challenge (<a href="https://arxiv.org/abs/2211.05102">Pope et al. 2022</a>):</p>
+<ol>
+<li><em>Large memory footprint</em>. Both model parameters and intermediate states are needed in memory at inference time. For example,
+<ul>
+<li>The KV cache should be stored in memory during decoding time; E.g. For a batch size of 512 and context length of 2048, the KV cache totals 3TB, that is 3x the model size (!).</li>
+<li>Inference cost from the attention mechanism scales quadratically with input sequence length.</li>
+</ul>
+</li>
+<li><em>Low parallelizability.</em> Inference generation is executed in an autoregressive fashion, making the decoding process hard to parallel.</li>
+</ol>
+<p>In this post, we will look into several approaches for making transformer inference more efficient. Some are general network compression methods, while others are specific to transformer architecture.</p>
+<h1 id="methods-overview">Methods Overview<a hidden class="anchor" aria-hidden="true" href="#methods-overview">#</a></h1>
+<p>We in general consider the following as goals for model inference optimization:</p>
+<ul>
+<li>Reduce the memory footprint of the model by using fewer GPU devices and less GPU memory;</li>
+<li>Reduce the desired computation complexity by lowering the number of FLOPs needed;</li>
+<li>Reduce the inference latency and make things run faster.</li>
+</ul>
+<p>Several methods can be used to make inference cheaper in memory or/and faster in time.</p>
+<ol>
+<li>Apply various <em>parallelism</em> to scale up the model across a large number of GPUs. Smart parallelism of model components and data makes it possible to run a model of trillions of parameters.</li>
+<li>Memory <em>offloading</em> to offload temporarily unused data to the CPU and read them back when needed later. This helps with memory usage but causes higher latency.</li>
+<li>Smart batching strategy; E.g. <a href="https://github.com/bytedance/effective_transformer">EffectiveTransformer</a> packs consecutive sequences together to remove padding within one batch.</li>
+<li>Network <em>compression</em> techniques, such as <em>pruning, quantization, distillation</em>. A model of smaller size, in terms of parameter count or bitwidth, should demand less memory and run faster.</li>
+<li>Improvement specific to a target model architecture. Many <em>architectural changes</em>, especially those for attention layers, help with transformer decoding speed.</li>
+</ol>
+<p>Check <a href="https://lilianweng.github.io/posts/2021-09-25-train-large/">the previous post on large model training</a> on different types of training parallelism and memory saving designs including CPU memory offloading. This post focuses on network compression techniques and architecture-specific improvement for transformer models.</p>
+<h1 id="distillation">Distillation<a hidden class="anchor" aria-hidden="true" href="#distillation">#</a></h1>
+<p><strong>Knowledge Distillation</strong> (<strong>KD</strong>; <a href="https://arxiv.org/abs/1503.02531">Hinton et al. 2015</a>, <a href="https://arxiv.org/abs/2006.05525">Gou et al. 2020</a>) is a straightforward way to build a smaller, cheaper model (<em>&ldquo;student model&rdquo;</em>) to speed up inference by transferring skills from a pre-trained expensive model (<em>&ldquo;teacher model&rdquo;</em>) into the student. There is no much restriction on how the student architecture should be constructed, except for a matched output space with the teacher in order to construct a proper learning objective.</p>
+<figure>
+	<img src="distillation.png" style="width: 100%;"  />
+	<figcaption>The generic framework of teacher-student knowledge distillation training. (Image source: <a href=”https://arxiv.org/abs/2006.05525” target=”_blank”>Gou et al. 2020</a>)</figcaption>
+</figure>
+<p>Given a dataset, a student model is trained to mimic outputs of a teacher via distillation loss. Usually a neural network has a softmax layer; For example, a LLM outputs a probability distribution over tokens. Let&rsquo;s denote the logits layer right before softmax as $\mathbf{z}_t$ and $\mathbf{z}_s$ for teacher and student models, respectively. The <em>distillation loss</em> minimizes the difference between two softmax outputs with a high temperature $T$. When ground truth labels $\mathbf{y}$ are known, we can combine it with a <em>supervised</em> learning objective between ground truth and the student&rsquo;s soft logits using e.g. cross-entropy.</p>
+<div>
+$$
+\mathcal{L}_\text{KD} = \mathcal{L}_\text{distll}(\text{softmax}(\mathbf{z}_t, T), \text{softmax}(\mathbf{z}_s, T)) + \lambda\mathcal{L}_\text{CE}(\mathbf{y}, \mathbf{z}_s)
+$$
+</div>
+<p>where $\lambda$ is a hyperparameter to balance between soft and hard learning objectives. A common choice for $\mathcal{L}_\text{distll}$ is KL divergence / cross entropy.</p>
+<p>A successful early trial is <strong>DistilBERT</strong> (<a href="https://arxiv.org/abs/1910.01108">Sanh et al. 2019</a>) that is able to reduce the parameters of a BERT by 40% while maintaining 97% performance of BERT on fine-tuned downstream tasks and running 71% faster. The loss of pre-training DistilBERT is a combination of soft distillation loss, supervised training loss (i.e. <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#MLM">Masked language modeling loss</a> $\mathcal{L}_\text{MLM}$ in the case of BERT) and a special <em>cosine embedding loss</em> to align the hidden state vectors between teacher and student.</p>
+<p>Distillation can be easily combined with <a href="#quantization">quantization</a>, <a href="#pruning">pruning</a> or <a href="#sparsity">sparsification</a> techniques, where the teacher model is the original full-precision, dense model and the student is quantized, pruned, or trimmed to have higher sparsity level.</p>
+<h1 id="quantization">Quantization<a hidden class="anchor" aria-hidden="true" href="#quantization">#</a></h1>
+<p>There are two common approaches for applying quantization on a deep neural network:</p>
+<ol>
+<li><em>Post-Training Quantization (PTQ)</em>: A model is first trained to convergence and then we convert its weights to lower precision without more training. It is usually quite cheap to implement, in comparison to training.</li>
+<li><em>Quantization-Aware Training (QAT)</em>: Quantization is applied during pre-training or further fine-tuning. QAT is able to attain better performance but requires extra computation resources and access to representative training data.</li>
+</ol>
+<p>We should be aware of the gap between theoretical optimal quantization strategy and the hardware kernel support. Due to the lack of GPU kernel support for certain types of matrix multiplication (e.g. INT4 x FP16), not all the methods below result in speedup for the actual inference.</p>
+<h2 id="challenges-for-transformer-quantization">Challenges for Transformer Quantization<a hidden class="anchor" aria-hidden="true" href="#challenges-for-transformer-quantization">#</a></h2>
+<p>Many studies on Transformer model quantization have the same observation: A simple low-precision (e.g. 8-bit) post-training quantization leads to significant performance drop mainly due to the high dynamic ranges of activation and a naive activation quantization strategy fails to maintain the capacity.</p>
+<figure>
+	<img src="quantization-experiment-table.png" style="width: 100%;"  />
+	<figcaption>Only quantizing model weights to 8-bit while keeping activation at full precision (`W8A32`) achieves much better results when activations are quantized to 8-bit irrespective of whether weights are in lower precision (`W8A8` and `W32A8`). (Image source: <a href="https://arxiv.org/abs/2109.12948" target="_blank">Bondarenko et al. 2021</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2109.12948">Bondarenko et al. (2021)</a> observed in a small BERT model that FFN’s input and output have very different dynamic ranges due to strong outliers in the output tensor. Therefore per-tensor quantization for the FFN’s residual sum is likely to cause a notable error.</p>
+<p>As the model size continues to grow to billions of parameters, outlier features of high magnitude start to emerge in <em>all</em> transformer layers, causing failure of simple low-bit quantization. <a href="https://arxiv.org/abs/2208.07339">Dettmers et al. (2022)</a> observed such a phenomenon for <a href="https://arxiv.org/abs/2205.01068">OPT</a> models larger than 6.7B parameters. Larger models have more layers with extreme outliers and these outlier features have a significant impact on the model performance. The scale of activation outliers in a few dimensions can be ~100× larger than most of the other values.</p>
+<figure>
+	<img src="OPT-models-outlier.png" style="width: 65%;"  />
+	<figcaption>The mean zero-shot accuracy over a set of language tasks (WinoGrande, HellaSwag, PIQA, LAMBADA) of OPT models of increasing sizes. (Image source: <a href="https://arxiv.org/abs/2208.07339" target="_blank">Dettmers et al. 2022</a>)</figcaption>
+</figure>
+<h2 id="post-training-quantization-ptq">Post-training quantization (PTQ)<a hidden class="anchor" aria-hidden="true" href="#post-training-quantization-ptq">#</a></h2>
+<h3 id="mixed-precision-quantization">Mixed-precision quantization<a hidden class="anchor" aria-hidden="true" href="#mixed-precision-quantization">#</a></h3>
+<p>The most straightforward approach for resolving the above quantization challenge is to implement quantization at different precision for weights vs activation.</p>
+<p>GOBO (<a href="https://arxiv.org/abs/2005.03842">Zadeh et al. 2020</a>) is one of the first models to apply post-training quantization on transformers (i.e. a small BERT model). It assumes that model weights of each layer follow a Gaussian distribution and therefore detects outliers by tracking mean and standard deviation per layer. Outlier features remain in original form, while other values are split into multiple bins and only corresponding bin indices of weights and the centroid values are stored.</p>
+<p>Based on the observation that only certain activation layers (e.g. residual connections after FFN) in BERT cause big performance drop, <a href="https://arxiv.org/abs/2109.12948">Bondarenko et al. (2021)</a> adopted mixed-precision quantization by using 16-bit quantization on problematic activations but 8-bit on others.</p>
+<p>Mixed-precision quantization in <code>LLM.int8()</code> (<a href="https://arxiv.org/abs/2208.07339">Dettmers et al. 2022</a>) is implemented via two mixed-precision decompositions:</p>
+<ol>
+<li>Because matrix multiplication contains a set of independent inner products between row and column vectors, we can impose independent quantization per inner product: Each row and column are scaled by the absolution maximum values and then quantized to INT8.</li>
+<li>Outlier activation features (e.g. 20x larger than other dimensions) remain in FP16 but they represent only a tiny fraction of total weights. How to identify outliers is empirical.</li>
+</ol>
+<figure>
+	<img src="LLM-int8.png" style="width: 100%;"  />
+	<figcaption>Two mixed-precision decompositions of `LLM.int8()`. (Image source: <a href="https://arxiv.org/abs/2208.07339" target="_blank">Dettmers et al. 2022</a>)</figcaption>
+</figure>
+<h3 id="quantization-at-fine-grained-granularity">Quantization at fine-grained granularity<a hidden class="anchor" aria-hidden="true" href="#quantization-at-fine-grained-granularity">#</a></h3>
+<figure>
+	<img src="quantization-granularity.png" style="width: 100%;"  />
+	<figcaption>Comparison of quantization at different granularity. $d$ is the model size / hidden state dimension and $h$ is the number of heads in one MHSA (multi-head self-attention) component.</figcaption>
+</figure>
+<p>Naively quantizing the entire weight matrix in one layer (&ldquo;per-tensor&rdquo; or &ldquo;per-layer&rdquo; quantization) is easiest to implement but does not lead to good granularity of quantization.</p>
+<p><strong>Q-BERT</strong> (<a href="https://arxiv.org/abs/1909.05840">Shen, Dong &amp; Ye, et al. 2020</a>) applied <em>group-wise quantization</em> to a fine-tuned BERT model, treating an individual matrix $W$ with respect to <em>each head</em> in MHSA (multi-head self-attention) as one group and then applies Hessian based mixed precision quantization.</p>
+<p><em>Per-embedding group (PEG)</em> activation quantization was motivated by the observation that outlier values only appear in a few out of $d$ (hidden state / model size) dimensions (<a href="https://arxiv.org/abs/2109.12948">Bondarenko et al. 2021</a>). Per-embedding is pretty computationally expensive. In comparison, PEG quantization splits the activation tensor into several evenly sized groups along the embedding dimension where elements in the same group share quantization parameters. To ensure all outliers are grouped together, they apply a deterministic range-based permutation of embedding dimensions, where dimensions are sorted by their value ranges.</p>
+<p><strong>ZeroQuant</strong> (<a href="https://arxiv.org/abs/2206.01861">Yao et al. 2022</a>) uses <em>group-wise quantization</em> for weights, same as in Q-BERT, and <em>token-wise quantization</em> for activation. To avoid expensive quantization and de-quantization computation, ZeroQuant built customized <em>kernel</em> to <em>fuse</em> quantization operation with its previous operator.</p>
+<h3 id="second-order-information-for-quantization">Second order information for quantization<a hidden class="anchor" aria-hidden="true" href="#second-order-information-for-quantization">#</a></h3>
+<p>Q-BERT (<a href="https://arxiv.org/abs/1909.05840">Shen, Dong &amp; Ye, et al. 2020</a>) developed Hessian AWare Quantization (HAWQ) for its mixed-precision quantization. The motivation is that parameters with higher Hessian spectrum (i.e., larger top eigenvalues) are more sensitive to quantization and thus require higher precision. It is essentially a way to identify outliers.</p>
+<p>In another viewpoint, the problem of quantization is an optimization problem. Given a weight matrix $\mathbf{W}$ and an input matrix $\mathbf{X}$ , we want to find a quantized weight matrix $\hat{\mathbf{W}}$ to minimize the MSE:</p>
+<p>$$
+\hat{\mathbf{W}}^* = {\arg\min}_{\hat{\mathbf{W}}} | \mathbf{W}\mathbf{X} - \hat{\mathbf{W}}\mathbf{X}|
+$$</p>
+<p><strong>GPTQ</strong> (<a href="https://arxiv.org/abs/2210.17323">Frantar et al. 2022</a>) treats the weight matrix $\mathbf{W}$ as a collection of row vectors ${\mathbf{w}}$ and applies quantization to each row independently. GPTQ iteratively quantizes more weights that are selected greedily to minimize the quantization error. The update on selected weights has a closed-form formula, utilizing Hessian matrices. Read more details in the paper and the OBQ (Optimal Brain Quantization; <a href="https://arxiv.org/abs/2208.11580">Frantar &amp; Alistarh 2022</a>) method if interested. GPTQ can reduce the bitwidth of weights in OPT-175B down to 3 or 4 bits without much performance loss, but it only applies to model weights not activation.</p>
+<h3 id="outlier-smoothing">Outlier smoothing<a hidden class="anchor" aria-hidden="true" href="#outlier-smoothing">#</a></h3>
+<p>It is known that activations are harder to quantize than weights in transformer models. <strong>SmoothQuant</strong> (<a href="https://arxiv.org/abs/2211.10438">Xiao &amp; Lin 2022</a>) proposed a smart solution to smooth outlier features from activations to weights via mathematically equivalent transformation and then enable quantization on both weights and activations (<code>W8A8</code>). Because of this, SmoothQuant has better hardware efficiency than mixed-precision quantization.</p>
+<figure>
+	<img src="SmoothQuant.png" style="width: 60%;"  />
+	<figcaption>SmoothQuant migrates the scale variance from activations to weights offline to reduce the difficulty of activation quantization. Both the resulting new weight and activation matrices are easy to quantize. (Image source: <a href="https://arxiv.org/abs/2211.10438" target=""_blank">Xiao & Lin 2022</a>)</figcaption>
+</figure>
+<p>Considering a per-channel smooth factor $\mathbf{s}$, SmoothQuant scales the weights according to:</p>
+<p>$$
+\mathbf{Y} = (\mathbf{X} \text{diag}(\mathbf{s})^{-1}) \cdot (\text{diag}(\mathbf{s})\mathbf{W}) = \hat{\mathbf{X}}\hat{\mathbf{W}}
+$$</p>
+<p>The smoothing factor can be easily fused into previous layers&rsquo; parameters offline. A hyperparameter $\alpha$ controls how much we migrate the quantization difficulty from activations to weights: $\mathbf{s} = \max (\vert \mathbf{X}_j \vert)^\alpha  / \max( \vert \mathbf{W}_j \vert )^{1-\alpha}$. The paper found that $\alpha=0.5$ is a sweet spot for many LLMs in the experiments. For models with more significant outliers in activation, $\alpha$ can be adjusted to be larger.</p>
+<h2 id="quantization-aware-training-qat">Quantization-aware training (QAT)<a hidden class="anchor" aria-hidden="true" href="#quantization-aware-training-qat">#</a></h2>
+<p>Quantization-aware training fuses the quantization operation into the pre-training or fine-tuning process. It learns model weights in low-bit representation directly and leads to better performance at the cost of additional training time and computation.</p>
+<p>The most straightforward approach is to <strong>fine-tune</strong> the model after quantization on a training dataset that is the same as or representative of the pre-training dataset. The training objective can be the same as the one for pre-training (e.g. NLL/MLM in general language model training) or specific to a downstream task that we care about (e.g. Cross entropy for classification).</p>
+<p>Another approach is to consider the full-precision model as the teacher and the lower-precision model as the student, and then optimize the low-precision model with <strong>distillation</strong> loss. Distillation usually doesn&rsquo;t need to use the original dataset; E.g. Wikipedia dataset is a good choice and even random tokens can give decent performance gain. The <em>Layer-by-layer Knowledge Distillation</em> (<em>LKD</em>; <a href="https://arxiv.org/abs/2206.01861">Yao et al. 2022</a>) method quantizes the network layer by layer and uses its original, unquantized version as the teacher model. Given the same inputs, LKD minimizes the MSE between the multiplication with layer weights and the multiplication of quantized layer weights.</p>
+<h1 id="pruning">Pruning<a hidden class="anchor" aria-hidden="true" href="#pruning">#</a></h1>
+<p>Network pruning is to reduce the model size by trimming unimportant model weights or connections while the model capacity remains. It may or may not require re-training. Pruning can be <strong>unstructured</strong> or <strong>structured</strong>.</p>
+<ul>
+<li><em>Unstructured pruning</em> is allowed to drop any weight or connection, so it does not retain the original network architecture. Unstructured pruning often does not work well with modern hardware and doesn&rsquo;t lead to actual inference speedup.</li>
+<li><em>Structured pruning</em> aims to maintain the dense matrix multiplication form where some elements are zeros. They may need to follow certain pattern restrictions to work with what hardware kernel supports. Here we focus on structured pruning to achieve <em>high sparsity</em> in transformer models.</li>
+</ul>
+<p><a name="routine-workflow"></a>A routine workflow to construct a pruned network has three steps:</p>
+<ol>
+<li>Train a dense network until convergence;</li>
+<li>Prune the network to remove unwanted structure;</li>
+<li>Optionally retrain the network to recover the performance with new weights.</li>
+</ol>
+<p>The idea of discovering a sparse structure within a dense model via network pruning while the sparse network can still maintain similar performance is motivated by <a href="https://lilianweng.github.io/posts/2019-03-14-overfit/#the-lottery-ticket-hypothesis"><strong>Lottery Ticket Hypothesis</strong></a> (<strong>LTH</strong>): A randomly initialized, dense, feed-forward network contains a pool of subnetworks and among them only a subset (a sparse network) are <em>&ldquo;winning tickets&rdquo;</em> which can achieve the optimal performance when trained in isolation.</p>
+<h2 id="how-to-prune">How to prune?<a hidden class="anchor" aria-hidden="true" href="#how-to-prune">#</a></h2>
+<p><strong>Magnitude pruning</strong> is simplest yet quite effective pruning method - weights with smallest absolute values are trimmed. In fact, some studies (<a href="https://arxiv.org/abs/1902.09574">Gale et al. 2019</a>) found that <em>simple magnitude pruning approaches can achieve comparable or better results than complicated pruning methods</em>, such as variational dropout (<a href="https://arxiv.org/abs/1701.05369">Molchanov et al. 2017</a>) and $l_0$ regularization (<a href="https://arxiv.org/abs/1712.01312">Louizos et al. 2017</a>). Magnitude pruning is simple to apply to large models and achieves reasonably consistent performance across a wide range of hyperparameters.</p>
+<p><a href="https://arxiv.org/abs/1710.01878">Zhu &amp; Gupta (2017)</a> found that <em>large sparse models were able to achieve better performance than their small but dense counterparts</em>. They proposed <strong>Gradual Magnitude Pruning (GMP)</strong> algorithm that increases the sparsity of a network gradually over the course of training. At each training step, weights with smallest absolute values are masked to be zeros to achieve a desired sparsity level $s$ and masked weights do not get gradient update during back-propagation. The desired sparsity level $s$ goes up with more training steps. The process of GMP is sensitive to the learning rate schedule, which should be higher than what&rsquo;s used in dense network training, but not too high to prevent convergence.</p>
+<p><strong>Iterative pruning</strong> (<a href="https://arxiv.org/abs/2003.02389">Renda et al. 2020</a>) iterates step 2 (prune) &amp; step 3 (retrain) multiple times: Only a small fraction of weights are pruned and the model is retrained in each iteration. The process repeats until a desired sparsity level is reached.</p>
+<h2 id="how-to-retrain">How to retrain?<a hidden class="anchor" aria-hidden="true" href="#how-to-retrain">#</a></h2>
+<p>The retraining step can be simple fine-tuning using the same pre-training data or other task-specific datasets.</p>
+<p><a href="https://lilianweng.github.io/posts/2019-03-14-overfit/#the-lottery-ticket-hypothesis">Lottery Ticket Hypothesis</a> proposed a <strong>weight rewinding</strong> retraining technique: After pruning, the unpruned weights are <em>reinitialized back to original values</em> earlier in the training and then retrain with the same learning rate schedule.</p>
+<p><strong>Learning rate rewinding</strong> (<a href="https://arxiv.org/abs/2003.02389">Renda et al. 2020</a>) only resets the learning rate back to its early value, while the unpruned weights stay unchanged since the end of the last train stage. They observed that (1) retraining with weight rewinding outperforms retraining with fine-tuning across networks and datasets and (2) learning rate rewinding matches or outperforms weight rewinding in all tested scenarios.</p>
+<h1 id="sparsity">Sparsity<a hidden class="anchor" aria-hidden="true" href="#sparsity">#</a></h1>
+<p>Sparsity is an effective way to scale up model capacity while keeping model inference computationally efficient. Here we consider two types of sparsity for transformers:</p>
+<ul>
+<li>Sparsified dense layers, including both self-attention and FFN layers.</li>
+<li>Sparse model architecture; i.e. via incorporating the Mixture-of-Experts (MoE) component.</li>
+</ul>
+<h2 id="nm-sparsity-via-pruning">N:M Sparsity via Pruning<a hidden class="anchor" aria-hidden="true" href="#nm-sparsity-via-pruning">#</a></h2>
+<p><strong>N:M sparsity</strong> is a structured sparsity pattern that works well with modern GPU hardware optimization, in which $N$ out of every $M$ consecutive elements are zeros. For example, the sparse tensor core of Nvidia A100 GPU has support for 2:4 sparsity for faster inference (<a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/data-center/nvidia-ampere-architecture-whitepaper.pdf">Nvidia 2020</a>).</p>
+<figure>
+	<img src="2-to-4-sparsity.png" style="width: 80%;"  />
+	<figcaption>A matrix of 2:4 structured sparsity and its compressed representation. (Image source: <a href="https://developer.nvidia.com/blog/accelerating-inference-with-sparsity-using-ampere-and-tensorrt/" target="_blank">Nvidia blog</a>)</figcaption>
+</figure>
+<p>To sparsify a dense neural network to follow a N:M structured sparsity pattern, <a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/data-center/nvidia-ampere-architecture-whitepaper.pdf">Nvidia (2020)</a> suggested using the three-step <a href="#routine-workflow">routine workflow</a> for training a pruned network: train &ndash;&gt; prune to satisfy 2:4 sparsity &ndash;&gt; retrain.</p>
+<p>Permuting columns can provide more options in the pruning process to maintain parameters of large magnitude or to satisfy a special restriction like N:M sparsity (<a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html">Pool &amp; Yu 2021</a>). As long as paired axes of two matrices are permuted in the same order, the results of matrix multiplication would not change. For example,</p>
+<p>(1) Within the self-attention module, if the same permutation order is applied on the axis 1 of query embedding matrix $\mathbf{Q}$ and the axis 0 of key embedding matrix $\mathbf{K}^\top$, the final result of matrix multiplication of $\mathbf{Q}\mathbf{K}^\top$ would stay the same.</p>
+<figure>
+	<img src="permutation-QK.png" style="width: 90%;"  />
+	<figcaption>Illustration of same permutation on $\mathbf{Q}$ (axis 1) and $\mathbf{K}^\top$ (axis 0) to keep the results of a self-attention module unchanged.</figcaption>
+</figure>
+<p>(2) Within the FFN layer that contains two MLP layers and one ReLU non-linear layer, we can permute the first linear weight matrix $\mathbf{W}_1$ along the axis 1 and the second linear weight matrix $\mathbf{W}_2$ along the axis 0 in the same order.</p>
+<figure>
+	<img src="permutation-FFN.png" style="width: 100%;"  />
+	<figcaption>Illustration of the same permutation on $\mathbf{W}_1$ (axis 1) and $\mathbf{W}_2$ (axis 0) to keep the FFN layer's output unchanged. For simplicity, the bias terms are skipped but the same permutation should be applied on them too.</figcaption>
+</figure>
+<p>To enforce N:M structured sparsity, let&rsquo;s split the columns of one matrix into multiple slides of $M$ columns (named &ldquo;stripe&rdquo;) and we can easily observe that both the order of columns within each stripe and the order of stripes have no effect on the N:M sparsity restriction.</p>
+<p><a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html">Pool &amp; Yu (2021)</a> proposed an iterative greedy algorithm to find optimal permutation that maximizes the weight magnitude for N:M sparsity. All pairs of channels are speculatively swapped and only the swap that leads to the greatest increase in magnitude is adopted, generating a new permutation and concluding a single iteration. Greedy algorithm may only find local minima, so they introduced two techniques to escape local minima:</p>
+<ol>
+<li>Bounded regressions: In practice two random channels are swapped, up to a fixed number of times. The solution search is limited to a depth of only one channel swap to keep the search space broad and shallow.</li>
+<li>Narrow, deep search: Choose multiple stripes and optimize them at the same time.</li>
+</ol>
+<figure>
+	<img src="N-to-M-sparsity-permutation-algo.png" style="width: 100%;"  />
+	<figcaption>Algorithm of finding the best permutation for N:M sparsity greedily and iteratively. (Image source: <a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html" target="_blank">Pool & Yu 2021</a>)</figcaption>
+</figure>
+<p>The network can achieve better performance if it was permuted before pruning, compared to pruning the network in its default channel order.</p>
+<p>To train a model with N:M sparsity from scratch, <a href="https://arxiv.org/abs/2102.04010">Zhou &amp; Ma, et al. (2021)</a> extended STE (Straight-Through Estimator; <a href="https://arxiv.org/abs/1308.3432">Bengio et al. 2013</a>), which is commonly used for back-propagation update in model quantization, to work for magnitude pruning and sparse parameter update.</p>
+<p>STE computes the gradients of dense parameters wrt the pruned network $\widetilde{W}$, $\partial \mathcal{L}/\partial \widetilde{W}$, and applies that to the dense network $W$ as an approximation:</p>
+<p>$$
+W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}
+$$</p>
+<p>The extended version, <strong>SR-STE</strong> (Sparse-refined STE), updates the dense weights $W$ by:</p>
+<p>$$
+W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + \lambda_W (\bar{\mathcal{E}} \odot W_t)
+$$
+where $\bar{\mathcal{E}}$ is the mask matrix for $\widetilde{W}$ and $\odot$ is element-wise multiplication. SR-STE is proposed to prevent large change in the binary mask by (1) restricting the values of weights pruned in $\widetilde{W}_t$, and (2) promoting the non-pruned weights in $\widetilde{W}_t$.</p>
+<figure>
+	<img src="SR-STE.png" style="width: 100%;"  />
+	<figcaption>Comparison of STE and SR-STE. $\odot$ is element-wise product; $\otimes$ is matrix multiplication. (Image source: <a href="https://arxiv.org/abs/2102.04010" target="_blank">Zhou & Ma, et al. 2021</a>)</figcaption>
+</figure>
+<p>Different from STE or SR-STE, the <strong>Top-KAST</strong> (<a href="https://arxiv.org/abs/2106.03517">Jayakumar et al. 2021</a>) method can preserve constant sparsity throughout training in both the forward and backward-passes but does not require forward passes with dense parameters or dense gradients.</p>
+<p>At one training step $t$, Top-KAST processes as follows:</p>
+<ol>
+<li><em>Sparse forward pass</em>: Select a subset of parameters $A^t \subset \Theta$, containing top-$K$ parameters by magnitude by each layer, restricted to top $D$-proportion of weights. The parameterization $\alpha^t$ at time $t$ has parameters zeroed out if it is not in $A^t$ (active weights).</li>
+</ol>
+<div>
+$$
+\alpha^t_i = \begin{cases}
+\theta^t_i & \text{ if } i \in A^t = \{i \mid \theta^t_i \in \text{TopK}(\theta^t, D) \}\\ 
+0 & \text{ otherwise}
+\end{cases}
+$$
+</div>
+<p>where $\text{TopK}(\theta, x)$ selected top $x$ proportion of weights from $\theta$ based on magnitude.</p>
+<ol start="2">
+<li><em>Sparse backward pass</em>: Then apply gradients to a larger parameter subset $B \subset \Theta$ where $B$ contains $(D+M)$-proportion of weights and $A \subset B$. Updating a larger proportion of weights enables more effective exploration of different pruning masks, making it more likely to cause permutations in the top $D$-proportion active weights.</li>
+</ol>
+<div>
+$$
+\Delta_{\theta^t_i} = \begin{cases}
+-\eta \nabla_{\alpha_t} \mathcal{L}(y, x, \alpha^t)_i & \text{ if } i\in  B^t = \{i \mid \theta^t_i \in \text{TopK}(\theta^t, D+M) \} \\
+0 & \text{ otherwise }
+\end{cases}
+$$
+</div>
+<p>Training is split into two stages and the additional coordinates in the set $B \setminus A$ controls how much exploration is brought in. The amount of exploration is expected to diminish gradually through the training process and the mask eventually stabilizes.</p>
+<figure>
+	<img src="Top-KAST-stabilize.png" style="width: 100%;"  />
+	<figcaption>The pruning mask of Top-KAST stabilizes in time. (Image source: <a href="https://arxiv.org/abs/2106.03517" target="_blank">Jayakumar et al. 2021</a>)</figcaption>
+</figure>
+<p>To prevent rich-get-richer phenomenon, Top-KAST penalizes the magnitude of active weights via a L2 regularization loss to encourage more exploration of new items. Parameters in $B \setminus A$ are penalized more than $A$ for a higher selection bar during updates to stabilize the mask.</p>
+<div>
+$$
+L_\text{penalty}(\alpha^t_i) = \begin{cases}
+\vert \theta^t_i\vert  & \text{ if } i \in A^t \\ 
+\vert \theta^t_i\vert / D  & \text{ if } i \in B^t \setminus A^t \\ 
+0 & \text{ otherwise}
+\end{cases}
+$$
+</div>
+<h2 id="sparsified-transformer">Sparsified Transformer<a hidden class="anchor" aria-hidden="true" href="#sparsified-transformer">#</a></h2>
+<p><em>Scaling Transformer</em> (<a href="https://arxiv.org/abs/2111.12763">Jaszczur et al. 2021</a>) sparsifies both self-attention and FFN layers in transformer architecture, achieving 37x speedup for single-example inference.</p>
+<figure>
+	<img src="scaling-transformer-speedup-table.png" style="width: 65%;"  />
+	<figcaption>The speed of decoding a single token (unbatched inference) by a transformer model when sparsification is applied on different layers. (Image source: <a href="https://arxiv.org/abs/2111.12763" target="_blank">Jaszczur et al. 2021</a>)</figcaption>
+</figure>
+<p><strong>Sparse FFN layer</strong>: Each FFN layer contains 2 MLP and one ReLU in-between. Because ReLU will introduce a lot of zeros, they implement a fixed structure on activations to enforce only 1 non-zero value in one block of $N$ elements. The sparsity pattern is dynamic, different for each token.</p>
+<div>
+$$
+\begin{aligned}
+Y_\text{sparse} &= \max(0, xW_1 + b_1) \odot \text{Controller}(x) \\
+\text{SparseFFN}(x) &= Y_\text{sparse} W_2 + b_2 \\
+\text{Controller}(x) &= \arg\max(\text{Reshape}(x C_1 C_2, (-1, N)))
+\end{aligned}
+$$
+</div>
+<p>where each activation in $Y_\text{sparse}$ corresponds to one column in $W_1$ and one row in $W_2$. The controller is implemented as a low-rank bottleneck dense layer, $C_1 \in \mathbb{R}^{d_\text{model} \times d_\text{lowrank}}, C_2 \in \mathbb{R}^{d_\text{lowrank} \times d_\text{ff}}$ and $d_\text{lowrank} = d_\text{model} / N$. It uses $\arg\max$ for inference to select which columns should be non-zero and Gumbel-softmax trick (<a href="https://arxiv.org/abs/1611.01144">Jang et al. 2016</a>) during training. Because we can compute $\text{Controller}(x)$ before loading FFN weight matrices, we know which columns will be zeroed out and thus choose <em>not to load</em> them into memory for inference speedup.</p>
+<figure>
+	<img src="sparse-FFN.png" style="width: 100%;"  />
+	<figcaption>(a) Sparse FFN layer; columns in red are not loaded in memory for faster inference. (b) Sparse FFN controller for 1:4 sparsity. (Image source: <a href="https://arxiv.org/abs/2111.12763" target="_blank">Jaszczur et al. 2021</a>) *Lilian's side note*: Fig (a) in the illustration from the paper is actually $Y_\text{sparse} = \max\big(0, (xW_1 + b_1) \odot \text{Controller}(x)\big)$, but it doesn't change the results. </figcaption>
+</figure>
+<p><strong>Sparse QKV (attention) layer</strong>: In the attention layer, the dimensionality $d_\text{model}$ is divided into $S$ modules, each of size $M=d_\text{model} /S$. To make sure each subdivision can access any part of the embedding, Scaling Transformer introduces a multiplicative layer (i.e., a multiplication layer multiplies inputs from multiple neural network layers element-wise) which can represent arbitrary permutation but contains fewer parameters than a dense layer.</p>
+<p>Given an input vector $x \in \mathbb{R}^{d_\text{model}}$, the multiplicative layer outputs $y \in \mathbb{R}^{S \times M}$:</p>
+<div>
+$$
+y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
+\quad\text{where }D \in \mathbb{R}^{d_\text{model} \times S}, D \in \mathbb{R}^{d_\text{model} \times M}
+$$
+</div>
+<p>The output of the multiplicative layer is a tensor of size $\in \mathbb{R}^{\text{batch size}\times \text{length} \times S \times M}$. It then gets processed by a two-dimensional convolutional layer, where $\text{length}$ and $S$ are treated as the height and width of an image. Such a convolution layer further reduces the parameter count and computation time of attention layer.</p>
+<figure>
+	<img src="sparse-QKV.png" style="width: 100%;"  />
+	<figcaption>(a) A multiplicative layer is introduced to enable partitions to access any part of an embedding. (b) Combination of multiplicative dense layer and 2-D convolutional layer reduces the number of parameters and computation time of the attention layer. (Image source: <a href="https://arxiv.org/abs/2111.12763" target="_blank">Jaszczur et al. 2021</a>)</figcaption>
+</figure>
+<p>To better work with long sequences, Scaling Transformer is further equipped with LSH (locality-sensitive hashing) attention from <a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#locality-sensitive-hashing-reformer">Reformer</a> (<a href="https://arxiv.org/abs/2001.04451">Kitaev, et al. 2020</a>) and FFN block recurrence, resulting in <em>Terraformer</em>.</p>
+<h2 id="mixture-of-experts">Mixture-of-Experts<a hidden class="anchor" aria-hidden="true" href="#mixture-of-experts">#</a></h2>
+<p>Mixture-of-experts (MoE) models depend on a collection of &ldquo;expert&rdquo; networks and each example only activates a subset of networks to get predictions. The idea originated back to the 1990s (<a href="https://www.cs.toronto.edu/~hinton/absps/jjnh91.pdf">Jacobs et al. 1991</a>) and is strongly related to ensemble methods. For details on how to incorporate MoE module into transformer, please check my <a href="https://lilianweng.github.io/posts/2021-09-25-train-large/">previous post on large model training techniques</a> and a survey paper on MoE by <a href="https://arxiv.org/abs/2209.01667">Fedus et al. 2022</a>.</p>
+<p>With MoE architecture, only partial parameters are utilized at decoding time and therefore it saves inference cost. The capacity of each expert can be adjusted with a hyperparameter, capacity factor $C$, and the expert capacity is defined as:</p>
+<div>
+$$
+\text{Expert capacity} = \text{round}(C \cdot k \cdot \frac{\text{total # tokens in one batch}}{\text{# experts}})
+$$
+</div>
+<p>where top-$k$ experts are selected per token. Larger $C$ leads to higher expert capacity and improved performance but more expensive computationally. When $C&gt;1$, a slack capacity is added; otherwise, when $C&lt;1$, the routing network needs to ignore some tokens.</p>
+<h3 id="routing-strategy-improvement">Routing Strategy Improvement<a hidden class="anchor" aria-hidden="true" href="#routing-strategy-improvement">#</a></h3>
+<p>MoE layer has a routing network to assign a subset of experts for each input token. The routing strategy in vanilla MoE models is to route each token toward preferred experts differently as they come up in the natural order. If a token is routed to experts that have reached their capacity, the token would be marked <em>&ldquo;overflowed&rdquo; and skipped</em>.</p>
+<p><strong>V-MoE</strong> (Vision MoE; <a href="https://arxiv.org/abs/2106.05974">Riquelme et al. 2021</a>) adds MoE layers into ViT (Vision Transformer). It matches the performance of previous SoTA but only requires <em>half</em> of inference compute. V-MoE can be scaled up to 15B parameters. Their experiments used $k=2$, 32 experts and every-2 expert placement (meaning that MoEs are placed in every other layer).</p>
+<p>Since each expert has a limited capacity, some important and informative tokens may have to be discarded if they come up too late in the predefined sequence order (e.g. the order of words in a sentence, or the order of image patches). To avoid such a drawback in the vanilla routing scheme, V-MoE adopts <strong>BPR (Batch Priority Routing)</strong> to assign experts to tokens with a high priority score first. BPR computes a priority score (max or sum of top-$k$ router scores) per token before expert assignment and alters the order of tokens accordingly. This guarantees that the expert capacity buffer would be fulfilled with key tokens first.</p>
+<figure>
+	<img src="BPR.png" style="width: 100%;"  />
+	<figcaption>How image patches are discarded according to priority scores when $C < 1$. (Image source: <a href="https://arxiv.org/abs/2106.05974" target="_blank">Riquelme et al. 2021</a>)</figcaption>
+</figure>
+<p>BPR works much better than vanilla routing when $C\leq 0.5$, where the model starts dropping a significant amount of tokens. It capacitates the model to be competitive with the dense network even at quite low capacities.</p>
+<p>When looking into how to interpret image class-expert association, they observed that early MoE layers are more general, while later MoE layers could be specialized for a few image classes.</p>
+<p><strong>Task MoE</strong> (Task-level Mixture-of-Experts; <a href="https://arxiv.org/abs/2110.03742">Kudugunta et al. 2021</a> ) takes the task information into consideration and routes tokens at the <em>task</em> level instead of the word or token level for machine translation. They used MNMT (multilingual neural machine translation) as an example and group translation tasks based on the target language or language pairs.</p>
+<p>Token level routing is dynamic and the routing decision for each token is made disjointly. Hence, at inference time, the server needs to preload all the experts. In comparison, task level routing is <em>static</em> given a fixed task, so the inference server for one task only needs to preload $k$ experts (assuming top-$k$ routing). According to their experiments, Task MoE can achieve similar performance gain as token MoE compared to dense model baseline with 2.6x higher peak throughput and 1.6% of the decoder size.</p>
+<p>Task level MoE is essentially to categorize a distribution of tasks according to predefined  <em>heuristics</em> and incorporate such human knowledge into the router. When such heuristics do not exist (e.g. consider a general sentence continuation task), it would not be straightforward how to utilize Task MoE.</p>
+<p><strong>PR-MoE</strong> (Pyramid residual MoE; <a href="https://arxiv.org/abs/2201.05596">Rajbhandari et al. 2022</a>) has each token pass one fixed MLP and one chosen expert. Due to the observation that MoE at later layers is more beneficial, PR-MoE adopts more exports at later layers. DeepSpeed library implements a flexible multi-expert, multi-data parallelism to enable training PR-MoE with different numbers of experts across layers.</p>
+<figure>
+	<img src="PR-MoE.png" style="width: 100%;"  />
+	<figcaption>Illustration of PR-MoE architecture in comparison with a standard MoE. (Image source: <a href="https://arxiv.org/abs/2201.05596" target="_blank">Rajbhandari et al. 2022</a>)</figcaption>
+</figure>
+<h3 id="kernel-improvement">Kernel Improvement<a hidden class="anchor" aria-hidden="true" href="#kernel-improvement">#</a></h3>
+<p>Expert networks can be hosted on different devices. However, when the number of GPUs increases, the number of experts per GPU decreases and the communication between experts (&ldquo;All-to-all&rdquo;) grows to be more expensive. All-to-all communication between experts across a number of GPUs relies on P2P APIs of NCCL, which cannot saturate the bandwidth of high-speed links (e.g. NVLink, HDR InfiniBand) at a large scale, as individual chunk gets smaller with more nodes used. The existing all-to-all algorithm performs poorly at large scale with a small workload. There are a variety of kernel improvements to enable more efficient MoE computation, such as making all-to-all communication cheaper/faster.</p>
+<p>Both the <em>DeepSpeed</em> library (<a href="https://arxiv.org/abs/2201.05596">Rajbhandari et al. 2022</a>) and TUTEL (<a href="https://arxiv.org/abs/2206.03382">Hwang et al. 2022</a>) implemented a tree-based <strong>hierarchical all-to-all</strong> algorithm, which runs an intra-node all-to-all followed by an inter-node all-to-all. It reduces the communication hops from $O(G)$ to $O(G_\text{node} + G / G_\text{node})$, where $G$ is the total number of GPU nodes and $G_\text{node}$ is the number of GPU cores per node. Although the communication volume is doubled in such implementation, it enables better scaling with small batches at large scale as the bottleneck is on latency instead of communication bandwidth when the batch size is small.</p>
+<p><em>DynaMoE</em> (<a href="https://arxiv.org/abs/2205.01848">Kossmann et al. 2022</a>) uses <strong>dynamic recompilation</strong> to adapt the computational resources to dynamic workloads among experts. The <code>RECOMPILE</code> mechanism compiles the computation graph from scratch and only reallocates resources when needed. It measures how many samples are assigned to each expert and adjusts their capacity factors $C$ dynamically, in order to reduce the memory and computation requirements at run time. Based on the observation that sample-expert assignments converge early in training, <em>sample assignment caching</em> is introduced after convergence and then <code>RECOMPILE</code> is used to eliminate the dependency between the gating network and experts.</p>
+<h1 id="architectural-optimization">Architectural Optimization<a hidden class="anchor" aria-hidden="true" href="#architectural-optimization">#</a></h1>
+<p>The survey paper on <em>Efficient Transformers</em> (<a href="https://arxiv.org/abs/2009.06732">Tay et al. 2020</a>) reviewed a collection of new transformer architectures with improvement for better <em>computational and memory efficiency</em>. Strongly recommend a read. You can also check out my post <a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/">&ldquo;The Transformer Family Version 2.0&rdquo;</a> for introduction to a diverse set of transformer archiecture improvements in depth, including changes to make the model cheaper to run.</p>
+<figure>
+	<img src="efficient-transformer.png" style="width: 100%;"  />
+	<figcaption>Categorization of efficient transformer models.<br/>(Image source: <a href="https://arxiv.org/abs/2009.06732" target="_blank">Tay et al. 2020</a>)</figcaption>
+</figure>
+<p>Since the self-attention mechanism has quadratic time and memory complexity and that is the main bottleneck for better transformer decoding efficiency, all the efficient transformer models have applied some form of sparsity to the otherwise dense attention layer. Here only lists a high-level overview, several derived from <a href="https://arxiv.org/abs/2009.06732">Tay et al. 2020</a>.</p>
+<h2 id="sparse-attention-patterns">Sparse Attention Patterns<a hidden class="anchor" aria-hidden="true" href="#sparse-attention-patterns">#</a></h2>
+<ol>
+<li>
+<p><em>Fixed Patterns</em> limit the field of view for the attention matrix, using predefined, fixed patterns.</p>
+<ul>
+<li>Chunk input sequences into fixed blocks, such as <a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/##strided-context">Blockwise Attention</a>;</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/##fixed-local-context">Image Transformer</a> uses local attention;</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/##strided-context">Sparse Transformer</a> uses strided attention patterns.</li>
+</ul>
+</li>
+<li>
+<p><em>Combined Patterns</em> learn to sort/cluster the input tokens - enabling a more optimal global view of the sequence while maintaining the efficiency benefits of fixed patterns.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#sparse-attention-matrix-factorization-sparse-transformers">Sparse Transformer</a> combines strided and local attention;</li>
+<li>Given a high dimensional input tensor, instead of applying attention to the flattened version of the input, <a href="https://arxiv.org/abs/1912.12180">Axial Transformer</a> applies multiple attentions, each along a single axis of the input tensor.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#combination-of-local-and-global-context">ETC, Longformer and Big Bird</a> combines local and global context, as well as strided or random attention.</li>
+</ul>
+</li>
+<li>
+<p><em>Learnable Patterns</em> identify the optimal attention pattern via learning.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#content-based-attention">Reformer</a> clusters tokens into clusters based on hash-based similarity (LSH);</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#content-based-attention">Routing Transformer</a> runs $k$-means clustering on tokens;</li>
+<li><a href="https://arxiv.org/abs/2002.11296">Sinkhorn Sorting Network</a> learns to sort blocks of input sequence.</li>
+</ul>
+</li>
+</ol>
+<h2 id="recurrence">Recurrence<a hidden class="anchor" aria-hidden="true" href="#recurrence">#</a></h2>
+<p>Recurrence mechanism connects multiple blocks/segments via recurrence.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#context-memory">Transformer-XL</a> makes use of longer context by reusing hidden states between segments.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#make-it-recurrent">Universal Transformer</a> combines self-attention with the recurrent mechanism in RNN.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#context-memory">Compressive Transformer</a> is an extension of Transformer-XL with additional memory, containing a set of memory slots for past activiations and compressive memory slots for compressed activations. Whenever the model accepts a new input segment, the oldest activations in the primary memory are moved to the compressed memory where a compression function is applied.</li>
+</ul>
+<h2 id="memory-saving-designs">Memory Saving Designs<a hidden class="anchor" aria-hidden="true" href="#memory-saving-designs">#</a></h2>
+<p>Memory saving designs refer to changes of the architecture to use less memory.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#low-rank-attention">Linformer</a> projects the length dimension of keys and values to a lower-dimensional representation ($N \to k$) and thus the memory complexity is reduced from $N \times N$ to $N \times k$.</li>
+<li><a href="https://arxiv.org/abs/1911.02150">Shazeer (2019)</a> proposed <em>multi-query attention</em> which has the keys and values shared across different attention &ldquo;heads&rdquo;, greatly reducing the size of these tensors and the memory cost.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#low-rank-attention">Random feature attention and Performer</a> use <a href="(https://lilianweng.github.io/posts/2022-09-08-ntk/#kernel--kernel-methods)">kernel methods</a> to achieve a cheaper mathematical format of the self-attention mechanism.</li>
+</ul>
+<h2 id="adaptive-attention">Adaptive Attention<a hidden class="anchor" aria-hidden="true" href="#adaptive-attention">#</a></h2>
+<p><em>Adaptive attention</em> enables the model to learn the optimal attention span or decide on when to do early exiting for different input tokens.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#adaptive-attention-span">Adaptive Attention Span</a> trains the model to learn the optimal attention span per token per head via a soft mask between the token and other keys.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#make-it-recurrent">Universal Transformer</a> incorporates recurrent mechanism and uses <a href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/#adaptive-computation-time-act">ACT (Adaptive computation time)</a> to dynamically decide the number of recurrent steps.</li>
+<li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/#depth-adaptive-transformer">Depth-Adaptive Transformer and CALM</a> learns when to early exit the computation layers per token using some confidence measures to achieve good performance-efficiency tradeoffs.</li>
+</ul>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Jan 2023). Large Transformer Model Inference Optimization. Lil&rsquo;Log. https://lilianweng.github.io/posts/2023-01-10-inference-optimization/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2023inference,
+  title   = &#34;Large Transformer Model Inference Optimization&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;Lil&#39;Log&#34;,
+  year    = &#34;2023&#34;,
+  month   = &#34;Jan&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2023-01-10-inference-optimization/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Bondarenko et al. <a href="https://arxiv.org/abs/2109.12948">&ldquo;Understanding and overcoming the challenges of efficient transformer quantization&rdquo;</a> ACL 2021.</p>
+<p>[2] Dettmers et al. <a href="https://arxiv.org/abs/2208.07339">&ldquo;LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale&rdquo;</a> NeuriPS 2022</p>
+<p>[3] Zadeh et al. <a href="https://arxiv.org/abs/2005.03842">&ldquo;Gobo: Quantizing attention-based NLP models for low latency and energy efficient inference.&rdquo;</a> MICRO 2020</p>
+<p>[4] Shen, Dong &amp; Ye, et al. <a href="https://arxiv.org/abs/1909.05840">&ldquo;Q-BERT: Hessian based ultra low precision quantization of BERT&rdquo;</a> AAAI 2020.</p>
+<p>[5] Yao et al. <a href="https://arxiv.org/abs/2206.01861">&ldquo;ZeroQuant: Efficient and affordable post-training quantization for large-scale transformers&rdquo;</a> arXiv preprint arXiv:2206.01861 (2022).</p>
+<p>[6] Frantar et al. <a href="https://arxiv.org/abs/2210.17323">&ldquo;GPTQ: Accurate Quantization for Generative Pre-trained Transformers&rdquo;</a> arXiv preprint arXiv:2210.17323 (2022).</p>
+<p>[7] Xiao &amp; Lin <a href="https://arxiv.org/abs/2211.10438">&ldquo;SmoothQuant: Accelerated sparse neural training: A provable and efficient method to find N:M transposable masks.&rdquo;</a> arXiv preprint arXiv:2211.10438 (2022). | <a href="https://github.com/mit-han-lab/smoothquant">code</a></p>
+<p>[8] Pool &amp; Yu. <a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html">&ldquo;Channel Permutations for N:M Sparsity.&rdquo;</a> NeuriPS 2021. | <a href="https://github.com/NVIDIA/apex/tree/master/apex/contrib/sparsity">code</a></p>
+<p>[9] Zhou &amp; Ma, et al. <a href="https://arxiv.org/abs/2102.04010">&ldquo;Learning N:M fine-grained structured sparse neural networks from scratch.&rdquo;</a> arXiv preprint arXiv:2102.04010 (2021).</p>
+<p>[10] Jayakumar et al. <a href="https://arxiv.org/abs/2106.03517">&ldquo;Top-KAST: Top-K Always Sparse Training.&rdquo;</a> NeuriPS 2020.</p>
+<p>[11] Nvidia. <a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/data-center/nvidia-ampere-architecture-whitepaper.pdf">&ldquo;Nvidia A100 tensor core GPU architecture.&rdquo;</a> 2020.</p>
+<p>[12] Gale, Elsen &amp; Hooker <a href="https://arxiv.org/abs/1902.09574">&ldquo;The State of Sparsity in Deep Neural Networks.&rdquo;</a> arXiv preprint arXiv:1902.09574 (2019).</p>
+<p>[13] Zhu &amp; Gupta. <a href="https://arxiv.org/abs/1710.01878">&ldquo;To Prune, or Not to Prune: Exploring the Efficacy of Pruning for Model Compression.&rdquo;</a> arXiv preprint arXiv:1710.01878 (2017).</p>
+<p>[14] Renda et al. <a href="https://arxiv.org/abs/2003.02389">&ldquo;Comparing rewinding and fine-tuning in neural network pruning.&rdquo;</a> arXiv preprint arXiv:2003.02389 (2020).</p>
+<p>[15] Zhou &amp; Ma, et al. <a href="https://arxiv.org/abs/2102.04010">&ldquo;Learning N:M fine-grained structured sparse neural networks from scratch.&rdquo;</a> arXiv preprint arXiv:2102.04010 (2021).</p>
+<p>[16] Pool &amp; Yu. <a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html">&ldquo;Channel Permutations for N:M Sparsity.&rdquo;</a> NeuriPS 2021. | <a href="https://github.com/NVIDIA/apex/tree/master/apex/contrib/sparsity">code</a></p>
+<p>[17] Jaszczur et al. <a href="https://arxiv.org/abs/2111.12763">&ldquo;Sparse is Enough in Scaling Transformers.&rdquo;</a> NeuriPS 2021.</p>
+<p>[18] Mishra et al. <a href="https://arxiv.org/abs/2010.03954">&ldquo;An Survey of Neural Network Compression.&rdquo;</a> arXiv preprint arXiv:1710.09282 (2017).</p>
+<p>[19] Fedus et al. <a href="https://arxiv.org/abs/2209.01667">&ldquo;A Review of Sparse Expert Models in Deep Learning.&rdquo;</a> arXiv preprint arXiv:2209.01667 (2022)..</p>
+<p>[20] Riquelme et al. <a href="https://arxiv.org/abs/2106.05974">&ldquo;Scaling vision with sparse mixture of experts.&rdquo;</a> NeuriPS 2021.</p>
+<p>[21] Kudugunta et al. <a href="https://arxiv.org/abs/2110.03742">&ldquo;Beyond Distillation: Task-level Mixture-of-Experts for Efficient Inference.&rdquo;</a> arXiv preprint arXiv:2110.03742 (2021).</p>
+<p>[22] Rajbhandari et al. <a href="https://arxiv.org/abs/2201.05596">&ldquo;DeepSpeed-MoE: Advancing mixture-of-experts inference and training to power next-generation ai scale.&rdquo;</a> arXiv preprint arXiv:2201.05596 (2022).</p>
+<p>[23] Kossmann et al. <a href="https://arxiv.org/abs/2205.01848">&ldquo;Optimizing mixture of experts using dynamic recompilations.&rdquo;</a>  arXiv preprint arXiv:2205.01848 (2022).</p>
+<p>[24] Hwang et al. <a href="https://arxiv.org/abs/2206.03382">&ldquo;Tutel: Adaptive mixture-of-experts at scale.&rdquo;</a>  arXiv preprint arXiv:2206.03382 (2022). | <a href="https://github.com/microsoft/tutel">code</a></p>
+<p>[25] Noam Shazeer. <a href="https://arxiv.org/abs/1911.02150">&ldquo;Fast Transformer Decoding: One Write-Head is All You Need.&rdquo;</a> arXiv preprint arXiv:1911.02150 (2019).</p>
+<p>[26] Tay et al. <a href="https://arxiv.org/abs/2009.06732">&ldquo;Efficient Transformers: A Survey.&rdquo;</a> ACM Computing Surveys 55.6 (2022): 1-28.</p>
+<p>[27] Pope et al. <a href="https://arxiv.org/abs/2211.05102">&ldquo;Efficiently Scaling Transformer Inference.&rdquo;</a> arXiv preprint arXiv:2211.05102 (2022).</p>
+<p>[28] Frankle &amp; Carbin. <a href="https://arxiv.org/abs/1803.03635">&ldquo;The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks&rdquo;</a> ICLR 2019.</p>
+<p>[29] Elabyad et al. <a href="https://arxiv.org/abs/1910.10073">&ldquo;Depth-Adaptive Transformer&rdquo;</a> ICLR 2020.</p>
+<p>[30] Schuster et al. <a href="https://arxiv.org/abs/2207.07061">&ldquo;Confident Adaptive Language Modeling&rdquo;</a> arXiv preprint arXiv:2207.07061 (2022).</p>
+<p>[31] Gou et al. <a href="https://arxiv.org/abs/2006.05525">&ldquo;https://arxiv.org/abs/2006.05525&rdquo;</a> arXiv preprint arXiv:2006.05525 (2020).</p>
+<p>[32] Hinton et al. <a href="https://arxiv.org/abs/1503.02531">&ldquo;Distilling the Knowledge in a Neural Network&rdquo;</a> NIPS 2014.</p>
+<p>[33] Sanh et al. <a href="https://arxiv.org/abs/1910.01108">&ldquo;DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter&rdquo;</a> Workshop on Energy Efficient Machine Learning and Cognitive Computing @ NeuriPS 2019.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read&#34;</a></li>
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/">
+    <span class="title">« </span>
+    <br>
+    <span>The Transformer Family Version 2.0</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2022-09-08-ntk/">
+    <span class="title"> »</span>
+    <br>
+    <span>Some Math behind Neural Tangent Kernel</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on twitter"
+        href="https://twitter.com/intent/tweet/?text=Large%20Transformer%20Model%20Inference%20Optimization&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f&amp;hashtags=language-model%2clong-read%22%2carchitecture%2cattention%2ctransformer%2cfoundation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f&amp;title=Large%20Transformer%20Model%20Inference%20Optimization&amp;summary=Large%20Transformer%20Model%20Inference%20Optimization&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f&title=Large%20Transformer%20Model%20Inference%20Optimization">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on whatsapp"
+        href="https://api.whatsapp.com/send?text=Large%20Transformer%20Model%20Inference%20Optimization%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Large Transformer Model Inference Optimization on telegram"
+        href="https://telegram.me/share/url?text=Large%20Transformer%20Model%20Inference%20Optimization&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-01-10-inference-optimization%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

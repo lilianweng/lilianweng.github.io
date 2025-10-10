@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS | Lil&#39;Log</title>
+<meta name="keywords" content="object-detection, object-recognition, vision-model" />
+<meta name="description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS" />
+<meta property="og:description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2017-10-29T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-10-29T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS"/>
+<meta name="twitter:description" content="
+I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS",
+      "item": "https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS",
+  "name": "Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS",
+  "description": " I\u0026rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I\u0026rsquo;m writing a few posts on this topic \u0026ldquo;Object Detection for Dummies\u0026rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.\n",
+  "keywords": [
+    "object-detection", "object-recognition", "vision-model"
+  ],
+  "articleBody": " I’ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I’m writing a few posts on this topic “Object Detection for Dummies”. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.\nDisclaimer: When I started, I was using “object recognition” and “object detection” interchangeably. I don’t think they are the same: the former is more about telling whether an object exists in an image while the latter needs to spot where the object is. However, they are highly related and many object recognition algorithms lay the foundation for detection.\nLinks to all the posts in the series: [Part 1] [Part 2] [Part 3] [Part 4].\nImage Gradient Vector First of all, I would like to make sure we can distinguish the following terms. They are very similar, closely related, but not exactly the same.\nDerivative Directional Derivative Gradient Value type Scalar Scalar Vector Definition The rate of change of a function $f(x,y,z,…)$ at a point $(x_0,y_0,z_0,…)$, which is the slope of the tangent line at the point. The instantaneous rate of change of $f(x,y,z, …)$ in the direction of an unit vector $\\vec{u}$. It points in the direction of the greatest rate of increase of the function, containing all the partial derivative information of a multivariable function. In the image processing, we want to know the direction of colors changing from one extreme to the other (i.e. black to white on a grayscale image). Therefore, we want to measure “gradient” on pixels of colors. The gradient on an image is discrete because each pixel is independent and cannot be further split.\nThe image gradient vector is defined as a metric for every individual pixel, containing the pixel color changes in both x-axis and y-axis. The definition is aligned with the gradient of a continuous multi-variable function, which is a vector of partial derivatives of all the variables. Suppose f(x, y) records the color of the pixel at location (x, y), the gradient vector of the pixel (x, y) is defined as follows:\n$$ \\begin{align*} \\nabla f(x, y) = \\begin{bmatrix} g_x \\\\ g_y \\end{bmatrix} = \\begin{bmatrix} \\frac{\\partial f}{\\partial x} \\\\[6pt] \\frac{\\partial f}{\\partial y} \\end{bmatrix} = \\begin{bmatrix} f(x+1, y) - f(x-1, y)\\\\ f(x, y+1) - f(x, y-1) \\end{bmatrix} \\end{align*} $$ The $\\frac{\\partial f}{\\partial x}$ term is the partial derivative on the x-direction, which is computed as the color difference between the adjacent pixels on the left and right of the target, f(x+1, y) - f(x-1, y). Similarly, the $\\frac{\\partial f}{\\partial y}$ term is the partial derivative on the y-direction, measured as f(x, y+1) - f(x, y-1), the color difference between the adjacent pixels above and below the target.\nThere are two important attributes of an image gradient:\nMagnitude is the L2-norm of the vector, $g = \\sqrt{ g_x^2 + g_y^2 }$. Direction is the arctangent of the ratio between the partial derivatives on two directions, $\\theta = \\arctan{(g_y / g_x)}$. To compute the gradient vector of a target pixel at location (x, y), we need to know the colors of its four neighbors (or eight surrounding pixels depending on the kernel). The gradient vector of the example in is:\n$$ \\begin{align*} \\nabla f = \\begin{bmatrix} f(x+1, y) - f(x-1, y)\\\\ f(x, y+1) - f(x, y-1) \\end{bmatrix} = \\begin{bmatrix} 55-105\\\\ 90-40 \\end{bmatrix} = \\begin{bmatrix} -50\\\\ 50 \\end{bmatrix} \\end{align*} $$ Thus,\nthe magnitude is $\\sqrt{50^2 + (-50)^2} = 70.7107$, and the direction is $\\arctan{(-50/50)} = -45^{\\circ}$. Repeating the gradient computation process for every pixel iteratively is too slow. Instead, it can be well translated into applying a convolution operator on the entire image matrix, labeled as $\\mathbf{A}$ using one of the specially designed convolutional kernels.\nLet’s start with the x-direction of the example in Fig 1. using the kernel $[-1,0,1]$ sliding over the x-axis; $\\ast$ is the convolution operator:\n$$ \\begin{align*} \\mathbf{G}_x \u0026= [-1, 0, 1] \\ast [105, 255, 55] = -105 + 0 + 55 = -50 \\end{align*} $$ Similarly, on the y-direction, we adopt the kernel $[+1, 0, -1]^\\top$:\n$$ \\begin{align*} \\mathbf{G}_y \u0026= [+1, 0, -1]^\\top \\ast \\begin{bmatrix} 90\\\\ 255\\\\ 40 \\end{bmatrix} = 90 + 0 - 40 = 50 \\end{align*} $$ Try this in python:\nimport numpy as np import scipy.signal as sig data = np.array([[0, 105, 0], [40, 255, 90], [0, 55, 0]]) G_x = sig.convolve2d(data, np.array([[-1, 0, 1]]), mode='valid') G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode='valid') These two functions return array([[0], [-50], [0]]) and array([[0, 50, 0]]) respectively. (Note that in the numpy array representation, 40 is shown in front of 90, so -1 is listed before 1 in the kernel correspondingly.)\nCommon Image Processing Kernels Prewitt operator: Rather than only relying on four directly adjacent neighbors, the Prewitt operator utilizes eight surrounding pixels for smoother results.\n$$ \\mathbf{G}_x = \\begin{bmatrix} -1 \u0026 0 \u0026 +1 \\\\ -1 \u0026 0 \u0026 +1 \\\\ -1 \u0026 0 \u0026 +1 \\end{bmatrix} \\ast \\mathbf{A} \\text{ and } \\mathbf{G}_y = \\begin{bmatrix} +1 \u0026 +1 \u0026 +1 \\\\ 0 \u0026 0 \u0026 0 \\\\ -1 \u0026 -1 \u0026 -1 \\end{bmatrix} \\ast \\mathbf{A} $$ Sobel operator: To emphasize the impact of directly adjacent pixels more, they get assigned with higher weights.\n$$ \\mathbf{G}_x = \\begin{bmatrix} -1 \u0026 0 \u0026 +1 \\\\ -2 \u0026 0 \u0026 +2 \\\\ -1 \u0026 0 \u0026 +1 \\end{bmatrix} \\ast \\mathbf{A} \\text{ and } \\mathbf{G}_y = \\begin{bmatrix} +1 \u0026 +2 \u0026 +1 \\\\ 0 \u0026 0 \u0026 0 \\\\ -1 \u0026 -2 \u0026 -1 \\end{bmatrix} \\ast \\mathbf{A} $$ Different kernels are created for different goals, such as edge detection, blurring, sharpening and many more. Check this wiki page for more examples and references.\nExample: Manu in 2004 Let’s run a simple experiment on the photo of Manu Ginobili in 2004 [[Download Image]({{ ‘/assets/data/manu-2004.jpg’ | relative_url }}){:target=\"_blank\"}] when he still had a lot of hair. For simplicity, the photo is converted to grayscale first. For colored images, we just need to repeat the same process in each color channel respectively.\nManu Ginobili in 2004 with hair. (Image source: Manu Ginobili's bald spot through the years) import numpy as np import scipy import scipy.signal as sig # With mode=\"L\", we force the image to be parsed in the grayscale, so it is # actually unnecessary to convert the photo color beforehand. img = scipy.misc.imread(\"manu-2004.jpg\", mode=\"L\") # Define the Sobel operator kernels. kernel_x = np.array([[-1, 0, 1],[-2, 0, 2],[-1, 0, 1]]) kernel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]]) G_x = sig.convolve2d(img, kernel_x, mode='same') G_y = sig.convolve2d(img, kernel_y, mode='same') # Plot them! fig = plt.figure() ax1 = fig.add_subplot(121) ax2 = fig.add_subplot(122) # Actually plt.imshow() can handle the value scale well even if I don't do # the transformation (G_x + 255) / 2. ax1.imshow((G_x + 255) / 2, cmap='gray'); ax1.set_xlabel(\"Gx\") ax2.imshow((G_y + 255) / 2, cmap='gray'); ax2.set_xlabel(\"Gy\") plt.show() Apply Sobel operator kernel on the example image. You might notice that most area is in gray. Because the difference between two pixel is between -255 and 255 and we need to convert them back to [0, 255] for the display purpose. A simple linear transformation ($\\mathbf{G}$ + 255)/2 would interpret all the zeros (i.e., constant colored background shows no change in gradient) as 125 (shown as gray).\nHistogram of Oriented Gradients (HOG) The Histogram of Oriented Gradients (HOG) is an efficient way to extract features out of the pixel colors for building an object recognition classifier. With the knowledge of image gradient vectors, it is not hard to understand how HOG works. Let’s start!\nHow HOG works Preprocess the image, including resizing and color normalization.\nCompute the gradient vector of every pixel, as well as its magnitude and direction.\nDivide the image into many 8x8 pixel cells. In each cell, the magnitude values of these 64 cells are binned and cumulatively added into 9 buckets of unsigned direction (no sign, so 0-180 degree rather than 0-360 degree; this is a practical choice based on empirical experiments). For better robustness, if the direction of the gradient vector of a pixel lays between two buckets, its magnitude does not all go into the closer one but proportionally split between two. For example, if a pixel’s gradient vector has magnitude 8 and degree 15, it is between two buckets for degree 0 and 20 and we would assign 2 to bucket 0 and 6 to bucket 20. This interesting configuration makes the histogram much more stable when small distortion is applied to the image.\nHow to split one gradient vector's magnitude if its degress is between two degree bins. (Image source: https://www.learnopencv.com/histogram-of-oriented-gradients/) Then we slide a 2x2 cells (thus 16x16 pixels) block across the image. In each block region, 4 histograms of 4 cells are concatenated into one-dimensional vector of 36 values and then normalized to have an unit weight. The final HOG feature vector is the concatenation of all the block vectors. It can be fed into a classifier like SVM for learning object recognition tasks. Example: Manu in 2004 Let’s reuse the same example image in the previous section. Remember that we have computed $\\mathbf{G}_x$ and $\\mathbf{G}_y$ for the whole image.\nN_BUCKETS = 9 CELL_SIZE = 8 # Each cell is 8x8 pixels BLOCK_SIZE = 2 # Each block is 2x2 cells def assign_bucket_vals(m, d, bucket_vals): left_bin = int(d / 20.) # Handle the case when the direction is between [160, 180) right_bin = (int(d / 20.) + 1) % N_BUCKETS assert 0 \u003c= left_bin \u003c right_bin \u003c N_BUCKETS left_val= m * (right_bin * 20 - d) / 20 right_val = m * (d - left_bin * 20) / 20 bucket_vals[left_bin] += left_val bucket_vals[right_bin] += right_val def get_magnitude_hist_cell(loc_x, loc_y): # (loc_x, loc_y) defines the top left corner of the target cell. cell_x = G_x[loc_x:loc_x + CELL_SIZE, loc_y:loc_y + CELL_SIZE] cell_y = G_y[loc_x:loc_x + CELL_SIZE, loc_y:loc_y + CELL_SIZE] magnitudes = np.sqrt(cell_x * cell_x + cell_y * cell_y) directions = np.abs(np.arctan(cell_y / cell_x) * 180 / np.pi) buckets = np.linspace(0, 180, N_BUCKETS + 1) bucket_vals = np.zeros(N_BUCKETS) map( lambda (m, d): assign_bucket_vals(m, d, bucket_vals), zip(magnitudes.flatten(), directions.flatten()) ) return bucket_vals def get_magnitude_hist_block(loc_x, loc_y): # (loc_x, loc_y) defines the top left corner of the target block. return reduce( lambda arr1, arr2: np.concatenate((arr1, arr2)), [get_magnitude_hist_cell(x, y) for x, y in zip( [loc_x, loc_x + CELL_SIZE, loc_x, loc_x + CELL_SIZE], [loc_y, loc_y, loc_y + CELL_SIZE, loc_y + CELL_SIZE], )] ) The following code simply calls the functions to construct a histogram and plot it.\n# Random location [200, 200] as an example. loc_x = loc_y = 200 ydata = get_magnitude_hist_block(loc_x, loc_y) ydata = ydata / np.linalg.norm(ydata) xdata = range(len(ydata)) bucket_names = np.tile(np.arange(N_BUCKETS), BLOCK_SIZE * BLOCK_SIZE) assert len(ydata) == N_BUCKETS * (BLOCK_SIZE * BLOCK_SIZE) assert len(bucket_names) == len(ydata) plt.figure(figsize=(10, 3)) plt.bar(xdata, ydata, align='center', alpha=0.8, width=0.9) plt.xticks(xdata, bucket_names * 20, rotation=90) plt.xlabel('Direction buckets') plt.ylabel('Magnitude') plt.grid(ls='--', color='k', alpha=0.1) plt.title(\"HOG of block at [%d, %d]\" % (loc_x, loc_y)) plt.tight_layout() In the code above, I use the block with top left corner located at [200, 200] as an example and here is the final normalized histogram of this block. You can play with the code to change the block location to be identified by a sliding window.\nDemonstration of a HOG histogram for one block. The code is mostly for demonstrating the computation process. There are many off-the-shelf libraries with HOG algorithm implemented, such as OpenCV, SimpleCV and scikit-image.\nImage Segmentation (Felzenszwalb’s Algorithm) When there exist multiple objects in one image (true for almost every real-world photos), we need to identify a region that potentially contains a target object so that the classification can be executed more efficiently.\nFelzenszwalb and Huttenlocher (2004) proposed an algorithm for segmenting an image into similar regions using a graph-based approach. It is also the initialization method for Selective Search (a popular region proposal algorithm) that we are gonna discuss later.\nSay, we use a undirected graph $G=(V, E)$ to represent an input image. One vertex $v_i \\in V$ represents one pixel. One edge $e = (v_i, v_j) \\in E$ connects two vertices $v_i$ and $v_j$. Its associated weight $w(v_i, v_j)$ measures the dissimilarity between $v_i$ and $v_j$. The dissimilarity can be quantified in dimensions like color, location, intensity, etc. The higher the weight, the less similar two pixels are. A segmentation solution $S$ is a partition of $V$ into multiple connected components, $\\{C\\}$. Intuitively similar pixels should belong to the same components while dissimilar ones are assigned to different components.\nGraph Construction There are two approaches to constructing a graph out of an image.\nGrid Graph: Each pixel is only connected with surrounding neighbours (8 other cells in total). The edge weight is the absolute difference between the intensity values of the pixels. Nearest Neighbor Graph: Each pixel is a point in the feature space (x, y, r, g, b), in which (x, y) is the pixel location and (r, g, b) is the color values in RGB. The weight is the Euclidean distance between two pixels’ feature vectors. Key Concepts Before we lay down the criteria for a good graph partition (aka image segmentation), let us define a couple of key concepts:\nInternal difference: $Int(C) = \\max_{e\\in MST(C, E)} w(e)$, where $MST$ is the minimum spanning tree of the components. A component $C$ can still remain connected even when we have removed all the edges with weights \u003c $Int(C)$. Difference between two components: $Dif(C_1, C_2) = \\min_{v_i \\in C_1, v_j \\in C_2, (v_i, v_j) \\in E} w(v_i, v_j)$. $Dif(C_1, C_2) = \\infty$ if there is no edge in-between. Minimum internal difference: $MInt(C_1, C_2) = min(Int(C_1) + \\tau(C_1), Int(C_2) + \\tau(C_2))$, where $\\tau(C) = k / \\vert C \\vert$ helps make sure we have a meaningful threshold for the difference between components. With a higher $k$, it is more likely to result in larger components. The quality of a segmentation is assessed by a pairwise region comparison predicate defined for given two regions $C_1$ and $C_2$:\n$$ D(C_1, C_2) = \\begin{cases} \\text{True} \u0026 \\text{ if } Dif(C_1, C_2) \u003e MInt(C_1, C_2) \\\\ \\text{False} \u0026 \\text{ otherwise} \\end{cases} $$ Only when the predicate holds True, we consider them as two independent components; otherwise the segmentation is too fine and they probably should be merged.\nHow Image Segmentation Works The algorithm follows a bottom-up procedure. Given $G=(V, E)$ and $|V|=n, |E|=m$:\nEdges are sorted by weight in ascending order, labeled as $e_1, e_2, \\dots, e_m$. Initially, each pixel stays in its own component, so we start with $n$ components. Repeat for $k=1, \\dots, m$: The segmentation snapshot at the step $k$ is denoted as $S^k$. We take the k-th edge in the order, $e_k = (v_i, v_j)$. If $v_i$ and $v_j$ belong to the same component, do nothing and thus $S^k = S^{k-1}$. If $v_i$ and $v_j$ belong to two different components $C_i^{k-1}$ and $C_j^{k-1}$ as in the segmentation $S^{k-1}$, we want to merge them into one if $w(v_i, v_j) \\leq MInt(C_i^{k-1}, C_j^{k-1})$; otherwise do nothing. If you are interested in the proof of the segmentation properties and why it always exists, please refer to the paper.\nAn indoor scene with segmentation detected by the grid graph construction in Felzenszwalb's graph-based segmentation algorithm (k=300). Example: Manu in 2013 This time I would use the photo of old Manu Ginobili in 2013 [[Image]({{ ‘/assets/data/manu-2013.jpg’ | relative_url }})] as the example image when his bald spot has grown up strong. Still for simplicity, we use the picture in grayscale.\nManu Ginobili in 2013 with bald spot. (Image source: Manu Ginobili's bald spot through the years) Rather than coding from scratch, let us apply skimage.segmentation.felzenszwalb to the image.\nimport skimage.segmentation from matplotlib import pyplot as plt img2 = scipy.misc.imread(\"manu-2013.jpg\", mode=\"L\") segment_mask1 = skimage.segmentation.felzenszwalb(img2, scale=100) segment_mask2 = skimage.segmentation.felzenszwalb(img2, scale=1000) fig = plt.figure(figsize=(12, 5)) ax1 = fig.add_subplot(121) ax2 = fig.add_subplot(122) ax1.imshow(segment_mask1); ax1.set_xlabel(\"k=100\") ax2.imshow(segment_mask2); ax2.set_xlabel(\"k=1000\") fig.suptitle(\"Felsenszwalb's efficient graph based image segmentation\") plt.tight_layout() plt.show() The code ran two versions of Felzenszwalb’s algorithms as shown in The left k=100 generates a finer-grained segmentation with small regions where Manu’s bald spot is identified. The right one k=1000 outputs a coarser-grained segmentation where regions tend to be larger.\nFelsenszwalb's efficient graph-based image segmentation is applied on the photo of Manu in 2013. Selective Search Selective search is a common algorithm to provide region proposals that potentially contain objects. It is built on top of the image segmentation output and use region-based characteristics (NOTE: not just attributes of a single pixel) to do a bottom-up hierarchical grouping.\nHow Selective Search Works At the initialization stage, apply Felzenszwalb and Huttenlocher’s graph-based image segmentation algorithm to create regions to start with. Use a greedy algorithm to iteratively group regions together: First the similarities between all neighbouring regions are calculated. The two most similar regions are grouped together, and new similarities are calculated between the resulting region and its neighbours. The process of grouping the most similar regions (Step 2) is repeated until the whole image becomes a single region. The detailed algorithm of Selective Search. Configuration Variations Given two regions $(r_i, r_j)$, selective search proposed four complementary similarity measures:\nColor similarity Texture: Use algorithm that works well for material recognition such as SIFT. Size: Small regions are encouraged to merge early. Shape: Ideally one region can fill the gap of the other. By (i) tuning the threshold $k$ in Felzenszwalb and Huttenlocher’s algorithm, (ii) changing the color space and (iii) picking different combinations of similarity metrics, we can produce a diverse set of Selective Search strategies. The version that produces the region proposals with best quality is configured with (i) a mixture of various initial segmentation proposals, (ii) a blend of multiple color spaces and (iii) a combination of all similarity measures. Unsurprisingly we need to balance between the quality (the model complexity) and the speed.\nCited as:\n@article{weng2017detection1, title = \"Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2017\", url = \"https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/\" } References [1] Dalal, Navneet, and Bill Triggs. “Histograms of oriented gradients for human detection.” Computer Vision and Pattern Recognition (CVPR), 2005.\n[2] Pedro F. Felzenszwalb, and Daniel P. Huttenlocher. “Efficient graph-based image segmentation.” Intl. journal of computer vision 59.2 (2004): 167-181.\n[3] Histogram of Oriented Gradients by Satya Mallick\n[4] Gradient Vectors by Chris McCormick\n[5] HOG Person Detector Tutorial by Chris McCormick\n",
+  "wordCount" : "3091",
+  "inLanguage": "en",
+  "datePublished": "2017-10-29T00:00:00Z",
+  "dateModified": "2017-10-29T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS
+    </h1>
+    <div class="post-meta">Date: October 29, 2017  |  Estimated Reading Time: 15 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#image-gradient-vector" aria-label="Image Gradient Vector">Image Gradient Vector</a><ul>
+                        
+                <li>
+                    <a href="#common-image-processing-kernels" aria-label="Common Image Processing Kernels">Common Image Processing Kernels</a></li>
+                <li>
+                    <a href="#example-manu-in-2004" aria-label="Example: Manu in 2004">Example: Manu in 2004</a></li></ul>
+                </li>
+                <li>
+                    <a href="#histogram-of-oriented-gradients-hog" aria-label="Histogram of Oriented Gradients (HOG)">Histogram of Oriented Gradients (HOG)</a><ul>
+                        
+                <li>
+                    <a href="#how-hog-works" aria-label="How HOG works">How HOG works</a></li>
+                <li>
+                    <a href="#example-manu-in-2004-1" aria-label="Example: Manu in 2004">Example: Manu in 2004</a></li></ul>
+                </li>
+                <li>
+                    <a href="#image-segmentation-felzenszwalbs-algorithm" aria-label="Image Segmentation (Felzenszwalb&rsquo;s Algorithm)">Image Segmentation (Felzenszwalb&rsquo;s Algorithm)</a><ul>
+                        
+                <li>
+                    <a href="#graph-construction" aria-label="Graph Construction">Graph Construction</a></li>
+                <li>
+                    <a href="#key-concepts" aria-label="Key Concepts">Key Concepts</a></li>
+                <li>
+                    <a href="#how-image-segmentation-works" aria-label="How Image Segmentation Works">How Image Segmentation Works</a></li>
+                <li>
+                    <a href="#example-manu-in-2013" aria-label="Example: Manu in 2013">Example: Manu in 2013</a></li></ul>
+                </li>
+                <li>
+                    <a href="#selective-search" aria-label="Selective Search">Selective Search</a><ul>
+                        
+                <li>
+                    <a href="#how-selective-search-works" aria-label="How Selective Search Works">How Selective Search Works</a></li>
+                <li>
+                    <a href="#configuration-variations" aria-label="Configuration Variations">Configuration Variations</a></li></ul>
+                </li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- In this series of posts on "Object Detection for Dummies", we will go through several basic concepts, algorithms, and popular deep learning models for image processing and objection detection. Hopefully, it would be a good read for people with no experience in this field but want to learn more. The Part 1 introduces the concept of Gradient Vectors, the HOG (Histogram of Oriented Gradients) algorithm, and Selective Search for image segmentation. -->
+<p>I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in <a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">Part 2</a> and <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">Part 3</a>.</p>
+<blockquote>
+<p>Disclaimer: When I started, I was using &ldquo;object recognition&rdquo; and &ldquo;object detection&rdquo; interchangeably. I don&rsquo;t think they are the same: the former is more about telling whether an object exists in an image while the latter needs to spot where the object is. However, they are highly related and many object recognition algorithms lay the foundation for detection.</p>
+</blockquote>
+<p>Links to all the posts in the series:
+[<a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/">Part 1</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">Part 2</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">Part 3</a>]
+[<a href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/">Part 4</a>].</p>
+<h1 id="image-gradient-vector">Image Gradient Vector<a hidden class="anchor" aria-hidden="true" href="#image-gradient-vector">#</a></h1>
+<p>First of all, I would like to make sure we can distinguish the following terms. They are very similar, closely related, but not exactly the same.</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th><strong>Derivative</strong></th>
+          <th><strong>Directional Derivative</strong></th>
+          <th><strong>Gradient</strong></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Value type</td>
+          <td>Scalar</td>
+          <td>Scalar</td>
+          <td>Vector</td>
+      </tr>
+      <tr>
+          <td>Definition</td>
+          <td>The rate of change of a function $f(x,y,z,&hellip;)$ at a point $(x_0,y_0,z_0,&hellip;)$, which is the slope of the tangent line at the point.</td>
+          <td>The instantaneous rate of change of $f(x,y,z, &hellip;)$ in the direction of an unit vector $\vec{u}$.</td>
+          <td>It points in the direction of the greatest rate of increase of the function, containing all the partial derivative information of a multivariable function.</td>
+      </tr>
+  </tbody>
+</table>
+<p>In the image processing, we want to know the direction of colors changing from one extreme to the other (i.e. black to white on a grayscale image). Therefore, we want to measure &ldquo;gradient&rdquo; on pixels of colors. The gradient on an image is discrete because each pixel is independent and cannot be further split.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Image_gradient">image gradient vector</a> is defined as a metric for every individual pixel, containing the pixel color changes in both x-axis and y-axis. The definition is aligned with the gradient of a continuous multi-variable function, which is a vector of partial derivatives of all the variables. Suppose f(x, y) records the color of the pixel at location (x, y), the gradient vector of the pixel (x, y) is defined as follows:</p>
+<div>
+$$
+\begin{align*}
+\nabla f(x, y)
+= \begin{bmatrix}
+  g_x \\
+  g_y
+\end{bmatrix}
+= \begin{bmatrix}
+  \frac{\partial f}{\partial x} \\[6pt]
+  \frac{\partial f}{\partial y}
+\end{bmatrix}
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+\end{align*}
+$$
+</div>
+<p>The $\frac{\partial f}{\partial x}$ term is the partial derivative on the x-direction, which is computed as the color difference between the adjacent pixels on the left and right of the target, f(x+1, y) - f(x-1, y). Similarly, the $\frac{\partial f}{\partial y}$ term is the partial derivative on the y-direction, measured as f(x, y+1) - f(x, y-1), the color difference between the adjacent pixels above and below the target.</p>
+<p>There are two important attributes of an image gradient:</p>
+<ul>
+<li><strong>Magnitude</strong> is the L2-norm of the vector, $g = \sqrt{ g_x^2 + g_y^2 }$.</li>
+<li><strong>Direction</strong> is the arctangent of the ratio between the partial derivatives on two directions, $\theta = \arctan{(g_y / g_x)}$.</li>
+</ul>
+<figure>
+	<img src="image-gradient-vector-pixel-location.png" style="width: 70%;"  />
+	<figcaption>To compute the gradient vector of a target pixel at location (x, y), we need to know the colors of its four neighbors (or eight surrounding pixels depending on the kernel).</figcaption>
+</figure>
+<p>The gradient vector of the example in is:</p>
+<div>
+$$
+\begin{align*}
+\nabla f 
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+= \begin{bmatrix}
+  55-105\\
+  90-40
+\end{bmatrix}
+= \begin{bmatrix}
+  -50\\
+  50
+\end{bmatrix}
+\end{align*}
+$$
+</div>
+<p>Thus,</p>
+<ul>
+<li>the magnitude is $\sqrt{50^2 + (-50)^2} = 70.7107$, and</li>
+<li>the direction is $\arctan{(-50/50)} = -45^{\circ}$.</li>
+</ul>
+<p>Repeating the gradient computation process for every pixel iteratively is too slow. Instead, it can be well translated into applying a convolution operator on the entire image matrix, labeled as $\mathbf{A}$ using one of the specially designed convolutional kernels.</p>
+<p>Let&rsquo;s start with the x-direction of the example in Fig 1. using the kernel $[-1,0,1]$ sliding over the x-axis; $\ast$ is the convolution operator:</p>
+<div>
+$$
+\begin{align*}
+\mathbf{G}_x &= 
+[-1, 0, 1] \ast [105, 255, 55] = -105 + 0 + 55 = -50
+\end{align*}
+$$
+</div>
+<p>Similarly, on the y-direction, we adopt the kernel $[+1, 0, -1]^\top$:</p>
+<div>
+$$
+\begin{align*}
+\mathbf{G}_y &= 
+[+1, 0, -1]^\top \ast
+\begin{bmatrix}
+  90\\
+  255\\
+  40
+\end{bmatrix} 
+= 90 + 0 - 40 = 50
+\end{align*}
+$$
+</div>
+<p>Try this in python:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy.signal <span style="color:#66d9ef">as</span> sig
+</span></span><span style="display:flex;"><span>data <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([[<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">105</span>, <span style="color:#ae81ff">0</span>], [<span style="color:#ae81ff">40</span>, <span style="color:#ae81ff">255</span>, <span style="color:#ae81ff">90</span>], [<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">55</span>, <span style="color:#ae81ff">0</span>]])
+</span></span><span style="display:flex;"><span>G_x <span style="color:#f92672">=</span> sig<span style="color:#f92672">.</span>convolve2d(data, np<span style="color:#f92672">.</span>array([[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1</span>]]), mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;valid&#39;</span>) 
+</span></span><span style="display:flex;"><span>G_y <span style="color:#f92672">=</span> sig<span style="color:#f92672">.</span>convolve2d(data, np<span style="color:#f92672">.</span>array([[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>], [<span style="color:#ae81ff">0</span>], [<span style="color:#ae81ff">1</span>]]), mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;valid&#39;</span>)
+</span></span></code></pre></div><p>These two functions return <code>array([[0], [-50], [0]])</code> and <code>array([[0, 50, 0]])</code> respectively. (Note that in the numpy array representation, 40 is shown in front of 90, so -1 is listed before 1 in the kernel correspondingly.)</p>
+<h2 id="common-image-processing-kernels">Common Image Processing Kernels<a hidden class="anchor" aria-hidden="true" href="#common-image-processing-kernels">#</a></h2>
+<p><a href="https://en.wikipedia.org/wiki/Prewitt_operator">Prewitt operator</a>: Rather than only relying on four directly adjacent neighbors, the Prewitt operator utilizes eight surrounding pixels for smoother results.</p>
+<div>
+$$
+\mathbf{G}_x = \begin{bmatrix}
+-1 & 0 & +1 \\
+-1 & 0 & +1 \\
+-1 & 0 & +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 & +1 & +1 \\
+0 & 0 & 0 \\
+-1 & -1 & -1
+\end{bmatrix} \ast \mathbf{A}
+$$
+</div>
+<p><a href="https://en.wikipedia.org/wiki/Sobel_operator">Sobel operator</a>: To emphasize the impact of directly adjacent pixels more, they get assigned with higher weights.</p>
+<div>
+$$
+\mathbf{G}_x = \begin{bmatrix}
+-1 & 0 & +1 \\
+-2 & 0 & +2 \\
+-1 & 0 & +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 & +2 & +1 \\
+0 & 0 & 0 \\
+-1 & -2 & -1
+\end{bmatrix} \ast \mathbf{A}
+$$
+</div>
+<p>Different kernels are created for different goals, such as edge detection, blurring, sharpening and many more. Check <a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)">this wiki page</a> for more examples and references.</p>
+<h2 id="example-manu-in-2004">Example: Manu in 2004<a hidden class="anchor" aria-hidden="true" href="#example-manu-in-2004">#</a></h2>
+<p>Let&rsquo;s run a simple experiment on the photo of Manu Ginobili in 2004 [[Download Image]({{ &lsquo;/assets/data/manu-2004.jpg&rsquo; | relative_url }}){:target=&quot;_blank&quot;}] when he still had a lot of hair. For simplicity, the photo is converted to grayscale first. For colored images, we just need to repeat the same process in each color channel respectively.</p>
+<figure>
+	<img src="manu-2004.png"  />
+	<figcaption>Manu Ginobili in 2004 with hair. (Image source: <a href="http://ftw.usatoday.com/2013/05/manu-ginobilis-bald-spot-through-the-years" target="_blank">Manu Ginobili's bald spot through the years</a>)</figcaption>
+</figure>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy.signal <span style="color:#66d9ef">as</span> sig
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># With mode=&#34;L&#34;, we force the image to be parsed in the grayscale, so it is</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># actually unnecessary to convert the photo color beforehand.</span>
+</span></span><span style="display:flex;"><span>img <span style="color:#f92672">=</span> scipy<span style="color:#f92672">.</span>misc<span style="color:#f92672">.</span>imread(<span style="color:#e6db74">&#34;manu-2004.jpg&#34;</span>, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;L&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Define the Sobel operator kernels.</span>
+</span></span><span style="display:flex;"><span>kernel_x <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1</span>],[<span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">2</span>],[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1</span>]])
+</span></span><span style="display:flex;"><span>kernel_y <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([[<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">1</span>], [<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>], [<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]])
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>G_x <span style="color:#f92672">=</span> sig<span style="color:#f92672">.</span>convolve2d(img, kernel_x, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;same&#39;</span>) 
+</span></span><span style="display:flex;"><span>G_y <span style="color:#f92672">=</span> sig<span style="color:#f92672">.</span>convolve2d(img, kernel_y, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;same&#39;</span>) 
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Plot them!</span>
+</span></span><span style="display:flex;"><span>fig <span style="color:#f92672">=</span> plt<span style="color:#f92672">.</span>figure()
+</span></span><span style="display:flex;"><span>ax1 <span style="color:#f92672">=</span> fig<span style="color:#f92672">.</span>add_subplot(<span style="color:#ae81ff">121</span>)
+</span></span><span style="display:flex;"><span>ax2 <span style="color:#f92672">=</span> fig<span style="color:#f92672">.</span>add_subplot(<span style="color:#ae81ff">122</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Actually plt.imshow() can handle the value scale well even if I don&#39;t do </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># the transformation (G_x + 255) / 2.</span>
+</span></span><span style="display:flex;"><span>ax1<span style="color:#f92672">.</span>imshow((G_x <span style="color:#f92672">+</span> <span style="color:#ae81ff">255</span>) <span style="color:#f92672">/</span> <span style="color:#ae81ff">2</span>, cmap<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;gray&#39;</span>); ax1<span style="color:#f92672">.</span>set_xlabel(<span style="color:#e6db74">&#34;Gx&#34;</span>)
+</span></span><span style="display:flex;"><span>ax2<span style="color:#f92672">.</span>imshow((G_y <span style="color:#f92672">+</span> <span style="color:#ae81ff">255</span>) <span style="color:#f92672">/</span> <span style="color:#ae81ff">2</span>, cmap<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;gray&#39;</span>); ax2<span style="color:#f92672">.</span>set_xlabel(<span style="color:#e6db74">&#34;Gy&#34;</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>show()
+</span></span></code></pre></div><figure>
+	<img src="manu-2004-sobel-operator.png"  />
+	<figcaption>Apply Sobel operator kernel on the example image.</figcaption>
+</figure>
+<p>You might notice that most area is in gray. Because the difference between two pixel is between -255 and 255 and we need to convert them back to [0, 255] for the display purpose.
+A simple linear transformation ($\mathbf{G}$ + 255)/2 would interpret all the zeros (i.e., constant colored background shows no change in gradient) as 125 (shown as gray).</p>
+<h1 id="histogram-of-oriented-gradients-hog">Histogram of Oriented Gradients (HOG)<a hidden class="anchor" aria-hidden="true" href="#histogram-of-oriented-gradients-hog">#</a></h1>
+<p>The Histogram of Oriented Gradients (HOG) is an efficient way to extract features out of the pixel colors for building an object recognition classifier. With the knowledge of image gradient vectors, it is not hard to understand how HOG works. Let&rsquo;s start!</p>
+<h2 id="how-hog-works">How HOG works<a hidden class="anchor" aria-hidden="true" href="#how-hog-works">#</a></h2>
+<ol>
+<li>
+<p>Preprocess the image, including resizing and color normalization.</p>
+</li>
+<li>
+<p>Compute the gradient vector of every pixel, as well as its magnitude and direction.</p>
+</li>
+<li>
+<p>Divide the image into many 8x8 pixel cells. In each cell, the magnitude values of these 64 cells are binned and cumulatively added into 9 buckets of unsigned direction (no sign, so 0-180 degree rather than 0-360 degree; this is a practical choice based on empirical experiments).
+<br/><br/>
+For better robustness, if the direction of the gradient vector of a pixel lays between two buckets, its magnitude does not all go into the closer one but proportionally split between two. For example, if a pixel&rsquo;s gradient vector has magnitude 8 and degree 15, it is between two buckets for degree 0 and 20 and we would assign 2 to bucket 0 and 6 to bucket 20.
+<br/><br/>
+This interesting configuration makes the histogram much more stable when small distortion is applied to the image.</p>
+</li>
+</ol>
+<figure>
+	<img src="HOG-histogram-creation.png" style="width: 600px;"  />
+	<figcaption>How to split one gradient vector's magnitude if its degress is between two degree bins. (Image source: https://www.learnopencv.com/histogram-of-oriented-gradients/)</figcaption>
+</figure>
+<ol start="4">
+<li>Then we slide a 2x2 cells (thus 16x16 pixels) block across the image. In each block region, 4 histograms of 4 cells are concatenated into one-dimensional vector of 36 values and then normalized to have an unit weight.
+The final HOG feature vector is the concatenation of all the block vectors. It can be fed into a classifier like SVM for learning object recognition tasks.</li>
+</ol>
+<h2 id="example-manu-in-2004-1">Example: Manu in 2004<a hidden class="anchor" aria-hidden="true" href="#example-manu-in-2004-1">#</a></h2>
+<p>Let&rsquo;s reuse the same example image in the previous section. Remember that we have computed $\mathbf{G}_x$ and $\mathbf{G}_y$ for the whole image.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>N_BUCKETS <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+</span></span><span style="display:flex;"><span>CELL_SIZE <span style="color:#f92672">=</span> <span style="color:#ae81ff">8</span>  <span style="color:#75715e"># Each cell is 8x8 pixels</span>
+</span></span><span style="display:flex;"><span>BLOCK_SIZE <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>  <span style="color:#75715e"># Each block is 2x2 cells</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">assign_bucket_vals</span>(m, d, bucket_vals):
+</span></span><span style="display:flex;"><span>    left_bin <span style="color:#f92672">=</span> int(d <span style="color:#f92672">/</span> <span style="color:#ae81ff">20.</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># Handle the case when the direction is between [160, 180)</span>
+</span></span><span style="display:flex;"><span>    right_bin <span style="color:#f92672">=</span> (int(d <span style="color:#f92672">/</span> <span style="color:#ae81ff">20.</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">%</span> N_BUCKETS
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">assert</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&lt;=</span> left_bin <span style="color:#f92672">&lt;</span> right_bin <span style="color:#f92672">&lt;</span> N_BUCKETS
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    left_val<span style="color:#f92672">=</span> m <span style="color:#f92672">*</span> (right_bin <span style="color:#f92672">*</span> <span style="color:#ae81ff">20</span> <span style="color:#f92672">-</span> d) <span style="color:#f92672">/</span> <span style="color:#ae81ff">20</span>
+</span></span><span style="display:flex;"><span>    right_val <span style="color:#f92672">=</span> m <span style="color:#f92672">*</span> (d <span style="color:#f92672">-</span> left_bin <span style="color:#f92672">*</span> <span style="color:#ae81ff">20</span>) <span style="color:#f92672">/</span> <span style="color:#ae81ff">20</span>
+</span></span><span style="display:flex;"><span>    bucket_vals[left_bin] <span style="color:#f92672">+=</span> left_val
+</span></span><span style="display:flex;"><span>    bucket_vals[right_bin] <span style="color:#f92672">+=</span> right_val
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_magnitude_hist_cell</span>(loc_x, loc_y):
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># (loc_x, loc_y) defines the top left corner of the target cell.</span>
+</span></span><span style="display:flex;"><span>    cell_x <span style="color:#f92672">=</span> G_x[loc_x:loc_x <span style="color:#f92672">+</span> CELL_SIZE, loc_y:loc_y <span style="color:#f92672">+</span> CELL_SIZE]
+</span></span><span style="display:flex;"><span>    cell_y <span style="color:#f92672">=</span> G_y[loc_x:loc_x <span style="color:#f92672">+</span> CELL_SIZE, loc_y:loc_y <span style="color:#f92672">+</span> CELL_SIZE]
+</span></span><span style="display:flex;"><span>    magnitudes <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>sqrt(cell_x <span style="color:#f92672">*</span> cell_x <span style="color:#f92672">+</span> cell_y <span style="color:#f92672">*</span> cell_y)
+</span></span><span style="display:flex;"><span>    directions <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>abs(np<span style="color:#f92672">.</span>arctan(cell_y <span style="color:#f92672">/</span> cell_x) <span style="color:#f92672">*</span> <span style="color:#ae81ff">180</span> <span style="color:#f92672">/</span> np<span style="color:#f92672">.</span>pi)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    buckets <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>linspace(<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">180</span>, N_BUCKETS <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>    bucket_vals <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>zeros(N_BUCKETS)
+</span></span><span style="display:flex;"><span>    map(
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">lambda</span> (m, d): assign_bucket_vals(m, d, bucket_vals), 
+</span></span><span style="display:flex;"><span>        zip(magnitudes<span style="color:#f92672">.</span>flatten(), directions<span style="color:#f92672">.</span>flatten())
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> bucket_vals
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_magnitude_hist_block</span>(loc_x, loc_y):
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># (loc_x, loc_y) defines the top left corner of the target block.</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> reduce(
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">lambda</span> arr1, arr2: np<span style="color:#f92672">.</span>concatenate((arr1, arr2)),
+</span></span><span style="display:flex;"><span>        [get_magnitude_hist_cell(x, y) <span style="color:#66d9ef">for</span> x, y <span style="color:#f92672">in</span> zip(
+</span></span><span style="display:flex;"><span>            [loc_x, loc_x <span style="color:#f92672">+</span> CELL_SIZE, loc_x, loc_x <span style="color:#f92672">+</span> CELL_SIZE],
+</span></span><span style="display:flex;"><span>            [loc_y, loc_y, loc_y <span style="color:#f92672">+</span> CELL_SIZE, loc_y <span style="color:#f92672">+</span> CELL_SIZE],
+</span></span><span style="display:flex;"><span>        )]
+</span></span><span style="display:flex;"><span>    )
+</span></span></code></pre></div><p>The following code simply calls the functions to construct a histogram and plot it.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Random location [200, 200] as an example.</span>
+</span></span><span style="display:flex;"><span>loc_x <span style="color:#f92672">=</span> loc_y <span style="color:#f92672">=</span> <span style="color:#ae81ff">200</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ydata <span style="color:#f92672">=</span> get_magnitude_hist_block(loc_x, loc_y)
+</span></span><span style="display:flex;"><span>ydata <span style="color:#f92672">=</span> ydata <span style="color:#f92672">/</span> np<span style="color:#f92672">.</span>linalg<span style="color:#f92672">.</span>norm(ydata)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>xdata <span style="color:#f92672">=</span> range(len(ydata))
+</span></span><span style="display:flex;"><span>bucket_names <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>tile(np<span style="color:#f92672">.</span>arange(N_BUCKETS), BLOCK_SIZE <span style="color:#f92672">*</span> BLOCK_SIZE)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">assert</span> len(ydata) <span style="color:#f92672">==</span> N_BUCKETS <span style="color:#f92672">*</span> (BLOCK_SIZE <span style="color:#f92672">*</span> BLOCK_SIZE)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">assert</span> len(bucket_names) <span style="color:#f92672">==</span> len(ydata)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>figure(figsize<span style="color:#f92672">=</span>(<span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">3</span>))
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>bar(xdata, ydata, align<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;center&#39;</span>, alpha<span style="color:#f92672">=</span><span style="color:#ae81ff">0.8</span>, width<span style="color:#f92672">=</span><span style="color:#ae81ff">0.9</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>xticks(xdata, bucket_names <span style="color:#f92672">*</span> <span style="color:#ae81ff">20</span>, rotation<span style="color:#f92672">=</span><span style="color:#ae81ff">90</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>xlabel(<span style="color:#e6db74">&#39;Direction buckets&#39;</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>ylabel(<span style="color:#e6db74">&#39;Magnitude&#39;</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>grid(ls<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;--&#39;</span>, color<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;k&#39;</span>, alpha<span style="color:#f92672">=</span><span style="color:#ae81ff">0.1</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>title(<span style="color:#e6db74">&#34;HOG of block at [</span><span style="color:#e6db74">%d</span><span style="color:#e6db74">, </span><span style="color:#e6db74">%d</span><span style="color:#e6db74">]&#34;</span> <span style="color:#f92672">%</span> (loc_x, loc_y))
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>tight_layout()
+</span></span></code></pre></div><p>In the code above, I use the block with top left corner located at [200, 200] as an example and here is the final normalized histogram of this block. You can play with the code to change the block location to be identified by a sliding window.</p>
+<figure>
+	<img src="block_histogram.png"  />
+	<figcaption>Demonstration of a HOG histogram for one block.</figcaption>
+</figure>
+<p>The code is mostly for demonstrating the computation process. There are many off-the-shelf libraries with HOG algorithm implemented, such as <a href="https://github.com/opencv/opencv">OpenCV</a>, <a href="http://simplecv.org/">SimpleCV</a> and <a href="http://scikit-image.org/">scikit-image</a>.</p>
+<h1 id="image-segmentation-felzenszwalbs-algorithm">Image Segmentation (Felzenszwalb&rsquo;s Algorithm)<a hidden class="anchor" aria-hidden="true" href="#image-segmentation-felzenszwalbs-algorithm">#</a></h1>
+<p>When there exist multiple objects in one image (true for almost every real-world photos), we need to identify a region that potentially contains a target object so that the classification can be executed more efficiently.</p>
+<p>Felzenszwalb and Huttenlocher (<a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf">2004</a>) proposed an algorithm for segmenting an image into similar regions using a graph-based approach. It is also the initialization method for Selective Search (a popular region proposal algorithm) that we are gonna discuss later.</p>
+<p>Say, we use a undirected graph $G=(V, E)$ to represent an input image. One vertex $v_i \in V$ represents one pixel. One edge $e = (v_i, v_j) \in E$ connects two vertices $v_i$ and $v_j$. Its associated weight $w(v_i, v_j)$ measures the dissimilarity between $v_i$ and $v_j$. The dissimilarity can be quantified in dimensions like color, location, intensity, etc. The higher the weight, the less similar two pixels are. A segmentation solution $S$ is a partition of $V$ into multiple connected components, $\{C\}$. Intuitively similar pixels should belong to the same components while dissimilar ones are assigned to different components.</p>
+<h2 id="graph-construction">Graph Construction<a hidden class="anchor" aria-hidden="true" href="#graph-construction">#</a></h2>
+<p>There are two approaches to constructing a graph out of an image.</p>
+<ul>
+<li><strong>Grid Graph</strong>: Each pixel is only connected with surrounding neighbours (8 other cells in total). The edge weight is the absolute difference between the intensity values of the pixels.</li>
+<li><strong>Nearest Neighbor Graph</strong>: Each pixel is a point in the feature space (x, y, r, g, b), in which (x, y) is the pixel location and (r, g, b) is the color values in RGB. The weight is the Euclidean distance between two pixels&rsquo; feature vectors.</li>
+</ul>
+<h2 id="key-concepts">Key Concepts<a hidden class="anchor" aria-hidden="true" href="#key-concepts">#</a></h2>
+<p>Before we lay down the criteria for a good graph partition (aka image segmentation), let us define a couple of key concepts:</p>
+<ul>
+<li><strong>Internal difference</strong>: $Int(C) = \max_{e\in MST(C, E)} w(e)$, where $MST$ is the minimum spanning tree of the components. A component $C$ can still remain connected even when we have removed all the edges with weights &lt; $Int(C)$.</li>
+<li><strong>Difference between two components</strong>: $Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)$. $Dif(C_1, C_2) = \infty$ if there is no edge in-between.</li>
+<li><strong>Minimum internal difference</strong>: $MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))$, where $\tau(C) = k / \vert C \vert$ helps make sure we have a meaningful threshold for the difference between components. With a higher $k$, it is more likely to result in larger components.</li>
+</ul>
+<p>The quality of a segmentation is assessed by a pairwise region comparison predicate defined for given two regions $C_1$ and $C_2$:</p>
+<div>
+$$
+D(C_1, C_2) = 
+\begin{cases}
+  \text{True} & \text{ if } Dif(C_1, C_2) > MInt(C_1, C_2) \\
+  \text{False} & \text{ otherwise}
+\end{cases}
+$$
+</div>
+<p>Only when the predicate holds True, we consider them as two independent components; otherwise the segmentation is too fine and they probably should be merged.</p>
+<h2 id="how-image-segmentation-works">How Image Segmentation Works<a hidden class="anchor" aria-hidden="true" href="#how-image-segmentation-works">#</a></h2>
+<p>The algorithm follows a bottom-up procedure. Given $G=(V, E)$ and $|V|=n, |E|=m$:</p>
+<ol>
+<li>Edges are sorted by weight in ascending order, labeled as $e_1, e_2, \dots, e_m$.</li>
+<li>Initially, each pixel stays in its own component, so we start with $n$ components.</li>
+<li>Repeat for $k=1, \dots, m$:
+<ul>
+<li>The segmentation snapshot at the step $k$ is denoted as $S^k$.</li>
+<li>We take  the k-th edge in the order, $e_k = (v_i, v_j)$.</li>
+<li>If $v_i$ and $v_j$ belong to the same component, do nothing and thus $S^k = S^{k-1}$.</li>
+<li>If $v_i$ and $v_j$ belong to two different components $C_i^{k-1}$ and $C_j^{k-1}$ as in the segmentation $S^{k-1}$, we want to merge them into one if $w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})$; otherwise do nothing.</li>
+</ul>
+</li>
+</ol>
+<p>If you are interested in the proof of the segmentation properties and why it always exists, please refer to the <a href="http://fcv2011.ulsan.ac.kr/files/announcement/413/IJCV(2004)%20Efficient%20Graph-Based%20Image%20Segmentation.pdf">paper</a>.</p>
+<figure>
+	<img src="image-segmentation-indoor.png"  />
+	<figcaption>An indoor scene with segmentation detected by the grid graph construction in Felzenszwalb's graph-based segmentation algorithm (k=300).</figcaption>
+</figure>
+<h2 id="example-manu-in-2013">Example: Manu in 2013<a hidden class="anchor" aria-hidden="true" href="#example-manu-in-2013">#</a></h2>
+<p>This time I would use the photo of old Manu Ginobili in 2013 [[Image]({{ &lsquo;/assets/data/manu-2013.jpg&rsquo; | relative_url }})] as the example image when his bald spot has grown up strong. Still for simplicity, we use the picture in grayscale.</p>
+<figure>
+	<img src="manu-2013.png"  />
+	<figcaption>Manu Ginobili in 2013 with bald spot. (Image source: <a href="http://ftw.usatoday.com/2013/05/manu-ginobilis-bald-spot-through-the-years" target="_blank">Manu Ginobili's bald spot through the years</a>)</figcaption>
+</figure>
+<p>Rather than coding from scratch, let us apply <a href="http://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb">skimage.segmentation.felzenszwalb</a> to the image.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> skimage.segmentation
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> matplotlib <span style="color:#f92672">import</span> pyplot <span style="color:#66d9ef">as</span> plt
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>img2 <span style="color:#f92672">=</span> scipy<span style="color:#f92672">.</span>misc<span style="color:#f92672">.</span>imread(<span style="color:#e6db74">&#34;manu-2013.jpg&#34;</span>, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;L&#34;</span>)
+</span></span><span style="display:flex;"><span>segment_mask1 <span style="color:#f92672">=</span> skimage<span style="color:#f92672">.</span>segmentation<span style="color:#f92672">.</span>felzenszwalb(img2, scale<span style="color:#f92672">=</span><span style="color:#ae81ff">100</span>)
+</span></span><span style="display:flex;"><span>segment_mask2 <span style="color:#f92672">=</span> skimage<span style="color:#f92672">.</span>segmentation<span style="color:#f92672">.</span>felzenszwalb(img2, scale<span style="color:#f92672">=</span><span style="color:#ae81ff">1000</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>fig <span style="color:#f92672">=</span> plt<span style="color:#f92672">.</span>figure(figsize<span style="color:#f92672">=</span>(<span style="color:#ae81ff">12</span>, <span style="color:#ae81ff">5</span>))
+</span></span><span style="display:flex;"><span>ax1 <span style="color:#f92672">=</span> fig<span style="color:#f92672">.</span>add_subplot(<span style="color:#ae81ff">121</span>)
+</span></span><span style="display:flex;"><span>ax2 <span style="color:#f92672">=</span> fig<span style="color:#f92672">.</span>add_subplot(<span style="color:#ae81ff">122</span>)
+</span></span><span style="display:flex;"><span>ax1<span style="color:#f92672">.</span>imshow(segment_mask1); ax1<span style="color:#f92672">.</span>set_xlabel(<span style="color:#e6db74">&#34;k=100&#34;</span>)
+</span></span><span style="display:flex;"><span>ax2<span style="color:#f92672">.</span>imshow(segment_mask2); ax2<span style="color:#f92672">.</span>set_xlabel(<span style="color:#e6db74">&#34;k=1000&#34;</span>)
+</span></span><span style="display:flex;"><span>fig<span style="color:#f92672">.</span>suptitle(<span style="color:#e6db74">&#34;Felsenszwalb&#39;s efficient graph based image segmentation&#34;</span>)
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>tight_layout()
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>show()
+</span></span></code></pre></div><p>The code ran two versions of Felzenszwalb&rsquo;s algorithms as shown in The left k=100 generates a finer-grained segmentation with small regions where Manu&rsquo;s bald spot is identified. The right one k=1000 outputs a coarser-grained segmentation where regions tend to be larger.</p>
+<figure>
+	<img src="manu-2013-segmentation.png"  />
+	<figcaption>Felsenszwalb's efficient graph-based image segmentation is applied on the photo of Manu in 2013.</figcaption>
+</figure>
+<h1 id="selective-search">Selective Search<a hidden class="anchor" aria-hidden="true" href="#selective-search">#</a></h1>
+<p>Selective search is a common algorithm to provide region proposals that potentially contain objects. It is built on top of the image segmentation output and use region-based characteristics (NOTE: not just attributes of a single pixel) to do a bottom-up hierarchical grouping.</p>
+<h2 id="how-selective-search-works">How Selective Search Works<a hidden class="anchor" aria-hidden="true" href="#how-selective-search-works">#</a></h2>
+<ol>
+<li>At the initialization stage, apply Felzenszwalb and Huttenlocher&rsquo;s graph-based image segmentation algorithm to create regions to start with.</li>
+<li>Use a greedy algorithm to iteratively group regions together:
+<ul>
+<li>First the similarities between all neighbouring regions are calculated.</li>
+<li>The two most similar regions are grouped together, and new similarities are calculated between the resulting region and its neighbours.</li>
+</ul>
+</li>
+<li>The process of grouping the most similar regions (Step 2) is repeated until the whole image becomes a single region.</li>
+</ol>
+<figure>
+	<img src="selective-search-algorithm.png" style="width: 480px;"  />
+	<figcaption>The detailed algorithm of Selective Search.</figcaption>
+</figure>
+<h2 id="configuration-variations">Configuration Variations<a hidden class="anchor" aria-hidden="true" href="#configuration-variations">#</a></h2>
+<p>Given two regions $(r_i, r_j)$, selective search proposed four complementary similarity measures:</p>
+<ul>
+<li><strong>Color</strong> similarity</li>
+<li><strong>Texture</strong>: Use algorithm that works well for material recognition such as <a href="http://www.cs.ubc.ca/~lowe/papers/iccv99.pdf">SIFT</a>.</li>
+<li><strong>Size</strong>: Small regions are encouraged to merge early.</li>
+<li><strong>Shape</strong>: Ideally one region can fill the gap of the other.</li>
+</ul>
+<p>By (i) tuning the threshold $k$ in Felzenszwalb and Huttenlocher&rsquo;s algorithm, (ii) changing the color space and (iii) picking different combinations of similarity metrics, we can produce a diverse set of Selective Search strategies. The version that produces the region proposals with best quality is configured with (i) a mixture of various initial segmentation proposals, (ii) a blend of multiple color spaces and (iii) a combination of all similarity measures. Unsurprisingly we need to balance between the quality (the model complexity) and the speed.</p>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2017detection1,
+  title   = &#34;Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2017&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Dalal, Navneet, and Bill Triggs. <a href="https://hal.inria.fr/file/index/docid/548512/filename/hog_cvpr2005.pdf">&ldquo;Histograms of oriented gradients for human detection.&rdquo;</a> Computer Vision and Pattern Recognition (CVPR), 2005.</p>
+<p>[2] Pedro F. Felzenszwalb, and Daniel P. Huttenlocher. <a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf">&ldquo;Efficient graph-based image segmentation.&rdquo;</a> Intl. journal of computer vision 59.2 (2004): 167-181.</p>
+<p>[3] <a href="https://www.learnopencv.com/histogram-of-oriented-gradients/">Histogram of Oriented Gradients by Satya Mallick</a></p>
+<p>[4] <a href="http://mccormickml.com/2013/05/07/gradient-vectors/">Gradient Vectors by Chris McCormick</a></p>
+<p>[5] <a href="http://mccormickml.com/2013/05/09/hog-person-detector-tutorial/">HOG Person Detector Tutorial by Chris McCormick</a></p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/object-detection/">Object-Detection</a></li>
+      <li><a href="https://lilianweng.github.io/tags/object-recognition/">Object-Recognition</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-model/">Vision-Model</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">
+    <span class="title">« </span>
+    <br>
+    <span>Object Detection for Dummies Part 2: CNN, DPM and Overfeat</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/">
+    <span class="title"> »</span>
+    <br>
+    <span>Learning Word Embedding</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on twitter"
+        href="https://twitter.com/intent/tweet/?text=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f&amp;hashtags=object-detection%2cobject-recognition%2cvision-model">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f&amp;title=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS&amp;summary=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f&title=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on whatsapp"
+        href="https://api.whatsapp.com/send?text=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS on telegram"
+        href="https://telegram.me/share/url?text=Object%20Detection%20for%20Dummies%20Part%201%3a%20Gradient%20Vector%2c%20HOG%2c%20and%20SS&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-10-29-object-recognition-part-1%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

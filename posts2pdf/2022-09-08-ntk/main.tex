@@ -1,0 +1,544 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Some Math behind Neural Tangent Kernel}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={Some Math behind Neural Tangent Kernel},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{Some Math behind Neural Tangent Kernel}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2022-09-08-ntk/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2022-09-08-ntk/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Some Math behind Neural Tangent Kernel}\label{some-math-behind-neural-tangent-kernel}
+
+Date: September 8, 2022 \textbar{} Estimated Reading Time: 17 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[basics]{Basics}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[vector-to-vector-derivative]{Vector-to-vector Derivative}
+  \item
+    \hyperref[differential-equations]{Differential Equations}
+  \item
+    \hyperref[central-limit-theorem]{Central Limit Theorem}
+  \item
+    \hyperref[taylor-expansion]{Taylor Expansion}
+  \item
+    \hyperref[kernel--kernel-methods]{Kernel \& Kernel Methods}
+  \item
+    \hyperref[gaussian-processes]{Gaussian Processes}
+  \end{itemize}
+\item
+  \hyperref[notation]{Notation}
+\item
+  \hyperref[neural-tangent-kernel]{Neural Tangent Kernel}
+\item
+  \hyperref[infinite-width-networks]{Infinite Width Networks}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[connection-with-gaussian-processes]{Connection with Gaussian Processes}
+  \item
+    \hyperref[deterministic-neural-tangent-kernel]{Deterministic Neural Tangent Kernel}
+  \item
+    \hyperref[linearized-models]{Linearized Models}
+  \item
+    \hyperref[lazy-training]{Lazy Training}
+  \end{itemize}
+\item
+  \hyperref[citation]{Citation}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+Neural networks are \href{https://lilianweng.github.io/posts/2019-03-14-overfit/}{well known} to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
+
+\textbf{Neural tangent kernel (NTK)} (\href{https://arxiv.org/abs/1806.07572}{Jacot et al. 2018}) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.
+
+\begin{quote}
+🤓 Different from my previous posts, this one mainly focuses on a small number of core papers, less on the breadth of the literature review in the field. There are many interesting works after NTK, with modification or expansion of the theory for understanding the learning dynamics of NNs, but they won't be covered here. The goal is to show all the math behind NTK in a clear and easy-to-follow format, so the post is quite math-intensive. If you notice any mistakes, please let me know and I will be happy to correct them quickly. Thanks in advance!
+\end{quote}
+
+\section{\texorpdfstring{Basics\hyperref[basics]{\#}}{Basics\#}}\label{basics}
+
+This section contains reviews of several very basic concepts which are core to understanding of neural tangent kernel. Feel free to skip.
+
+\subsection{\texorpdfstring{Vector-to-vector Derivative\hyperref[vector-to-vector-derivative]{\#}}{Vector-to-vector Derivative\#}}\label{vector-to-vector-derivative}
+
+Given an input vector \$\textbackslash mathbf\{x\} \textbackslash in \textbackslash mathbb\{R\}\^{}n\$ (as a column vector) and a function \$f: \textbackslash mathbb\{R\}\^{}n \textbackslash to \textbackslash mathbb\{R\}\^{}m\$, the derivative of \$f\$ with respective to \$\textbackslash mathbf\{x\}\$ is a \$m\textbackslash times n\$ matrix, also known as \href{https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant}{\emph{Jacobian matrix}}:
+
+\$\$ J = \textbackslash frac\{\textbackslash partial f\}\{\textbackslash partial \textbackslash mathbf\{x\}\} = \textbackslash begin\{bmatrix\} \textbackslash frac\{\textbackslash partial f\_1\}\{\textbackslash partial x\_1\} \& \textbackslash dots \&\textbackslash frac\{\textbackslash partial f\_1\}\{\textbackslash partial x\_n\} \textbackslash\textbackslash{} \textbackslash vdots \& \& \textbackslash\textbackslash{} \textbackslash frac\{\textbackslash partial f\_m\}\{\textbackslash partial x\_1\} \& \textbackslash dots \&\textbackslash frac\{\textbackslash partial f\_m\}\{\textbackslash partial x\_n\} \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{m \textbackslash times n\} \$\$
+
+Throughout the post, I use integer subscript(s) to refer to a single entry out of a vector or matrix value; i.e. \$x\_i\$ indicates the \$i\$-th value in the vector \$\textbackslash mathbf\{x\}\$ and \$f\_i(.)\$ is the \$i\$-th entry in the output of the function.
+
+The gradient of a vector with respect to a vector is defined as \$\textbackslash nabla\_\textbackslash mathbf\{x\} f = J\^{}\textbackslash top \textbackslash in \textbackslash mathbb\{R\}\^{}\{n \textbackslash times m\}\$ and this formation is also valid when \$m=1\$ (i.e., scalar output).
+
+\subsection{\texorpdfstring{Differential Equations\hyperref[differential-equations]{\#}}{Differential Equations\#}}\label{differential-equations}
+
+Differential equations describe the relationship between one or multiple functions and their derivatives. There are two main types of differential equations.
+
+\begin{itemize}
+\tightlist
+\item
+  (1) \emph{ODE (Ordinary differential equation)} contains only an unknown function of one random variable. ODEs are the main form of differential equations used in this post. A general form of ODE looks like \$(x, y, \textbackslash frac\{dy\}\{dx\}, \textbackslash dots, \textbackslash frac\{d\^{}ny\}\{dx\^{}n\}) = 0\$.
+\item
+  (2) \emph{PDE (Partial differential equation)} contains unknown multivariable functions and their partial derivatives.
+\end{itemize}
+
+Let's review the simplest case of differential equations and its solution. \emph{Separation of variables} (Fourier method) can be used when all the terms containing one variable can be moved to one side, while the other terms are all moved to the other side. For example,
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash text\{Given \}a\textbackslash text\{ is a constant scalar:\}\textbackslash quad\textbackslash frac\{dy\}\{dx\} \&= ay \textbackslash\textbackslash{} \textbackslash text\{Move same variables to the same side:\}\textbackslash quad\textbackslash frac\{dy\}\{y\} \&= adx \textbackslash\textbackslash{} \textbackslash text\{Put integral on both sides:\}\textbackslash quad\textbackslash int \textbackslash frac\{dy\}\{y\} \&= \textbackslash int adx \textbackslash\textbackslash{} \textbackslash ln (y) \&= ax + C\textquotesingle{} \textbackslash\textbackslash{} \textbackslash text\{Finally\}\textbackslash quad y \&= e\^{}\{ax + C\textquotesingle\} = C e\^{}\{ax\} \textbackslash end\{aligned\} \$\$
+
+\subsection{\texorpdfstring{Central Limit Theorem\hyperref[central-limit-theorem]{\#}}{Central Limit Theorem\#}}\label{central-limit-theorem}
+
+Given a collection of i.i.d. random variables, \$x\_1, \textbackslash dots, x\_N\$ with mean \$\textbackslash mu\$ and variance \$\textbackslash sigma\^{}2\$, the \emph{Central Limit Theorem (CTL)} states that the expectation would be Gaussian distributed when \$N\$ becomes really large.
+
+\$\$ \textbackslash bar\{x\} = \textbackslash frac\{1\}\{N\}\textbackslash sum\_\{i=1\}\^{}N x\_i \textbackslash sim \textbackslash mathcal\{N\}(\textbackslash mu, \textbackslash frac\{\textbackslash sigma\^{}2\}\{n\})\textbackslash quad\textbackslash text\{when \}N \textbackslash to \textbackslash infty \$\$
+
+CTL can also apply to multidimensional vectors, and then instead of a single scale \$\textbackslash sigma\^{}2\$ we need to compute the covariance matrix of random variable \$\textbackslash Sigma\$.
+
+\subsection{\texorpdfstring{Taylor Expansion\hyperref[taylor-expansion]{\#}}{Taylor Expansion\#}}\label{taylor-expansion}
+
+The \href{https://en.wikipedia.org/wiki/Taylor_series}{\emph{Taylor expansion}} is to express a function as an infinite sum of components, each represented in terms of this function's derivatives. The Tayler expansion of a function \$f(x)\$ at \$x=a\$ can be written as: \$\$ f(x) = f(a) + \textbackslash sum\_\{k=1\}\^{}\textbackslash infty \textbackslash frac\{1\}\{k!\} (x - a)\^{}k\textbackslash nabla\^{}k\_xf(x)\textbackslash vert\_\{x=a\} \$\$ where \$\textbackslash nabla\^{}k\$ denotes the \$k\$-th derivative.
+
+The first-order Taylor expansion is often used as a linear approximation of the function value:
+
+\$\$ f(x) \textbackslash approx f(a) + (x - a)\textbackslash nabla\_x f(x)\textbackslash vert\_\{x=a\} \$\$
+
+\subsection{\texorpdfstring{Kernel \& Kernel Methods\hyperref[kernel--kernel-methods]{\#}}{Kernel \& Kernel Methods\#}}\label{kernel--kernel-methods}
+
+A \href{https://en.wikipedia.org/wiki/Kernel_method}{\emph{kernel}} is essentially a similarity function between two data points, \$K: \textbackslash mathcal\{X\} \textbackslash times \textbackslash mathcal\{X\} \textbackslash to \textbackslash mathbb\{R\}\$. It describes how sensitive the prediction for one data sample is to the prediction for the other; or in other words, how similar two data points are. The kernel should be symmetric, \$K(x, x') = K(x', x)\$.
+
+Depending on the problem structure, some kernels can be decomposed into two feature maps, one corresponding to one data point, and the kernel value is an inner product of these two features: \$K(x, x') = \textbackslash langle \textbackslash varphi(x), \textbackslash varphi(x') \textbackslash rangle\$.
+
+\emph{Kernel methods} are a type of non-parametric, instance-based machine learning algorithms. Assuming we have known all the labels of training samples \$\textbackslash\{x\^{}\{(i)\}, y\^{}\{(i)\}\textbackslash\}\$, the label for a new input \$x\$ is predicted by a weighted sum \$\textbackslash sum\_\{i\} K(x\^{}\{(i)\}, x)y\^{}\{(i)\}\$.
+
+\subsection{\texorpdfstring{Gaussian Processes\hyperref[gaussian-processes]{\#}}{Gaussian Processes\#}}\label{gaussian-processes}
+
+\emph{Gaussian process (GP)} is a non-parametric method by modeling a multivariate Gaussian probability distribution over a collection of random variables. GP assumes a prior over functions and then updates the posterior over functions based on what data points are observed.
+
+Given a collection of data points \$\textbackslash\{x\^{}\{(1)\}, \textbackslash dots, x\^{}\{(N)\}\textbackslash\}\$, GP assumes that they follow a jointly multivariate Gaussian distribution, defined by a mean \$\textbackslash mu(x)\$ and a covariance matrix \$\textbackslash Sigma(x)\$. Each entry at location \$(i,j)\$ in the covariance matrix \$\textbackslash Sigma(x)\$ is defined by a kernel \$\textbackslash Sigma\_\{i,j\} = K(x\^{}\{(i)\}, x\^{}\{(j)\})\$, also known as a \emph{covariance function}. The core idea is -- if two data points are deemed similar by the kernel, the function outputs should be close, too. Making predictions with GP for unknown data points is equivalent to drawing samples from this distribution, via a conditional distribution of unknown data points given observed ones.
+
+Check \href{https://distill.pub/2019/visual-exploration-gaussian-processes/}{this post} for a high-quality and highly visualization tutorial on what Gaussian Processes are.
+
+\section{\texorpdfstring{Notation\hyperref[notation]{\#}}{Notation\#}}\label{notation}
+
+Let us consider a fully-connected neural networks with parameter \$\textbackslash theta\$, \$f(.;\textbackslash theta): \textbackslash mathbb\{R\}\^{}\{n\_0\} \textbackslash to \textbackslash mathbb\{R\}\^{}\{n\_L\}\$. Layers are indexed from 0 (input) to \$L\$ (output), each containing \$n\_0, \textbackslash dots, n\_L\$ neurons, including the input of size \$n\_0\$ and the output of size \$n\_L\$. There are \$P = \textbackslash sum\_\{l=0\}\^{}\{L-1\} (n\_l + 1) n\_\{l+1\}\$ parameters in total and thus we have \$\textbackslash theta \textbackslash in \textbackslash mathbb\{R\}\^{}P\$.
+
+The training dataset contains \$N\$ data points, \$\textbackslash mathcal\{D\}=\textbackslash\{\textbackslash mathbf\{x\}\^{}\{(i)\}, y\^{}\{(i)\}\textbackslash\}\_\{i=1\}\^{}N\$. All the inputs are denoted as \$\textbackslash mathcal\{X\}=\textbackslash\{\textbackslash mathbf\{x\}\^{}\{(i)\}\textbackslash\}\_\{i=1\}\^{}N\$ and all the labels are denoted as \$\textbackslash mathcal\{Y\}=\textbackslash\{y\^{}\{(i)\}\textbackslash\}\_\{i=1\}\^{}N\$.
+
+Now let's look into the forward pass computation in every layer in detail. For \$l=0, \textbackslash dots, L-1\$, each layer \$l\$ defines an affine transformation \$A\^{}\{(l)\}\$ with a weight matrix \$\textbackslash mathbf\{w\}\^{}\{(l)\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{n\_\{l\} \textbackslash times n\_\{l+1\}\}\$ and a bias term \$\textbackslash mathbf\{b\}\^{}\{(l)\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{n\_\{l+1\}\}\$, as well as a pointwise nonlinearity function \$\textbackslash sigma(.)\$ which is \href{https://en.wikipedia.org/wiki/Lipschitz_continuity}{Lipschitz continuous}.
+
+\$\$ \textbackslash begin\{aligned\} A\^{}\{(0)\} \&= \textbackslash mathbf\{x\} \textbackslash\textbackslash{} \textbackslash tilde\{A\}\^{}\{(l+1)\}(\textbackslash mathbf\{x\}) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\} \{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\^{}\textbackslash top A\^{}\{(l)\} + \textbackslash beta\textbackslash mathbf\{b\}\^{}\{(l)\}\textbackslash quad\textbackslash in\textbackslash mathbb\{R\}\^{}\{n\_\{l+1\}\} \& \textbackslash text\{; pre-activations\}\textbackslash\textbackslash{} A\^{}\{(l+1)\}(\textbackslash mathbf\{x\}) \&= \textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l+1)\}(\textbackslash mathbf\{x\}))\textbackslash quad\textbackslash in\textbackslash mathbb\{R\}\^{}\{n\_\{l+1\}\} \& \textbackslash text\{; post-activations\} \textbackslash end\{aligned\} \$\$
+
+Note that the \emph{NTK parameterization} applies a rescale weight \$1/\textbackslash sqrt\{n\_l\}\$ on the transformation to avoid divergence with infinite-width networks. The constant scalar \$\textbackslash beta \textbackslash geq 0\$ controls how much effort the bias terms have.
+
+All the network parameters are initialized as an i.i.d Gaussian \$\textbackslash mathcal\{N\}(0, 1)\$ in the following analysis.
+
+\section{\texorpdfstring{Neural Tangent Kernel\hyperref[neural-tangent-kernel]{\#}}{Neural Tangent Kernel\#}}\label{neural-tangent-kernel}
+
+\textbf{Neural tangent kernel (NTK)} (\href{https://arxiv.org/abs/1806.07572}{Jacot et al. 2018}) is an important concept for understanding neural network training via gradient descent. At its core, it explains how updating the model parameters on one data sample affects the predictions for other samples.
+
+Let's start with the intuition behind NTK, step by step.
+
+The empirical loss function \$\textbackslash mathcal\{L\}: \textbackslash mathbb\{R\}\^{}P \textbackslash to \textbackslash mathbb\{R\}\_+\$ to minimize during training is defined as follows, using a per-sample cost function \$\textbackslash ell: \textbackslash mathbb\{R\}\^{}\{n\_0\} \textbackslash times \textbackslash mathbb\{R\}\^{}\{n\_L\} \textbackslash to \textbackslash mathbb\{R\}\_+\$:
+
+\$\$ \textbackslash mathcal\{L\}(\textbackslash theta) =\textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash ell(f(\textbackslash mathbf\{x\}\^{}\{(i)\}; \textbackslash theta), y\^{}\{(i)\}) \$\$
+
+and according to the chain rule. the gradient of the loss is:
+
+\$\$ \textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}(\textbackslash theta)= \textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash underbrace\{\textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\}\^{}\{(i)\}; \textbackslash theta)\}\_\{\textbackslash text\{size \}P \textbackslash times n\_L\} \textbackslash underbrace\{\textbackslash nabla\_f \textbackslash ell(f, y\^{}\{(i)\})\}\_\{\textbackslash text\{size \} n\_L \textbackslash times 1\} \$\$
+
+When tracking how the network parameter \$\textbackslash theta\$ evolves in time, each gradient descent update introduces a small incremental change of an infinitesimal step size. Because of the update step is small enough, it can be approximately viewed as a derivative on the time dimension:
+
+\$\$ \textbackslash frac\{d\textbackslash theta\}\{d t\} = - \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{L\}(\textbackslash theta) = -\textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\}\^{}\{(i)\}; \textbackslash theta) \textbackslash nabla\_f \textbackslash ell(f, y\^{}\{(i)\}) \$\$
+
+Again, by the chain rule, the network output evolves according to the derivative:
+
+\$\$ \textbackslash frac\{df(\textbackslash mathbf\{x\};\textbackslash theta)\}\{dt\} = \textbackslash frac\{df(\textbackslash mathbf\{x\};\textbackslash theta)\}\{d\textbackslash theta\}\textbackslash frac\{d\textbackslash theta\}\{dt\} = -\textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash color\{blue\}\{\textbackslash underbrace\{\textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\}\^{}\{(i)\}; \textbackslash theta)\}\_\textbackslash text\{Neural tangent kernel\}\} \textbackslash color\{black\}\{\textbackslash nabla\_f \textbackslash ell(f, y\^{}\{(i)\})\} \$\$
+
+Here we find the \textbf{Neural Tangent Kernel (NTK)}, as defined in the blue part in the above formula, \$K: \textbackslash mathbb\{R\}\^{}\{n\_0\}\textbackslash times\textbackslash mathbb\{R\}\^{}\{n\_0\} \textbackslash to \textbackslash mathbb\{R\}\^{}\{n\_L \textbackslash times n\_L\}\$ :
+
+\$\$ K(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle; \textbackslash theta) = \textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\}\textquotesingle; \textbackslash theta) \$\$
+
+where each entry in the output matrix at location \$(m, n), 1 \textbackslash leq m, n \textbackslash leq n\_L\$ is:
+
+\$\$ K\_\{m,n\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle; \textbackslash theta) = \textbackslash sum\_\{p=1\}\^{}P \textbackslash frac\{\textbackslash partial f\_m(\textbackslash mathbf\{x\};\textbackslash theta)\}\{\textbackslash partial \textbackslash theta\_p\} \textbackslash frac\{\textbackslash partial f\_n(\textbackslash mathbf\{x\}\textquotesingle;\textbackslash theta)\}\{\textbackslash partial \textbackslash theta\_p\} \$\$
+
+The ``feature map'' form of one input \$\textbackslash mathbf\{x\}\$ is \$\textbackslash varphi(\textbackslash mathbf\{x\}) = \textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\};\textbackslash theta)\$.
+
+\section{\texorpdfstring{Infinite Width Networks\hyperref[infinite-width-networks]{\#}}{Infinite Width Networks\#}}\label{infinite-width-networks}
+
+To understand why the effect of one gradient descent is so similar for different initializations of network parameters, several pioneering theoretical work starts with infinite width networks. We will look into detailed proof using NTK of how it guarantees that infinite width networks can converge to a global minimum when trained to minimize an empirical loss.
+
+\subsection{\texorpdfstring{Connection with Gaussian Processes\hyperref[connection-with-gaussian-processes]{\#}}{Connection with Gaussian Processes\#}}\label{connection-with-gaussian-processes}
+
+Deep neural networks have deep connection with gaussian processes (\href{https://www.cs.toronto.edu/~radford/ftp/pin.pdf}{Neal 1994}). The output functions of a \$L\$-layer network, \$f\_i(\textbackslash mathbf\{x\}; \textbackslash theta)\$ for \$i=1, \textbackslash dots, n\_L\$ , are i.i.d. centered Gaussian process of covariance \$\textbackslash Sigma\^{}\{(L)\}\$, defined recursively as:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash Sigma\^{}\{(1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \&= \textbackslash frac\{1\}\{n\_0\}\textbackslash mathbf\{x\}\^{}\textbackslash top\{\textbackslash mathbf\{x\}\textquotesingle\} + \textbackslash beta\^{}2 \textbackslash\textbackslash{} \textbackslash lambda\^{}\{(l+1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \&= \textbackslash begin\{bmatrix\} \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}) \& \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \textbackslash\textbackslash{} \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}\textquotesingle, \textbackslash mathbf\{x\}) \& \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}\textquotesingle, \textbackslash mathbf\{x\}\textquotesingle) \textbackslash end\{bmatrix\} \textbackslash\textbackslash{} \textbackslash Sigma\^{}\{(l+1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \&= \textbackslash mathbb\{E\}\_\{f \textbackslash sim \textbackslash mathcal\{N\}(0, \textbackslash lambda\^{}\{(l)\})\}{[}\textbackslash sigma(f(\textbackslash mathbf\{x\})) \textbackslash sigma(f(\textbackslash mathbf\{x\}\textquotesingle)){]} + \textbackslash beta\^{}2 \textbackslash end\{aligned\} \$\$
+
+\href{https://arxiv.org/abs/1711.00165}{Lee \& Bahri et al. (2018)} showed a proof by mathematical induction:
+
+(1) Let's start with \$L=1\$, when there is no nonlinearity function and the input is only processed by a simple affine transformation:
+
+\$\$ \textbackslash begin\{aligned\} f(\textbackslash mathbf\{x\};\textbackslash theta) = \textbackslash tilde\{A\}\^{}\{(1)\}(\textbackslash mathbf\{x\}) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_0\}\}\{\textbackslash mathbf\{w\}\^{}\{(0)\}\}\^{}\textbackslash top\textbackslash mathbf\{x\} + \textbackslash beta\textbackslash mathbf\{b\}\^{}\{(0)\} \textbackslash\textbackslash{} \textbackslash text\{where \}\textbackslash tilde\{A\}\_m\^{}\{(1)\}(\textbackslash mathbf\{x\}) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_0\}\}\textbackslash sum\_\{i=1\}\^{}\{n\_0\} w\^{}\{(0)\}\_\{im\}x\_i + \textbackslash beta b\^{}\{(0)\}\_m\textbackslash quad \textbackslash text\{for \}1 \textbackslash leq m \textbackslash leq n\_1 \textbackslash end\{aligned\} \$\$
+
+Since the weights and biases are initialized i.i.d., all the output dimensions of this network \$\{\textbackslash tilde\{A\}\^{}\{(1)\}\_1(\textbackslash mathbf\{x\}), \textbackslash dots, \textbackslash tilde\{A\}\^{}\{(1)\}\_\{n\_1\}(\textbackslash mathbf\{x\})\}\$ are also i.i.d. Given different inputs, the \$m\$-th network outputs \$\textbackslash tilde\{A\}\^{}\{(1)\}\_m(.)\$ have a joint multivariate Gaussian distribution, equivalent to a Gaussian process with covariance function (We know that mean \$\textbackslash mu\_w=\textbackslash mu\_b=0\$ and variance \$\textbackslash sigma\^{}2\_w = \textbackslash sigma\^{}2\_b=1\$)
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash Sigma\^{}\{(1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \&= \textbackslash mathbb\{E\}{[}\textbackslash tilde\{A\}\_m\^{}\{(1)\}(\textbackslash mathbf\{x\})\textbackslash tilde\{A\}\_m\^{}\{(1)\}(\textbackslash mathbf\{x\}\textquotesingle){]} \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\textbackslash Big{[}\textbackslash Big( \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_0\}\}\textbackslash sum\_\{i=1\}\^{}\{n\_0\} w\^{}\{(0)\}\_\{i,m\}x\_i + \textbackslash beta b\^{}\{(0)\}\_m \textbackslash Big) \textbackslash Big( \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_0\}\}\textbackslash sum\_\{i=1\}\^{}\{n\_0\} w\^{}\{(0)\}\_\{i,m\}x\textquotesingle\_i + \textbackslash beta b\^{}\{(0)\}\_m \textbackslash Big)\textbackslash Big{]} \textbackslash\textbackslash{} \&= \textbackslash frac\{1\}\{n\_0\} \textbackslash sigma\^{}2\_w \textbackslash sum\_\{i=1\}\^{}\{n\_0\} \textbackslash sum\_\{j=1\}\^{}\{n\_0\} x\_i\{x\textquotesingle\}\_j + \textbackslash frac\{\textbackslash beta \textbackslash mu\_b\}\{\textbackslash sqrt\{n\_0\}\} \textbackslash sum\_\{i=1\}\^{}\{n\_0\} w\_\{im\}(x\_i + x\textquotesingle\_i) + \textbackslash sigma\^{}2\_b \textbackslash beta\^{}2 \textbackslash\textbackslash{} \&= \textbackslash frac\{1\}\{n\_0\}\textbackslash mathbf\{x\}\^{}\textbackslash top\{\textbackslash mathbf\{x\}\textquotesingle\} + \textbackslash beta\^{}2 \textbackslash end\{aligned\} \$\$
+
+(2) Using induction, we first assume the proposition is true for \$L=l\$, a \$l\$-layer network, and thus \$\textbackslash tilde\{A\}\^{}\{(l)\}\_m(.)\$ is a Gaussian process with covariance \$\textbackslash Sigma\^{}\{(l)\}\$ and \$\textbackslash\{\textbackslash tilde\{A\}\^{}\{(l)\}\_i\textbackslash\}\_\{i=1\}\^{}\{n\_l\}\$ are i.i.d.
+
+Then we need to prove the proposition is also true for \$L=l+1\$. We compute the outputs by:
+
+\$\$ \textbackslash begin\{aligned\} f(\textbackslash mathbf\{x\};\textbackslash theta) = \textbackslash tilde\{A\}\^{}\{(l+1)\}(\textbackslash mathbf\{x\}) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\}\{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\^{}\textbackslash top \textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}(\textbackslash mathbf\{x\})) + \textbackslash beta\textbackslash mathbf\{b\}\^{}\{(l)\} \textbackslash\textbackslash{} \textbackslash text\{where \}\textbackslash tilde\{A\}\^{}\{(l+1)\}\_m(\textbackslash mathbf\{x\}) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\}\textbackslash sum\_\{i=1\}\^{}\{n\_l\} w\^{}\{(l)\}\_\{im\}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})) + \textbackslash beta b\^{}\{(l)\}\_m \textbackslash quad \textbackslash text\{for \}1 \textbackslash leq m \textbackslash leq n\_\{l+1\} \textbackslash end\{aligned\} \$\$
+
+We can infer that the expectation of the sum of contributions of the previous hidden layers is zero:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbb\{E\}{[}w\^{}\{(l)\}\_\{im\}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})){]} \&= \textbackslash mathbb\{E\}{[}w\^{}\{(l)\}\_\{im\}{]}\textbackslash mathbb\{E\}{[}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})){]} = \textbackslash mu\_w \textbackslash mathbb\{E\}{[}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})){]} = 0 \textbackslash\textbackslash{} \textbackslash mathbb\{E\}{[}\textbackslash big(w\^{}\{(l)\}\_\{im\}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\}))\textbackslash big)\^{}2{]} \&= \textbackslash mathbb\{E\}{[}\{w\^{}\{(l)\}\_\{im\}\}\^{}2{]}\textbackslash mathbb\{E\}{[}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\}))\^{}2{]} = \textbackslash sigma\_w\^{}2 \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}) = \textbackslash Sigma\^{}\{(l)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}) \textbackslash end\{aligned\} \$\$
+
+Since \$\textbackslash\{\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})\textbackslash\}\_\{i=1\}\^{}\{n\_l\}\$ are i.i.d., according to central limit theorem, when the hidden layer gets infinitely wide \$n\_l \textbackslash to \textbackslash infty\$, \$\textbackslash tilde\{A\}\^{}\{(l+1)\}\_m(\textbackslash mathbf\{x\})\$ is Gaussian distributed with variance \$\textbackslash beta\^{}2 + \textbackslash text\{Var\}(\textbackslash tilde\{A\}\_i\^{}\{(l)\}(\textbackslash mathbf\{x\}))\$. Note that \$\{\textbackslash tilde\{A\}\^{}\{(l+1)\}\_1(\textbackslash mathbf\{x\}), \textbackslash dots, \textbackslash tilde\{A\}\^{}\{(l+1)\}\_\{n\_\{l+1\}\}(\textbackslash mathbf\{x\})\}\$ are still i.i.d.
+
+\$\textbackslash tilde\{A\}\^{}\{(l+1)\}\_m(.)\$ is equivalent to a Gaussian process with covariance function:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash Sigma\^{}\{(l+1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \&= \textbackslash mathbb\{E\}{[}\textbackslash tilde\{A\}\^{}\{(l+1)\}\_m(\textbackslash mathbf\{x\})\textbackslash tilde\{A\}\^{}\{(l+1)\}\_m(\textbackslash mathbf\{x\}\textquotesingle){]} \textbackslash\textbackslash{} \&= \textbackslash frac\{1\}\{n\_l\} \textbackslash sigma\textbackslash big(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\})\textbackslash big)\^{}\textbackslash top \textbackslash sigma\textbackslash big(\textbackslash tilde\{A\}\^{}\{(l)\}\_i(\textbackslash mathbf\{x\}\textquotesingle)\textbackslash big) + \textbackslash beta\^{}2 \textbackslash quad\textbackslash text\{;similar to how we get \}\textbackslash Sigma\^{}\{(1)\} \textbackslash end\{aligned\} \$\$
+
+When \$n\_l \textbackslash to \textbackslash infty\$, according to central limit theorem,
+
+\$\$ \textbackslash Sigma\^{}\{(l+1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \textbackslash to \textbackslash mathbb\{E\}\_\{f \textbackslash sim \textbackslash mathcal\{N\}(0, \textbackslash Lambda\^{}\{(l)\})\}{[}\textbackslash sigma(f(\textbackslash mathbf\{x\}))\^{}\textbackslash top \textbackslash sigma(f(\textbackslash mathbf\{x\}\textquotesingle)){]} + \textbackslash beta\^{}2 \$\$
+
+The form of Gaussian processes in the above process is referred to as the \emph{Neural Network Gaussian Process (NNGP)} (\href{https://arxiv.org/abs/1711.00165}{Lee \& Bahri et al. (2018)}).
+
+\subsection{\texorpdfstring{Deterministic Neural Tangent Kernel\hyperref[deterministic-neural-tangent-kernel]{\#}}{Deterministic Neural Tangent Kernel\#}}\label{deterministic-neural-tangent-kernel}
+
+Finally we are now prepared enough to look into the most critical proposition from the NTK paper:
+
+\textbf{When \$n\_1, \textbackslash dots, n\_L \textbackslash to \textbackslash infty\$ (network with infinite width), the NTK converges to be:}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{(1) deterministic at initialization, meaning that the kernel is irrelevant to the initialization values and only determined by the model architecture; and}
+\item
+  \textbf{(2) stays constant during training.}
+\end{itemize}
+
+The proof depends on mathematical induction as well:
+
+(1) First of all, we always have \$K\^{}\{(0)\} = 0\$. When \$L=1\$, we can get the representation of NTK directly. It is deterministic and does not depend on the network initialization. There is no hidden layer, so there is nothing to take on infinite width.
+
+\$\$ \textbackslash begin\{aligned\} f(\textbackslash mathbf\{x\};\textbackslash theta) \&= \textbackslash tilde\{A\}\^{}\{(1)\}(\textbackslash mathbf\{x\}) = \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_0\}\} \{\textbackslash mathbf\{w\}\^{}\{(0)\}\}\^{}\textbackslash top\textbackslash mathbf\{x\} + \textbackslash beta\textbackslash mathbf\{b\}\^{}\{(0)\} \textbackslash\textbackslash{} K\^{}\{(1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle;\textbackslash theta) \&= \textbackslash Big(\textbackslash frac\{\textbackslash partial f(\textbackslash mathbf\{x\}\textquotesingle;\textbackslash theta)\}\{\textbackslash partial \textbackslash mathbf\{w\}\^{}\{(0)\}\}\textbackslash Big)\^{}\textbackslash top \textbackslash frac\{\textbackslash partial f(\textbackslash mathbf\{x\};\textbackslash theta)\}\{\textbackslash partial \textbackslash mathbf\{w\}\^{}\{(0)\}\} + \textbackslash Big(\textbackslash frac\{\textbackslash partial f(\textbackslash mathbf\{x\}\textquotesingle;\textbackslash theta)\}\{\textbackslash partial \textbackslash mathbf\{b\}\^{}\{(0)\}\}\textbackslash Big)\^{}\textbackslash top \textbackslash frac\{\textbackslash partial f(\textbackslash mathbf\{x\};\textbackslash theta)\}\{\textbackslash partial \textbackslash mathbf\{b\}\^{}\{(0)\}\} \textbackslash\textbackslash{} \&= \textbackslash frac\{1\}\{n\_0\} \textbackslash mathbf\{x\}\^{}\textbackslash top\{\textbackslash mathbf\{x\}\textquotesingle\} + \textbackslash beta\^{}2 = \textbackslash Sigma\^{}\{(1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \textbackslash end\{aligned\} \$\$
+
+(2) Now when \$L=l\$, we assume that a \$l\$-layer network with \$\textbackslash tilde\{P\}\$ parameters in total, \$\textbackslash tilde\{\textbackslash theta\} = (\textbackslash mathbf\{w\}\^{}\{(0)\}, \textbackslash dots, \textbackslash mathbf\{w\}\^{}\{(l-1)\}, \textbackslash mathbf\{b\}\^{}\{(0)\}, \textbackslash dots, \textbackslash mathbf\{b\}\^{}\{(l-1)\}) \textbackslash in \textbackslash mathbb\{R\}\^{}\textbackslash tilde\{P\}\$, has a NTK converging to a deterministic limit when \$n\_1, \textbackslash dots, n\_\{l-1\} \textbackslash to \textbackslash infty\$.
+
+\$\$ K\^{}\{(l)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle;\textbackslash tilde\{\textbackslash theta\}) = \textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\} \textbackslash tilde\{A\}\^{}\{(l)\}(\textbackslash mathbf\{x\})\^{}\textbackslash top \textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\} \textbackslash tilde\{A\}\^{}\{(l)\}(\textbackslash mathbf\{x\}\textquotesingle) \textbackslash to K\^{}\{(l)\}\_\{\textbackslash infty\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle) \$\$
+
+Note that \$K\_\textbackslash infty\^{}\{(l)\}\$ has no dependency on \$\textbackslash theta\$.
+
+Next let's check the case \$L=l+1\$. Compared to a \$l\$-layer network, a \$(l+1)\$-layer network has additional weight matrix \$\textbackslash mathbf\{w\}\^{}\{(l)\}\$ and bias \$\textbackslash mathbf\{b\}\^{}\{(l)\}\$ and thus the total parameters contain \$\textbackslash theta = (\textbackslash tilde\{\textbackslash theta\}, \textbackslash mathbf\{w\}\^{}\{(l)\}, \textbackslash mathbf\{b\}\^{}\{(l)\})\$.
+
+The output function of this \$(l+1)\$-layer network is:
+
+\$\$ f(\textbackslash mathbf\{x\};\textbackslash theta) = \textbackslash tilde\{A\}\^{}\{(l+1)\}(\textbackslash mathbf\{x\};\textbackslash theta) = \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\} \{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\^{}\textbackslash top \textbackslash sigma\textbackslash big(\textbackslash tilde\{A\}\^{}\{(l)\}(\textbackslash mathbf\{x\})\textbackslash big) + \textbackslash beta \textbackslash mathbf\{b\}\^{}\{(l)\} \$\$
+
+And we know its derivative with respect to different sets of parameters; let denote \$\textbackslash tilde\{A\}\^{}\{(l)\} = \textbackslash tilde\{A\}\^{}\{(l)\}(\textbackslash mathbf\{x\})\$ for brevity in the following equation:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash nabla\_\{\textbackslash color\{blue\}\{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\} f(\textbackslash mathbf\{x\};\textbackslash theta) \&= \textbackslash color\{blue\}\{ \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\} \textbackslash sigma\textbackslash big(\textbackslash tilde\{A\}\^{}\{(l)\}\textbackslash big)\^{}\textbackslash top \} \textbackslash color\{black\}\{\textbackslash quad \textbackslash in \textbackslash mathbb\{R\}\^{}\{1 \textbackslash times n\_l\}\} \textbackslash\textbackslash{} \textbackslash nabla\_\{\textbackslash color\{green\}\{\textbackslash mathbf\{b\}\^{}\{(l)\}\}\} f(\textbackslash mathbf\{x\};\textbackslash theta) \&= \textbackslash color\{green\}\{ \textbackslash beta \} \textbackslash\textbackslash{} \textbackslash nabla\_\{\textbackslash color\{red\}\{\textbackslash tilde\{\textbackslash theta\}\}\} f(\textbackslash mathbf\{x\};\textbackslash theta) \&= \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\} \textbackslash nabla\_\textbackslash tilde\{\textbackslash theta\}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}) \textbackslash mathbf\{w\}\^{}\{(l)\} \textbackslash\textbackslash{} \&= \textbackslash color\{red\}\{ \textbackslash frac\{1\}\{\textbackslash sqrt\{n\_l\}\} \textbackslash begin\{bmatrix\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_1\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_1\} \textbackslash\textbackslash{} \textbackslash vdots \textbackslash\textbackslash{} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_\textbackslash tilde\{P\}\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_\textbackslash tilde\{P\}\}\textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \textbackslash mathbf\{w\}\^{}\{(l)\} \textbackslash color\{black\}\{\textbackslash quad \textbackslash in \textbackslash mathbb\{R\}\^{}\{\textbackslash tilde\{P\} \textbackslash times n\_\{l+1\}\}\} \} \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash dot\{\textbackslash sigma\}\$ is the derivative of \$\textbackslash sigma\$ and each entry at location \$(p, m), 1 \textbackslash leq p \textbackslash leq \textbackslash tilde\{P\}, 1 \textbackslash leq m \textbackslash leq n\_\{l+1\}\$ in the matrix \$\textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\$ can be written as
+
+\$\$ \textbackslash frac\{\textbackslash partial f\_m(\textbackslash mathbf\{x\};\textbackslash theta)\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\} = \textbackslash sum\_\{i=1\}\^{}\{n\_l\} w\^{}\{(l)\}\_\{im\} \textbackslash dot\{\textbackslash sigma\}\textbackslash big(\textbackslash tilde\{A\}\_i\^{}\{(l)\} \textbackslash big) \textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\_p\} \textbackslash tilde\{A\}\_i\^{}\{(l)\} \$\$
+
+The NTK for this \$(l+1)\$-layer network can be defined accordingly:
+
+\$\$ \textbackslash begin\{aligned\} \& K\^{}\{(l+1)\}(\textbackslash mathbf\{x\}, \textbackslash mathbf\{x\}\textquotesingle; \textbackslash theta) \textbackslash\textbackslash{} =\& \textbackslash nabla\_\{\textbackslash theta\} f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\{\textbackslash theta\} f(\textbackslash mathbf\{x\};\textbackslash theta) \textbackslash\textbackslash{} =\& \textbackslash color\{blue\}\{\textbackslash nabla\_\{\textbackslash mathbf\{w\}\^{}\{(l)\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\{\textbackslash mathbf\{w\}\^{}\{(l)\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\} + \textbackslash color\{green\}\{\textbackslash nabla\_\{\textbackslash mathbf\{b\}\^{}\{(l)\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\{\textbackslash mathbf\{b\}\^{}\{(l)\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\} + \textbackslash color\{red\}\{\textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\{\textbackslash tilde\{\textbackslash theta\}\} f(\textbackslash mathbf\{x\};\textbackslash theta)\} \textbackslash\textbackslash{} =\& \textbackslash frac\{1\}\{n\_l\} \textbackslash Big{[} \textbackslash color\{blue\}\{\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\})\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\})\^{}\textbackslash top\} + \textbackslash color\{green\}\{\textbackslash beta\^{}2\} \textbackslash\textbackslash{} \&+ \textbackslash color\{red\}\{ \{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\^{}\textbackslash top \textbackslash begin\{bmatrix\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash sum\_\{p=1\}\^{}\textbackslash tilde\{P\} \textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\}\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash sum\_\{p=1\}\^{}\textbackslash tilde\{P\} \textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\}\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\} \textbackslash\textbackslash{} \textbackslash vdots \textbackslash\textbackslash{} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash sum\_\{p=1\}\^{}\textbackslash tilde\{P\} \textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\}\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_1\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash sum\_\{p=1\}\^{}\textbackslash tilde\{P\} \textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\}\textbackslash frac\{\textbackslash partial \textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\}\}\{\textbackslash partial \textbackslash tilde\{\textbackslash theta\}\_p\} \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \textbackslash mathbf\{w\}\^{}\{(l)\} \} \textbackslash color\{black\}\{\textbackslash Big{]}\} \textbackslash\textbackslash{} =\& \textbackslash frac\{1\}\{n\_l\} \textbackslash Big{[} \textbackslash color\{blue\}\{\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\})\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\})\^{}\textbackslash top\} + \textbackslash color\{green\}\{\textbackslash beta\^{}2\} \textbackslash\textbackslash{} \&+ \textbackslash color\{red\}\{ \{\textbackslash mathbf\{w\}\^{}\{(l)\}\}\^{}\textbackslash top \textbackslash begin\{bmatrix\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})K\^{}\{(l)\}\_\{11\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})K\^{}\{(l)\}\_\{1n\_l\} \textbackslash\textbackslash{} \textbackslash vdots \textbackslash\textbackslash{} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_1\^{}\{(l)\})K\^{}\{(l)\}\_\{n\_l1\} \& \textbackslash dots \& \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})\textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{n\_l\}\^{}\{(l)\})K\^{}\{(l)\}\_\{n\_ln\_l\} \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \textbackslash mathbf\{w\}\^{}\{(l)\} \} \textbackslash color\{black\}\{\textbackslash Big{]}\} \textbackslash end\{aligned\} \$\$
+
+where each individual entry at location \$(m, n), 1 \textbackslash leq m, n \textbackslash leq n\_\{l+1\}\$ of the matrix \$K\^{}\{(l+1)\}\$ can be written as:
+
+\$\$ \textbackslash begin\{aligned\} K\^{}\{(l+1)\}\_\{mn\} =\& \textbackslash frac\{1\}\{n\_l\}\textbackslash Big{[} \textbackslash color\{blue\}\{\textbackslash sigma(\textbackslash tilde\{A\}\_m\^{}\{(l)\})\textbackslash sigma(\textbackslash tilde\{A\}\_n\^{}\{(l)\})\} + \textbackslash color\{green\}\{\textbackslash beta\^{}2\} + \textbackslash color\{red\}\{ \textbackslash sum\_\{i=1\}\^{}\{n\_l\} \textbackslash sum\_\{j=1\}\^{}\{n\_l\} w\^{}\{(l)\}\_\{im\} w\^{}\{(l)\}\_\{in\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_i\^{}\{(l)\}) \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{j\}\^{}\{(l)\}) K\_\{ij\}\^{}\{(l)\} \} \textbackslash Big{]} \textbackslash end\{aligned\} \$\$
+
+When \$n\_l \textbackslash to \textbackslash infty\$, the section in blue and green has the limit (See the proof in the \hyperref[connection-with-gaussian-processes]{previous section}):
+
+\$\$ \textbackslash frac\{1\}\{n\_l\}\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\})\textbackslash sigma(\textbackslash tilde\{A\}\^{}\{(l)\}) + \textbackslash beta\^{}2\textbackslash to \textbackslash Sigma\^{}\{(l+1)\} \$\$
+
+and the red section has the limit:
+
+\$\$ \textbackslash sum\_\{i=1\}\^{}\{n\_l\} \textbackslash sum\_\{j=1\}\^{}\{n\_l\} w\^{}\{(l)\}\_\{im\} w\^{}\{(l)\}\_\{in\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_i\^{}\{(l)\}) \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{j\}\^{}\{(l)\}) K\_\{ij\}\^{}\{(l)\} \textbackslash to \textbackslash sum\_\{i=1\}\^{}\{n\_l\} \textbackslash sum\_\{j=1\}\^{}\{n\_l\} w\^{}\{(l)\}\_\{im\} w\^{}\{(l)\}\_\{in\} \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_i\^{}\{(l)\}) \textbackslash dot\{\textbackslash sigma\}(\textbackslash tilde\{A\}\_\{j\}\^{}\{(l)\}) K\_\{\textbackslash infty,ij\}\^{}\{(l)\} \$\$
+
+Later, \href{https://arxiv.org/abs/1904.11955}{Arora et al. (2019)} provided a proof with a weaker limit, that does not require all the hidden layers to be infinitely wide, but only requires the minimum width to be sufficiently large.
+
+\subsection{\texorpdfstring{Linearized Models\hyperref[linearized-models]{\#}}{Linearized Models\#}}\label{linearized-models}
+
+From the \hyperref[neural-tangent-kernel]{previous section}, according to the derivative chain rule, we have known that the gradient update on the output of an infinite width network is as follows; For brevity, we omit the inputs in the following analysis:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash frac\{df(\textbackslash theta)\}\{dt\} \&= -\textbackslash eta\textbackslash nabla\_\textbackslash theta f(\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\textbackslash theta f(\textbackslash theta) \textbackslash nabla\_f \textbackslash mathcal\{L\} \& \textbackslash\textbackslash{} \&= -\textbackslash eta\textbackslash nabla\_\textbackslash theta f(\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_\textbackslash theta f(\textbackslash theta) \textbackslash nabla\_f \textbackslash mathcal\{L\} \& \textbackslash\textbackslash{} \&= -\textbackslash eta K(\textbackslash theta) \textbackslash nabla\_f \textbackslash mathcal\{L\} \textbackslash\textbackslash{} \&= \textbackslash color\{cyan\}\{-\textbackslash eta K\_\textbackslash infty \textbackslash nabla\_f \textbackslash mathcal\{L\}\} \& \textbackslash text\{; for infinite width network\}\textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+
+To track the evolution of \$\textbackslash theta\$ in time, let's consider it as a function of time step \$t\$. With Taylor expansion, the network learning dynamics can be simplified as:
+
+\$\$ f(\textbackslash theta(t)) \textbackslash approx f\^{}\textbackslash text\{lin\}(\textbackslash theta(t)) = f(\textbackslash theta(0)) + \textbackslash underbrace\{\textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0))\}\_\{\textbackslash text\{formally \}\textbackslash nabla\_\textbackslash theta f(\textbackslash mathbf\{x\}; \textbackslash theta) \textbackslash vert\_\{\textbackslash theta=\textbackslash theta(0)\}\} (\textbackslash theta(t) - \textbackslash theta(0)) \$\$
+
+Such formation is commonly referred to as the \emph{linearized} model, given \$\textbackslash theta(0)\$, \$f(\textbackslash theta(0))\$, and \$\textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0))\$ are all constants. Assuming that the incremental time step \$t\$ is extremely small and the parameter is updated by gradient descent:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash theta(t) - \textbackslash theta(0) \&= - \textbackslash eta \textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}(\textbackslash theta) = - \textbackslash eta \textbackslash nabla\_\textbackslash theta f(\textbackslash theta)\^{}\textbackslash top \textbackslash nabla\_f \textbackslash mathcal\{L\} \textbackslash\textbackslash{} f\^{}\textbackslash text\{lin\}(\textbackslash theta(t)) - f(\textbackslash theta(0)) \&= - \textbackslash eta\textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0))\^{}\textbackslash top \textbackslash nabla\_\textbackslash theta f(\textbackslash mathcal\{X\};\textbackslash theta(0)) \textbackslash nabla\_f \textbackslash mathcal\{L\} \textbackslash\textbackslash{} \textbackslash frac\{df(\textbackslash theta(t))\}\{dt\} \&= - \textbackslash eta K(\textbackslash theta(0)) \textbackslash nabla\_f \textbackslash mathcal\{L\} \textbackslash\textbackslash{} \textbackslash frac\{df(\textbackslash theta(t))\}\{dt\} \&= \textbackslash color\{cyan\}\{- \textbackslash eta K\_\textbackslash infty \textbackslash nabla\_f \textbackslash mathcal\{L\}\} \& \textbackslash text\{; for infinite width network\}\textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+
+Eventually we get the same learning dynamics, which implies that a neural network with infinite width can be considerably simplified as governed by the above linearized model (\href{https://arxiv.org/abs/1902.06720}{Lee \& Xiao, et al. 2019}).
+
+In a simple case when the empirical loss is an MSE loss, \$\textbackslash nabla\_\textbackslash theta \textbackslash mathcal\{L\}(\textbackslash theta) = f(\textbackslash mathcal\{X\}; \textbackslash theta) - \textbackslash mathcal\{Y\}\$, the dynamics of the network becomes a simple linear ODE and it can be solved in a closed form:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash frac\{df(\textbackslash theta)\}\{dt\} =\& -\textbackslash eta K\_\textbackslash infty (f(\textbackslash theta) - \textbackslash mathcal\{Y\}) \& \textbackslash\textbackslash{} \textbackslash frac\{dg(\textbackslash theta)\}\{dt\} =\& -\textbackslash eta K\_\textbackslash infty g(\textbackslash theta) \& \textbackslash text\{; let \}g(\textbackslash theta)=f(\textbackslash theta) - \textbackslash mathcal\{Y\} \textbackslash\textbackslash{} \textbackslash int \textbackslash frac\{dg(\textbackslash theta)\}\{g(\textbackslash theta)\} =\& -\textbackslash eta \textbackslash int K\_\textbackslash infty dt \& \textbackslash\textbackslash{} g(\textbackslash theta) \&= C e\^{}\{-\textbackslash eta K\_\textbackslash infty t\} \& \textbackslash end\{aligned\} \$\$
+
+When \$t=0\$, we have \$C=f(\textbackslash theta(0)) - \textbackslash mathcal\{Y\}\$ and therefore,
+
+\$\$ f(\textbackslash theta) = (f(\textbackslash theta(0)) - \textbackslash mathcal\{Y\})e\^{}\{-\textbackslash eta K\_\textbackslash infty t\} + \textbackslash mathcal\{Y\} \textbackslash\textbackslash{} = f(\textbackslash theta(0))e\^{}\{-K\_\textbackslash infty t\} + (I - e\^{}\{-\textbackslash eta K\_\textbackslash infty t\})\textbackslash mathcal\{Y\} \$\$
+
+\subsection{\texorpdfstring{Lazy Training\hyperref[lazy-training]{\#}}{Lazy Training\#}}\label{lazy-training}
+
+People observe that when a neural network is heavily over-parameterized, the model is able to learn with the training loss quickly converging to zero but the network parameters hardly change. \emph{Lazy training} refers to the phenomenon. In other words, when the loss \$\textbackslash mathcal\{L\}\$ has a decent amount of reduction, the change in the differential of the network \$f\$ (aka the Jacobian matrix) is still very small.
+
+Let \$\textbackslash theta(0)\$ be the initial network parameters and \$\textbackslash theta(T)\$ be the final network parameters when the loss has been minimized to zero. The delta change in parameter space can be approximated with first-order Taylor expansion:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash hat\{y\} = f(\textbackslash theta(T)) \&\textbackslash approx f(\textbackslash theta(0)) + \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) (\textbackslash theta(T) - \textbackslash theta(0)) \textbackslash\textbackslash{} \textbackslash text\{Thus \}\textbackslash Delta \textbackslash theta \&= \textbackslash theta(T) - \textbackslash theta(0) \textbackslash approx \textbackslash frac\{\textbackslash\textbar\textbackslash hat\{y\} - f(\textbackslash theta(0))\textbackslash\textbar\}\{\textbackslash\textbar{} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash\textbar\} \textbackslash end\{aligned\} \$\$
+
+Still following the first-order Taylor expansion, we can track the change in the differential of \$f\$:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(T)) \&\textbackslash approx \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) + \textbackslash nabla\^{}2\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash Delta\textbackslash theta \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) + \textbackslash nabla\^{}2\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash frac\{\textbackslash\textbar\textbackslash hat\{y\} - f(\textbackslash mathbf\{x\};\textbackslash theta(0))\textbackslash\textbar\}\{\textbackslash\textbar{} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash\textbar\} \textbackslash\textbackslash{} \textbackslash text\{Thus \}\textbackslash Delta\textbackslash big(\textbackslash nabla\_\textbackslash theta f\textbackslash big) \&= \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(T)) - \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) = \textbackslash\textbar\textbackslash hat\{y\} - f(\textbackslash mathbf\{x\};\textbackslash theta(0))\textbackslash\textbar{} \textbackslash frac\{\textbackslash nabla\^{}2\_\textbackslash theta f(\textbackslash theta(0))\}\{\textbackslash\textbar{} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash\textbar\} \textbackslash end\{aligned\} \$\$
+
+Let \$\textbackslash kappa(\textbackslash theta)\$ be the relative change of the differential of \$f\$ to the change in the parameter space:
+
+\$\$ \textbackslash kappa(\textbackslash theta = \textbackslash frac\{\textbackslash Delta\textbackslash big(\textbackslash nabla\_\textbackslash theta f\textbackslash big)\}\{\textbackslash\textbar{} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash\textbar\} = \textbackslash\textbar\textbackslash hat\{y\} - f(\textbackslash theta(0))\textbackslash\textbar{} \textbackslash frac\{\textbackslash nabla\^{}2\_\textbackslash theta f(\textbackslash theta(0))\}\{\textbackslash\textbar{} \textbackslash nabla\_\textbackslash theta f(\textbackslash theta(0)) \textbackslash\textbar\^{}2\} \$\$
+
+\href{https://arxiv.org/abs/1812.07956}{Chizat et al. (2019)} showed the proof for a two-layer neural network that \$\textbackslash mathbb\{E\}{[}\textbackslash kappa(\textbackslash theta\_0){]} \textbackslash to 0\$ (getting into the lazy regime) when the number of hidden neurons \$\textbackslash to \textbackslash infty\$. Also, recommend \href{https://rajatvd.github.io/NTK/}{this post} for more discussion on linearized models and lazy training.
+
+\section{\texorpdfstring{Citation\hyperref[citation]{\#}}{Citation\#}}\label{citation}
+
+Cited as:
+
+\begin{quote}
+Weng, Lilian. (Sep 2022). Some math behind neural tangent kernel. Lil'Log. https://lilianweng.github.io/posts/2022-09-08-ntk/.
+\end{quote}
+
+Or
+
+\begin{verbatim}
+@article{weng2022ntk,
+  title   = "Some Math behind Neural Tangent Kernel",
+  author  = "Weng, Lilian",
+  journal = "Lil'Log",
+  year    = "2022",
+  month   = "Sep",
+  url     = "https://lilianweng.github.io/posts/2022-09-08-ntk/"
+}
+\end{verbatim}
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Jacot et al. \href{https://arxiv.org/abs/1806.07572}{``Neural Tangent Kernel: Convergence and Generalization in Neural Networks.''} NeuriPS 2018.
+
+{[}2{]}Radford M. Neal. \href{}{``Priors for Infinite Networks.''} Bayesian Learning for Neural Networks. Springer, New York, NY, 1996. 29-53.
+
+{[}3{]} Lee \& Bahri et al. \href{https://arxiv.org/abs/1711.00165}{``Deep Neural Networks as Gaussian Processes.''} ICLR 2018.
+
+{[}4{]} Chizat et al. \href{https://arxiv.org/abs/1812.07956}{``On Lazy Training in Differentiable Programming''} NeuriPS 2019.
+
+{[}5{]} Lee \& Xiao, et al. \href{https://arxiv.org/abs/1902.06720}{``Wide Neural Networks of Any Depth Evolve as Linear Models Under Gradient Descent.''} NeuriPS 2019.
+
+{[}6{]} Arora, et al. \href{https://arxiv.org/abs/1904.11955}{``On Exact Computation with an Infinitely Wide Neural Net.''} NeurIPS 2019.
+
+{[}7{]} (YouTube video) \href{https://www.youtube.com/watch?v=raT2ECrvbag}{``Neural Tangent Kernel: Convergence and Generalization in Neural Networks''} by Arthur Jacot, Nov 2018.
+
+{[}8{]} (YouTube video) \href{https://www.youtube.com/watch?v=DObobAnELkU}{``Lecture 7 - Deep Learning Foundations: Neural Tangent Kernels''} by Soheil Feizi, Sep 2020.
+
+{[}9{]} \href{https://rajatvd.github.io/NTK/}{``Understanding the Neural Tangent Kernel.''} Rajat's Blog.
+
+{[}10{]} \href{https://appliedprobability.blog/2021/03/10/neural-tangent-kernel/}{``Neural Tangent Kernel.''}Applied Probability Notes, Mar 2021.
+
+{[}11{]} \href{https://www.inference.vc/neural-tangent-kernels-some-intuition-for-kernel-gradient-descent/}{``Some Intuition on the Neural Tangent Kernel.''} inFERENCe, Nov 2020.
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/foundation/}{Foundation}
+\item
+  \href{https://lilianweng.github.io/tags/neural-tangent-kernel/}{Neural-Tangent-Kernel}
+\item
+  \href{https://lilianweng.github.io/tags/learning-dynamics/}{Learning-Dynamics}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2023-01-10-inference-optimization/}{{« }\\
+{Large Transformer Model Inference Optimization}} \href{https://lilianweng.github.io/posts/2022-06-09-vlm/}{{ »}\\
+{Generalized Visual Language Models}}
+
+\href{https://twitter.com/intent/tweet/?text=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f&hashtags=foundation\%2cneural-tangent-kernel\%2clearning-dynamics}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f&title=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel&summary=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f&title=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f}{} \href{https://api.whatsapp.com/send?text=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f}{} \href{https://telegram.me/share/url?text=Some\%20Math\%20behind\%20Neural\%20Tangent\%20Kernel&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2022-09-08-ntk\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2022-09-08-ntk/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2022-09-08-ntk/}{Telegram}
+\end{center}
+
+
+
+\end{document}

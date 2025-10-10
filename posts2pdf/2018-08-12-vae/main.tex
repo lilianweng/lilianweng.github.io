@@ -1,0 +1,734 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{From Autoencoder to Beta-VAE}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={From Autoencoder to Beta-VAE},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{From Autoencoder to Beta-VAE}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2018-08-12-vae/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2018-08-12-vae/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{From Autoencoder to Beta-VAE}\label{from-autoencoder-to-beta-vae}
+
+Date: August 12, 2018 \textbar{} Estimated Reading Time: 21 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[notation]{Notation}
+\item
+  \hyperref[autoencoder]{Autoencoder}
+\item
+  \hyperref[denoising-autoencoder]{Denoising Autoencoder}
+\item
+  \hyperref[sparse-autoencoder]{Sparse Autoencoder}
+\item
+  \hyperref[contractive-autoencoder]{Contractive Autoencoder}
+\item
+  \hyperref[vae-variational-autoencoder]{VAE: Variational Autoencoder}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[loss-function-elbo]{Loss Function: ELBO}
+  \item
+    \hyperref[reparameterization-trick]{Reparameterization Trick}
+  \end{itemize}
+\item
+  \hyperref[beta-vae]{Beta-VAE}
+\item
+  \hyperref[vq-vae-and-vq-vae-2]{VQ-VAE and VQ-VAE-2}
+\item
+  \hyperref[td-vae]{TD-VAE}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+{{[}Updated on 2019-07-18: add a section on \hyperref[vq-vae-and-vq-vae-2]{VQ-VAE \& VQ-VAE-2}.{]}}\\
+{{[}Updated on 2019-07-26: add a section on \hyperref[td-vae]{TD-VAE}.{]}}\\
+
+Autocoder is invented to reconstruct high-dimensional data using a neural network model with a narrow bottleneck layer in the middle (oops, this is probably not true for \hyperref[vae-variational-autoencoder]{Variational Autoencoder}, and we will investigate it in details in later sections). A nice byproduct is dimension reduction: the bottleneck layer captures a compressed latent encoding. Such a low-dimensional representation can be used as en embedding vector in various applications (i.e. search), help data compression, or reveal the underlying data generative factors.
+
+\section{\texorpdfstring{Notation\hyperref[notation]{\#}}{Notation\#}}\label{notation}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Symbol & Mean \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\$\textbackslash mathcal\{D\}\$ & The dataset, \$\textbackslash mathcal\{D\} = \textbackslash\{ \textbackslash mathbf\{x\}\^{}\{(1)\}, \textbackslash mathbf\{x\}\^{}\{(2)\}, \textbackslash dots, \textbackslash mathbf\{x\}\^{}\{(n)\} \textbackslash\}\$, contains \$n\$ data samples; \$\textbackslash vert\textbackslash mathcal\{D\}\textbackslash vert =n \$. \\
+\$\textbackslash mathbf\{x\}\^{}\{(i)\}\$ & Each data point is a vector of \$d\$ dimensions, \$\textbackslash mathbf\{x\}\^{}\{(i)\} = {[}x\^{}\{(i)\}\_1, x\^{}\{(i)\}\_2, \textbackslash dots, x\^{}\{(i)\}\_d{]}\$. \\
+\$\textbackslash mathbf\{x\}\$ & One data sample from the dataset, \$\textbackslash mathbf\{x\} \textbackslash in \textbackslash mathcal\{D\}\$. \\
+\$\textbackslash mathbf\{x\}'\$ & The reconstructed version of \$\textbackslash mathbf\{x\}\$. \\
+\$\textbackslash tilde\{\textbackslash mathbf\{x\}\}\$ & The corrupted version of \$\textbackslash mathbf\{x\}\$. \\
+\$\textbackslash mathbf\{z\}\$ & The compressed code learned in the bottleneck layer. \\
+\$a\_j\^{}\{(l)\}\$ & The activation function for the \$j\$-th neuron in the \$l\$-th hidden layer. \\
+\$g\_\{\textbackslash phi\}(.)\$ & The \textbf{encoding} function parameterized by \$\textbackslash phi\$. \\
+\$f\_\{\textbackslash theta\}(.)\$ & The \textbf{decoding} function parameterized by \$\textbackslash theta\$. \\
+\$q\_\{\textbackslash phi\}(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$ & Estimated posterior probability function, also known as \textbf{probabilistic encoder}. \\
+\$p\_\{\textbackslash theta\}(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\})\$ & Likelihood of generating true data sample given the latent code, also known as \textbf{probabilistic decoder}. \\
+\end{longtable}
+
+\section{\texorpdfstring{Autoencoder\hyperref[autoencoder]{\#}}{Autoencoder\#}}\label{autoencoder}
+
+\textbf{Autoencoder} is a neural network designed to learn an identity function in an unsupervised way to reconstruct the original input while compressing the data in the process so as to discover a more efficient and compressed representation. The idea was originated in \href{https://en.wikipedia.org/wiki/Autoencoder}{the 1980s}, and later promoted by the seminal paper by \href{http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.459.3788&rep=rep1&type=pdf}{Hinton \& Salakhutdinov, 2006}.
+
+It consists of two networks:
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{Encoder} network: It translates the original high-dimension input into the latent low-dimensional code. The input size is larger than the output size.
+\item
+  \emph{Decoder} network: The decoder network recovers the data from the code, likely with larger and larger output layers.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{autoencoder-architecture.png}
+\caption{Illustration of autoencoder model architecture.}
+\end{figure}
+
+The encoder network essentially accomplishes the \href{https://en.wikipedia.org/wiki/Dimensionality_reduction}{dimensionality reduction}, just like how we would use Principal Component Analysis (PCA) or Matrix Factorization (MF) for. In addition, the autoencoder is explicitly optimized for the data reconstruction from the code. A good intermediate representation not only can capture latent variables, but also benefits a full \href{https://ai.googleblog.com/2016/09/image-compression-with-neural-networks.html}{decompression} process.
+
+The model contains an encoder function \$g(.)\$ parameterized by \$\textbackslash phi\$ and a decoder function \$f(.)\$ parameterized by \$\textbackslash theta\$. The low-dimensional code learned for input \$\textbackslash mathbf\{x\}\$ in the bottleneck layer is \$\textbackslash mathbf\{z\} = g\_\textbackslash phi(\textbackslash mathbf\{x\})\$ and the reconstructed input is \$\textbackslash mathbf\{x\}' = f\_\textbackslash theta(g\_\textbackslash phi(\textbackslash mathbf\{x\}))\$.
+
+The parameters \$(\textbackslash theta, \textbackslash phi)\$ are learned together to output a reconstructed data sample same as the original input, \$\textbackslash mathbf\{x\} \textbackslash approx f\_\textbackslash theta(g\_\textbackslash phi(\textbackslash mathbf\{x\}))\$, or in other words, to learn an identity function. There are various metrics to quantify the difference between two vectors, such as cross entropy when the activation function is sigmoid, or as simple as MSE loss:
+
+\$\$ L\_\textbackslash text\{AE\}(\textbackslash theta, \textbackslash phi) = \textbackslash frac\{1\}\{n\}\textbackslash sum\_\{i=1\}\^{}n (\textbackslash mathbf\{x\}\^{}\{(i)\} - f\_\textbackslash theta(g\_\textbackslash phi(\textbackslash mathbf\{x\}\^{}\{(i)\})))\^{}2 \$\$
+
+\section{\texorpdfstring{Denoising Autoencoder\hyperref[denoising-autoencoder]{\#}}{Denoising Autoencoder\#}}\label{denoising-autoencoder}
+
+Since the autoencoder learns the identity function, we are facing the risk of ``overfitting'' when there are more network parameters than the number of data points.
+
+To avoid overfitting and improve the robustness, \textbf{Denoising Autoencoder} (Vincent et al. 2008) proposed a modification to the basic autoencoder. The input is partially corrupted by adding noises to or masking some values of the input vector in a stochastic manner, \$\textbackslash tilde\{\textbackslash mathbf\{x\}\} \textbackslash sim \textbackslash mathcal\{M\}\_\textbackslash mathcal\{D\}(\textbackslash tilde\{\textbackslash mathbf\{x\}\} \textbackslash vert \textbackslash mathbf\{x\})\$. Then the model is trained to recover the original input (note: not the corrupt one).
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash tilde\{\textbackslash mathbf\{x\}\}\^{}\{(i)\} \&\textbackslash sim \textbackslash mathcal\{M\}\_\textbackslash mathcal\{D\}(\textbackslash tilde\{\textbackslash mathbf\{x\}\}\^{}\{(i)\} \textbackslash vert \textbackslash mathbf\{x\}\^{}\{(i)\})\textbackslash\textbackslash{} L\_\textbackslash text\{DAE\}(\textbackslash theta, \textbackslash phi) \&= \textbackslash frac\{1\}\{n\} \textbackslash sum\_\{i=1\}\^{}n (\textbackslash mathbf\{x\}\^{}\{(i)\} - f\_\textbackslash theta(g\_\textbackslash phi(\textbackslash tilde\{\textbackslash mathbf\{x\}\}\^{}\{(i)\})))\^{}2 \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash mathcal\{M\}\_\textbackslash mathcal\{D\}\$ defines the mapping from the true data samples to the noisy or corrupted ones.
+
+\begin{figure}
+\centering
+\includegraphics{denoising-autoencoder-architecture.png}
+\caption{Illustration of denoising autoencoder model architecture.}
+\end{figure}
+
+This design is motivated by the fact that humans can easily recognize an object or a scene even the view is partially occluded or corrupted. To ``repair'' the partially destroyed input, the denoising autoencoder has to discover and capture relationship between dimensions of input in order to infer missing pieces.
+
+For high dimensional input with high redundancy, like images, the model is likely to depend on evidence gathered from a combination of many input dimensions to recover the denoised version rather than to overfit one dimension. This builds up a good foundation for learning \emph{robust} latent representation.
+
+The noise is controlled by a stochastic mapping \$\textbackslash mathcal\{M\}\_\textbackslash mathcal\{D\}(\textbackslash tilde\{\textbackslash mathbf\{x\}\} \textbackslash vert \textbackslash mathbf\{x\})\$, and it is not specific to a particular type of corruption process (i.e. masking noise, Gaussian noise, salt-and-pepper noise, etc.). Naturally the corruption process can be equipped with prior knowledge
+
+In the experiment of the original DAE paper, the noise is applied in this way: a fixed proportion of input dimensions are selected at random and their values are forced to 0. Sounds a lot like dropout, right? Well, the denoising autoencoder was proposed in 2008, 4 years before the dropout paper (\href{https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf}{Hinton, et al. 2012}) ;)
+
+\section{\texorpdfstring{Sparse Autoencoder\hyperref[sparse-autoencoder]{\#}}{Sparse Autoencoder\#}}\label{sparse-autoencoder}
+
+\textbf{Sparse Autoencoder} applies a ``sparse'' constraint on the hidden unit activation to avoid overfitting and improve robustness. It forces the model to only have a small number of hidden units being activated at the same time, or in other words, one hidden neuron should be inactivate most of time.
+
+Recall that common \href{http://cs231n.github.io/neural-networks-1/\#actfun}{activation functions} include sigmoid, tanh, relu, leaky relu, etc. A neuron is activated when the value is close to 1 and inactivate with a value close to 0.
+
+Let's say there are \$s\_l\$ neurons in the \$l\$-th hidden layer and the activation function for the \$j\$-th neuron in this layer is labelled as \$a\^{}\{(l)\}\_j(.)\$, \$j=1, \textbackslash dots, s\_l\$. The fraction of activation of this neuron \$\textbackslash hat\{\textbackslash rho\}\_j\$ is expected to be a small number \$\textbackslash rho\$, known as \emph{sparsity parameter}; a common config is \$\textbackslash rho = 0.05\$.
+
+\$\$ \textbackslash hat\{\textbackslash rho\}\_j\^{}\{(l)\} = \textbackslash frac\{1\}\{n\} \textbackslash sum\_\{i=1\}\^{}n {[}a\_j\^{}\{(l)\}(\textbackslash mathbf\{x\}\^{}\{(i)\}){]} \textbackslash approx \textbackslash rho \$\$
+
+This constraint is achieved by adding a penalty term into the loss function. The KL-divergence \$D\_\textbackslash text\{KL\}\$ measures the difference between two Bernoulli distributions, one with mean \$\textbackslash rho\$ and the other with mean \$\textbackslash hat\{\textbackslash rho\}\_j\^{}\{(l)\}\$. The hyperparameter \$\textbackslash beta\$ controls how strong the penalty we want to apply on the sparsity loss.
+
+\$\$ \textbackslash begin\{aligned\} L\_\textbackslash text\{SAE\}(\textbackslash theta) \&= L(\textbackslash theta) + \textbackslash beta \textbackslash sum\_\{l=1\}\^{}L \textbackslash sum\_\{j=1\}\^{}\{s\_l\} D\_\textbackslash text\{KL\}(\textbackslash rho \textbackslash\textbar{} \textbackslash hat\{\textbackslash rho\}\_j\^{}\{(l)\}) \textbackslash\textbackslash{} \&= L(\textbackslash theta) + \textbackslash beta \textbackslash sum\_\{l=1\}\^{}L \textbackslash sum\_\{j=1\}\^{}\{s\_l\} \textbackslash rho\textbackslash log\textbackslash frac\{\textbackslash rho\}\{\textbackslash hat\{\textbackslash rho\}\_j\^{}\{(l)\}\} + (1-\textbackslash rho)\textbackslash log\textbackslash frac\{1-\textbackslash rho\}\{1-\textbackslash hat\{\textbackslash rho\}\_j\^{}\{(l)\}\} \textbackslash end\{aligned\} \$\$
+
+\begin{figure}
+\centering
+\includegraphics{kl-metric-sparse-autoencoder.png}
+\caption{The KL divergence between a Bernoulli distribution with mean \$\textbackslash rho=0.25\$ and a Bernoulli distribution with mean \$0 \textbackslash leq \textbackslash hat\{\textbackslash rho\} \textbackslash leq 1\$.}
+\end{figure}
+
+\textbf{\$k\$-Sparse Autoencoder}
+
+In \$k\$-Sparse Autoencoder (\href{https://arxiv.org/abs/1312.5663}{Makhzani and Frey, 2013}), the sparsity is enforced by only keeping the top k highest activations in the bottleneck layer with linear activation function. First we run feedforward through the encoder network to get the compressed code: \$\textbackslash mathbf\{z\} = g(\textbackslash mathbf\{x\})\$. Sort the values in the code vector \$\textbackslash mathbf\{z\}\$. Only the k largest values are kept while other neurons are set to 0. This can be done in a ReLU layer with an adjustable threshold too. Now we have a sparsified code: \$\textbackslash mathbf\{z\}' = \textbackslash text\{Sparsify\}(\textbackslash mathbf\{z\})\$. Compute the output and the loss from the sparsified code, \$L = \textbar\textbackslash mathbf\{x\} - f(\textbackslash mathbf\{z\}') \textbar\_2\^{}2\$. And, the back-propagation only goes through the top k activated hidden units!
+
+\begin{figure}
+\centering
+\includegraphics{k-sparse-autoencoder.png}
+\caption{Filters of the k-sparse autoencoder for different sparsity levels k, learnt from MNIST with 1000 hidden units.. (Image source: \href{https://arxiv.org/abs/1312.5663}{Makhzani and Frey, 2013})}
+\end{figure}
+
+\section{\texorpdfstring{Contractive Autoencoder\hyperref[contractive-autoencoder]{\#}}{Contractive Autoencoder\#}}\label{contractive-autoencoder}
+
+Similar to sparse autoencoder, \textbf{Contractive Autoencoder} (\href{http://www.icml-2011.org/papers/455_icmlpaper.pdf}{Rifai, et al, 2011}) encourages the learned representation to stay in a contractive space for better robustness.
+
+It adds a term in the loss function to penalize the representation being too sensitive to the input, and thus improve the robustness to small perturbations around the training data points. The sensitivity is measured by the Frobenius norm of the Jacobian matrix of the encoder activations with respect to the input:
+
+\$\$ \textbackslash\textbar J\_f(\textbackslash mathbf\{x\})\textbackslash\textbar\_F\^{}2 = \textbackslash sum\_\{ij\} \textbackslash Big( \textbackslash frac\{\textbackslash partial h\_j(\textbackslash mathbf\{x\})\}\{\textbackslash partial x\_i\} \textbackslash Big)\^{}2 \$\$
+
+where \$h\_j\$ is one unit output in the compressed code \$\textbackslash mathbf\{z\} = f(x)\$.
+
+This penalty term is the sum of squares of all partial derivatives of the learned encoding with respect to input dimensions. The authors claimed that empirically this penalty was found to carve a representation that corresponds to a lower-dimensional non-linear manifold, while staying more invariant to majority directions orthogonal to the manifold.
+
+\section{\texorpdfstring{VAE: Variational Autoencoder\hyperref[vae-variational-autoencoder]{\#}}{VAE: Variational Autoencoder\#}}\label{vae-variational-autoencoder}
+
+The idea of \textbf{Variational Autoencoder} (\href{https://arxiv.org/abs/1312.6114}{Kingma \& Welling, 2014}), short for \textbf{VAE}, is actually less similar to all the autoencoder models above, but deeply rooted in the methods of variational bayesian and graphical model.
+
+Instead of mapping the input into a \emph{fixed} vector, we want to map it into a distribution. Let's label this distribution as \$p\_\textbackslash theta\$, parameterized by \$\textbackslash theta\$. The relationship between the data input \$\textbackslash mathbf\{x\}\$ and the latent encoding vector \$\textbackslash mathbf\{z\}\$ can be fully defined by:
+
+\begin{itemize}
+\tightlist
+\item
+  Prior \$p\_\textbackslash theta(\textbackslash mathbf\{z\})\$
+\item
+  Likelihood \$p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\})\$
+\item
+  Posterior \$p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$
+\end{itemize}
+
+Assuming that we know the real parameter \$\textbackslash theta\^{}\{*\}\$ for this distribution. In order to generate a sample that looks like a real data point \$\textbackslash mathbf\{x\}\^{}\{(i)\}\$, we follow these steps:
+
+\begin{enumerate}
+\tightlist
+\item
+  First, sample a \$\textbackslash mathbf\{z\}\^{}\{(i)\}\$ from a prior distribution \$p\_\{\textbackslash theta\^{}*\}(\textbackslash mathbf\{z\})\$.
+\item
+  Then a value \$\textbackslash mathbf\{x\}\^{}\{(i)\}\$ is generated from a conditional distribution \$p\_\{\textbackslash theta\^{}*\}(\textbackslash mathbf\{x\} \textbackslash vert \textbackslash mathbf\{z\} = \textbackslash mathbf\{z\}\^{}\{(i)\})\$.
+\end{enumerate}
+
+The optimal parameter \$\textbackslash theta\^{}\{*\}\$ is the one that maximizes the probability of generating real data samples:
+
+\$\$ \textbackslash theta\^{}\{*\} = \textbackslash arg\textbackslash max\_\textbackslash theta \textbackslash prod\_\{i=1\}\^{}n p\_\textbackslash theta(\textbackslash mathbf\{x\}\^{}\{(i)\}) \$\$
+
+Commonly we use the log probabilities to convert the product on RHS to a sum:
+
+\$\$ \textbackslash theta\^{}\{*\} = \textbackslash arg\textbackslash max\_\textbackslash theta \textbackslash sum\_\{i=1\}\^{}n \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\^{}\{(i)\}) \$\$
+
+Now let's update the equation to better demonstrate the data generation process so as to involve the encoding vector:
+
+\$\$ p\_\textbackslash theta(\textbackslash mathbf\{x\}\^{}\{(i)\}) = \textbackslash int p\_\textbackslash theta(\textbackslash mathbf\{x\}\^{}\{(i)\}\textbackslash vert\textbackslash mathbf\{z\}) p\_\textbackslash theta(\textbackslash mathbf\{z\}) d\textbackslash mathbf\{z\} \$\$
+
+Unfortunately it is not easy to compute \$p\_\textbackslash theta(\textbackslash mathbf\{x\}\^{}\{(i)\})\$ in this way, as it is very expensive to check all the possible values of \$\textbackslash mathbf\{z\}\$ and sum them up. To narrow down the value space to facilitate faster search, we would like to introduce a new approximation function to output what is a likely code given an input \$\textbackslash mathbf\{x\}\$, \$q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$, parameterized by \$\textbackslash phi\$.
+
+\begin{figure}
+\centering
+\includegraphics{VAE-graphical-model.png}
+\caption{The graphical model involved in Variational Autoencoder. Solid lines denote the generative distribution \$p\textbackslash\_\textbackslash theta(.)\$ and dashed lines denote the distribution \$q\textbackslash\_\textbackslash phi (\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$ to approximate the intractable posterior \$p\textbackslash\_\textbackslash theta (\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$.}
+\end{figure}
+
+Now the structure looks a lot like an autoencoder:
+
+\begin{itemize}
+\tightlist
+\item
+  The conditional probability \$p\_\textbackslash theta(\textbackslash mathbf\{x\} \textbackslash vert \textbackslash mathbf\{z\})\$ defines a generative model, similar to the decoder \$f\_\textbackslash theta(\textbackslash mathbf\{x\} \textbackslash vert \textbackslash mathbf\{z\})\$ introduced above. \$p\_\textbackslash theta(\textbackslash mathbf\{x\} \textbackslash vert \textbackslash mathbf\{z\})\$ is also known as \emph{probabilistic decoder}.
+\item
+  The approximation function \$q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\$ is the \emph{probabilistic encoder}, playing a similar role as \$g\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\$ above.
+\end{itemize}
+
+\subsection{\texorpdfstring{Loss Function: ELBO\hyperref[loss-function-elbo]{\#}}{Loss Function: ELBO\#}}\label{loss-function-elbo}
+
+The estimated posterior \$q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$ should be very close to the real one \$p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$. We can use \href{https://en.wikipedia.org/wiki/Kullback\%E2\%80\%93Leibler_divergence}{Kullback-Leibler divergence} to quantify the distance between these two distributions. KL divergence \$D\_\textbackslash text\{KL\}(X\textbar Y)\$ measures how much information is lost if the distribution Y is used to represent X.
+
+In our case we want to minimize \$D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) )\$ with respect to \$\textbackslash phi\$.
+
+But why use \$D\_\textbackslash text\{KL\}(q\_\textbackslash phi \textbar{} p\_\textbackslash theta)\$ (reversed KL) instead of \$D\_\textbackslash text\{KL\}(p\_\textbackslash theta \textbar{} q\_\textbackslash phi)\$ (forward KL)? Eric Jang has a great explanation in his \href{https://blog.evjang.com/2016/08/variational-bayes.html}{post} on Bayesian Variational methods. As a quick recap:
+
+\begin{figure}
+\centering
+\includegraphics{forward_vs_reversed_KL.png}
+\caption{Forward and reversed KL divergence have different demands on how to match two distributions. (Image source: \href{https://blog.evjang.com/2016/08/variational-bayes.html}{blog.evjang.com/2016/08/variational-bayes.html})}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  Forward KL divergence: \$D\_\textbackslash text\{KL\}(P\textbar Q) = \textbackslash mathbb\{E\}\_\{z\textbackslash sim P(z)\} \textbackslash log\textbackslash frac\{P(z)\}\{Q(z)\}\$; we have to ensure that Q(z)\textgreater0 wherever P(z)\textgreater0. The optimized variational distribution \$q(z)\$ has to cover over the entire \$p(z)\$.
+\item
+  Reversed KL divergence: \$D\_\textbackslash text\{KL\}(Q\textbar P) = \textbackslash mathbb\{E\}\_\{z\textbackslash sim Q(z)\} \textbackslash log\textbackslash frac\{Q(z)\}\{P(z)\}\$; minimizing the reversed KL divergence squeezes the \$Q(z)\$ under \$P(z)\$.
+\end{itemize}
+
+Let's now expand the equation:
+
+\$\$ \textbackslash begin\{aligned\} \& D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) ) \& \textbackslash\textbackslash{} \&=\textbackslash int q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\}) \textbackslash log\textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\} d\textbackslash mathbf\{z\} \& \textbackslash\textbackslash{} \&=\textbackslash int q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\}) \textbackslash log\textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})p\_\textbackslash theta(\textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{z\}, \textbackslash mathbf\{x\})\} d\textbackslash mathbf\{z\} \& \textbackslash scriptstyle\{\textbackslash text\{; Because \}p(z \textbackslash vert x) = p(z, x) / p(x)\} \textbackslash\textbackslash{} \&=\textbackslash int q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\}) \textbackslash big( \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + \textbackslash log\textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{z\}, \textbackslash mathbf\{x\})\} \textbackslash big) d\textbackslash mathbf\{z\} \& \textbackslash\textbackslash{} \&=\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + \textbackslash int q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\textbackslash log\textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{z\}, \textbackslash mathbf\{x\})\} d\textbackslash mathbf\{z\} \& \textbackslash scriptstyle\{\textbackslash text\{; Because \}\textbackslash int q(z \textbackslash vert x) dz = 1\}\textbackslash\textbackslash{} \&=\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + \textbackslash int q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\textbackslash log\textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\})p\_\textbackslash theta(\textbackslash mathbf\{z\})\} d\textbackslash mathbf\{z\} \& \textbackslash scriptstyle\{\textbackslash text\{; Because \}p(z, x) = p(x \textbackslash vert z) p(z)\} \textbackslash\textbackslash{} \&=\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\}\textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}{[}\textbackslash log \textbackslash frac\{q\_\textbackslash phi(\textbackslash mathbf\{z\} \textbackslash vert \textbackslash mathbf\{x\})\}\{p\_\textbackslash theta(\textbackslash mathbf\{z\})\} - \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\} \textbackslash vert \textbackslash mathbf\{z\}){]} \&\textbackslash\textbackslash{} \&=\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\})) - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\}\textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\}\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) \& \textbackslash end\{aligned\} \$\$
+
+So we have:
+
+\$\$ D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) ) =\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\})) - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\}\textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\}\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) \$\$
+
+Once rearrange the left and right hand side of the equation,
+
+\$\$ \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) - D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) ) = \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\}\textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\}\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) - D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\})) \$\$
+
+The LHS of the equation is exactly what we want to maximize when learning the true distributions: we want to maximize the (log-)likelihood of generating real data (that is \$\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\})\$) and also minimize the difference between the real and estimated posterior distributions (the term \$D\_\textbackslash text\{KL\}\$ works like a regularizer). Note that \$p\_\textbackslash theta(\textbackslash mathbf\{x\})\$ is fixed with respect to \$q\_\textbackslash phi\$.
+
+The negation of the above defines our loss function:
+
+\$\$ \textbackslash begin\{aligned\} L\_\textbackslash text\{VAE\}(\textbackslash theta, \textbackslash phi) \&= -\textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) + D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) )\textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) + D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}) ) \textbackslash\textbackslash{} \textbackslash theta\^{}\{*\}, \textbackslash phi\^{}\{*\} \&= \textbackslash arg\textbackslash min\_\{\textbackslash theta, \textbackslash phi\} L\_\textbackslash text\{VAE\} \textbackslash end\{aligned\} \$\$
+
+In Variational Bayesian methods, this loss function is known as the \emph{variational lower bound}, or \emph{evidence lower bound}. The ``lower bound'' part in the name comes from the fact that KL divergence is always non-negative and thus \$-L\_\textbackslash text\{VAE\}\$ is the lower bound of \$\textbackslash log p\_\textbackslash theta (\textbackslash mathbf\{x\})\$.
+
+\$\$ -L\_\textbackslash text\{VAE\} = \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) - D\_\textbackslash text\{KL\}( q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) \textbackslash\textbar{} p\_\textbackslash theta(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}) ) \textbackslash leq \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}) \$\$
+
+Therefore by minimizing the loss, we are maximizing the lower bound of the probability of generating real data samples.
+
+\subsection{\texorpdfstring{Reparameterization Trick\hyperref[reparameterization-trick]{\#}}{Reparameterization Trick\#}}\label{reparameterization-trick}
+
+The expectation term in the loss function invokes generating samples from \$\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$. Sampling is a stochastic process and therefore we cannot backpropagate the gradient. To make it trainable, the reparameterization trick is introduced: It is often possible to express the random variable \$\textbackslash mathbf\{z\}\$ as a deterministic variable \$\textbackslash mathbf\{z\} = \textbackslash mathcal\{T\}\_\textbackslash phi(\textbackslash mathbf\{x\}, \textbackslash boldsymbol\{\textbackslash epsilon\})\$, where \$\textbackslash boldsymbol\{\textbackslash epsilon\}\$ is an auxiliary independent random variable, and the transformation function \$\textbackslash mathcal\{T\}\_\textbackslash phi\$ parameterized by \$\textbackslash phi\$ converts \$\textbackslash boldsymbol\{\textbackslash epsilon\}\$ to \$\textbackslash mathbf\{z\}\$.
+
+For example, a common choice of the form of \$q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\$ is a multivariate Gaussian with a diagonal covariance structure:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{z\} \&\textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\}\^{}\{(i)\}) = \textbackslash mathcal\{N\}(\textbackslash mathbf\{z\}; \textbackslash boldsymbol\{\textbackslash mu\}\^{}\{(i)\}, \textbackslash boldsymbol\{\textbackslash sigma\}\^{}\{2(i)\}\textbackslash boldsymbol\{I\}) \& \textbackslash\textbackslash{} \textbackslash mathbf\{z\} \&= \textbackslash boldsymbol\{\textbackslash mu\} + \textbackslash boldsymbol\{\textbackslash sigma\} \textbackslash odot \textbackslash boldsymbol\{\textbackslash epsilon\} \textbackslash text\{, where \} \textbackslash boldsymbol\{\textbackslash epsilon\} \textbackslash sim \textbackslash mathcal\{N\}(0, \textbackslash boldsymbol\{I\}) \& \textbackslash scriptstyle\{\textbackslash text\{; Reparameterization trick.\}\} \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash odot\$ refers to element-wise product.
+
+\begin{figure}
+\centering
+\includegraphics{reparameterization-trick.png}
+\caption{Illustration of how the reparameterization trick makes the \$\textbackslash mathbf\{z\}\$ sampling process trainable.(Image source: Slide 12 in Kingma's NIPS 2015 workshop \href{http://dpkingma.com/wordpress/wp-content/uploads/2015/12/talk_nips_workshop_2015.pdf}{talk})}
+\end{figure}
+
+The reparameterization trick works for other types of distributions too, not only Gaussian. In the multivariate Gaussian case, we make the model trainable by learning the mean and variance of the distribution, \$\textbackslash mu\$ and \$\textbackslash sigma\$, explicitly using the reparameterization trick, while the stochasticity remains in the random variable \$\textbackslash boldsymbol\{\textbackslash epsilon\} \textbackslash sim \textbackslash mathcal\{N\}(0, \textbackslash boldsymbol\{I\})\$.
+
+\begin{figure}
+\centering
+\includegraphics{vae-gaussian.png}
+\caption{Illustration of variational autoencoder model with the multivariate Gaussian assumption.}
+\end{figure}
+
+\section{\texorpdfstring{Beta-VAE\hyperref[beta-vae]{\#}}{Beta-VAE\#}}\label{beta-vae}
+
+If each variable in the inferred latent representation \$\textbackslash mathbf\{z\}\$ is only sensitive to one single generative factor and relatively invariant to other factors, we will say this representation is disentangled or factorized. One benefit that often comes with disentangled representation is \emph{good interpretability} and easy generalization to a variety of tasks.
+
+For example, a model trained on photos of human faces might capture the gentle, skin color, hair color, hair length, emotion, whether wearing a pair of glasses and many other relatively independent factors in separate dimensions. Such a disentangled representation is very beneficial to facial image generation.
+
+β-VAE (\href{https://openreview.net/forum?id=Sy2fzU9gl}{Higgins et al., 2017}) is a modification of Variational Autoencoder with a special emphasis to discover disentangled latent factors. Following the same incentive in VAE, we want to maximize the probability of generating real data, while keeping the distance between the real and estimated posterior distributions small (say, under a small constant \$\textbackslash delta\$):
+
+\$\$ \textbackslash begin\{aligned\} \&\textbackslash max\_\{\textbackslash phi, \textbackslash theta\} \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{x\}\textbackslash sim\textbackslash mathcal\{D\}\}{[}\textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}){]}\textbackslash\textbackslash{} \&\textbackslash text\{subject to \} D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\textbackslash\textbar p\_\textbackslash theta(\textbackslash mathbf\{z\})) \textless{} \textbackslash delta \textbackslash end\{aligned\} \$\$
+
+We can rewrite it as a Lagrangian with a Lagrangian multiplier \$\textbackslash beta\$ under the \href{https://www.cs.cmu.edu/~ggordon/10725-F12/slides/16-kkt.pdf}{KKT condition}. The above optimization problem with only one inequality constraint is equivalent to maximizing the following equation \$\textbackslash mathcal\{F\}(\textbackslash theta, \textbackslash phi, \textbackslash beta)\$:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{F\}(\textbackslash theta, \textbackslash phi, \textbackslash beta) \&= \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) - \textbackslash beta(D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\textbackslash\textbar p\_\textbackslash theta(\textbackslash mathbf\{z\})) - \textbackslash delta) \& \textbackslash\textbackslash{} \& = \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) - \textbackslash beta D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\textbackslash\textbar p\_\textbackslash theta(\textbackslash mathbf\{z\})) + \textbackslash beta \textbackslash delta \& \textbackslash\textbackslash{} \& \textbackslash geq \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) - \textbackslash beta D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\textbackslash\textbar p\_\textbackslash theta(\textbackslash mathbf\{z\})) \& \textbackslash scriptstyle\{\textbackslash text\{; Because \}\textbackslash beta,\textbackslash delta\textbackslash geq 0\} \textbackslash end\{aligned\} \$\$
+
+The loss function of \$\textbackslash beta\$-VAE is defined as:
+
+\$\$ L\_\textbackslash text\{BETA\}(\textbackslash phi, \textbackslash beta) = - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\} \textbackslash log p\_\textbackslash theta(\textbackslash mathbf\{x\}\textbackslash vert\textbackslash mathbf\{z\}) + \textbackslash beta D\_\textbackslash text\{KL\}(q\_\textbackslash phi(\textbackslash mathbf\{z\}\textbackslash vert\textbackslash mathbf\{x\})\textbackslash\textbar p\_\textbackslash theta(\textbackslash mathbf\{z\})) \$\$
+
+where the Lagrangian multiplier \$\textbackslash beta\$ is considered as a hyperparameter.
+
+Since the negation of \$L\_\textbackslash text\{BETA\}(\textbackslash phi, \textbackslash beta)\$ is the lower bound of the Lagrangian \$\textbackslash mathcal\{F\}(\textbackslash theta, \textbackslash phi, \textbackslash beta)\$. Minimizing the loss is equivalent to maximizing the Lagrangian and thus works for our initial optimization problem.
+
+When \$\textbackslash beta=1\$, it is same as VAE. When \$\textbackslash beta \textgreater{} 1\$, it applies a stronger constraint on the latent bottleneck and limits the representation capacity of \$\textbackslash mathbf\{z\}\$. For some conditionally independent generative factors, keeping them disentangled is the most efficient representation. Therefore a higher \$\textbackslash beta\$ encourages more efficient latent encoding and further encourages the disentanglement. Meanwhile, a higher \$\textbackslash beta\$ may create a trade-off between reconstruction quality and the extent of disentanglement.
+
+\href{https://arxiv.org/pdf/1804.03599.pdf}{Burgess, et al. (2017)} discussed the distentangling in \$\textbackslash beta\$-VAE in depth with an inspiration by the \href{https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/}{information bottleneck theory} and further proposed a modification to \$\textbackslash beta\$-VAE to better control the encoding representation capacity.
+
+\section{\texorpdfstring{VQ-VAE and VQ-VAE-2\hyperref[vq-vae-and-vq-vae-2]{\#}}{VQ-VAE and VQ-VAE-2\#}}\label{vq-vae-and-vq-vae-2}
+
+The \textbf{VQ-VAE} (``Vector Quantised-Variational AutoEncoder''; \href{http://papers.nips.cc/paper/7210-neural-discrete-representation-learning.pdf}{van den Oord, et al. 2017}) model learns a discrete latent variable by the encoder, since discrete representations may be a more natural fit for problems like language, speech, reasoning, etc.
+
+Vector quantisation (VQ) is a method to map \$K\$-dimensional vectors into a finite set of ``code'' vectors. The process is very much similar to \href{https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm}{KNN} algorithm. The optimal centroid code vector that a sample should be mapped to is the one with minimum euclidean distance.
+
+Let \$\textbackslash mathbf\{e\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{K \textbackslash times D\}, i=1, \textbackslash dots, K\$ be the latent embedding space (also known as ``codebook'') in VQ-VAE, where \$K\$ is the number of latent variable categories and \$D\$ is the embedding size. An individual embedding vector is \$\textbackslash mathbf\{e\}\_i \textbackslash in \textbackslash mathbb\{R\}\^{}\{D\}, i=1, \textbackslash dots, K\$.
+
+The encoder output \$E(\textbackslash mathbf\{x\}) = \textbackslash mathbf\{z\}\_e\$ goes through a nearest-neighbor lookup to match to one of \$K\$ embedding vectors and then this matched code vector becomes the input for the decoder \$D(.)\$:
+
+\$\$ \textbackslash mathbf\{z\}\_q(\textbackslash mathbf\{x\}) = \textbackslash text\{Quantize\}(E(\textbackslash mathbf\{x\})) = \textbackslash mathbf\{e\}\_k \textbackslash text\{ where \} k = \textbackslash arg\textbackslash min\_i \textbackslash\textbar E(\textbackslash mathbf\{x\}) - \textbackslash mathbf\{e\}\_i \textbackslash\textbar\_2 \$\$
+
+Note that the discrete latent variables can have different shapes in differnet applications; for example, 1D for speech, 2D for image and 3D for video.
+
+\begin{figure}
+\centering
+\includegraphics{VQ-VAE.png}
+\caption{The architecture of VQ-VAE (Image source: \href{http://papers.nips.cc/paper/7210-neural-discrete-representation-learning.pdf}{van den Oord, et al. 2017})}
+\end{figure}
+
+Because argmin() is non-differentiable on a discrete space, the gradients \$\textbackslash nabla\_z L\$ from decoder input \$\textbackslash mathbf\{z\}\_q\$ is copied to the encoder output \$\textbackslash mathbf\{z\}\_e\$. Other than reconstruction loss, VQ-VAE also optimizes:
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{VQ loss}: The L2 error between the embedding space and the encoder outputs.
+\item
+  \emph{Commitment loss}: A measure to encourage the encoder output to stay close to the embedding space and to prevent it from fluctuating too frequently from one code vector to another.
+\end{itemize}
+
+\$\$ L = \textbackslash underbrace\{\textbackslash\textbar\textbackslash mathbf\{x\} - D(\textbackslash mathbf\{e\}\_k)\textbackslash\textbar\_2\^{}2\}\_\{\textbackslash textrm\{reconstruction loss\}\} + \textbackslash underbrace\{\textbackslash\textbar\textbackslash text\{sg\}{[}E(\textbackslash mathbf\{x\}){]} - \textbackslash mathbf\{e\}\_k\textbackslash\textbar\_2\^{}2\}\_\{\textbackslash textrm\{VQ loss\}\} + \textbackslash underbrace\{\textbackslash beta \textbackslash\textbar E(\textbackslash mathbf\{x\}) - \textbackslash text\{sg\}{[}\textbackslash mathbf\{e\}\_k{]}\textbackslash\textbar\_2\^{}2\}\_\{\textbackslash textrm\{commitment loss\}\} \$\$
+
+where \$\textbackslash text\{sg\}{[}.{]}\$ is the \texttt{stop\_gradient} operator.
+
+The embedding vectors in the codebook is updated through EMA (exponential moving average). Given a code vector \$\textbackslash mathbf\{e\}\_i\$, say we have \$n\_i\$ encoder output vectors, \$\textbackslash\{\textbackslash mathbf\{z\}\_\{i,j\}\textbackslash\}\_\{j=1\}\^{}\{n\_i\}\$, that are quantized to \$\textbackslash mathbf\{e\}\_i\$:
+
+\$\$ N\_i\^{}\{(t)\} = \textbackslash gamma N\_i\^{}\{(t-1)\} + (1-\textbackslash gamma)n\_i\^{}\{(t)\}\textbackslash;\textbackslash;\textbackslash; \textbackslash mathbf\{m\}\_i\^{}\{(t)\} = \textbackslash gamma \textbackslash mathbf\{m\}\_i\^{}\{(t-1)\} + (1-\textbackslash gamma)\textbackslash sum\_\{j=1\}\^{}\{n\_i\^{}\{(t)\}\}\textbackslash mathbf\{z\}\_\{i,j\}\^{}\{(t)\}\textbackslash;\textbackslash;\textbackslash; \textbackslash mathbf\{e\}\_i\^{}\{(t)\} = \textbackslash mathbf\{m\}\_i\^{}\{(t)\} / N\_i\^{}\{(t)\} \$\$
+
+where \$(t)\$ refers to batch sequence in time. \$N\_i\$ and \$\textbackslash mathbf\{m\}\_i\$ are accumulated vector count and volume, respectively.
+
+VQ-VAE-2 (\href{https://arxiv.org/abs/1906.00446}{Ali Razavi, et al. 2019}) is a two-level hierarchical VQ-VAE combined with self-attention autoregressive model.
+
+\begin{enumerate}
+\tightlist
+\item
+  Stage 1 is to \textbf{train a hierarchical VQ-VAE}: The design of hierarchical latent variables intends to separate local patterns (i.e., texture) from global information (i.e., object shapes). The training of the larger bottom level codebook is conditioned on the smaller top level code too, so that it does not have to learn everything from scratch.
+\item
+  Stage 2 is to \textbf{learn a prior over the latent discrete codebook} so that we sample from it and generate images. In this way, the decoder can receive input vectors sampled from a similar distribution as the one in training. A powerful autoregressive model enhanced with multi-headed self-attention layers is used to capture the prior distribution (like \href{https://arxiv.org/abs/1712.09763}{PixelSNAIL; Chen et al 2017}).
+\end{enumerate}
+
+Considering that VQ-VAE-2 depends on discrete latent variables configured in a simple hierarchical setting, the quality of its generated images are pretty amazing.
+
+\begin{figure}
+\centering
+\includegraphics{VQ-VAE-2.png}
+\caption{Architecture of hierarchical VQ-VAE and multi-stage image generation. (Image source: \href{https://arxiv.org/abs/1906.00446}{Ali Razavi, et al. 2019})}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{VQ-VAE-2-algo.png}
+\caption{The VQ-VAE-2 algorithm. (Image source: \href{https://arxiv.org/abs/1906.00446}{Ali Razavi, et al. 2019})}
+\end{figure}
+
+\section{\texorpdfstring{TD-VAE\hyperref[td-vae]{\#}}{TD-VAE\#}}\label{td-vae}
+
+\textbf{TD-VAE} (``Temporal Difference VAE''; \href{https://arxiv.org/abs/1806.03107}{Gregor et al., 2019}) works with sequential data. It relies on three main ideas, described below.
+
+\begin{figure}
+\centering
+\includegraphics{TD-VAE-state-space.png}
+\caption{State-space model as a Markov Chain model.}
+\end{figure}
+
+\textbf{1. State-Space Models}\\
+In (latent) state-space models, a sequence of unobserved hidden states \$\textbackslash mathbf\{z\} = (z\_1, \textbackslash dots, z\_T)\$ determine the observation states \$\textbackslash mathbf\{x\} = (x\_1, \textbackslash dots, x\_T)\$. Each time step in the Markov chain model in Fig. 13 can be trained in a similar manner as in Fig. 6, where the intractable posterior \$p(z \textbackslash vert x)\$ is approximated by a function \$q(z \textbackslash vert x)\$.
+
+\textbf{2. Belief State}\\
+An agent should learn to encode all the past states to reason about the future, named as \emph{belief state}, \$b\_t = belief(x\_1, \textbackslash dots, x\_t) = belief(b\_\{t-1\}, x\_t)\$. Given this, the distribution of future states conditioned on the past can be written as \$p(x\_\{t+1\}, \textbackslash dots, x\_T \textbackslash vert x\_1, \textbackslash dots, x\_t) \textbackslash approx p(x\_\{t+1\}, \textbackslash dots, x\_T \textbackslash vert b\_t)\$. The hidden states in a recurrent policy are used as the agent's belief state in TD-VAE. Thus we have \$b\_t = \textbackslash text\{RNN\}(b\_\{t-1\}, x\_t)\$.
+
+\textbf{3. Jumpy Prediction}\\
+Further, an agent is expected to imagine distant futures based on all the information gathered so far, suggesting the capability of making jumpy predictions, that is, predicting states several steps further into the future.
+
+Recall what we have learned from the variance lower bound \hyperref[loss-function-elbo]{above}:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash log p(x) \&\textbackslash geq \textbackslash log p(x) - D\_\textbackslash text\{KL\}(q(z\textbar x)\textbackslash\textbar p(z\textbar x)) \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{z\textbackslash sim q\} \textbackslash log p(x\textbar z) - D\_\textbackslash text\{KL\}(q(z\textbar x)\textbackslash\textbar p(z)) \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{z \textbackslash sim q\} \textbackslash log p(x\textbar z) - \textbackslash mathbb\{E\}\_\{z \textbackslash sim q\} \textbackslash log \textbackslash frac\{q(z\textbar x)\}\{p(z)\} \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{z \textbackslash sim q\}{[}\textbackslash log p(x\textbar z) -\textbackslash log q(z\textbar x) + \textbackslash log p(z){]} \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{z \textbackslash sim q\}{[}\textbackslash log p(x, z) -\textbackslash log q(z\textbar x){]} \textbackslash\textbackslash{} \textbackslash log p(x) \&\textbackslash geq \textbackslash mathbb\{E\}\_\{z \textbackslash sim q\}{[}\textbackslash log p(x, z) -\textbackslash log q(z\textbar x){]} \textbackslash end\{aligned\} \$\$
+
+Now let's model the distribution of the state \$x\_t\$ as a probability function conditioned on all the past states \$x\_\{\textless t\}\$ and two latent variables, \$z\_t\$ and \$z\_\{t-1\}\$, at current time step and one step back:
+
+\$\$ \textbackslash log p(x\_t\textbar x\_\{\textless\{t\}\}) \textbackslash geq \textbackslash mathbb\{E\}\_\{(z\_\{t-1\}, z\_t) \textbackslash sim q\}{[}\textbackslash log p(x\_t, z\_\{t-1\}, z\_\{t\}\textbar x\_\{\textless\{t\}\}) -\textbackslash log q(z\_\{t-1\}, z\_t\textbar x\_\{\textbackslash leq t\}){]} \$\$
+
+Continue expanding the equation:
+
+\$\$ \textbackslash begin\{aligned\} \& \textbackslash log p(x\_t\textbar x\_\{\textless\{t\}\}) \textbackslash\textbackslash{} \&\textbackslash geq \textbackslash mathbb\{E\}\_\{(z\_\{t-1\}, z\_t) \textbackslash sim q\}{[}\textbackslash log p(x\_t, z\_\{t-1\}, z\_\{t\}\textbar x\_\{\textless\{t\}\}) -\textbackslash log q(z\_\{t-1\}, z\_t\textbar x\_\{\textbackslash leq t\}){]} \textbackslash\textbackslash{} \&\textbackslash geq \textbackslash mathbb\{E\}\_\{(z\_\{t-1\}, z\_t) \textbackslash sim q\}{[}\textbackslash log p(x\_t\textbar\textbackslash color\{red\}\{z\_\{t-1\}\}, z\_\{t\}, \textbackslash color\{red\}\{x\_\{\textless\{t\}\}\}) + \textbackslash color\{blue\}\{\textbackslash log p(z\_\{t-1\}, z\_\{t\}\textbar x\_\{\textless\{t\}\})\} -\textbackslash log q(z\_\{t-1\}, z\_t\textbar x\_\{\textbackslash leq t\}){]} \textbackslash\textbackslash{} \&\textbackslash geq \textbackslash mathbb\{E\}\_\{(z\_\{t-1\}, z\_t) \textbackslash sim q\}{[}\textbackslash log p(x\_t\textbar z\_\{t\}) + \textbackslash color\{blue\}\{\textbackslash log p(z\_\{t-1\}\textbar x\_\{\textless\{t\}\})\} + \textbackslash color\{blue\}\{\textbackslash log p(z\_\{t\}\textbar z\_\{t-1\})\} - \textbackslash color\{green\}\{\textbackslash log q(z\_\{t-1\}, z\_t\textbar x\_\{\textbackslash leq t\})\}{]} \textbackslash\textbackslash{} \&\textbackslash geq \textbackslash mathbb\{E\}\_\{(z\_\{t-1\}, z\_t) \textbackslash sim q\}{[}\textbackslash log p(x\_t\textbar z\_\{t\}) + \textbackslash log p(z\_\{t-1\}\textbar x\_\{\textless\{t\}\}) + \textbackslash log p(z\_\{t\}\textbar z\_\{t-1\}) - \textbackslash color\{green\}\{\textbackslash log q(z\_t\textbar x\_\{\textbackslash leq t\})\} - \textbackslash color\{green\}\{\textbackslash log q(z\_\{t-1\}\textbar z\_t, x\_\{\textbackslash leq t\})\}{]} \textbackslash end\{aligned\} \$\$
+
+Notice two things:
+
+\begin{itemize}
+\tightlist
+\item
+  The {red} terms can be ignored according to Markov assumptions.
+\item
+  The {blue} term is expanded according to Markov assumptions.
+\item
+  The {green} term is expanded to include an one-step prediction back to the past as a smoothing distribution.
+\end{itemize}
+
+Precisely, there are four types of distributions to learn:
+
+\begin{enumerate}
+\tightlist
+\item
+  \$p\_D(.)\$ is the \textbf{decoder} distribution:
+\end{enumerate}
+
+\begin{itemize}
+\tightlist
+\item
+  \$p(x\_t \textbackslash mid z\_t)\$ is the encoder by the common definition;
+\item
+  \$p(x\_t \textbackslash mid z\_t) \textbackslash to p\_D(x\_t \textbackslash mid z\_t)\$;
+\end{itemize}
+
+\begin{enumerate}
+\setcounter{enumi}{1}
+\tightlist
+\item
+  \$p\_T(.)\$ is the \textbf{transition} distribution:
+\end{enumerate}
+
+\begin{itemize}
+\tightlist
+\item
+  \$p(z\_t \textbackslash mid z\_\{t-1\})\$ captures the sequential dependency between latent variables;
+\item
+  \$p(z\_t \textbackslash mid z\_\{t-1\}) \textbackslash to p\_T(z\_t \textbackslash mid z\_\{t-1\})\$;
+\end{itemize}
+
+\begin{enumerate}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  \$p\_B(.)\$ is the \textbf{belief} distribution:
+\end{enumerate}
+
+\begin{itemize}
+\tightlist
+\item
+  Both \$p(z\_\{t-1\} \textbackslash mid x\_\{\textless t\})\$ and \$q(z\_t \textbackslash mid x\_\{\textbackslash leq t\})\$ can use the belief states to predict the latent variables;
+\item
+  \$p(z\_\{t-1\} \textbackslash mid x\_\{\textless t\}) \textbackslash to p\_B(z\_\{t-1\} \textbackslash mid b\_\{t-1\})\$;
+\item
+  \$q(z\_\{t\} \textbackslash mid x\_\{\textbackslash leq t\}) \textbackslash to p\_B(z\_t \textbackslash mid b\_t)\$;
+\end{itemize}
+
+\begin{enumerate}
+\setcounter{enumi}{3}
+\tightlist
+\item
+  \$p\_S(.)\$ is the \textbf{smoothing} distribution:
+\end{enumerate}
+
+\begin{itemize}
+\tightlist
+\item
+  The back-to-past smoothing term \$q(z\_\{t-1\} \textbackslash mid z\_t, x\_\{\textbackslash leq t\})\$ can be rewritten to be dependent of belief states too;
+\item
+  \$q(z\_\{t-1\} \textbackslash mid z\_t, x\_\{\textbackslash leq t\}) \textbackslash to p\_S(z\_\{t-1\} \textbackslash mid z\_t, b\_\{t-1\}, b\_t)\$;
+\end{itemize}
+
+To incorporate the idea of jumpy prediction, the sequential ELBO has to not only work on \$t, t+1\$, but also two distant timestamp \$t\_1 \textless{} t\_2\$. Here is the final TD-VAE objective function to maximize:
+
+\$\$ J\_\{t\_1, t\_2\} = \textbackslash mathbb\{E\}{[} \textbackslash log p\_D(x\_\{t\_2\}\textbar z\_\{t\_2\}) + \textbackslash log p\_B(z\_\{t\_1\}\textbar b\_\{t\_1\}) + \textbackslash log p\_T(z\_\{t\_2\}\textbar z\_\{t\_1\}) - \textbackslash log p\_B(z\_\{t\_2\}\textbar b\_\{t\_2\}) - \textbackslash log p\_S(z\_\{t\_1\}\textbar z\_\{t\_2\}, b\_\{t\_1\}, b\_\{t\_2\}){]} \$\$
+
+\begin{figure}
+\centering
+\includegraphics{TD-VAE.png}
+\caption{A detailed overview of TD-VAE architecture, very nicely done. (Image source: \href{https://arxiv.org/abs/1806.03107}{TD-VAE paper})}
+\end{figure}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+Cited as:
+
+\begin{verbatim}
+@article{weng2018VAE,
+  title   = "From Autoencoder to Beta-VAE",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2018",
+  url     = "https://lilianweng.github.io/posts/2018-08-12-vae/"
+}
+\end{verbatim}
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Geoffrey E. Hinton, and Ruslan R. Salakhutdinov. \href{https://pdfs.semanticscholar.org/c50d/ca78e97e335d362d6b991ae0e1448914e9a3.pdf}{``Reducing the dimensionality of data with neural networks.''} Science 313.5786 (2006): 504-507.
+
+{[}2{]} Pascal Vincent, et al. \href{http://www.cs.toronto.edu/~larocheh/publications/icml-2008-denoising-autoencoders.pdf}{``Extracting and composing robust features with denoising autoencoders.''} ICML, 2008.
+
+{[}3{]} Pascal Vincent, et al. \href{http://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf}{``Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion.''}. Journal of machine learning research 11.Dec (2010): 3371-3408.
+
+{[}4{]} Geoffrey E. Hinton, Nitish Srivastava, Alex Krizhevsky, Ilya Sutskever, and Ruslan R. Salakhutdinov. ``Improving neural networks by preventing co-adaptation of feature detectors.'' arXiv preprint arXiv:1207.0580 (2012).
+
+{[}5{]} \href{https://web.stanford.edu/class/cs294a/sparseAutoencoder.pdf}{Sparse Autoencoder} by Andrew Ng.
+
+{[}6{]} Alireza Makhzani, Brendan Frey (2013). \href{https://arxiv.org/abs/1312.5663}{``k-sparse autoencoder''}. ICLR 2014.
+
+{[}7{]} Salah Rifai, et al. \href{http://www.icml-2011.org/papers/455_icmlpaper.pdf}{``Contractive auto-encoders: Explicit invariance during feature extraction.''} ICML, 2011.
+
+{[}8{]} Diederik P. Kingma, and Max Welling. \href{https://arxiv.org/abs/1312.6114}{``Auto-encoding variational bayes.''} ICLR 2014.
+
+{[}9{]} \href{https://jaan.io/what-is-variational-autoencoder-vae-tutorial/}{Tutorial - What is a variational autoencoder?} on jaan.io
+
+{[}10{]} Youtube tutorial: \href{https://www.youtube.com/watch?v=9zKuYvjFFS8}{Variational Autoencoders} by Arxiv Insights
+
+{[}11{]} \href{https://blog.evjang.com/2016/08/variational-bayes.html}{``A Beginner's Guide to Variational Methods: Mean-Field Approximation''} by Eric Jang.
+
+{[}12{]} Carl Doersch. \href{https://arxiv.org/abs/1606.05908}{``Tutorial on variational autoencoders.''} arXiv:1606.05908, 2016.
+
+{[}13{]} Irina Higgins, et al. \href{https://openreview.net/forum?id=Sy2fzU9gl}{"\$\textbackslash beta\$-VAE: Learning basic visual concepts with a constrained variational framework."} ICLR 2017.
+
+{[}14{]} Christopher P. Burgess, et al. \href{https://arxiv.org/abs/1804.03599}{``Understanding disentangling in beta-VAE.''} NIPS 2017.
+
+{[}15{]} Aaron van den Oord, et al. \href{https://arxiv.org/abs/1711.00937}{``Neural Discrete Representation Learning''} NIPS 2017.
+
+{[}16{]} Ali Razavi, et al. \href{https://arxiv.org/abs/1906.00446}{``Generating Diverse High-Fidelity Images with VQ-VAE-2''}. arXiv preprint arXiv:1906.00446 (2019).
+
+{[}17{]} Xi Chen, et al. \href{https://arxiv.org/abs/1712.09763}{``PixelSNAIL: An Improved Autoregressive Generative Model.''} arXiv preprint arXiv:1712.09763 (2017).
+
+{[}18{]} Karol Gregor, et al. \href{https://arxiv.org/abs/1806.03107}{``Temporal Difference Variational Auto-Encoder.''} ICLR 2019.
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/autoencoder/}{Autoencoder}
+\item
+  \href{https://lilianweng.github.io/tags/generative-model/}{Generative-Model}
+\item
+  \href{https://lilianweng.github.io/tags/image-generation/}{Image-Generation}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2018-10-13-flow-models/}{{« }\\
+{Flow-based Deep Generative Models}} \href{https://lilianweng.github.io/posts/2018-06-24-attention/}{{ »}\\
+{Attention? Attention!}}
+
+\href{https://twitter.com/intent/tweet/?text=From\%20Autoencoder\%20to\%20Beta-VAE&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f&hashtags=autoencoder\%2cgenerative-model\%2cimage-generation}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f&title=From\%20Autoencoder\%20to\%20Beta-VAE&summary=From\%20Autoencoder\%20to\%20Beta-VAE&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f&title=From\%20Autoencoder\%20to\%20Beta-VAE}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f}{} \href{https://api.whatsapp.com/send?text=From\%20Autoencoder\%20to\%20Beta-VAE\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f}{} \href{https://telegram.me/share/url?text=From\%20Autoencoder\%20to\%20Beta-VAE&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2018-08-12-vae\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2018-08-12-vae/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2018-08-12-vae/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2018-08-12-vae/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2018-08-12-vae/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2018-08-12-vae/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2018-08-12-vae/}{Telegram}
+\end{center}
+
+
+
+\end{document}

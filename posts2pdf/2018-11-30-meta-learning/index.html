@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Meta-Learning: Learning to Learn Fast | Lil&#39;Log</title>
+<meta name="keywords" content="meta-learning, long-read" />
+<meta name="description" content="
+[Updated on 2019-10-01: thanks to Tianhao, we have this post translated in Chinese!]">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Meta-Learning: Learning to Learn Fast" />
+<meta property="og:description" content="
+[Updated on 2019-10-01: thanks to Tianhao, we have this post translated in Chinese!]" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2018-11-30-meta-learning/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2018-11-30T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2018-11-30T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Meta-Learning: Learning to Learn Fast"/>
+<meta name="twitter:description" content="
+[Updated on 2019-10-01: thanks to Tianhao, we have this post translated in Chinese!]"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Meta-Learning: Learning to Learn Fast",
+      "item": "https://lilianweng.github.io/posts/2018-11-30-meta-learning/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Meta-Learning: Learning to Learn Fast",
+  "name": "Meta-Learning: Learning to Learn Fast",
+  "description": " [Updated on 2019-10-01: thanks to Tianhao, we have this post translated in Chinese!]\n",
+  "keywords": [
+    "meta-learning", "long-read"
+  ],
+  "articleBody": " [Updated on 2019-10-01: thanks to Tianhao, we have this post translated in Chinese!]\nA good machine learning model often requires training with a large number of samples. Humans, in contrast, learn new concepts and skills much faster and more efficiently. Kids who have seen cats and birds only a few times can quickly tell them apart. People who know how to ride a bike are likely to discover the way to ride a motorcycle fast with little or even no demonstration. Is it possible to design a machine learning model with similar properties — learning new concepts and skills fast with a few training examples? That’s essentially what meta-learning aims to solve.\nWe expect a good meta-learning model capable of well adapting or generalizing to new tasks and new environments that have never been encountered during training time. The adaptation process, essentially a mini learning session, happens during test but with a limited exposure to the new task configurations. Eventually, the adapted model can complete new tasks. This is why meta-learning is also known as learning to learn.\nThe tasks can be any well-defined family of machine learning problems: supervised learning, reinforcement learning, etc. For example, here are a couple concrete meta-learning tasks:\nA classifier trained on non-cat images can tell whether a given image contains a cat after seeing a handful of cat pictures. A game bot is able to quickly master a new game. A mini robot completes the desired task on an uphill surface during test even through it was only trained in a flat surface environment. Define the Meta-Learning Problem In this post, we focus on the case when each desired task is a supervised learning problem like image classification. There is a lot of interesting literature on meta-learning with reinforcement learning problems (aka “Meta Reinforcement Learning”), but we would not cover them here.\nA Simple View A good meta-learning model should be trained over a variety of learning tasks and optimized for the best performance on a distribution of tasks, including potentially unseen tasks. Each task is associated with a dataset $\\mathcal{D}$, containing both feature vectors and true labels. The optimal model parameters are:\n$$ \\theta^* = \\arg\\min_\\theta \\mathbb{E}_{\\mathcal{D}\\sim p(\\mathcal{D})} [\\mathcal{L}_\\theta(\\mathcal{D})] $$ It looks very similar to a normal learning task, but one dataset is considered as one data sample.\nFew-shot classification is an instantiation of meta-learning in the field of supervised learning. The dataset $\\mathcal{D}$ is often split into two parts, a support set $S$ for learning and a prediction set $B$ for training or testing, $\\mathcal{D}=\\langle S, B\\rangle$. Often we consider a K-shot N-class classification task: the support set contains K labelled examples for each of N classes.\nAn example of 4-shot 2-class image classification. (Image thumbnails are from Pinterest) Training in the Same Way as Testing A dataset $\\mathcal{D}$ contains pairs of feature vectors and labels, $\\mathcal{D} = \\{(\\mathbf{x}_i, y_i)\\}$ and each label belongs to a known label set $\\mathcal{L}^\\text{label}$. Let’s say, our classifier $f_\\theta$ with parameter $\\theta$ outputs a probability of a data point belonging to the class $y$ given the feature vector $\\mathbf{x}$, $P_\\theta(y\\vert\\mathbf{x})$.\nThe optimal parameters should maximize the probability of true labels across multiple training batches $B \\subset \\mathcal{D}$:\n$$ \\begin{aligned} \\theta^* \u0026= {\\arg\\max}_{\\theta} \\mathbb{E}_{(\\mathbf{x}, y)\\in \\mathcal{D}}[P_\\theta(y \\vert \\mathbf{x})] \u0026\\\\ \\theta^* \u0026= {\\arg\\max}_{\\theta} \\mathbb{E}_{B\\subset \\mathcal{D}}[\\sum_{(\\mathbf{x}, y)\\in B}P_\\theta(y \\vert \\mathbf{x})] \u0026 \\scriptstyle{\\text{; trained with mini-batches.}} \\end{aligned} $$ In few-shot classification, the goal is to reduce the prediction error on data samples with unknown labels given a small support set for “fast learning” (think of how “fine-tuning” works). To make the training process mimics what happens during inference, we would like to “fake” datasets with a subset of labels to avoid exposing all the labels to the model and modify the optimization procedure accordingly to encourage fast learning:\nSample a subset of labels, $L\\subset\\mathcal{L}^\\text{label}$. Sample a support set $S^L \\subset \\mathcal{D}$ and a training batch $B^L \\subset \\mathcal{D}$. Both of them only contain data points with labels belonging to the sampled label set $L$, $y \\in L, \\forall (x, y) \\in S^L, B^L$. The support set is part of the model input. The final optimization uses the mini-batch $B^L$ to compute the loss and update the model parameters through backpropagation, in the same way as how we use it in the supervised learning. You may consider each pair of sampled dataset $(S^L, B^L)$ as one data point. The model is trained such that it can generalize to other datasets. Symbols in red are added for meta-learning in addition to the supervised learning objective.\n$$ \\theta = \\arg\\max_\\theta \\color{red}{E_{L\\subset\\mathcal{L}}[} E_{\\color{red}{S^L \\subset\\mathcal{D}, }B^L \\subset\\mathcal{D}} [\\sum_{(x, y)\\in B^L} P_\\theta(x, y\\color{red}{, S^L})] \\color{red}{]} $$ The idea is to some extent similar to using a pre-trained model in image classification (ImageNet) or language modeling (big text corpora) when only a limited set of task-specific data samples are available. Meta-learning takes this idea one step further, rather than fine-tuning according to one down-steam task, it optimizes the model to be good at many, if not all.\nLearner and Meta-Learner Another popular view of meta-learning decomposes the model update into two stages:\nA classifier $f_\\theta$ is the “learner” model, trained for operating a given task; In the meantime, a optimizer $g_\\phi$ learns how to update the learner model’s parameters via the support set $S$, $\\theta’ = g_\\phi(\\theta, S)$. Then in final optimization step, we need to update both $\\theta$ and $\\phi$ to maximize:\n$$ \\mathbb{E}_{L\\subset\\mathcal{L}}[ \\mathbb{E}_{S^L \\subset\\mathcal{D}, B^L \\subset\\mathcal{D}} [\\sum_{(\\mathbf{x}, y)\\in B^L} P_{g_\\phi(\\theta, S^L)}(y \\vert \\mathbf{x})]] $$ Common Approaches There are three common approaches to meta-learning: metric-based, model-based, and optimization-based. Oriol Vinyals has a nice summary in his talk at meta-learning symposium @ NIPS 2018:\n| ————- | ————- | ————- | ————- |\nModel-based Metric-based Optimization-based Key idea RNN; memory Metric learning Gradient descent How $P_\\theta(y \\vert \\mathbf{x})$ is modeled? $f_\\theta(\\mathbf{x}, S)$ $\\sum_{(\\mathbf{x}_i, y_i) \\in S} k_\\theta(\\mathbf{x}, \\mathbf{x}_i)y_i$ (*) $P_{g_\\phi(\\theta, S^L)}(y \\vert \\mathbf{x})$ (*) $k_\\theta$ is a kernel function measuring the similarity between $\\mathbf{x}_i$ and $\\mathbf{x}$.\nNext we are gonna review classic models in each approach.\nMetric-Based The core idea in metric-based meta-learning is similar to nearest neighbors algorithms (i.e., k-NN classificer and k-means clustering) and kernel density estimation. The predicted probability over a set of known labels $y$ is a weighted sum of labels of support set samples. The weight is generated by a kernel function $k_\\theta$, measuring the similarity between two data samples.\n$$ P_\\theta(y \\vert \\mathbf{x}, S) = \\sum_{(\\mathbf{x}_i, y_i) \\in S} k_\\theta(\\mathbf{x}, \\mathbf{x}_i)y_i $$ To learn a good kernel is crucial to the success of a metric-based meta-learning model. Metric learning is well aligned with this intention, as it aims to learn a metric or distance function over objects. The notion of a good metric is problem-dependent. It should represent the relationship between inputs in the task space and facilitate problem solving.\nAll the models introduced below learn embedding vectors of input data explicitly and use them to design proper kernel functions.\nConvolutional Siamese Neural Network The Siamese Neural Network is composed of two twin networks and their outputs are jointly trained on top with a function to learn the relationship between pairs of input data samples. The twin networks are identical, sharing the same weights and network parameters. In other words, both refer to the same embedding network that learns an efficient embedding to reveal relationship between pairs of data points.\nKoch, Zemel \u0026 Salakhutdinov (2015) proposed a method to use the siamese neural network to do one-shot image classification. First, the siamese network is trained for a verification task for telling whether two input images are in the same class. It outputs the probability of two images belonging to the same class. Then, during test time, the siamese network processes all the image pairs between a test image and every image in the support set. The final prediction is the class of the support image with the highest probability.\nThe architecture of convolutional siamese neural network for few-show image classification. First, convolutional siamese network learns to encode two images into feature vectors via a embedding function $f_\\theta$ which contains a couple of convolutional layers. The L1-distance between two embeddings is $\\vert f_\\theta(\\mathbf{x}_i) - f_\\theta(\\mathbf{x}_j) \\vert$. The distance is converted to a probability $p$ by a linear feedforward layer and sigmoid. It is the probability of whether two images are drawn from the same class. Intuitively the loss is cross entropy because the label is binary. $$ \\begin{aligned} p(\\mathbf{x}_i, \\mathbf{x}_j) \u0026= \\sigma(\\mathbf{W}\\vert f_\\theta(\\mathbf{x}_i) - f_\\theta(\\mathbf{x}_j) \\vert) \\\\ \\mathcal{L}(B) \u0026= \\sum_{(\\mathbf{x}_i, \\mathbf{x}_j, y_i, y_j)\\in B} \\mathbf{1}_{y_i=y_j}\\log p(\\mathbf{x}_i, \\mathbf{x}_j) + (1-\\mathbf{1}_{y_i=y_j})\\log (1-p(\\mathbf{x}_i, \\mathbf{x}_j)) \\end{aligned} $$ Images in the training batch $B$ can be augmented with distortion. Of course, you can replace the L1 distance with other distance metric, L2, cosine, etc. Just make sure they are differential and then everything else works the same.\nGiven a support set $S$ and a test image $\\mathbf{x}$, the final predicted class is:\n$$ \\hat{c}_S(\\mathbf{x}) = c(\\arg\\max_{\\mathbf{x}_i \\in S} P(\\mathbf{x}, \\mathbf{x}_i)) $$ where $c(\\mathbf{x})$ is the class label of an image $\\mathbf{x}$ and $\\hat{c}(.)$ is the predicted label.\nThe assumption is that the learned embedding can be generalized to be useful for measuring the distance between images of unknown categories. This is the same assumption behind transfer learning via the adoption of a pre-trained model; for example, the convolutional features learned in the model pre-trained with ImageNet are expected to help other image tasks. However, the benefit of a pre-trained model decreases when the new task diverges from the original task that the model was trained on.\nMatching Networks The task of Matching Networks (Vinyals et al., 2016) is to learn a classifier $c_S$ for any given (small) support set $S=\\{x_i, y_i\\}_{i=1}^k$ (k-shot classification). This classifier defines a probability distribution over output labels $y$ given a test example $\\mathbf{x}$. Similar to other metric-based models, the classifier output is defined as a sum of labels of support samples weighted by attention kernel $a(\\mathbf{x}, \\mathbf{x}_i)$ - which should be proportional to the similarity between $\\mathbf{x}$ and $\\mathbf{x}_i$.\nThe architecture of Matching Networks. (Image source: original paper) $$ c_S(\\mathbf{x}) = P(y \\vert \\mathbf{x}, S) = \\sum_{i=1}^k a(\\mathbf{x}, \\mathbf{x}_i) y_i \\text{, where }S=\\{(\\mathbf{x}_i, y_i)\\}_{i=1}^k $$ The attention kernel depends on two embedding functions, $f$ and $g$, for encoding the test sample and the support set samples respectively. The attention weight between two data points is the cosine similarity, $\\text{cosine}(.)$, between their embedding vectors, normalized by softmax:\n$$ a(\\mathbf{x}, \\mathbf{x}_i) = \\frac{\\exp(\\text{cosine}(f(\\mathbf{x}), g(\\mathbf{x}_i))}{\\sum_{j=1}^k\\exp(\\text{cosine}(f(\\mathbf{x}), g(\\mathbf{x}_j))} $$ Simple Embedding In the simple version, an embedding function is a neural network with a single data sample as input. Potentially we can set $f=g$.\nFull Context Embeddings The embedding vectors are critical inputs for building a good classifier. Taking a single data point as input might not be enough to efficiently gauge the entire feature space. Therefore, the Matching Network model further proposed to enhance the embedding functions by taking as input the whole support set $S$ in addition to the original input, so that the learned embedding can be adjusted based on the relationship with other support samples.\n$g_\\theta(\\mathbf{x}_i, S)$ uses a bidirectional LSTM to encode $\\mathbf{x}_i$ in the context of the entire support set $S$.\n$f_\\theta(\\mathbf{x}, S)$ encodes the test sample $\\mathbf{x}$ visa an LSTM with read attention over the support set $S$.\nFirst the test sample goes through a simple neural network, such as a CNN, to extract basic features, $f’(\\mathbf{x})$. Then an LSTM is trained with a read attention vector over the support set as part of the hidden state: $$ \\begin{aligned} \\hat{\\mathbf{h}}_t, \\mathbf{c}_t \u0026= \\text{LSTM}(f'(\\mathbf{x}), [\\mathbf{h}_{t-1}, \\mathbf{r}_{t-1}], \\mathbf{c}_{t-1}) \\\\ \\mathbf{h}_t \u0026= \\hat{\\mathbf{h}}_t + f'(\\mathbf{x}) \\\\ \\mathbf{r}_{t-1} \u0026= \\sum_{i=1}^k a(\\mathbf{h}_{t-1}, g(\\mathbf{x}_i)) g(\\mathbf{x}_i) \\\\ a(\\mathbf{h}_{t-1}, g(\\mathbf{x}_i)) \u0026= \\text{softmax}(\\mathbf{h}_{t-1}^\\top g(\\mathbf{x}_i)) = \\frac{\\exp(\\mathbf{h}_{t-1}^\\top g(\\mathbf{x}_i))}{\\sum_{j=1}^k \\exp(\\mathbf{h}_{t-1}^\\top g(\\mathbf{x}_j))} \\end{aligned} $$ Eventually $f(\\mathbf{x}, S)=\\mathbf{h}_K$ if we do K steps of “read”. This embedding method is called “Full Contextual Embeddings (FCE)”. Interestingly it does help improve the performance on a hard task (few-shot classification on mini ImageNet), but makes no difference on a simple task (Omniglot).\nThe training process in Matching Networks is designed to match inference at test time, see the details in the earlier section. It is worthy of mentioning that the Matching Networks paper refined the idea that training and testing conditions should match.\n$$ \\theta^* = \\arg\\max_\\theta \\mathbb{E}_{L\\subset\\mathcal{L}}[ \\mathbb{E}_{S^L \\subset\\mathcal{D}, B^L \\subset\\mathcal{D}} [\\sum_{(\\mathbf{x}, y)\\in B^L} P_\\theta(y\\vert\\mathbf{x}, S^L)]] $$ Relation Network Relation Network (RN) (Sung et al., 2018) is similar to siamese network but with a few differences:\nThe relationship is not captured by a simple L1 distance in the feature space, but predicted by a CNN classifier $g_\\phi$. The relation score between a pair of inputs, $\\mathbf{x}_i$ and $\\mathbf{x}_j$, is $r_{ij} = g_\\phi([\\mathbf{x}_i, \\mathbf{x}_j])$ where $[.,.]$ is concatenation. The objective function is MSE loss instead of cross-entropy, because conceptually RN focuses more on predicting relation scores which is more like regression, rather than binary classification, $\\mathcal{L}(B) = \\sum_{(\\mathbf{x}_i, \\mathbf{x}_j, y_i, y_j)\\in B} (r_{ij} - \\mathbf{1}_{y_i=y_j})^2$. Relation Network architecture for a 5-way 1-shot problem with one query example. (Image source: original paper) (Note: There is another Relation Network for relational reasoning, proposed by DeepMind. Don’t get confused.)\nPrototypical Networks Prototypical Networks (Snell, Swersky \u0026 Zemel, 2017) use an embedding function $f_\\theta$ to encode each input into a $M$-dimensional feature vector. A prototype feature vector is defined for every class $c \\in \\mathcal{C}$, as the mean vector of the embedded support data samples in this class.\n$$ \\mathbf{v}_c = \\frac{1}{|S_c|} \\sum_{(\\mathbf{x}_i, y_i) \\in S_c} f_\\theta(\\mathbf{x}_i) $$ Prototypical networks in the few-shot and zero-shot scenarios. (Image source: original paper) The distribution over classes for a given test input $\\mathbf{x}$ is a softmax over the inverse of distances between the test data embedding and prototype vectors.\n$$ P(y=c\\vert\\mathbf{x})=\\text{softmax}(-d_\\varphi(f_\\theta(\\mathbf{x}), \\mathbf{v}_c)) = \\frac{\\exp(-d_\\varphi(f_\\theta(\\mathbf{x}), \\mathbf{v}_c))}{\\sum_{c' \\in \\mathcal{C}}\\exp(-d_\\varphi(f_\\theta(\\mathbf{x}), \\mathbf{v}_{c'}))} $$ where $d_\\varphi$ can be any distance function as long as $\\varphi$ is differentiable. In the paper, they used the squared euclidean distance.\nThe loss function is the negative log-likelihood: $\\mathcal{L}(\\theta) = -\\log P_\\theta(y=c\\vert\\mathbf{x})$.\nModel-Based Model-based meta-learning models make no assumption on the form of $P_\\theta(y\\vert\\mathbf{x})$. Rather it depends on a model designed specifically for fast learning — a model that updates its parameters rapidly with a few training steps. This rapid parameter update can be achieved by its internal architecture or controlled by another meta-learner model.\nMemory-Augmented Neural Networks A family of model architectures use external memory storage to facilitate the learning process of neural networks, including Neural Turing Machines and Memory Networks. With an explicit storage buffer, it is easier for the network to rapidly incorporate new information and not to forget in the future. Such a model is known as MANN, short for “Memory-Augmented Neural Network”. Note that recurrent neural networks with only internal memory such as vanilla RNN or LSTM are not MANNs.\nBecause MANN is expected to encode new information fast and thus to adapt to new tasks after only a few samples, it fits well for meta-learning. Taking the Neural Turing Machine (NTM) as the base model, Santoro et al. (2016) proposed a set of modifications on the training setup and the memory retrieval mechanisms (or “addressing mechanisms”, deciding how to assign attention weights to memory vectors). Please go through the NTM section in my other post first if you are not familiar with this matter before reading forward.\nAs a quick recap, NTM couples a controller neural network with external memory storage. The controller learns to read and write memory rows by soft attention, while the memory serves as a knowledge repository. The attention weights are generated by its addressing mechanism: content-based + location based.\nThe architecture of Neural Turing Machine (NTM). The memory at time t, $\\mathbf{M}\\_t$ is a matrix of size $N \\times M$, containing N vector rows and each has M dimensions. MANN for Meta-Learning To use MANN for meta-learning tasks, we need to train it in a way that the memory can encode and capture information of new tasks fast and, in the meantime, any stored representation is easily and stably accessible.\nThe training described in Santoro et al., 2016 happens in an interesting way so that the memory is forced to hold information for longer until the appropriate labels are presented later. In each training episode, the truth label $y_t$ is presented with one step offset, $(\\mathbf{x}_{t+1}, y_t)$: it is the true label for the input at the previous time step t, but presented as part of the input at time step t+1.\nTask setup in MANN for meta-learning (Image source: original paper). In this way, MANN is motivated to memorize the information of a new dataset, because the memory has to hold the current input until the label is present later and then retrieve the old information to make a prediction accordingly.\nNext let us see how the memory is updated for efficient information retrieval and storage.\nAddressing Mechanism for Meta-Learning Aside from the training process, a new pure content-based addressing mechanism is utilized to make the model better suitable for meta-learning.\n» How to read from memory? The read attention is constructed purely based on the content similarity.\nFirst, a key feature vector $\\mathbf{k}_t$ is produced at the time step t by the controller as a function of the input $\\mathbf{x}$. Similar to NTM, a read weighting vector $\\mathbf{w}_t^r$ of N elements is computed as the cosine similarity between the key vector and every memory vector row, normalized by softmax. The read vector $\\mathbf{r}_t$ is a sum of memory records weighted by such weightings:\n$$ \\mathbf{r}_i = \\sum_{i=1}^N w_t^r(i)\\mathbf{M}_t(i) \\text{, where } w_t^r(i) = \\text{softmax}(\\frac{\\mathbf{k}_t \\cdot \\mathbf{M}_t(i)}{\\|\\mathbf{k}_t\\| \\cdot \\|\\mathbf{M}_t(i)\\|}) $$ where $M_t$ is the memory matrix at time t and $M_t(i)$ is the i-th row in this matrix.\n» How to write into memory? The addressing mechanism for writing newly received information into memory operates a lot like the cache replacement policy. The Least Recently Used Access (LRUA) writer is designed for MANN to better work in the scenario of meta-learning. A LRUA write head prefers to write new content to either the least used memory location or the most recently used memory location.\nRarely used locations: so that we can preserve frequently used information (see LFU); The last used location: the motivation is that once a piece of information is retrieved once, it probably won’t be called again for a while (see MRU). There are many cache replacement algorithms and each of them could potentially replace the design here with better performance in different use cases. Furthermore, it would be a good idea to learn the memory usage pattern and addressing strategies rather than arbitrarily set it.\nThe preference of LRUA is carried out in a way that everything is differentiable:\nThe usage weight $\\mathbf{w}^u_t$ at time t is a sum of current read and write vectors, in addition to the decayed last usage weight, $\\gamma \\mathbf{w}^u_{t-1}$, where $\\gamma$ is a decay factor. The write vector is an interpolation between the previous read weight (prefer “the last used location”) and the previous least-used weight (prefer “rarely used location”). The interpolation parameter is the sigmoid of a hyperparameter $\\alpha$. The least-used weight $\\mathbf{w}^{lu}$ is scaled according to usage weights $\\mathbf{w}_t^u$, in which any dimension remains at 1 if smaller than the n-th smallest element in the vector and 0 otherwise. $$ \\begin{aligned} \\mathbf{w}_t^u \u0026= \\gamma \\mathbf{w}_{t-1}^u + \\mathbf{w}_t^r + \\mathbf{w}_t^w \\\\ \\mathbf{w}_t^r \u0026= \\text{softmax}(\\text{cosine}(\\mathbf{k}_t, \\mathbf{M}_t(i))) \\\\ \\mathbf{w}_t^w \u0026= \\sigma(\\alpha)\\mathbf{w}_{t-1}^r + (1-\\sigma(\\alpha))\\mathbf{w}^{lu}_{t-1}\\\\ \\mathbf{w}_t^{lu} \u0026= \\mathbf{1}_{w_t^u(i) \\leq m(\\mathbf{w}_t^u, n)} \\text{, where }m(\\mathbf{w}_t^u, n)\\text{ is the }n\\text{-th smallest element in vector }\\mathbf{w}_t^u\\text{.} \\end{aligned} $$ Finally, after the least used memory location, indicated by $\\mathbf{w}_t^{lu}$, is set to zero, every memory row is updated:\n$$ \\mathbf{M}_t(i) = \\mathbf{M}_{t-1}(i) + w_t^w(i)\\mathbf{k}_t, \\forall i $$ Meta Networks Meta Networks (Munkhdalai \u0026 Yu, 2017), short for MetaNet, is a meta-learning model with architecture and training process designed for rapid generalization across tasks.\nFast Weights The rapid generalization of MetaNet relies on “fast weights”. There are a handful of papers on this topic, but I haven’t read all of them in detail and I failed to find a very concrete definition, only a vague agreement on the concept. Normally weights in the neural networks are updated by stochastic gradient descent in an objective function and this process is known to be slow. One faster way to learn is to utilize one neural network to predict the parameters of another neural network and the generated weights are called fast weights. In comparison, the ordinary SGD-based weights are named slow weights.\nIn MetaNet, loss gradients are used as meta information to populate models that learn fast weights. Slow and fast weights are combined to make predictions in neural networks.\nCombining slow and fast weights in a MLP. $\\bigoplus$ is element-wise sum. (Image source: original paper). Model Components Disclaimer: Below you will find my annotations are different from those in the paper. imo, the paper is poorly written, but the idea is still interesting. So I’m presenting the idea in my own language.\nKey components of MetaNet are:\nAn embedding function $f_\\theta$, parameterized by $\\theta$, encodes raw inputs into feature vectors. Similar to Siamese Neural Network, these embeddings are trained to be useful for telling whether two inputs are of the same class (verification task). A base learner model $g_\\phi$, parameterized by weights $\\phi$, completes the actual learning task. If we stop here, it looks just like Relation Network. MetaNet, in addition, explicitly models the fast weights of both functions and then aggregates them back into the model (See Fig. 8).\nTherefore we need additional two functions to output fast weights for $f$ and $g$ respectively.\n$F_w$: a LSTM parameterized by $w$ for learning fast weights $\\theta^+$ of the embedding function $f$. It takes as input gradients of $f$’s embedding loss for verification task. $G_v$: a neural network parameterized by $v$ learning fast weights $\\phi^+$ for the base learner $g$ from its loss gradients. In MetaNet, the learner’s loss gradients are viewed as the meta information of the task. Ok, now let’s see how meta networks are trained. The training data contains multiple pairs of datasets: a support set $S=\\{\\mathbf{x}’_i, y’_i\\}_{i=1}^K$ and a test set $U=\\{\\mathbf{x}_i, y_i\\}_{i=1}^L$. Recall that we have four networks and four sets of model parameters to learn, $(\\theta, \\phi, w, v)$.\nFig.9. The MetaNet architecture. Training Process Sample a random pair of inputs at each time step t from the support set $S$, $(\\mathbf{x}’_i, y’_i)$ and $(\\mathbf{x}’_j, y_j)$. Let $\\mathbf{x}_{(t,1)}=\\mathbf{x}’_i$ and $\\mathbf{x}_{(t,2)}=\\mathbf{x}’_j$. for $t = 1, \\dots, K$:\na. Compute a loss for representation learning; i.e., cross entropy for the verification task: $\\mathcal{L}^\\text{emb}_t = \\mathbf{1}_{y’_i=y’_j} \\log P_t + (1 - \\mathbf{1}_{y’_i=y’_j})\\log(1 - P_t)\\text{, where }P_t = \\sigma(\\mathbf{W}\\vert f_\\theta(\\mathbf{x}_{(t,1)}) - f_\\theta(\\mathbf{x}_{(t,2)})\\vert)$ Compute the task-level fast weights: $\\theta^+ = F_w(\\nabla_\\theta \\mathcal{L}^\\text{emb}_1, \\dots, \\mathcal{L}^\\text{emb}_T)$\nNext go through examples in the support set $S$ and compute the example-level fast weights. Meanwhile, update the memory with learned representations. for $i=1, \\dots, K$:\na. The base learner outputs a probability distribution: $P(\\hat{y}_i \\vert \\mathbf{x}_i) = g_\\phi(\\mathbf{x}_i)$ and the loss can be cross-entropy or MSE: $\\mathcal{L}^\\text{task}_i = y’_i \\log g_\\phi(\\mathbf{x}’_i) + (1- y’_i) \\log (1 - g_\\phi(\\mathbf{x}’_i))$ b. Extract meta information (loss gradients) of the task and compute the example-level fast weights: $\\phi_i^+ = G_v(\\nabla_\\phi\\mathcal{L}^\\text{task}_i)$ Then store $\\phi^+_i$ into $i$-th location of the “value” memory $\\mathbf{M}$. d. Encode the support sample into a task-specific input representation using both slow and fast weights: $r’_i = f_{\\theta, \\theta^+}(\\mathbf{x}’_i)$ Then store $r’_i$ into $i$-th location of the “key” memory $\\mathbf{R}$. Finally it is the time to construct the training loss using the test set $U=\\{\\mathbf{x}_i, y_i\\}_{i=1}^L$. Starts with $\\mathcal{L}_\\text{train}=0$: for $j=1, \\dots, L$:\na. Encode the test sample into a task-specific input representation: $r_j = f_{\\theta, \\theta^+}(\\mathbf{x}_j)$ b. The fast weights are computed by attending to representations of support set samples in memory $\\mathbf{R}$. The attention function is of your choice. Here MetaNet uses cosine similarity: $$ \\begin{aligned} a_j \u0026= \\text{cosine}(\\mathbf{R}, r_j) = [\\frac{r'_1\\cdot r_j}{\\|r'_1\\|\\cdot\\|r_j\\|}, \\dots, \\frac{r'_N\\cdot r_j}{\\|r'_N\\|\\cdot\\|r_j\\|}]\\\\ \\phi^+_j \u0026= \\text{softmax}(a_j)^\\top \\mathbf{M} \\end{aligned} $$ c. Update the training loss: $\\mathcal{L}_\\text{train} \\leftarrow \\mathcal{L}_\\text{train} + \\mathcal{L}^\\text{task}(g_{\\phi, \\phi^+}(\\mathbf{x}_i), y_i) $ Update all the parameters $(\\theta, \\phi, w, v)$ using $\\mathcal{L}_\\text{train}$.\nOptimization-Based Deep learning models learn through backpropagation of gradients. However, the gradient-based optimization is neither designed to cope with a small number of training samples, nor to converge within a small number of optimization steps. Is there a way to adjust the optimization algorithm so that the model can be good at learning with a few examples? This is what optimization-based approach meta-learning algorithms intend for.\nLSTM Meta-Learner The optimization algorithm can be explicitly modeled. Ravi \u0026 Larochelle (2017) did so and named it “meta-learner”, while the original model for handling the task is called “learner”. The goal of the meta-learner is to efficiently update the learner’s parameters using a small support set so that the learner can adapt to the new task quickly.\nLet’s denote the learner model as $M_\\theta$ parameterized by $\\theta$, the meta-learner as $R_\\Theta$ with parameters $\\Theta$, and the loss function $\\mathcal{L}$.\nWhy LSTM? The meta-learner is modeled as a LSTM, because:\nThere is similarity between the gradient-based update in backpropagation and the cell-state update in LSTM. Knowing a history of gradients benefits the gradient update; think about how momentum works. The update for the learner’s parameters at time step t with a learning rate $\\alpha_t$ is:\n$$ \\theta_t = \\theta_{t-1} - \\alpha_t \\nabla_{\\theta_{t-1}}\\mathcal{L}_t $$ It has the same form as the cell state update in LSTM, if we set forget gate $f_t=1$, input gate $i_t = \\alpha_t$, cell state $c_t = \\theta_t$, and new cell state $\\tilde{c}_t = -\\nabla_{\\theta_{t-1}}\\mathcal{L}_t$:\n$$ \\begin{aligned} c_t \u0026= f_t \\odot c_{t-1} + i_t \\odot \\tilde{c}_t\\\\ \u0026= \\theta_{t-1} - \\alpha_t\\nabla_{\\theta_{t-1}}\\mathcal{L}_t \\end{aligned} $$ While fixing $f_t=1$ and $i_t=\\alpha_t$ might not be the optimal, both of them can be learnable and adaptable to different datasets.\n$$ \\begin{aligned} f_t \u0026= \\sigma(\\mathbf{W}_f \\cdot [\\nabla_{\\theta_{t-1}}\\mathcal{L}_t, \\mathcal{L}_t, \\theta_{t-1}, f_{t-1}] + \\mathbf{b}_f) \u0026 \\scriptstyle{\\text{; how much to forget the old value of parameters.}}\\\\ i_t \u0026= \\sigma(\\mathbf{W}_i \\cdot [\\nabla_{\\theta_{t-1}}\\mathcal{L}_t, \\mathcal{L}_t, \\theta_{t-1}, i_{t-1}] + \\mathbf{b}_i) \u0026 \\scriptstyle{\\text{; corresponding to the learning rate at time step t.}}\\\\ \\tilde{\\theta}_t \u0026= -\\nabla_{\\theta_{t-1}}\\mathcal{L}_t \u0026\\\\ \\theta_t \u0026= f_t \\odot \\theta_{t-1} + i_t \\odot \\tilde{\\theta}_t \u0026\\\\ \\end{aligned} $$ Model Setup How the learner $M\\_\\theta$ and the meta-learner $R\\_\\Theta$ are trained. (Image source: original paper with more annotations) The training process mimics what happens during test, since it has been proved to be beneficial in Matching Networks. During each training epoch, we first sample a dataset $\\mathcal{D} = (\\mathcal{D}_\\text{train}, \\mathcal{D}_\\text{test}) \\in \\hat{\\mathcal{D}}_\\text{meta-train}$ and then sample mini-batches out of $\\mathcal{D}_\\text{train}$ to update $\\theta$ for $T$ rounds. The final state of the learner parameter $\\theta_T$ is used to train the meta-learner on the test data $\\mathcal{D}_\\text{test}$.\nTwo implementation details to pay extra attention to:\nHow to compress the parameter space in LSTM meta-learner? As the meta-learner is modeling parameters of another neural network, it would have hundreds of thousands of variables to learn. Following the idea of sharing parameters across coordinates, To simplify the training process, the meta-learner assumes that the loss $\\mathcal{L}_t$ and the gradient $\\nabla_{\\theta_{t-1}} \\mathcal{L}_t$ are independent. MAML MAML, short for Model-Agnostic Meta-Learning (Finn, et al. 2017) is a fairly general optimization algorithm, compatible with any model that learns through gradient descent.\nLet’s say our model is $f_\\theta$ with parameters $\\theta$. Given a task $\\tau_i$ and its associated dataset $(\\mathcal{D}^{(i)}_\\text{train}, \\mathcal{D}^{(i)}_\\text{test})$, we can update the model parameters by one or more gradient descent steps (the following example only contains one step):\n$$ \\theta'_i = \\theta - \\alpha \\nabla_\\theta\\mathcal{L}^{(0)}_{\\tau_i}(f_\\theta) $$ where $\\mathcal{L}^{(0)}$ is the loss computed using the mini data batch with id (0).\nDiagram of MAML. (Image source: original paper) Well, the above formula only optimizes for one task. To achieve a good generalization across a variety of tasks, we would like to find the optimal $\\theta^*$ so that the task-specific fine-tuning is more efficient. Now, we sample a new data batch with id (1) for updating the meta-objective. The loss, denoted as $\\mathcal{L}^{(1)}$, depends on the mini batch (1). The superscripts in $\\mathcal{L}^{(0)}$ and $\\mathcal{L}^{(1)}$ only indicate different data batches, and they refer to the same loss objective for the same task.\n$$ \\begin{aligned} \\theta^* \u0026= \\arg\\min_\\theta \\sum_{\\tau_i \\sim p(\\tau)} \\mathcal{L}_{\\tau_i}^{(1)} (f_{\\theta'_i}) = \\arg\\min_\\theta \\sum_{\\tau_i \\sim p(\\tau)} \\mathcal{L}_{\\tau_i}^{(1)} (f_{\\theta - \\alpha\\nabla_\\theta \\mathcal{L}_{\\tau_i}^{(0)}(f_\\theta)}) \u0026 \\\\ \\theta \u0026\\leftarrow \\theta - \\beta \\nabla_{\\theta} \\sum_{\\tau_i \\sim p(\\tau)} \\mathcal{L}_{\\tau_i}^{(1)} (f_{\\theta - \\alpha\\nabla_\\theta \\mathcal{L}_{\\tau_i}^{(0)}(f_\\theta)}) \u0026 \\scriptstyle{\\text{; updating rule}} \\end{aligned} $$ The general form of MAML algorithm. (Image source: original paper) First-Order MAML The meta-optimization step above relies on second derivatives. To make the computation less expensive, a modified version of MAML omits second derivatives, resulting in a simplified and cheaper implementation, known as First-Order MAML (FOMAML).\nLet’s consider the case of performing $k$ inner gradient steps, $k\\geq1$. Starting with the initial model parameter $\\theta_\\text{meta}$:\n$$ \\begin{aligned} \\theta_0 \u0026= \\theta_\\text{meta}\\\\ \\theta_1 \u0026= \\theta_0 - \\alpha\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_0)\\\\ \\theta_2 \u0026= \\theta_1 - \\alpha\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_1)\\\\ \u0026\\dots\\\\ \\theta_k \u0026= \\theta_{k-1} - \\alpha\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_{k-1}) \\end{aligned} $$ Then in the outer loop, we sample a new data batch for updating the meta-objective.\n$$ \\begin{aligned} \\theta_\\text{meta} \u0026\\leftarrow \\theta_\\text{meta} - \\beta g_\\text{MAML} \u0026 \\scriptstyle{\\text{; update for meta-objective}} \\\\[2mm] \\text{where } g_\\text{MAML} \u0026= \\nabla_{\\theta} \\mathcal{L}^{(1)}(\\theta_k) \u0026\\\\[2mm] \u0026= \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) \\cdot (\\nabla_{\\theta_{k-1}} \\theta_k) \\dots (\\nabla_{\\theta_0} \\theta_1) \\cdot (\\nabla_{\\theta} \\theta_0) \u0026 \\scriptstyle{\\text{; following the chain rule}} \\\\ \u0026= \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) \\cdot \\Big( \\prod_{i=1}^k \\nabla_{\\theta_{i-1}} \\theta_i \\Big) \\cdot I \u0026 \\\\ \u0026= \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) \\cdot \\prod_{i=1}^k \\nabla_{\\theta_{i-1}} (\\theta_{i-1} - \\alpha\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_{i-1})) \u0026 \\\\ \u0026= \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) \\cdot \\prod_{i=1}^k (I - \\alpha\\nabla_{\\theta_{i-1}}(\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_{i-1}))) \u0026 \\end{aligned} $$ The MAML gradient is:\n$$ g_\\text{MAML} = \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) \\cdot \\prod_{i=1}^k (I - \\alpha \\color{red}{\\nabla_{\\theta_{i-1}}(\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_{i-1}))}) $$ The First-Order MAML ignores the second derivative part in red. It is simplified as follows, equivalent to the derivative of the last inner gradient update result.\n$$ g_\\text{FOMAML} = \\nabla_{\\theta_k} \\mathcal{L}^{(1)}(\\theta_k) $$ Reptile Reptile (Nichol, Achiam \u0026 Schulman, 2018) is a remarkably simple meta-learning optimization algorithm. It is similar to MAML in many ways, given that both rely on meta-optimization through gradient descent and both are model-agnostic.\nThe Reptile works by repeatedly:\nsampling a task, training on it by multiple gradient descent steps, and then moving the model weights towards the new parameters. See the algorithm below: $\\text{SGD}(\\mathcal{L}_{\\tau_i}, \\theta, k)$ performs stochastic gradient update for k steps on the loss $\\mathcal{L}_{\\tau_i}$ starting with initial parameter $\\theta$ and returns the final parameter vector. The batch version samples multiple tasks instead of one within each iteration. The reptile gradient is defined as $(\\theta - W)/\\alpha$, where $\\alpha$ is the stepsize used by the SGD operation.\nThe batched version of Reptile algorithm. (Image source: original paper) At a glance, the algorithm looks a lot like an ordinary SGD. However, because the task-specific optimization can take more than one step. it eventually makes $\\text{SGD}(\\mathbb{E} _\\tau[\\mathcal{L}_{\\tau}], \\theta, k)$ diverge from $\\mathbb{E}_\\tau [\\text{SGD}(\\mathcal{L}_{\\tau}, \\theta, k)]$ when k \u003e 1.\nThe Optimization Assumption Assuming that a task $\\tau \\sim p(\\tau)$ has a manifold of optimal network configuration, $\\mathcal{W}_{\\tau}^*$. The model $f_\\theta$ achieves the best performance for task $\\tau$ when $\\theta$ lays on the surface of $\\mathcal{W}_{\\tau}^*$. To find a solution that is good across tasks, we would like to find a parameter close to all the optimal manifolds of all tasks:\n$$ \\theta^* = \\arg\\min_\\theta \\mathbb{E}_{\\tau \\sim p(\\tau)} [\\frac{1}{2} \\text{dist}(\\theta, \\mathcal{W}_\\tau^*)^2] $$ The Reptile algorithm updates the parameter alternatively to be closer to the optimal manifolds of different tasks. (Image source: original paper) Let’s use the L2 distance as $\\text{dist}(.)$ and the distance between a point $\\theta$ and a set $\\mathcal{W}_\\tau^*$ equals to the distance between $\\theta$ and a point $W_{\\tau}^*(\\theta)$ on the manifold that is closest to $\\theta$:\n$$ \\text{dist}(\\theta, \\mathcal{W}_{\\tau}^*) = \\text{dist}(\\theta, W_{\\tau}^*(\\theta)) \\text{, where }W_{\\tau}^*(\\theta) = \\arg\\min_{W\\in\\mathcal{W}_{\\tau}^*} \\text{dist}(\\theta, W) $$ The gradient of the squared euclidean distance is:\n$$ \\begin{aligned} \\nabla_\\theta[\\frac{1}{2}\\text{dist}(\\theta, \\mathcal{W}_{\\tau_i}^*)^2] \u0026= \\nabla_\\theta[\\frac{1}{2}\\text{dist}(\\theta, W_{\\tau_i}^*(\\theta))^2] \u0026 \\\\ \u0026= \\nabla_\\theta[\\frac{1}{2}(\\theta - W_{\\tau_i}^*(\\theta))^2] \u0026 \\\\ \u0026= \\theta - W_{\\tau_i}^*(\\theta) \u0026 \\scriptstyle{\\text{; See notes.}} \\end{aligned} $$ Notes: According to the Reptile paper, “the gradient of the squared euclidean distance between a point $\\Theta$ and a set $S$ is the vector $2(\\Theta − p)$, where p is the closest point in $S$ to $\\Theta$”. Technically the closest point in $S$ is also a function of $\\Theta$, but I’m not sure why the gradient does not need to worry about the derivative of $p$. (Please feel free to leave me a comment or send me an email about this if you have ideas.)\nThus the update rule for one stochastic gradient step is:\n$$ \\theta = \\theta - \\alpha \\nabla_\\theta[\\frac{1}{2} \\text{dist}(\\theta, \\mathcal{W}_{\\tau_i}^*)^2] = \\theta - \\alpha(\\theta - W_{\\tau_i}^*(\\theta)) = (1-\\alpha)\\theta + \\alpha W_{\\tau_i}^*(\\theta) $$ The closest point on the optimal task manifold $W_{\\tau_i}^*(\\theta)$ cannot be computed exactly, but Reptile approximates it using $\\text{SGD}(\\mathcal{L}_\\tau, \\theta, k)$.\nReptile vs FOMAML To demonstrate the deeper connection between Reptile and MAML, let’s expand the update formula with an example performing two gradient steps, k=2 in $\\text{SGD}(.)$. Same as defined above, $\\mathcal{L}^{(0)}$ and $\\mathcal{L}^{(1)}$ are losses using different mini-batches of data. For ease of reading, we adopt two simplified annotations: $g^{(i)}_j = \\nabla_{\\theta} \\mathcal{L}^{(i)}(\\theta_j)$ and $H^{(i)}_j = \\nabla^2_{\\theta} \\mathcal{L}^{(i)}(\\theta_j)$.\n$$ \\begin{aligned} \\theta_0 \u0026= \\theta_\\text{meta}\\\\ \\theta_1 \u0026= \\theta_0 - \\alpha\\nabla_\\theta\\mathcal{L}^{(0)}(\\theta_0)= \\theta_0 - \\alpha g^{(0)}_0 \\\\ \\theta_2 \u0026= \\theta_1 - \\alpha\\nabla_\\theta\\mathcal{L}^{(1)}(\\theta_1) = \\theta_0 - \\alpha g^{(0)}_0 - \\alpha g^{(1)}_1 \\end{aligned} $$ According to the early section, the gradient of FOMAML is the last inner gradient update result. Therefore, when k=1:\n$$ \\begin{aligned} g_\\text{FOMAML} \u0026= \\nabla_{\\theta_1} \\mathcal{L}^{(1)}(\\theta_1) = g^{(1)}_1 \\\\ g_\\text{MAML} \u0026= \\nabla_{\\theta_1} \\mathcal{L}^{(1)}(\\theta_1) \\cdot (I - \\alpha\\nabla^2_{\\theta} \\mathcal{L}^{(0)}(\\theta_0)) = g^{(1)}_1 - \\alpha H^{(0)}_0 g^{(1)}_1 \\end{aligned} $$ The Reptile gradient is defined as:\n$$ g_\\text{Reptile} = (\\theta_0 - \\theta_2) / \\alpha = g^{(0)}_0 + g^{(1)}_1 $$ Up to now we have:\nReptile versus FOMAML in one loop of meta-optimization. (Image source: slides on Reptile by Yoonho Lee.) $$ \\begin{aligned} g_\\text{FOMAML} \u0026= g^{(1)}_1 \\\\ g_\\text{MAML} \u0026= g^{(1)}_1 - \\alpha H^{(0)}_0 g^{(1)}_1 \\\\ g_\\text{Reptile} \u0026= g^{(0)}_0 + g^{(1)}_1 \\end{aligned} $$ Next let’s try further expand $g^{(1)}_1$ using Taylor expansion. Recall that Taylor expansion of a function $f(x)$ that is differentiable at a number $a$ is:\n$$ f(x) = f(a) + \\frac{f'(a)}{1!}(x-a) + \\frac{f''(a)}{2!}(x-a)^2 + \\dots = \\sum_{i=0}^\\infty \\frac{f^{(i)}(a)}{i!}(x-a)^i $$ We can consider $\\nabla_{\\theta}\\mathcal{L}^{(1)}(.)$ as a function and $\\theta_0$ as a value point. The Taylor expansion of $g_1^{(1)}$ at the value point $\\theta_0$ is:\n$$ \\begin{aligned} g_1^{(1)} \u0026= \\nabla_{\\theta}\\mathcal{L}^{(1)}(\\theta_1) \\\\ \u0026= \\nabla_{\\theta}\\mathcal{L}^{(1)}(\\theta_0) + \\nabla^2_\\theta\\mathcal{L}^{(1)}(\\theta_0)(\\theta_1 - \\theta_0) + \\frac{1}{2}\\nabla^3_\\theta\\mathcal{L}^{(1)}(\\theta_0)(\\theta_1 - \\theta_0)^2 + \\dots \u0026 \\\\ \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + \\frac{\\alpha^2}{2}\\nabla^3_\\theta\\mathcal{L}^{(1)}(\\theta_0) (g_0^{(0)})^2 + \\dots \u0026 \\scriptstyle{\\text{; because }\\theta_1-\\theta_0=-\\alpha g_0^{(0)}} \\\\ \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2) \\end{aligned} $$ Plug in the expanded form of $g_1^{(1)}$ into the MAML gradients with one step inner gradient update:\n$$ \\begin{aligned} g_\\text{FOMAML} \u0026= g^{(1)}_1 = g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2)\\\\ g_\\text{MAML} \u0026= g^{(1)}_1 - \\alpha H^{(0)}_0 g^{(1)}_1 \\\\ \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2) - \\alpha H^{(0)}_0 (g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2))\\\\ \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} - \\alpha H^{(0)}_0 g_0^{(1)} + \\alpha^2 \\alpha H^{(0)}_0 H^{(1)}_0 g_0^{(0)} + O(\\alpha^2)\\\\ \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} - \\alpha H^{(0)}_0 g_0^{(1)} + O(\\alpha^2) \\end{aligned} $$ The Reptile gradient becomes:\n$$ \\begin{aligned} g_\\text{Reptile} \u0026= g^{(0)}_0 + g^{(1)}_1 \\\\ \u0026= g^{(0)}_0 + g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2) \\end{aligned} $$ So far we have the formula of three types of gradients:\n$$ \\begin{aligned} g_\\text{FOMAML} \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2)\\\\ g_\\text{MAML} \u0026= g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} - \\alpha H^{(0)}_0 g_0^{(1)} + O(\\alpha^2)\\\\ g_\\text{Reptile} \u0026= g^{(0)}_0 + g_0^{(1)} - \\alpha H^{(1)}_0 g_0^{(0)} + O(\\alpha^2) \\end{aligned} $$ During training, we often average over multiple data batches. In our example, the mini batches (0) and (1) are interchangeable since both are drawn at random. The expectation $\\mathbb{E}_{\\tau,0,1}$ is averaged over two data batches, ids (0) and (1), for task $\\tau$.\nLet,\n$A = \\mathbb{E}_{\\tau,0,1} [g_0^{(0)}] = \\mathbb{E}_{\\tau,0,1} [g_0^{(1)}]$; it is the average gradient of task loss. We expect to improve the model parameter to achieve better task performance by following this direction pointed by $A$. $B = \\mathbb{E}_{\\tau,0,1} [H^{(1)}_0 g_0^{(0)}] = \\frac{1}{2}\\mathbb{E}_{\\tau,0,1} [H^{(1)}_0 g_0^{(0)} + H^{(0)}_0 g_0^{(1)}] = \\frac{1}{2}\\mathbb{E}_{\\tau,0,1} [\\nabla_\\theta(g^{(0)}_0 g_0^{(1)})]$; it is the direction (gradient) that increases the inner product of gradients of two different mini batches for the same task. We expect to improve the model parameter to achieve better generalization over different data by following this direction pointed by $B$. To conclude, both MAML and Reptile aim to optimize for the same goal, better task performance (guided by A) and better generalization (guided by B), when the gradient update is approximated by first three leading terms.\n$$ \\begin{aligned} \\mathbb{E}_{\\tau,1,2}[g_\\text{FOMAML}] \u0026= A - \\alpha B + O(\\alpha^2)\\\\ \\mathbb{E}_{\\tau,1,2}[g_\\text{MAML}] \u0026= A - 2\\alpha B + O(\\alpha^2)\\\\ \\mathbb{E}_{\\tau,1,2}[g_\\text{Reptile}] \u0026= 2A - \\alpha B + O(\\alpha^2) \\end{aligned} $$ It is not clear to me whether the ignored term $O(\\alpha^2)$ might play a big impact on the parameter learning. But given that FOMAML is able to obtain a similar performance as the full version of MAML, it might be safe to say higher-level derivatives would not be critical during gradient descent update.\nCited as:\n@article{weng2018metalearning, title = \"Meta-Learning: Learning to Learn Fast\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2018\", url = \"https://lilianweng.github.io/posts/2018-11-30-meta-learning/\" } Reference [1] Brenden M. Lake, Ruslan Salakhutdinov, and Joshua B. Tenenbaum. “Human-level concept learning through probabilistic program induction.” Science 350.6266 (2015): 1332-1338.\n[2] Oriol Vinyals’ talk on “Model vs Optimization Meta Learning”\n[3] Gregory Koch, Richard Zemel, and Ruslan Salakhutdinov. “Siamese neural networks for one-shot image recognition.” ICML Deep Learning Workshop. 2015.\n[4] Oriol Vinyals, et al. “Matching networks for one shot learning.” NIPS. 2016.\n[5] Flood Sung, et al. “Learning to compare: Relation network for few-shot learning.” CVPR. 2018.\n[6] Jake Snell, Kevin Swersky, and Richard Zemel. “Prototypical Networks for Few-shot Learning.” CVPR. 2018.\n[7] Adam Santoro, et al. “Meta-learning with memory-augmented neural networks.” ICML. 2016.\n[8] Alex Graves, Greg Wayne, and Ivo Danihelka. “Neural turing machines.” arXiv preprint arXiv:1410.5401 (2014).\n[9] Tsendsuren Munkhdalai and Hong Yu. “Meta Networks.” ICML. 2017.\n[10] Sachin Ravi and Hugo Larochelle. “Optimization as a Model for Few-Shot Learning.” ICLR. 2017.\n[11] Chelsea Finn’s BAIR blog on “Learning to Learn”.\n[12] Chelsea Finn, Pieter Abbeel, and Sergey Levine. “Model-agnostic meta-learning for fast adaptation of deep networks.” ICML 2017.\n[13] Alex Nichol, Joshua Achiam, John Schulman. “On First-Order Meta-Learning Algorithms.” arXiv preprint arXiv:1803.02999 (2018).\n[14] Slides on Reptile by Yoonho Lee.\n",
+  "wordCount" : "6345",
+  "inLanguage": "en",
+  "datePublished": "2018-11-30T00:00:00Z",
+  "dateModified": "2018-11-30T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2018-11-30-meta-learning/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Meta-Learning: Learning to Learn Fast
+    </h1>
+    <div class="post-meta">Date: November 30, 2018  |  Estimated Reading Time: 30 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#define-the-meta-learning-problem" aria-label="Define the Meta-Learning Problem">Define the Meta-Learning Problem</a><ul>
+                        
+                <li>
+                    <a href="#a-simple-view" aria-label="A Simple View">A Simple View</a></li>
+                <li>
+                    <a href="#training-in-the-same-way-as-testing" aria-label="Training in the Same Way as Testing">Training in the Same Way as Testing</a></li>
+                <li>
+                    <a href="#learner-and-meta-learner" aria-label="Learner and Meta-Learner">Learner and Meta-Learner</a></li>
+                <li>
+                    <a href="#common-approaches" aria-label="Common Approaches">Common Approaches</a></li></ul>
+                </li>
+                <li>
+                    <a href="#metric-based" aria-label="Metric-Based">Metric-Based</a><ul>
+                        
+                <li>
+                    <a href="#convolutional-siamese-neural-network" aria-label="Convolutional Siamese Neural Network">Convolutional Siamese Neural Network</a></li>
+                <li>
+                    <a href="#matching-networks" aria-label="Matching Networks">Matching Networks</a><ul>
+                        
+                <li>
+                    <a href="#simple-embedding" aria-label="Simple Embedding">Simple Embedding</a></li>
+                <li>
+                    <a href="#full-context-embeddings" aria-label="Full Context Embeddings">Full Context Embeddings</a></li></ul>
+                </li>
+                <li>
+                    <a href="#relation-network" aria-label="Relation Network">Relation Network</a></li>
+                <li>
+                    <a href="#prototypical-networks" aria-label="Prototypical Networks">Prototypical Networks</a></li></ul>
+                </li>
+                <li>
+                    <a href="#model-based" aria-label="Model-Based">Model-Based</a><ul>
+                        
+                <li>
+                    <a href="#memory-augmented-neural-networks" aria-label="Memory-Augmented Neural Networks">Memory-Augmented Neural Networks</a><ul>
+                        
+                <li>
+                    <a href="#mann-for-meta-learning" aria-label="MANN for Meta-Learning">MANN for Meta-Learning</a></li>
+                <li>
+                    <a href="#addressing-mechanism-for-meta-learning" aria-label="Addressing Mechanism for Meta-Learning">Addressing Mechanism for Meta-Learning</a></li></ul>
+                </li>
+                <li>
+                    <a href="#meta-networks" aria-label="Meta Networks">Meta Networks</a><ul>
+                        
+                <li>
+                    <a href="#fast-weights" aria-label="Fast Weights">Fast Weights</a></li>
+                <li>
+                    <a href="#model-components" aria-label="Model Components">Model Components</a></li>
+                <li>
+                    <a href="#training-process" aria-label="Training Process">Training Process</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#optimization-based" aria-label="Optimization-Based">Optimization-Based</a><ul>
+                        
+                <li>
+                    <a href="#lstm-meta-learner" aria-label="LSTM Meta-Learner">LSTM Meta-Learner</a><ul>
+                        
+                <li>
+                    <a href="#why-lstm" aria-label="Why LSTM?">Why LSTM?</a></li>
+                <li>
+                    <a href="#model-setup" aria-label="Model Setup">Model Setup</a></li></ul>
+                </li>
+                <li>
+                    <a href="#maml" aria-label="MAML">MAML</a><ul>
+                        
+                <li>
+                    <a href="#first-order-maml" aria-label="First-Order MAML">First-Order MAML</a></li></ul>
+                </li>
+                <li>
+                    <a href="#reptile" aria-label="Reptile">Reptile</a><ul>
+                        
+                <li>
+                    <a href="#the-optimization-assumption" aria-label="The Optimization Assumption">The Optimization Assumption</a></li>
+                <li>
+                    <a href="#reptile-vs-fomaml" aria-label="Reptile vs FOMAML">Reptile vs FOMAML</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Meta-learning, also known as "learning to learn", intends to design models that can learn new skills or adapt to new environments rapidly with a few training examples. There are three common approaches: 1) learn an efficient distance metric (metric-based); 2) use (recurrent) network with external or internal memory (model-based); 3) optimize the model parameters explicitly for fast learning (optimization-based). -->
+<p><span class="update">[Updated on 2019-10-01: thanks to Tianhao, we have this post translated in <a href="https://wei-tianhao.github.io/blog/2019/09/17/meta-learning.html">Chinese</a>!]</span></p>
+<p>A good machine learning model often requires training with a large number of samples. Humans, in contrast, learn new concepts and skills much faster and more efficiently. Kids who have seen cats and birds only a few times can quickly tell them apart. People who know how to ride a bike are likely to discover the way to ride a motorcycle fast with little or even no demonstration. Is it possible to design a machine learning model with similar properties &mdash; learning new concepts and skills fast with a few training examples? That&rsquo;s essentially what <strong>meta-learning</strong> aims to solve.</p>
+<p>We expect a good meta-learning model capable of well adapting or generalizing to new tasks and new environments that have never been encountered during training time. The adaptation process, essentially a mini learning session, happens during test but with a limited exposure to the new task configurations. Eventually, the adapted model can complete new tasks. This is why meta-learning is also known as <a href="https://www.cs.cmu.edu/~rsalakhu/papers/LakeEtAl2015Science.pdf">learning to learn</a>.</p>
+<p>The tasks can be any well-defined family of machine learning problems: supervised learning, reinforcement learning, etc. For example, here are a couple concrete meta-learning tasks:</p>
+<ul>
+<li>A classifier trained on non-cat images can tell whether a given image contains a cat after seeing a handful of cat pictures.</li>
+<li>A game bot is able to quickly master a new game.</li>
+<li>A mini robot completes the desired task on an uphill surface during test even through it was only trained in a flat surface environment.</li>
+</ul>
+<h1 id="define-the-meta-learning-problem">Define the Meta-Learning Problem<a hidden class="anchor" aria-hidden="true" href="#define-the-meta-learning-problem">#</a></h1>
+<p>In this post, we focus on the case when each desired task is a supervised learning problem like image classification. There is a lot of interesting literature on meta-learning with reinforcement learning problems (aka &ldquo;Meta Reinforcement Learning&rdquo;), but we would not cover them here.</p>
+<h2 id="a-simple-view">A Simple View<a hidden class="anchor" aria-hidden="true" href="#a-simple-view">#</a></h2>
+<p>A good meta-learning model should be trained over a variety of learning tasks and optimized for the best performance on a distribution of tasks, including potentially unseen tasks. Each task is associated with a dataset $\mathcal{D}$, containing both feature vectors and true labels. The optimal model parameters are:</p>
+<div>
+$$
+\theta^* = \arg\min_\theta \mathbb{E}_{\mathcal{D}\sim p(\mathcal{D})} [\mathcal{L}_\theta(\mathcal{D})]
+$$
+</div>
+<p>It looks very similar to a normal learning task, but <em>one dataset</em> is considered as <em>one data sample</em>.</p>
+<p><em>Few-shot classification</em> is an instantiation of meta-learning in the field of supervised learning. The dataset $\mathcal{D}$ is often split into two parts, a support set $S$ for learning and a prediction set $B$ for training or testing, $\mathcal{D}=\langle S, B\rangle$. Often we consider a <em>K-shot N-class classification</em> task: the support set contains K labelled examples for each of N classes.</p>
+<figure>
+	<img src="few-shot-classification.png" style="width: 100%;"  />
+	<figcaption>An example of 4-shot 2-class image classification. (Image thumbnails are from <a href="https://www.pinterest.com/" target="_blank">Pinterest</a>)</figcaption>
+</figure>
+<h2 id="training-in-the-same-way-as-testing">Training in the Same Way as Testing<a hidden class="anchor" aria-hidden="true" href="#training-in-the-same-way-as-testing">#</a></h2>
+<p>A dataset $\mathcal{D}$ contains pairs of feature vectors and labels, $\mathcal{D} = \{(\mathbf{x}_i, y_i)\}$ and each label belongs to a known label set $\mathcal{L}^\text{label}$.  Let&rsquo;s say, our classifier $f_\theta$ with parameter $\theta$ outputs a probability of a data point belonging to the class $y$ given the feature vector $\mathbf{x}$, $P_\theta(y\vert\mathbf{x})$.</p>
+<p>The optimal parameters should maximize the probability of true labels across multiple training batches $B \subset \mathcal{D}$:</p>
+<div>
+$$
+\begin{aligned}
+\theta^* &= {\arg\max}_{\theta} \mathbb{E}_{(\mathbf{x}, y)\in \mathcal{D}}[P_\theta(y \vert \mathbf{x})] &\\
+\theta^* &= {\arg\max}_{\theta} \mathbb{E}_{B\subset \mathcal{D}}[\sum_{(\mathbf{x}, y)\in B}P_\theta(y \vert \mathbf{x})] & \scriptstyle{\text{; trained with mini-batches.}}
+\end{aligned}
+$$
+</div>
+<p>In few-shot classification, the goal is to reduce the prediction error on data samples with unknown labels given a small support set for &ldquo;fast learning&rdquo; (think of how &ldquo;fine-tuning&rdquo; works). To make the training process mimics what happens during inference, we would like to &ldquo;fake&rdquo; datasets with a subset of labels to avoid exposing all the labels to the model and modify the optimization procedure accordingly to encourage fast learning:</p>
+<ol>
+<li>Sample a subset of labels, $L\subset\mathcal{L}^\text{label}$.</li>
+<li>Sample a support set $S^L \subset \mathcal{D}$ and a training batch $B^L \subset \mathcal{D}$. Both of them only contain data points with labels belonging to the sampled label set $L$, $y \in L, \forall (x, y) \in S^L, B^L$.</li>
+<li>The support set is part of the model input. <!-- , $\hat{y}=f\_\theta(\mathbf{x}, S^L)$ --></li>
+<li>The final optimization uses the mini-batch $B^L$ to compute the loss and update the model parameters through backpropagation, in the same way as how we use it in the supervised learning.</li>
+</ol>
+<p>You may consider each pair of sampled dataset $(S^L, B^L)$ as one data point. The model is trained such that it can generalize to other datasets.  Symbols in red are added for meta-learning in addition to the supervised learning objective.</p>
+<div>
+$$
+\theta = \arg\max_\theta \color{red}{E_{L\subset\mathcal{L}}[} E_{\color{red}{S^L \subset\mathcal{D}, }B^L \subset\mathcal{D}} [\sum_{(x, y)\in B^L} P_\theta(x, y\color{red}{, S^L})] \color{red}{]}
+$$
+</div>
+<p>The idea is to some extent similar to using a pre-trained model in image classification (ImageNet) or language modeling (big text corpora) when only a limited set of task-specific data samples are available. Meta-learning takes this idea one step further, rather than fine-tuning according to one down-steam task, it optimizes the model to be good at many, if not all.</p>
+<h2 id="learner-and-meta-learner">Learner and Meta-Learner<a hidden class="anchor" aria-hidden="true" href="#learner-and-meta-learner">#</a></h2>
+<p>Another popular view of meta-learning decomposes the model update into two stages:</p>
+<ul>
+<li>A classifier $f_\theta$ is the &ldquo;learner&rdquo; model, trained for operating a given task;</li>
+<li>In the meantime, a optimizer $g_\phi$ learns how to update the learner model&rsquo;s parameters via the support set $S$, $\theta&rsquo; = g_\phi(\theta, S)$.</li>
+</ul>
+<p>Then in final optimization step, we need to update both $\theta$ and $\phi$ to maximize:</p>
+<div>
+$$
+\mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})]]
+$$
+</div>
+<h2 id="common-approaches">Common Approaches<a hidden class="anchor" aria-hidden="true" href="#common-approaches">#</a></h2>
+<p>There are three common approaches to meta-learning: metric-based, model-based, and optimization-based. Oriol Vinyals has a nice summary in his <a href="http://metalearning-symposium.ml/files/vinyals.pdf">talk</a> at meta-learning symposium @ NIPS 2018:</p>
+<p>| &mdash;&mdash;&mdash;&mdash;- | &mdash;&mdash;&mdash;&mdash;- | &mdash;&mdash;&mdash;&mdash;- | &mdash;&mdash;&mdash;&mdash;- |</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Model-based</th>
+          <th>Metric-based</th>
+          <th>Optimization-based</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Key idea</strong></td>
+          <td>RNN; memory</td>
+          <td>Metric learning</td>
+          <td>Gradient descent</td>
+      </tr>
+      <tr>
+          <td><strong>How $P_\theta(y \vert \mathbf{x})$ is modeled?</strong></td>
+          <td>$f_\theta(\mathbf{x}, S)$</td>
+          <td>$\sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i$ (*)</td>
+          <td>$P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})$</td>
+      </tr>
+  </tbody>
+</table>
+<p>(*) $k_\theta$ is a kernel function measuring the similarity between $\mathbf{x}_i$ and $\mathbf{x}$.</p>
+<p>Next we are gonna review classic models in each approach.</p>
+<h1 id="metric-based">Metric-Based<a hidden class="anchor" aria-hidden="true" href="#metric-based">#</a></h1>
+<p>The core idea in metric-based meta-learning is similar to nearest neighbors algorithms (i.e., <a href="https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm">k-NN</a> classificer and <a href="https://en.wikipedia.org/wiki/K-means_clustering">k-means</a> clustering) and <a href="https://en.wikipedia.org/wiki/Kernel_density_estimation">kernel density estimation</a>. The predicted probability over a set of known labels $y$ is a weighted sum of labels of support set samples. The weight is generated by a kernel function $k_\theta$, measuring the similarity between two data samples.</p>
+<div>
+$$
+P_\theta(y \vert \mathbf{x}, S) = \sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i 
+$$ 
+</div>
+<p>To learn a good kernel is crucial to the success of a metric-based meta-learning model. <a href="https://en.wikipedia.org/wiki/Similarity_learning#Metric_learning">Metric learning</a> is well aligned with this intention, as it aims to learn a metric or distance function over objects. The notion of a good metric is problem-dependent. It should represent the relationship between inputs in the task space and facilitate problem solving.</p>
+<p>All the models introduced below learn embedding vectors of input data explicitly and use them to design proper kernel functions.</p>
+<h2 id="convolutional-siamese-neural-network">Convolutional Siamese Neural Network<a hidden class="anchor" aria-hidden="true" href="#convolutional-siamese-neural-network">#</a></h2>
+<p>The <a href="https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf">Siamese Neural Network</a> is composed of two twin networks and their outputs are jointly trained on top with a function to learn the relationship between pairs of input data samples. The twin networks are identical, sharing the same weights and network parameters. In other words, both refer to the same embedding network that learns an efficient embedding to reveal relationship between pairs of data points.</p>
+<p><a href="http://www.cs.toronto.edu/~rsalakhu/papers/oneshot1.pdf">Koch, Zemel &amp; Salakhutdinov (2015)</a> proposed a method to use the siamese neural network to do one-shot image classification. First, the siamese network is trained for a verification task for telling whether two input images are in the same class. It outputs the probability of two images belonging to the same class. Then, during test time, the siamese network processes all the image pairs between a test image and every image in the support set. The final prediction is the class of the support image with the highest probability.</p>
+<figure>
+	<img src="siamese-conv-net.png" style="width: 100%;"  />
+	<figcaption>The architecture of convolutional siamese neural network for few-show image classification.</figcaption>
+</figure>
+<ol>
+<li>First, convolutional siamese network learns to encode two images into feature vectors via a embedding function $f_\theta$ which contains a couple of convolutional layers.</li>
+<li>The L1-distance between two embeddings is $\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert$.</li>
+<li>The distance is converted to a probability $p$ by a linear feedforward layer and sigmoid. It is the probability of whether two images are drawn from the same class.</li>
+<li>Intuitively the loss is cross entropy because the label is binary.</li>
+</ol>
+<!-- In this way, an efficient image embedding is trained so that the distance between two embeddings is proportional to the similarity between two images. -->
+<div>
+$$
+\begin{aligned}
+p(\mathbf{x}_i, \mathbf{x}_j) &= \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert) \\
+\mathcal{L}(B) &= \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} \mathbf{1}_{y_i=y_j}\log p(\mathbf{x}_i, \mathbf{x}_j) + (1-\mathbf{1}_{y_i=y_j})\log (1-p(\mathbf{x}_i, \mathbf{x}_j))
+\end{aligned}
+$$
+</div>
+<p>Images in the training batch $B$ can be augmented with distortion. Of course, you can replace the L1 distance with other distance metric, L2, cosine, etc. Just make sure they are differential and then everything else works the same.</p>
+<p>Given a support set $S$ and a test image $\mathbf{x}$, the final predicted class is:</p>
+<div>
+$$
+\hat{c}_S(\mathbf{x}) = c(\arg\max_{\mathbf{x}_i \in S} P(\mathbf{x}, \mathbf{x}_i))
+$$
+</div>
+<p>where $c(\mathbf{x})$ is the class label of an image $\mathbf{x}$ and $\hat{c}(.)$ is the predicted label.</p>
+<p>The assumption is that the learned embedding can be generalized to be useful for measuring the distance between images of unknown categories. This is the same assumption behind transfer learning via the adoption of a pre-trained model; for example, the convolutional features learned in the model pre-trained with ImageNet are expected to help other image tasks. However, the benefit of a pre-trained model decreases when the new task diverges from the original task that the model was trained on.</p>
+<h2 id="matching-networks">Matching Networks<a hidden class="anchor" aria-hidden="true" href="#matching-networks">#</a></h2>
+<p>The task of <strong>Matching Networks</strong> (<a href="http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf">Vinyals et al., 2016</a>) is to learn a classifier $c_S$ for any given (small) support set $S=\{x_i, y_i\}_{i=1}^k$ (<em>k-shot</em> classification). This classifier defines a probability distribution over output labels $y$ given a test example $\mathbf{x}$. Similar to other metric-based models, the classifier output is defined as a sum of labels of support samples weighted by attention kernel $a(\mathbf{x}, \mathbf{x}_i)$ - which should be proportional to the similarity between $\mathbf{x}$ and $\mathbf{x}_i$.</p>
+<figure>
+	<img src="matching-networks.png" style="width: 70%;"  />
+	<figcaption>The architecture of Matching Networks. (Image source: <a href="http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf" target="_blank">original paper</a>)</figcaption>
+</figure>
+<div>
+$$
+c_S(\mathbf{x}) = P(y \vert \mathbf{x}, S) = \sum_{i=1}^k a(\mathbf{x}, \mathbf{x}_i) y_i
+\text{, where }S=\{(\mathbf{x}_i, y_i)\}_{i=1}^k
+$$
+</div>
+<p>The attention kernel depends on two embedding functions, $f$ and $g$, for encoding the test sample and the support set samples respectively. The attention weight between two data points is the cosine similarity, $\text{cosine}(.)$, between their embedding vectors, normalized by softmax:</p>
+<div>
+$$
+a(\mathbf{x}, \mathbf{x}_i) = \frac{\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_i))}{\sum_{j=1}^k\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_j))}
+$$
+</div>
+<h3 id="simple-embedding">Simple Embedding<a hidden class="anchor" aria-hidden="true" href="#simple-embedding">#</a></h3>
+<p>In the simple version, an embedding function is a neural network with a single data sample as input. Potentially we can set $f=g$.</p>
+<h3 id="full-context-embeddings">Full Context Embeddings<a hidden class="anchor" aria-hidden="true" href="#full-context-embeddings">#</a></h3>
+<p>The embedding vectors are critical inputs for building a good classifier. Taking a single data point as input might not be enough to efficiently gauge the entire feature space. Therefore, the Matching Network model further proposed to enhance the embedding functions by taking as input the whole support set $S$ in addition to the original input, so that the learned embedding can be adjusted based on the relationship with other support samples.</p>
+<ul>
+<li>
+<p>$g_\theta(\mathbf{x}_i, S)$ uses a bidirectional LSTM to encode $\mathbf{x}_i$ in the context of the entire support set $S$.</p>
+</li>
+<li>
+<p>$f_\theta(\mathbf{x}, S)$ encodes the test sample $\mathbf{x}$ visa an LSTM with read attention over the support set $S$.</p>
+<ol>
+<li>First the test sample goes through a simple neural network, such as a CNN, to extract basic features, $f&rsquo;(\mathbf{x})$.</li>
+<li>Then an LSTM is trained with a read attention vector over the support set as part of the hidden state: <br/></li>
+</ol>
+  <div>
+  $$
+  \begin{aligned}
+  \hat{\mathbf{h}}_t, \mathbf{c}_t &= \text{LSTM}(f'(\mathbf{x}), [\mathbf{h}_{t-1}, \mathbf{r}_{t-1}], \mathbf{c}_{t-1}) \\
+  \mathbf{h}_t &= \hat{\mathbf{h}}_t + f'(\mathbf{x}) \\
+  \mathbf{r}_{t-1} &= \sum_{i=1}^k a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) g(\mathbf{x}_i) \\
+  a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) &= \text{softmax}(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i)) = \frac{\exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i))}{\sum_{j=1}^k \exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_j))}
+  \end{aligned}
+  $$
+  </div>
+<ol start="3">
+<li>Eventually $f(\mathbf{x}, S)=\mathbf{h}_K$ if we do K steps of &ldquo;read&rdquo;.</li>
+</ol>
+</li>
+</ul>
+<p>This embedding method is called &ldquo;Full Contextual Embeddings (FCE)&rdquo;. Interestingly it does help improve the performance on a hard task (few-shot classification on mini ImageNet), but makes no difference on a simple task (Omniglot).</p>
+<p>The training process in Matching Networks is designed to match inference at test time, see the details in the earlier <a href="#training-in-the-same-way-as-testing">section</a>. It is worthy of mentioning that the Matching Networks paper refined the idea that training and testing conditions should match.</p>
+<div>
+$$
+\theta^* = \arg\max_\theta \mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_\theta(y\vert\mathbf{x}, S^L)]]
+$$
+</div>
+<h2 id="relation-network">Relation Network<a hidden class="anchor" aria-hidden="true" href="#relation-network">#</a></h2>
+<p><strong>Relation Network (RN)</strong> (<a href="http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf">Sung et al., 2018</a>) is similar to <a href="#convolutional-siamese-neural-network">siamese network</a> but with a few differences:</p>
+<ol>
+<li>The relationship is not captured by a simple L1 distance in the feature space, but predicted by a CNN classifier $g_\phi$. The relation score between a pair of inputs, $\mathbf{x}_i$ and $\mathbf{x}_j$, is $r_{ij} = g_\phi([\mathbf{x}_i, \mathbf{x}_j])$ where $[.,.]$ is concatenation.</li>
+<li>The objective function is MSE loss instead of cross-entropy, because conceptually RN focuses more on predicting relation scores which is more like regression, rather than binary classification, $\mathcal{L}(B) = \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} (r_{ij} - \mathbf{1}_{y_i=y_j})^2$.</li>
+</ol>
+<figure>
+	<img src="relation-network.png" style="width: 100%;"  />
+	<figcaption>Relation Network architecture for a 5-way 1-shot problem with one query example. (Image source: <a href="http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>(Note: There is another <a href="https://deepmind.com/blog/neural-approach-relational-reasoning/">Relation Network</a> for relational reasoning, proposed by DeepMind. Don&rsquo;t get confused.)</p>
+<h2 id="prototypical-networks">Prototypical Networks<a hidden class="anchor" aria-hidden="true" href="#prototypical-networks">#</a></h2>
+<p><strong>Prototypical Networks</strong> (<a href="http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf">Snell, Swersky &amp; Zemel, 2017</a>) use an embedding function $f_\theta$ to encode each input into a $M$-dimensional feature vector. A <em>prototype</em> feature vector is defined for every class $c \in \mathcal{C}$, as the mean vector of the embedded support data samples in this class.</p>
+<div>
+$$
+\mathbf{v}_c = \frac{1}{|S_c|} \sum_{(\mathbf{x}_i, y_i) \in S_c} f_\theta(\mathbf{x}_i)
+$$
+</div>
+<figure>
+	<img src="prototypical-networks.png" style="width: 100%;"  />
+	<figcaption>Prototypical networks in the few-shot and zero-shot scenarios. (Image source: <a href="http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>The distribution over classes for a given test input $\mathbf{x}$ is a softmax over the inverse of distances between the test data embedding and prototype vectors.</p>
+<div>
+$$
+P(y=c\vert\mathbf{x})=\text{softmax}(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c)) = \frac{\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c))}{\sum_{c' \in \mathcal{C}}\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_{c'}))}
+$$
+</div>
+<p>where $d_\varphi$ can be any distance function as long as $\varphi$ is differentiable. In the paper, they used the squared euclidean distance.</p>
+<p>The loss function is the negative log-likelihood: $\mathcal{L}(\theta) = -\log P_\theta(y=c\vert\mathbf{x})$.</p>
+<h1 id="model-based">Model-Based<a hidden class="anchor" aria-hidden="true" href="#model-based">#</a></h1>
+<p>Model-based meta-learning models make no assumption on the form of $P_\theta(y\vert\mathbf{x})$. Rather it depends on a model designed specifically for fast learning &mdash; a model that updates its parameters rapidly with a few training steps. This rapid parameter update can be achieved by its internal architecture or controlled by another meta-learner model.</p>
+<h2 id="memory-augmented-neural-networks">Memory-Augmented Neural Networks<a hidden class="anchor" aria-hidden="true" href="#memory-augmented-neural-networks">#</a></h2>
+<p>A family of model architectures use external memory storage to facilitate the learning process of neural networks, including <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#neural-turing-machines">Neural Turing Machines</a> and <a href="https://arxiv.org/abs/1410.3916">Memory Networks</a>. With an explicit storage buffer, it is easier for the network to rapidly incorporate new information and not to forget in the future. Such a model is known as <strong>MANN</strong>, short for &ldquo;<strong>Memory-Augmented Neural Network</strong>&rdquo;.  Note that recurrent neural networks with only <em>internal memory</em> such as vanilla RNN or LSTM are not MANNs.</p>
+<p>Because MANN is expected to encode new information fast and thus to adapt to new tasks after only a few samples, it fits well for meta-learning. Taking the Neural Turing Machine (NTM) as the base model, <a href="http://proceedings.mlr.press/v48/santoro16.pdf">Santoro et al. (2016)</a> proposed a set of modifications on the training setup and the memory retrieval mechanisms (or &ldquo;addressing mechanisms&rdquo;, deciding how to assign attention weights to memory vectors). Please go through <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#neural-turing-machines">the NTM section</a> in my other post first if you are not familiar with this matter before reading forward.</p>
+<p>As a quick recap, NTM couples a controller neural network with external memory storage. The controller learns to read and write memory rows by soft attention, while the memory serves as a knowledge repository. The attention weights are generated by its addressing mechanism: content-based + location based.</p>
+<figure>
+	<img src="NTM.png" style="width: 70%;"  />
+	<figcaption>The architecture of Neural Turing Machine (NTM). The memory at time t, $\mathbf{M}\_t$ is a matrix of size $N \times M$, containing N vector rows and each has M dimensions.</figcaption>
+</figure>
+<h3 id="mann-for-meta-learning">MANN for Meta-Learning<a hidden class="anchor" aria-hidden="true" href="#mann-for-meta-learning">#</a></h3>
+<p>To use MANN for meta-learning tasks, we need to train it in a way that the memory can encode and capture information of new tasks fast and, in the meantime, any stored representation is easily and stably accessible.</p>
+<p>The training described in <a href="http://proceedings.mlr.press/v48/santoro16.pdf">Santoro et al., 2016</a> happens in an interesting way so that the memory is forced to hold information for longer until the appropriate labels are presented later. In each training episode, the truth label $y_t$ is presented with <strong>one step offset</strong>, $(\mathbf{x}_{t+1}, y_t)$: it is the true label for the input at the previous time step t, but presented as part of the input at time step t+1.</p>
+<figure>
+	<img src="mann-meta-learning.png" style="width: 100%;"  />
+	<figcaption>Task setup in MANN for meta-learning (Image source: <a href="http://proceedings.mlr.press/v48/santoro16.pdf" target="_blank">original paper</a>).</figcaption>
+</figure>
+<p>In this way, MANN is motivated to memorize the information of a new dataset, because the memory has to hold the current input until the label is present later and then retrieve the old information to make a prediction accordingly.</p>
+<p>Next let us see how the memory is updated for efficient information retrieval and storage.</p>
+<h3 id="addressing-mechanism-for-meta-learning">Addressing Mechanism for Meta-Learning<a hidden class="anchor" aria-hidden="true" href="#addressing-mechanism-for-meta-learning">#</a></h3>
+<p>Aside from the training process, a new pure content-based addressing mechanism is utilized to make the model better suitable for meta-learning.</p>
+<p><strong>&raquo; How to read from memory?</strong>
+<br/>
+The read attention is constructed purely based on the content similarity.</p>
+<p>First, a key feature vector $\mathbf{k}_t$ is produced at the time step t by the controller as a function of the input $\mathbf{x}$. Similar to NTM, a read weighting vector $\mathbf{w}_t^r$ of N elements is computed as the cosine similarity between the key vector and every memory vector row, normalized by softmax. The read vector $\mathbf{r}_t$ is a sum of memory records weighted by such weightings:</p>
+<div>
+$$
+\mathbf{r}_i = \sum_{i=1}^N w_t^r(i)\mathbf{M}_t(i)
+\text{, where } w_t^r(i) = \text{softmax}(\frac{\mathbf{k}_t \cdot \mathbf{M}_t(i)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(i)\|})
+$$
+</div>
+<p>where $M_t$ is the memory matrix at time t and $M_t(i)$ is the i-th row in this matrix.</p>
+<p><strong>&raquo; How to write into memory?</strong>
+<br/>
+The addressing mechanism for writing newly received information into memory operates a lot like the <a href="https://en.wikipedia.org/wiki/Cache_replacement_policies">cache replacement</a> policy. The <strong>Least Recently Used Access (LRUA)</strong> writer is designed for MANN to better work in the scenario of meta-learning. A LRUA write head prefers to write new content to either the <em>least used</em> memory location or the <em>most recently used</em> memory location.</p>
+<ul>
+<li>Rarely used locations: so that we can preserve frequently used information (see <a href="https://en.wikipedia.org/wiki/Least_frequently_used">LFU</a>);</li>
+<li>The last used location: the motivation is that once a piece of information is retrieved once, it probably won&rsquo;t be called again for a while (see <a href="https://en.wikipedia.org/wiki/Cache_replacement_policies#Most_recently_used_(MRU)">MRU</a>).</li>
+</ul>
+<p>There are many cache replacement algorithms and each of them could potentially replace the design here with better performance in different use cases. Furthermore, it would be a good idea to learn the memory usage pattern and addressing strategies rather than arbitrarily set it.</p>
+<p>The preference of LRUA is carried out in a way that everything is differentiable:</p>
+<ol>
+<li>The usage weight $\mathbf{w}^u_t$ at time t is a sum of current read and write vectors, in addition to the decayed last usage weight, $\gamma \mathbf{w}^u_{t-1}$, where $\gamma$ is a decay factor.</li>
+<li>The write vector is an interpolation between the previous read weight (prefer &ldquo;the last used location&rdquo;) and the previous least-used weight (prefer &ldquo;rarely used location&rdquo;). The interpolation parameter is the sigmoid of a hyperparameter $\alpha$.</li>
+<li>The least-used weight $\mathbf{w}^{lu}$ is scaled according to usage weights $\mathbf{w}_t^u$, in which any dimension remains at 1 if smaller than the n-th smallest element in the vector and 0 otherwise.</li>
+</ol>
+<div>
+$$
+\begin{aligned}
+\mathbf{w}_t^u &= \gamma \mathbf{w}_{t-1}^u + \mathbf{w}_t^r + \mathbf{w}_t^w \\
+\mathbf{w}_t^r &= \text{softmax}(\text{cosine}(\mathbf{k}_t, \mathbf{M}_t(i))) \\
+\mathbf{w}_t^w &= \sigma(\alpha)\mathbf{w}_{t-1}^r + (1-\sigma(\alpha))\mathbf{w}^{lu}_{t-1}\\
+\mathbf{w}_t^{lu} &= \mathbf{1}_{w_t^u(i) \leq m(\mathbf{w}_t^u, n)}
+\text{, where }m(\mathbf{w}_t^u, n)\text{ is the }n\text{-th smallest element in vector }\mathbf{w}_t^u\text{.}
+\end{aligned}
+$$
+</div>
+<p>Finally, after the least used memory location, indicated by $\mathbf{w}_t^{lu}$, is set to zero, every memory row is updated:</p>
+<div>
+$$
+\mathbf{M}_t(i) = \mathbf{M}_{t-1}(i) + w_t^w(i)\mathbf{k}_t, \forall i
+$$
+</div>
+<h2 id="meta-networks">Meta Networks<a hidden class="anchor" aria-hidden="true" href="#meta-networks">#</a></h2>
+<p><strong>Meta Networks</strong> (<a href="https://arxiv.org/abs/1703.00837">Munkhdalai &amp; Yu, 2017</a>), short for <strong>MetaNet</strong>, is a meta-learning model with architecture and training process designed for <em>rapid</em> generalization across tasks.</p>
+<h3 id="fast-weights">Fast Weights<a hidden class="anchor" aria-hidden="true" href="#fast-weights">#</a></h3>
+<p>The rapid generalization of MetaNet relies on &ldquo;fast weights&rdquo;. There are a handful of papers on this topic, but I haven&rsquo;t read all of them in detail and I failed to find a very concrete definition, only a vague agreement on the concept. Normally weights in the neural networks are updated by stochastic gradient descent in an objective function and this process is known to be slow. One faster way to learn is to utilize one neural network to predict the parameters of another neural network and the generated weights are called <em>fast weights</em>. In comparison, the ordinary SGD-based weights are named <em>slow weights</em>.</p>
+<p>In MetaNet, loss gradients are used as <em>meta information</em> to populate models that learn fast weights. Slow and fast weights are combined to make predictions in neural networks.</p>
+<figure>
+	<img src="combine-slow-fast-weights.png" style="width: 50%;"  />
+	<figcaption>Combining slow and fast weights in a MLP. $\bigoplus$ is element-wise sum. (Image source: <a href="https://arxiv.org/abs/1703.00837" target="_blank">original paper</a>).</figcaption>
+</figure>
+<h3 id="model-components">Model Components<a hidden class="anchor" aria-hidden="true" href="#model-components">#</a></h3>
+<blockquote>
+<p>Disclaimer: Below you will find my annotations are different from those in the paper. imo, the paper is poorly written, but the idea is still interesting. So I&rsquo;m presenting the idea in my own language.</p>
+</blockquote>
+<p>Key components of MetaNet are:</p>
+<ul>
+<li>An embedding function $f_\theta$, parameterized by $\theta$, encodes raw inputs into feature vectors. Similar to <a href="#convolutional-siamese-neural-network">Siamese Neural Network</a>, these embeddings are trained to be useful for telling whether two inputs are of the same class (verification task).</li>
+<li>A base learner model $g_\phi$, parameterized by weights $\phi$, completes the actual learning task.</li>
+</ul>
+<p>If we stop here, it looks just like <a href="#relation-network">Relation Network</a>. MetaNet, in addition, explicitly models the fast weights of both functions and then aggregates them back into the model (See Fig. 8).</p>
+<p>Therefore we need additional two functions to output fast weights for $f$ and $g$ respectively.</p>
+<ul>
+<li>$F_w$: a LSTM parameterized by $w$ for learning fast weights $\theta^+$ of the embedding function $f$. It takes as input gradients of $f$&rsquo;s embedding loss for verification task.</li>
+<li>$G_v$: a neural network parameterized by $v$ learning fast weights $\phi^+$ for the base learner $g$ from its loss gradients. In MetaNet, the learner&rsquo;s loss gradients are viewed as the <em>meta information</em> of the task.</li>
+</ul>
+<p>Ok, now let&rsquo;s see how meta networks are trained. The training data contains multiple pairs of datasets: a support set $S=\{\mathbf{x}&rsquo;_i, y&rsquo;_i\}_{i=1}^K$ and a test set  $U=\{\mathbf{x}_i, y_i\}_{i=1}^L$. Recall that we have four networks and four sets of model parameters to learn, $(\theta, \phi, w, v)$.</p>
+<figure>
+	<img src="meta-network.png" style="width: 90%;"  />
+	<figcaption>Fig.9. The MetaNet architecture.</figcaption>
+</figure>
+<h3 id="training-process">Training Process<a hidden class="anchor" aria-hidden="true" href="#training-process">#</a></h3>
+<ol>
+<li>
+<p>Sample a random pair of inputs at each time step t from the support set $S$, $(\mathbf{x}&rsquo;_i, y&rsquo;_i)$ and $(\mathbf{x}&rsquo;_j, y_j)$. Let $\mathbf{x}_{(t,1)}=\mathbf{x}&rsquo;_i$ and $\mathbf{x}_{(t,2)}=\mathbf{x}&rsquo;_j$.<br/>
+for $t = 1, \dots, K$:</p>
+<ul>
+<li>a. Compute a loss for representation learning; i.e., cross entropy for the verification task:<br/>
+$\mathcal{L}^\text{emb}_t = \mathbf{1}_{y&rsquo;_i=y&rsquo;_j} \log P_t + (1 - \mathbf{1}_{y&rsquo;_i=y&rsquo;_j})\log(1 - P_t)\text{, where }P_t = \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_{(t,1)}) - f_\theta(\mathbf{x}_{(t,2)})\vert)$</li>
+</ul>
+</li>
+<li>
+<p>Compute the task-level fast weights:
+$\theta^+ = F_w(\nabla_\theta \mathcal{L}^\text{emb}_1, \dots, \mathcal{L}^\text{emb}_T)$</p>
+</li>
+<li>
+<p>Next go through examples in the support set $S$ and compute the example-level fast weights. Meanwhile, update the memory with learned representations.<br/>
+for $i=1, \dots, K$:</p>
+<ul>
+<li>a. The base learner outputs a probability distribution: $P(\hat{y}_i \vert \mathbf{x}_i) = g_\phi(\mathbf{x}_i)$ and the loss can be cross-entropy or MSE: $\mathcal{L}^\text{task}_i = y&rsquo;_i \log g_\phi(\mathbf{x}&rsquo;_i) + (1- y&rsquo;_i) \log (1 - g_\phi(\mathbf{x}&rsquo;_i))$</li>
+<li>b. Extract meta information (loss gradients) of the task and compute the example-level fast weights:
+$\phi_i^+ = G_v(\nabla_\phi\mathcal{L}^\text{task}_i)$
+<ul>
+<li>Then store $\phi^+_i$ into $i$-th location of the &ldquo;value&rdquo; memory $\mathbf{M}$.<br/></li>
+</ul>
+</li>
+<li>d. Encode the support sample into a task-specific input representation using both slow and fast weights: $r&rsquo;_i = f_{\theta, \theta^+}(\mathbf{x}&rsquo;_i)$
+<ul>
+<li>Then store $r&rsquo;_i$ into $i$-th location of the &ldquo;key&rdquo; memory $\mathbf{R}$.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Finally it is the time to construct the training loss using the test set $U=\{\mathbf{x}_i, y_i\}_{i=1}^L$.<br/>
+Starts with $\mathcal{L}_\text{train}=0$:<br/>
+for $j=1, \dots, L$:</p>
+<ul>
+<li>a. Encode the test sample into a task-specific input representation:
+$r_j = f_{\theta, \theta^+}(\mathbf{x}_j)$</li>
+<li>b. The fast weights are computed by attending to representations of support set samples in memory $\mathbf{R}$. The attention function is of your choice. Here MetaNet uses cosine similarity:<br/></li>
+</ul>
+ <div>
+ $$
+ \begin{aligned}
+ a_j &= \text{cosine}(\mathbf{R}, r_j) = [\frac{r'_1\cdot r_j}{\|r'_1\|\cdot\|r_j\|}, \dots, \frac{r'_N\cdot r_j}{\|r'_N\|\cdot\|r_j\|}]\\
+ \phi^+_j &= \text{softmax}(a_j)^\top \mathbf{M}
+ \end{aligned}
+ $$
+ </div>
+<ul>
+<li>c. Update the training loss: $\mathcal{L}_\text{train} \leftarrow \mathcal{L}_\text{train} + \mathcal{L}^\text{task}(g_{\phi, \phi^+}(\mathbf{x}_i), y_i) $</li>
+</ul>
+</li>
+<li>
+<p>Update all the parameters $(\theta, \phi, w, v)$ using $\mathcal{L}_\text{train}$.</p>
+</li>
+</ol>
+<h1 id="optimization-based">Optimization-Based<a hidden class="anchor" aria-hidden="true" href="#optimization-based">#</a></h1>
+<p>Deep learning models learn through backpropagation of gradients. However, the gradient-based optimization is neither designed to cope with a small number of training samples, nor to converge within a small number of optimization steps. Is there a way to adjust the optimization algorithm so that the model can be good at learning with a few examples? This is what optimization-based approach meta-learning algorithms intend for.</p>
+<h2 id="lstm-meta-learner">LSTM Meta-Learner<a hidden class="anchor" aria-hidden="true" href="#lstm-meta-learner">#</a></h2>
+<p>The optimization algorithm can be explicitly modeled. <a href="https://openreview.net/pdf?id=rJY0-Kcll">Ravi &amp; Larochelle (2017)</a> did so and named it &ldquo;meta-learner&rdquo;, while the original model for handling the task is called &ldquo;learner&rdquo;. The goal of the meta-learner is to efficiently update the learner&rsquo;s parameters using a small support set so that the learner can adapt to the new task quickly.</p>
+<p>Let&rsquo;s denote the learner model as $M_\theta$ parameterized by $\theta$, the meta-learner as $R_\Theta$ with parameters $\Theta$, and the loss function $\mathcal{L}$.</p>
+<h3 id="why-lstm">Why LSTM?<a hidden class="anchor" aria-hidden="true" href="#why-lstm">#</a></h3>
+<p>The meta-learner is modeled as a LSTM, because:</p>
+<ol>
+<li>There is similarity between the gradient-based update in backpropagation and the cell-state update in LSTM.</li>
+<li>Knowing a history of gradients benefits the gradient update; think about how <a href="http://ruder.io/optimizing-gradient-descent/index.html#momentum">momentum</a> works.</li>
+</ol>
+<p>The update for the learner&rsquo;s parameters at time step t with a learning rate $\alpha_t$ is:</p>
+<div>
+$$
+\theta_t = \theta_{t-1} - \alpha_t \nabla_{\theta_{t-1}}\mathcal{L}_t
+$$
+</div>
+<p>It has the same form as the cell state update in LSTM, if we set forget gate $f_t=1$, input gate $i_t = \alpha_t$, cell state $c_t = \theta_t$, and new cell state $\tilde{c}_t = -\nabla_{\theta_{t-1}}\mathcal{L}_t$:</p>
+<div>
+$$
+\begin{aligned}
+c_t &= f_t \odot c_{t-1} + i_t \odot \tilde{c}_t\\
+    &= \theta_{t-1} - \alpha_t\nabla_{\theta_{t-1}}\mathcal{L}_t
+\end{aligned}
+$$
+</div>
+<p>While fixing $f_t=1$ and $i_t=\alpha_t$ might not be the optimal, both of them can be learnable and adaptable to different datasets.</p>
+<div>
+$$
+\begin{aligned}
+f_t &= \sigma(\mathbf{W}_f \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, f_{t-1}] + \mathbf{b}_f) & \scriptstyle{\text{; how much to forget the old value of parameters.}}\\
+i_t &= \sigma(\mathbf{W}_i \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, i_{t-1}] + \mathbf{b}_i) & \scriptstyle{\text{; corresponding to the learning rate at time step t.}}\\
+\tilde{\theta}_t &= -\nabla_{\theta_{t-1}}\mathcal{L}_t &\\
+\theta_t &= f_t \odot \theta_{t-1} + i_t \odot \tilde{\theta}_t &\\
+\end{aligned}
+$$
+</div>
+<h3 id="model-setup">Model Setup<a hidden class="anchor" aria-hidden="true" href="#model-setup">#</a></h3>
+<figure>
+	<img src="lstm-meta-learner.png" style="width: 100%;"  />
+	<figcaption>How the learner $M\_\theta$ and the meta-learner $R\_\Theta$ are trained. (Image source: <a href="https://openreview.net/pdf?id=rJY0-Kcll)" target="_blank">original paper</a> with more annotations)</figcaption>
+</figure>
+<p>The training process mimics what happens during test, since it has been proved to be beneficial in <a href="#matching-networks">Matching Networks</a>. During each training epoch, we first sample a dataset $\mathcal{D} = (\mathcal{D}_\text{train}, \mathcal{D}_\text{test}) \in \hat{\mathcal{D}}_\text{meta-train}$ and then sample mini-batches out of $\mathcal{D}_\text{train}$ to update $\theta$ for $T$ rounds. The final state of the learner parameter $\theta_T$ is used to train the meta-learner on the test data $\mathcal{D}_\text{test}$.</p>
+<p>Two implementation details to pay extra attention to:</p>
+<ol>
+<li>How to compress the parameter space in LSTM meta-learner? As the meta-learner is modeling parameters of another neural network, it would have hundreds of thousands of variables to learn. Following the <a href="https://arxiv.org/abs/1606.04474">idea</a> of sharing parameters across coordinates,</li>
+<li>To simplify the training process, the meta-learner assumes that the loss $\mathcal{L}_t$ and the gradient $\nabla_{\theta_{t-1}} \mathcal{L}_t$ are independent.</li>
+</ol>
+<figure>
+	<img src="train-meta-learner.png" style="width: 100%;"  />
+<h2 id="maml">MAML<a hidden class="anchor" aria-hidden="true" href="#maml">#</a></h2>
+<p><strong>MAML</strong>, short for <strong>Model-Agnostic Meta-Learning</strong> (<a href="https://arxiv.org/abs/1703.03400">Finn, et al. 2017</a>) is a fairly general optimization algorithm, compatible with any model that learns through gradient descent.</p>
+<p>Let&rsquo;s say our model is $f_\theta$ with parameters $\theta$. Given a task $\tau_i$ and its associated dataset $(\mathcal{D}^{(i)}_\text{train}, \mathcal{D}^{(i)}_\text{test})$, we can update the model parameters by one or more gradient descent steps (the following example only contains one step):</p>
+<div>
+$$
+\theta'_i = \theta - \alpha \nabla_\theta\mathcal{L}^{(0)}_{\tau_i}(f_\theta)
+$$
+</div>
+<p>where $\mathcal{L}^{(0)}$ is the loss computed using the mini data batch with id (0).</p>
+<figure>
+	<img src="maml.png" style="width: 45%;"  />
+	<figcaption>Diagram of MAML. (Image source: <a href="https://arxiv.org/abs/1703.03400" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>Well, the above formula only optimizes for one task. To achieve a good generalization across a variety of tasks, we would like to find the optimal $\theta^*$ so that the task-specific fine-tuning is more efficient. Now, we sample a new data batch with id (1) for updating the meta-objective. The loss, denoted as $\mathcal{L}^{(1)}$, depends on the mini batch (1). The superscripts in $\mathcal{L}^{(0)}$ and $\mathcal{L}^{(1)}$ only indicate different data batches, and they refer to the same loss objective for the same task.</p>
+<div>
+$$
+\begin{aligned}
+\theta^* 
+&= \arg\min_\theta \sum_{\tau_i \sim p(\tau)} \mathcal{L}_{\tau_i}^{(1)} (f_{\theta'_i}) = \arg\min_\theta \sum_{\tau_i \sim p(\tau)} \mathcal{L}_{\tau_i}^{(1)} (f_{\theta - \alpha\nabla_\theta \mathcal{L}_{\tau_i}^{(0)}(f_\theta)}) & \\
+\theta &\leftarrow \theta - \beta \nabla_{\theta} \sum_{\tau_i \sim p(\tau)} \mathcal{L}_{\tau_i}^{(1)} (f_{\theta - \alpha\nabla_\theta \mathcal{L}_{\tau_i}^{(0)}(f_\theta)}) & \scriptstyle{\text{; updating rule}}
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="maml-algo.png" style="width: 60%;"  />
+	<figcaption>The general form of MAML algorithm. (Image source: <a href="https://arxiv.org/abs/1703.03400" target="_blank">original paper</a>)</figcaption>
+</figure>
+<h3 id="first-order-maml">First-Order MAML<a hidden class="anchor" aria-hidden="true" href="#first-order-maml">#</a></h3>
+<p>The meta-optimization step above relies on second derivatives. To make the computation less expensive, a modified version of MAML omits second derivatives, resulting in a simplified and cheaper implementation, known as <strong>First-Order MAML (FOMAML)</strong>.</p>
+<p>Let&rsquo;s consider the case of performing $k$ inner gradient steps, $k\geq1$. Starting with the initial model parameter $\theta_\text{meta}$:</p>
+<div>
+$$
+\begin{aligned}
+\theta_0 &= \theta_\text{meta}\\
+\theta_1 &= \theta_0 - \alpha\nabla_\theta\mathcal{L}^{(0)}(\theta_0)\\
+\theta_2 &= \theta_1 - \alpha\nabla_\theta\mathcal{L}^{(0)}(\theta_1)\\
+&\dots\\
+\theta_k &= \theta_{k-1} - \alpha\nabla_\theta\mathcal{L}^{(0)}(\theta_{k-1})
+\end{aligned}
+$$
+</div>
+<p>Then in the outer loop, we sample a new data batch for updating the meta-objective.</p>
+<div>
+$$
+\begin{aligned}
+\theta_\text{meta} &\leftarrow \theta_\text{meta} - \beta g_\text{MAML} & \scriptstyle{\text{; update for meta-objective}} \\[2mm]
+\text{where } g_\text{MAML}
+&= \nabla_{\theta} \mathcal{L}^{(1)}(\theta_k) &\\[2mm]
+&= \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k) \cdot (\nabla_{\theta_{k-1}} \theta_k) \dots (\nabla_{\theta_0} \theta_1) \cdot (\nabla_{\theta} \theta_0) & \scriptstyle{\text{; following the chain rule}} \\
+&= \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k) \cdot \Big( \prod_{i=1}^k \nabla_{\theta_{i-1}} \theta_i \Big) \cdot I &  \\
+&= \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k) \cdot \prod_{i=1}^k \nabla_{\theta_{i-1}} (\theta_{i-1} - \alpha\nabla_\theta\mathcal{L}^{(0)}(\theta_{i-1})) &  \\
+&= \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k) \cdot \prod_{i=1}^k (I - \alpha\nabla_{\theta_{i-1}}(\nabla_\theta\mathcal{L}^{(0)}(\theta_{i-1}))) &
+\end{aligned}
+$$
+</div>
+<p>The MAML gradient is:</p>
+<div>
+$$
+g_\text{MAML} = \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k) \cdot \prod_{i=1}^k (I - \alpha \color{red}{\nabla_{\theta_{i-1}}(\nabla_\theta\mathcal{L}^{(0)}(\theta_{i-1}))})
+$$
+</div>
+<p>The First-Order MAML ignores the second derivative part in red. It is simplified as follows, equivalent to the derivative of the last inner gradient update result.</p>
+<div>
+$$
+g_\text{FOMAML} = \nabla_{\theta_k} \mathcal{L}^{(1)}(\theta_k)
+$$
+</div>
+<h2 id="reptile">Reptile<a hidden class="anchor" aria-hidden="true" href="#reptile">#</a></h2>
+<p><strong>Reptile</strong> (<a href="https://arxiv.org/abs/1803.02999">Nichol, Achiam &amp; Schulman, 2018</a>) is a remarkably simple meta-learning optimization algorithm. It is similar to MAML in many ways, given that both rely on meta-optimization through gradient descent and both are model-agnostic.</p>
+<p>The Reptile works by repeatedly:</p>
+<ol>
+<li>sampling a task,</li>
+<li>training on it by multiple gradient descent steps,</li>
+<li>and then moving the model weights towards the new parameters.</li>
+</ol>
+<p>See the algorithm below:
+$\text{SGD}(\mathcal{L}_{\tau_i}, \theta, k)$ performs stochastic gradient update for k steps on the loss $\mathcal{L}_{\tau_i}$ starting with initial parameter $\theta$ and returns the final parameter vector. The batch version samples multiple tasks instead of one within each iteration. The reptile gradient is defined as $(\theta - W)/\alpha$, where $\alpha$ is the stepsize used by the SGD operation.</p>
+<figure>
+	<img src="reptile-algo.png" style="width: 52%;"  />
+	<figcaption>The batched version of Reptile algorithm. (Image source: <a href="https://arxiv.org/abs/1803.02999" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>At a glance, the algorithm looks a lot like an ordinary SGD. However, because the task-specific optimization can take more than one step. it eventually makes $\text{SGD}(\mathbb{E}
+_\tau[\mathcal{L}_{\tau}], \theta, k)$ diverge from $\mathbb{E}_\tau [\text{SGD}(\mathcal{L}_{\tau}, \theta, k)]$ when k &gt; 1.</p>
+<h3 id="the-optimization-assumption">The Optimization Assumption<a hidden class="anchor" aria-hidden="true" href="#the-optimization-assumption">#</a></h3>
+<p>Assuming that a task $\tau \sim p(\tau)$ has a manifold of optimal network configuration, $\mathcal{W}_{\tau}^*$. The model $f_\theta$ achieves the best performance for task $\tau$ when $\theta$ lays on the surface of $\mathcal{W}_{\tau}^*$. To find a solution that is good across tasks, we would like to find a parameter close to all the optimal manifolds of all tasks:</p>
+<div>
+$$
+\theta^* = \arg\min_\theta \mathbb{E}_{\tau \sim p(\tau)} [\frac{1}{2} \text{dist}(\theta, \mathcal{W}_\tau^*)^2]
+$$
+</div>
+<figure>
+	<img src="reptile-optim.png" style="width: 50%;"  />
+	<figcaption>The Reptile algorithm updates the parameter alternatively to be closer to the optimal manifolds of different tasks. (Image source: <a href="https://arxiv.org/abs/1803.02999" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>Let&rsquo;s use the L2 distance as $\text{dist}(.)$ and the distance between a point $\theta$ and a set $\mathcal{W}_\tau^*$ equals to the distance between $\theta$ and a point $W_{\tau}^*(\theta)$ on the manifold that is closest to $\theta$:</p>
+<div>
+$$
+\text{dist}(\theta, \mathcal{W}_{\tau}^*) = \text{dist}(\theta, W_{\tau}^*(\theta)) \text{, where }W_{\tau}^*(\theta) = \arg\min_{W\in\mathcal{W}_{\tau}^*} \text{dist}(\theta, W)
+$$
+</div>
+<p>The gradient of the squared euclidean distance is:</p>
+<div>
+$$
+\begin{aligned}
+\nabla_\theta[\frac{1}{2}\text{dist}(\theta, \mathcal{W}_{\tau_i}^*)^2]
+&= \nabla_\theta[\frac{1}{2}\text{dist}(\theta, W_{\tau_i}^*(\theta))^2] & \\
+&= \nabla_\theta[\frac{1}{2}(\theta - W_{\tau_i}^*(\theta))^2] & \\
+&= \theta - W_{\tau_i}^*(\theta) & \scriptstyle{\text{; See notes.}}
+\end{aligned}
+$$
+</div>
+<p>Notes: According to the Reptile paper, <em>&ldquo;the gradient of the squared euclidean distance between a point $\Theta$ and a set $S$ is the vector $2(\Theta − p)$, where p is the closest point in $S$ to $\Theta$&rdquo;</em>. Technically the closest point in $S$ is also a function of $\Theta$, but I&rsquo;m not sure why the gradient does not need to worry about the derivative of $p$. (Please feel free to leave me a comment or send me an email about this if you have ideas.)</p>
+<p>Thus the update rule for one stochastic gradient step is:</p>
+<div>
+$$
+\theta = \theta - \alpha \nabla_\theta[\frac{1}{2} \text{dist}(\theta, \mathcal{W}_{\tau_i}^*)^2] = \theta - \alpha(\theta - W_{\tau_i}^*(\theta)) = (1-\alpha)\theta + \alpha W_{\tau_i}^*(\theta)
+$$
+</div>
+<p>The closest point on the optimal task manifold $W_{\tau_i}^*(\theta)$ cannot be computed exactly, but Reptile approximates it using $\text{SGD}(\mathcal{L}_\tau, \theta, k)$.</p>
+<h3 id="reptile-vs-fomaml">Reptile vs FOMAML<a hidden class="anchor" aria-hidden="true" href="#reptile-vs-fomaml">#</a></h3>
+<p>To demonstrate the deeper connection between Reptile and MAML, let&rsquo;s expand the update formula with an example performing two gradient steps, k=2 in $\text{SGD}(.)$. Same as defined <a href="#maml">above</a>, $\mathcal{L}^{(0)}$ and $\mathcal{L}^{(1)}$ are losses using different mini-batches of data. For ease of reading, we adopt two simplified annotations: $g^{(i)}_j = \nabla_{\theta} \mathcal{L}^{(i)}(\theta_j)$ and $H^{(i)}_j = \nabla^2_{\theta} \mathcal{L}^{(i)}(\theta_j)$.</p>
+<div>
+$$
+\begin{aligned}
+\theta_0 &= \theta_\text{meta}\\
+\theta_1 &= \theta_0 - \alpha\nabla_\theta\mathcal{L}^{(0)}(\theta_0)= \theta_0 - \alpha g^{(0)}_0 \\
+\theta_2 &= \theta_1 - \alpha\nabla_\theta\mathcal{L}^{(1)}(\theta_1) = \theta_0 - \alpha g^{(0)}_0 - \alpha g^{(1)}_1
+\end{aligned}
+$$
+</div>
+<p>According to the <a href="#first-order-maml">early section</a>, the gradient of FOMAML is the last inner gradient update result. Therefore, when k=1:</p>
+<div>
+$$
+\begin{aligned}
+g_\text{FOMAML} &= \nabla_{\theta_1} \mathcal{L}^{(1)}(\theta_1) = g^{(1)}_1 \\
+g_\text{MAML} &= \nabla_{\theta_1} \mathcal{L}^{(1)}(\theta_1) \cdot (I - \alpha\nabla^2_{\theta} \mathcal{L}^{(0)}(\theta_0)) = g^{(1)}_1 - \alpha H^{(0)}_0 g^{(1)}_1
+\end{aligned}
+$$
+</div>
+<p>The Reptile gradient is defined as:</p>
+<div>
+$$
+g_\text{Reptile} = (\theta_0 - \theta_2) / \alpha = g^{(0)}_0 + g^{(1)}_1
+$$
+</div>
+<p>Up to now we have:</p>
+<figure>
+	<img src="reptile_vs_FOMAML.png" style="width: 50%;"  />
+	<figcaption>Reptile versus FOMAML in one loop of meta-optimization. (Image source: <a href="https://www.slideshare.net/YoonhoLee4/on-firstorder-metalearning-algorithms" target="_blank">slides</a> on Reptile by Yoonho Lee.)</figcaption>
+</figure>
+<div>
+$$
+\begin{aligned}
+g_\text{FOMAML} &= g^{(1)}_1 \\
+g_\text{MAML} &= g^{(1)}_1 - \alpha H^{(0)}_0 g^{(1)}_1 \\
+g_\text{Reptile} &= g^{(0)}_0 + g^{(1)}_1
+\end{aligned}
+$$
+</div>
+<p>Next let&rsquo;s try further expand $g^{(1)}_1$ using <a href="https://en.wikipedia.org/wiki/Taylor_series">Taylor expansion</a>. Recall that Taylor expansion of a function $f(x)$ that is differentiable at a number $a$ is:</p>
+<div>
+$$
+f(x) = f(a) + \frac{f'(a)}{1!}(x-a) + \frac{f''(a)}{2!}(x-a)^2 + \dots = \sum_{i=0}^\infty \frac{f^{(i)}(a)}{i!}(x-a)^i
+$$
+</div>
+<p>We can consider $\nabla_{\theta}\mathcal{L}^{(1)}(.)$ as a function and $\theta_0$ as a value point. The Taylor expansion of $g_1^{(1)}$ at the value point $\theta_0$ is:</p>
+<div>
+$$
+\begin{aligned}
+g_1^{(1)} &= \nabla_{\theta}\mathcal{L}^{(1)}(\theta_1) \\
+&= \nabla_{\theta}\mathcal{L}^{(1)}(\theta_0) + \nabla^2_\theta\mathcal{L}^{(1)}(\theta_0)(\theta_1 - \theta_0) + \frac{1}{2}\nabla^3_\theta\mathcal{L}^{(1)}(\theta_0)(\theta_1 - \theta_0)^2 + \dots & \\
+&= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + \frac{\alpha^2}{2}\nabla^3_\theta\mathcal{L}^{(1)}(\theta_0) (g_0^{(0)})^2 + \dots & \scriptstyle{\text{; because }\theta_1-\theta_0=-\alpha g_0^{(0)}} \\
+&= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2)
+\end{aligned}
+$$
+</div>
+<p>Plug in the expanded form of $g_1^{(1)}$ into the MAML gradients with one step inner gradient update:</p>
+<div>
+$$
+\begin{aligned}
+g_\text{FOMAML} &= g^{(1)}_1 = g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2)\\
+g_\text{MAML} &= g^{(1)}_1 - \alpha H^{(0)}_0 g^{(1)}_1 \\
+&= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2) - \alpha H^{(0)}_0 (g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2))\\
+&= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} - \alpha H^{(0)}_0 g_0^{(1)} + \alpha^2 \alpha H^{(0)}_0 H^{(1)}_0 g_0^{(0)} + O(\alpha^2)\\
+&= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} - \alpha H^{(0)}_0 g_0^{(1)} + O(\alpha^2)
+\end{aligned}
+$$
+</div>
+<p>The Reptile gradient becomes:</p>
+<div>
+$$
+\begin{aligned}
+g_\text{Reptile} 
+&= g^{(0)}_0 + g^{(1)}_1 \\
+&= g^{(0)}_0 + g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2)
+\end{aligned}
+$$
+</div>
+<p>So far we have the formula of three types of gradients:</p>
+<div>
+$$
+\begin{aligned}
+g_\text{FOMAML} &= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2)\\
+g_\text{MAML} &= g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} - \alpha H^{(0)}_0 g_0^{(1)} + O(\alpha^2)\\
+g_\text{Reptile}  &= g^{(0)}_0 + g_0^{(1)} - \alpha H^{(1)}_0 g_0^{(0)} + O(\alpha^2)
+\end{aligned}
+$$
+</div>
+<p>During training, we often average over multiple data batches. In our example, the mini batches (0) and (1) are interchangeable since both are drawn at random. The expectation $\mathbb{E}_{\tau,0,1}$ is averaged over two data batches, ids (0) and (1), for task $\tau$.</p>
+<p>Let,</p>
+<ul>
+<li>$A = \mathbb{E}_{\tau,0,1} [g_0^{(0)}] = \mathbb{E}_{\tau,0,1} [g_0^{(1)}]$; it is the average gradient of task loss. We expect to improve the model parameter to achieve better task performance by following this direction pointed by $A$.</li>
+<li>$B = \mathbb{E}_{\tau,0,1} [H^{(1)}_0 g_0^{(0)}] = \frac{1}{2}\mathbb{E}_{\tau,0,1} [H^{(1)}_0 g_0^{(0)} + H^{(0)}_0 g_0^{(1)}] = \frac{1}{2}\mathbb{E}_{\tau,0,1} [\nabla_\theta(g^{(0)}_0 g_0^{(1)})]$; it is the direction (gradient) that increases the inner product of gradients of two different mini batches for the same task. We expect to improve the model parameter to achieve better generalization over different data by following this direction pointed by $B$.</li>
+</ul>
+<p>To conclude, both MAML and Reptile aim to optimize for the same goal, better task performance (guided by A) and better generalization (guided by B), when the gradient update is approximated by first three leading terms.</p>
+<div>
+$$
+\begin{aligned}
+\mathbb{E}_{\tau,1,2}[g_\text{FOMAML}] &= A - \alpha B + O(\alpha^2)\\
+\mathbb{E}_{\tau,1,2}[g_\text{MAML}] &= A - 2\alpha B + O(\alpha^2)\\
+\mathbb{E}_{\tau,1,2}[g_\text{Reptile}]  &= 2A - \alpha B + O(\alpha^2)
+\end{aligned}
+$$
+</div>
+<p>It is not clear to me whether the ignored term $O(\alpha^2)$ might play a big impact on the parameter learning. But given that FOMAML is able to obtain a similar performance as the full version of MAML, it might be safe to say higher-level derivatives would not be critical during gradient descent update.</p>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2018metalearning,
+  title   = &#34;Meta-Learning: Learning to Learn Fast&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2018&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2018-11-30-meta-learning/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Brenden M. Lake, Ruslan Salakhutdinov, and Joshua B. Tenenbaum. <a href="https://www.cs.cmu.edu/~rsalakhu/papers/LakeEtAl2015Science.pdf">&ldquo;Human-level concept learning through probabilistic program induction.&rdquo;</a> Science 350.6266 (2015): 1332-1338.</p>
+<p>[2] Oriol Vinyals&rsquo; talk on <a href="http://metalearning-symposium.ml/files/vinyals.pdf">&ldquo;Model vs Optimization Meta Learning&rdquo;</a></p>
+<p>[3] Gregory Koch, Richard Zemel, and Ruslan Salakhutdinov. <a href="http://www.cs.toronto.edu/~rsalakhu/papers/oneshot1.pdf">&ldquo;Siamese neural networks for one-shot image recognition.&rdquo;</a> ICML Deep Learning Workshop. 2015.</p>
+<p>[4] Oriol Vinyals, et al. <a href="http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf">&ldquo;Matching networks for one shot learning.&rdquo;</a> NIPS. 2016.</p>
+<p>[5] Flood Sung, et al. <a href="http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf">&ldquo;Learning to compare: Relation network for few-shot learning.&rdquo;</a> CVPR. 2018.</p>
+<p>[6] Jake Snell, Kevin Swersky, and Richard Zemel. <a href="http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf">&ldquo;Prototypical Networks for Few-shot Learning.&rdquo;</a> CVPR. 2018.</p>
+<p>[7] Adam Santoro, et al. <a href="http://proceedings.mlr.press/v48/santoro16.pdf">&ldquo;Meta-learning with memory-augmented neural networks.&rdquo;</a> ICML. 2016.</p>
+<p>[8] Alex Graves, Greg Wayne, and Ivo Danihelka. <a href="https://arxiv.org/abs/1410.5401">&ldquo;Neural turing machines.&rdquo;</a> arXiv preprint arXiv:1410.5401 (2014).</p>
+<p>[9] Tsendsuren Munkhdalai and Hong Yu. <a href="https://arxiv.org/abs/1703.00837">&ldquo;Meta Networks.&rdquo;</a> ICML. 2017.</p>
+<p>[10] Sachin Ravi and Hugo Larochelle. <a href="https://openreview.net/pdf?id=rJY0-Kcll">&ldquo;Optimization as a Model for Few-Shot Learning.&rdquo;</a> ICLR. 2017.</p>
+<p>[11] Chelsea Finn&rsquo;s BAIR blog on <a href="https://bair.berkeley.edu/blog/2017/07/18/learning-to-learn/">&ldquo;Learning to Learn&rdquo;</a>.</p>
+<p>[12] Chelsea Finn, Pieter Abbeel, and Sergey Levine. <a href="https://arxiv.org/abs/1703.03400">&ldquo;Model-agnostic meta-learning for fast adaptation of deep networks.&rdquo;</a> ICML 2017.</p>
+<p>[13] Alex Nichol, Joshua Achiam, John Schulman. <a href="https://arxiv.org/abs/1803.02999">&ldquo;On First-Order Meta-Learning Algorithms.&rdquo;</a> arXiv preprint arXiv:1803.02999 (2018).</p>
+<p>[14] <a href="https://www.slideshare.net/YoonhoLee4/on-firstorder-metalearning-algorithms">Slides on Reptile</a> by Yoonho Lee.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/meta-learning/">Meta-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/">
+    <span class="title">« </span>
+    <br>
+    <span>Object Detection Part 4: Fast Detection Models</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2018-10-13-flow-models/">
+    <span class="title"> »</span>
+    <br>
+    <span>Flow-based Deep Generative Models</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on twitter"
+        href="https://twitter.com/intent/tweet/?text=Meta-Learning%3a%20Learning%20to%20Learn%20Fast&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f&amp;hashtags=meta-learning%2clong-read">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f&amp;title=Meta-Learning%3a%20Learning%20to%20Learn%20Fast&amp;summary=Meta-Learning%3a%20Learning%20to%20Learn%20Fast&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f&title=Meta-Learning%3a%20Learning%20to%20Learn%20Fast">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on whatsapp"
+        href="https://api.whatsapp.com/send?text=Meta-Learning%3a%20Learning%20to%20Learn%20Fast%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta-Learning: Learning to Learn Fast on telegram"
+        href="https://telegram.me/share/url?text=Meta-Learning%3a%20Learning%20to%20Learn%20Fast&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-11-30-meta-learning%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

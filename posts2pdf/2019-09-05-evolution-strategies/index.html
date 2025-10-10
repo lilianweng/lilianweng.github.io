@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Evolution Strategies | Lil&#39;Log</title>
+<meta name="keywords" content="evolution, reinforcement-learning" />
+<meta name="description" content="
+Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \mathbb{R}^n \to \mathbb{R}$, even when you don&rsquo;t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include Simulated Annealing, Hill Climbing and Nelder-Mead method.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Evolution Strategies" />
+<meta property="og:description" content="
+Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \mathbb{R}^n \to \mathbb{R}$, even when you don&rsquo;t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include Simulated Annealing, Hill Climbing and Nelder-Mead method." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2019-09-05T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2019-09-05T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Evolution Strategies"/>
+<meta name="twitter:description" content="
+Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \mathbb{R}^n \to \mathbb{R}$, even when you don&rsquo;t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include Simulated Annealing, Hill Climbing and Nelder-Mead method."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Evolution Strategies",
+      "item": "https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Evolution Strategies",
+  "name": "Evolution Strategies",
+  "description": " Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \\mathbb{R}^n \\to \\mathbb{R}$, even when you don\u0026rsquo;t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include Simulated Annealing, Hill Climbing and Nelder-Mead method.\n",
+  "keywords": [
+    "evolution", "reinforcement-learning"
+  ],
+  "articleBody": " Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \\mathbb{R}^n \\to \\mathbb{R}$, even when you don’t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include Simulated Annealing, Hill Climbing and Nelder-Mead method.\nEvolution Strategies (ES) is one type of black-box optimization algorithms, born in the family of Evolutionary Algorithms (EA). In this post, I would dive into a couple of classic ES methods and introduce a few applications of how ES can play a role in deep reinforcement learning.\nWhat are Evolution Strategies? Evolution strategies (ES) belong to the big family of evolutionary algorithms. The optimization targets of ES are vectors of real numbers, $x \\in \\mathbb{R}^n$.\nEvolutionary algorithms refer to a division of population-based optimization algorithms inspired by natural selection. Natural selection believes that individuals with traits beneficial to their survival can live through generations and pass down the good characteristics to the next generation. Evolution happens by the selection process gradually and the population grows better adapted to the environment.\nHow natural selection works. (Image source: Khan Academy: Darwin, evolution, \u0026 natural selection) Evolutionary algorithms can be summarized in the following format as a general optimization solution:\nLet’s say we want to optimize a function $f(x)$ and we are not able to compute gradients directly. But we still can evaluate $f(x)$ given any $x$ and the result is deterministic. Our belief in the probability distribution over $x$ as a good solution to $f(x)$ optimization is $p_\\theta(x)$, parameterized by $\\theta$. The goal is to find an optimal configuration of $\\theta$.\nHere given a fixed format of distribution (i.e. Gaussian), the parameter $\\theta$ carries the knowledge about the best solutions and is being iteratively updated across generations.\nStarting with an initial value of $\\theta$, we can continuously update $\\theta$ by looping three steps as follows:\nGenerate a population of samples $D = \\{(x_i, f(x_i)\\}$ where $x_i \\sim p_\\theta(x)$. Evaluate the “fitness” of samples in $D$. Select the best subset of individuals and use them to update $\\theta$, generally based on fitness or rank. In Genetic Algorithms (GA), another popular subcategory of EA, $x$ is a sequence of binary codes, $x \\in \\{0, 1\\}^n$. While in ES, $x$ is just a vector of real numbers, $x \\in \\mathbb{R}^n$.\nSimple Gaussian Evolution Strategies This is the most basic and canonical version of evolution strategies. It models $p_\\theta(x)$ as a $n$-dimensional isotropic Gaussian distribution, in which $\\theta$ only tracks the mean $\\mu$ and standard deviation $\\sigma$.\n$$ \\theta = (\\mu, \\sigma),\\;p_\\theta(x) \\sim \\mathcal{N}(\\mathbf{\\mu}, \\sigma^2 I) = \\mu + \\sigma \\mathcal{N}(0, I) $$ The process of Simple-Gaussian-ES, given $x \\in \\mathcal{R}^n$:\nInitialize $\\theta = \\theta^{(0)}$ and the generation counter $t=0$ Generate the offspring population of size $\\Lambda$ by sampling from the Gaussian distribution:$D^{(t+1)}=\\{ x^{(t+1)}_i \\mid x^{(t+1)}_i = \\mu^{(t)} + \\sigma^{(t)} y^{(t+1)}_i \\text{ where } y^{(t+1)}_i \\sim \\mathcal{N}(x \\vert 0, \\mathbf{I}),;i = 1, \\dots, \\Lambda\\}$. Select a top subset of $\\lambda$ samples with optimal $f(x_i)$ and this subset is called elite set. Without loss of generality, we may consider the first $k$ samples in $D^{(t+1)}$ to belong to the elite group — Let’s label them as $$ D^{(t+1)}\\_\\text{elite} = \\\\{x^{(t+1)}\\_i \\mid x^{(t+1)}\\_i \\in D^{(t+1)}, i=1,\\dots, \\lambda, \\lambda\\leq \\Lambda\\\\} $$ Then we estimate the new mean and std for the next generation using the elite set: $$ \\begin{aligned} \\mu^{(t+1)} \u0026= \\text{avg}(D^{(t+1)}_\\text{elite}) = \\frac{1}{\\lambda}\\sum_{i=1}^\\lambda x_i^{(t+1)} \\\\ {\\sigma^{(t+1)}}^2 \u0026= \\text{var}(D^{(t+1)}_\\text{elite}) = \\frac{1}{\\lambda}\\sum_{i=1}^\\lambda (x_i^{(t+1)} -\\mu^{(t)})^2 \\end{aligned} $$ Repeat steps (2)-(4) until the result is good enough ✌️ Covariance Matrix Adaptation Evolution Strategies (CMA-ES) The standard deviation $\\sigma$ accounts for the level of exploration: the larger $\\sigma$ the bigger search space we can sample our offspring population. In vanilla ES, $\\sigma^{(t+1)}$ is highly correlated with $\\sigma^{(t)}$, so the algorithm is not able to rapidly adjust the exploration space when needed (i.e. when the confidence level changes).\nCMA-ES, short for “Covariance Matrix Adaptation Evolution Strategy”, fixes the problem by tracking pairwise dependencies between the samples in the distribution with a covariance matrix $C$. The new distribution parameter becomes:\n$$ \\theta = (\\mu, \\sigma, C),\\; p_\\theta(x) \\sim \\mathcal{N}(\\mu, \\sigma^2 C) \\sim \\mu + \\sigma \\mathcal{N}(0, C) $$ where $\\sigma$ controls for the overall scale of the distribution, often known as step size.\nBefore we dig into how the parameters are updated in CMA-ES, it is better to review how the covariance matrix works in the multivariate Gaussian distribution first. As a real symmetric matrix, the covariance matrix $C$ has the following nice features (See proof \u0026 proof):\nIt is always diagonalizable. Always positive semi-definite. All of its eigenvalues are real non-negative numbers. All of its eigenvectors are orthogonal. There is an orthonormal basis of $\\mathbb{R}^n$ consisting of its eigenvectors. Let the matrix $C$ have an orthonormal basis of eigenvectors $B = [b_1, \\dots, b_n]$, with corresponding eigenvalues $\\lambda_1^2, \\dots, \\lambda_n^2$. Let $D=\\text{diag}(\\lambda_1, \\dots, \\lambda_n)$.\n$$ C = B^\\top D^2 B = \\begin{bmatrix} \\mid \u0026 \\mid \u0026 \u0026 \\mid \\\\ b_1 \u0026 b_2 \u0026 \\dots \u0026 b_n\\\\ \\mid \u0026 \\mid \u0026 \u0026 \\mid \\\\ \\end{bmatrix} \\begin{bmatrix} \\lambda_1^2 \u0026 0 \u0026 \\dots \u0026 0 \\\\ 0 \u0026 \\lambda_2^2 \u0026 \\dots \u0026 0 \\\\ \\vdots \u0026 \\dots \u0026 \\ddots \u0026 \\vdots \\\\ 0 \u0026 \\dots \u0026 0 \u0026 \\lambda_n^2 \\end{bmatrix} \\begin{bmatrix} - \u0026 b_1 \u0026 - \\\\ - \u0026 b_2 \u0026 - \\\\ \u0026 \\dots \u0026 \\\\ - \u0026 b_n \u0026 - \\\\ \\end{bmatrix} $$ The square root of $C$ is:\n$$ C^{\\frac{1}{2}} = B^\\top D B $$ Symbol Meaning $x_i^{(t)} \\in \\mathbb{R}^n$ the $i$-th samples at the generation (t) $y_i^{(t)} \\in \\mathbb{R}^n$ $x_i^{(t)} = \\mu^{(t-1)} + \\sigma^{(t-1)} y_i^{(t)} $ $\\mu^{(t)}$ mean of the generation (t) $\\sigma^{(t)}$ step size $C^{(t)}$ covariance matrix $B^{(t)}$ a matrix of $C$’s eigenvectors as row vectors $D^{(t)}$ a diagonal matrix with $C$’s eigenvalues on the diagnose. $p_\\sigma^{(t)}$ evaluation path for $\\sigma$ at the generation (t) $p_c^{(t)}$ evaluation path for $C$ at the generation (t) $\\alpha_\\mu$ learning rate for $\\mu$’s update $\\alpha_\\sigma$ learning rate for $p_\\sigma$ $d_\\sigma$ damping factor for $\\sigma$’s update $\\alpha_{cp}$ learning rate for $p_c$ $\\alpha_{c\\lambda}$ learning rate for $C$’s rank-min(λ, n) update $\\alpha_{c1}$ learning rate for $C$’s rank-1 update Updating the Mean $$ \\mu^{(t+1)} = \\mu^{(t)} + \\alpha_\\mu \\frac{1}{\\lambda}\\sum_{i=1}^\\lambda (x_i^{(t+1)} - \\mu^{(t)}) $$ CMA-ES has a learning rate $\\alpha_\\mu \\leq 1$ to control how fast the mean $\\mu$ should be updated. Usually it is set to 1 and thus the equation becomes the same as in vanilla ES, $\\mu^{(t+1)} = \\frac{1}{\\lambda}\\sum_{i=1}^\\lambda (x_i^{(t+1)}$.\nControlling the Step Size The sampling process can be decoupled from the mean and standard deviation:\n$$ x^{(t+1)}_i = \\mu^{(t)} + \\sigma^{(t)} y^{(t+1)}_i \\text{, where } y^{(t+1)}_i = \\frac{x_i^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\sim \\mathcal{N}(0, C) $$ The parameter $\\sigma$ controls the overall scale of the distribution. It is separated from the covariance matrix so that we can change steps faster than the full covariance. A larger step size leads to faster parameter update. In order to evaluate whether the current step size is proper, CMA-ES constructs an evolution path $p_\\sigma$ by summing up a consecutive sequence of moving steps, $\\frac{1}{\\lambda}\\sum_{i}^\\lambda y_i^{(j)}, j=1, \\dots, t$. By comparing this path length with its expected length under random selection (meaning single steps are uncorrelated), we are able to adjust $\\sigma$ accordingly (See Fig. 2).\nThree scenarios of how single steps are correlated in different ways and their impacts on step size update. (Image source: additional annotations on Fig 5 in CMA-ES tutorial paper) Each time the evolution path is updated with the average of moving step $y_i$ in the same generation.\n$$ \\begin{aligned} \u0026\\frac{1}{\\lambda}\\sum_{i=1}^\\lambda y_i^{(t+1)} = \\frac{1}{\\lambda} \\frac{\\sum_{i=1}^\\lambda x_i^{(t+1)} - \\lambda \\mu^{(t)}}{\\sigma^{(t)}} = \\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\\\ \u0026\\frac{1}{\\lambda}\\sum_{i=1}^\\lambda y_i^{(t+1)} \\sim \\frac{1}{\\lambda}\\mathcal{N}(0, \\lambda C^{(t)}) \\sim \\frac{1}{\\sqrt{\\lambda}}{C^{(t)}}^{\\frac{1}{2}}\\mathcal{N}(0, I) \\\\ \u0026\\text{Thus } \\sqrt{\\lambda}\\;{C^{(t)}}^{-\\frac{1}{2}} \\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\sim \\mathcal{N}(0, I) \\end{aligned} $$ By multiplying with $C^{-\\frac{1}{2}}$, the evolution path is transformed to be independent of its direction. The term ${C^{(t)}}^{-\\frac{1}{2}} = {B^{(t)}}^\\top {D^{(t)}}^{-\\frac{1}{2}} {B^{(t)}}$ transformation works as follows:\n${B^{(t)}}$ contains row vectors of $C$’s eigenvectors. It projects the original space onto the perpendicular principal axes. Then ${D^{(t)}}^{-\\frac{1}{2}} = \\text{diag}(\\frac{1}{\\lambda_1}, \\dots, \\frac{1}{\\lambda_n})$ scales the length of principal axes to be equal. ${B^{(t)}}^\\top$ transforms the space back to the original coordinate system. In order to assign higher weights to recent generations, we use polyak averaging to update the evolution path with learning rate $\\alpha_\\sigma$. Meanwhile, the weights are balanced so that $p_\\sigma$ is conjugate, $\\sim \\mathcal{N}(0, I)$ both before and after one update.\n$$ \\begin{aligned} p_\\sigma^{(t+1)} \u0026 = (1 - \\alpha_\\sigma) p_\\sigma^{(t)} + \\sqrt{1 - (1 - \\alpha_\\sigma)^2}\\;\\sqrt{\\lambda}\\; {C^{(t)}}^{-\\frac{1}{2}} \\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\\\ \u0026 = (1 - \\alpha_\\sigma) p_\\sigma^{(t)} + \\sqrt{c_\\sigma (2 - \\alpha_\\sigma)\\lambda}\\;{C^{(t)}}^{-\\frac{1}{2}} \\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\end{aligned} $$ The expected length of $p_\\sigma$ under random selection is $\\mathbb{E}|\\mathcal{N}(0,I)|$, that is the expectation of the L2-norm of a $\\mathcal{N}(0,I)$ random variable. Following the idea in Fig. 2, we adjust the step size according to the ratio of $|p_\\sigma^{(t+1)}| / \\mathbb{E}|\\mathcal{N}(0,I)|$:\n$$ \\begin{aligned} \\ln\\sigma^{(t+1)} \u0026= \\ln\\sigma^{(t)} + \\frac{\\alpha_\\sigma}{d_\\sigma} \\Big(\\frac{\\|p_\\sigma^{(t+1)}\\|}{\\mathbb{E}\\|\\mathcal{N}(0,I)\\|} - 1\\Big) \\\\ \\sigma^{(t+1)} \u0026= \\sigma^{(t)} \\exp\\Big(\\frac{\\alpha_\\sigma}{d_\\sigma} \\Big(\\frac{\\|p_\\sigma^{(t+1)}\\|}{\\mathbb{E}\\|\\mathcal{N}(0,I)\\|} - 1\\Big)\\Big) \\end{aligned} $$ where $d_\\sigma \\approx 1$ is a damping parameter, scaling how fast $\\ln\\sigma$ should be changed.\nAdapting the Covariance Matrix For the covariance matrix, it can be estimated from scratch using $y_i$ of elite samples (recall that $y_i \\sim \\mathcal{N}(0, C)$):\n$$ C_\\lambda^{(t+1)} = \\frac{1}{\\lambda}\\sum_{i=1}^\\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\\top = \\frac{1}{\\lambda {\\sigma^{(t)}}^2} \\sum_{i=1}^\\lambda (x_i^{(t+1)} - \\mu^{(t)})(x_i^{(t+1)} - \\mu^{(t)})^\\top $$ The above estimation is only reliable when the selected population is large enough. However, we do want to run fast iteration with a small population of samples in each generation. That’s why CMA-ES invented a more reliable but also more complicated way to update $C$. It involves two independent routes,\nRank-min(λ, n) update: uses the history of $\\{C_\\lambda\\}$, each estimated from scratch in one generation. Rank-one update: estimates the moving steps $y_i$ and the sign information from the history. The first route considers the estimation of $C$ from the entire history of $\\{C_\\lambda\\}$. For example, if we have experienced a large number of generations, $C^{(t+1)} \\approx \\text{avg}(C_\\lambda^{(i)}; i=1,\\dots,t)$ would be a good estimator. Similar to $p_\\sigma$, we also use polyak averaging with a learning rate to incorporate the history:\n$$ C^{(t+1)} = (1 - \\alpha_{c\\lambda}) C^{(t)} + \\alpha_{c\\lambda} C_\\lambda^{(t+1)} = (1 - \\alpha_{c\\lambda}) C^{(t)} + \\alpha_{c\\lambda} \\frac{1}{\\lambda} \\sum_{i=1}^\\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\\top $$ A common choice for the learning rate is $\\alpha_{c\\lambda} \\approx \\min(1, \\lambda/n^2)$.\nThe second route tries to solve the issue that $y_i{y_i}^\\top = (-y_i)(-y_i)^\\top$ loses the sign information. Similar to how we adjust the step size $\\sigma$, an evolution path $p_c$ is used to track the sign information and it is constructed in a way that $p_c$ is conjugate, $\\sim \\mathcal{N}(0, C)$ both before and after a new generation.\nWe may consider $p_c$ as another way to compute $\\text{avg}_i(y_i)$ (notice that both $\\sim \\mathcal{N}(0, C)$) while the entire history is used and the sign information is maintained. Note that we’ve known $\\sqrt{k}\\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\sim \\mathcal{N}(0, C)$ in the last section,\n$$ \\begin{aligned} p_c^{(t+1)} \u0026= (1-\\alpha_{cp}) p_c^{(t)} + \\sqrt{1 - (1-\\alpha_{cp})^2}\\;\\sqrt{\\lambda}\\;\\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\\\ \u0026= (1-\\alpha_{cp}) p_c^{(t)} + \\sqrt{\\alpha_{cp}(2 - \\alpha_{cp})\\lambda}\\;\\frac{\\mu^{(t+1)} - \\mu^{(t)}}{\\sigma^{(t)}} \\end{aligned} $$ Then the covariance matrix is updated according to $p_c$:\n$$ C^{(t+1)} = (1-\\alpha_{c1}) C^{(t)} + \\alpha_{c1}\\;p_c^{(t+1)} {p_c^{(t+1)}}^\\top $$ The rank-one update approach is claimed to generate a significant improvement over the rank-min(λ, n)-update when $k$ is small, because the signs of moving steps and correlations between consecutive steps are all utilized and passed down through generations.\nEventually we combine two approaches together,\n$$ C^{(t+1)} = (1 - \\alpha_{c\\lambda} - \\alpha_{c1}) C^{(t)} + \\alpha_{c1}\\;\\underbrace{p_c^{(t+1)} {p_c^{(t+1)}}^\\top}_\\textrm{rank-one update} + \\alpha_{c\\lambda} \\underbrace{\\frac{1}{\\lambda} \\sum_{i=1}^\\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\\top}_\\textrm{rank-min(lambda, n) update} $$ In all my examples above, each elite sample is considered to contribute an equal amount of weights, $1/\\lambda$. The process can be easily extended to the case where selected samples are assigned with different weights, $w_1, \\dots, w_\\lambda$, according to their performances. See more detail in tutorial.\nIllustration of how CMA-ES works on a 2D optimization problem (the lighter color the better). Black dots are samples in one generation. The samples are more spread out initially but when the model has higher confidence in finding a good solution in the late stage, the samples become very concentrated over the global optimum. (Image source: Wikipedia CMA-ES) Natural Evolution Strategies Natural Evolution Strategies (NES; Wierstra, et al, 2008) optimizes in a search distribution of parameters and moves the distribution in the direction of high fitness indicated by the natural gradient.\nNatural Gradients Given an objective function $\\mathcal{J}(\\theta)$ parameterized by $\\theta$, let’s say our goal is to find the optimal $\\theta$ to maximize the objective function value. A plain gradient finds the steepest direction within a small Euclidean distance from the current $\\theta$; the distance restriction is applied on the parameter space. In other words, we compute the plain gradient with respect to a small change of the absolute value of $\\theta$. The optimal step is:\n$$ d^{*} = \\operatorname*{argmax}_{\\|d\\| = \\epsilon} \\mathcal{J}(\\theta + d)\\text{, where }\\epsilon \\to 0 $$ Differently, natural gradient works with a probability distribution space parameterized by $\\theta$, $p_\\theta(x)$ (referred to as “search distribution” in NES paper). It looks for the steepest direction within a small step in the distribution space where the distance is measured by KL divergence. With this constraint we ensure that each update is moving along the distributional manifold with constant speed, without being slowed down by its curvature.\n$$ d^{*}_\\text{N} = \\operatorname*{argmax}_{\\text{KL}[p_\\theta \\| p_{\\theta+d}] = \\epsilon} \\mathcal{J}(\\theta + d) $$ Estimation using Fisher Information Matrix But, how to compute $\\text{KL}[p_\\theta | p_{\\theta+\\Delta\\theta}]$ precisely? By running Taylor expansion of $\\log p_{\\theta + d}$ at $\\theta$, we get:\n$$ \\begin{aligned} \u0026 \\text{KL}[p_\\theta \\| p_{\\theta+d}] \\\\ \u0026= \\mathbb{E}_{x \\sim p_\\theta} [\\log p_\\theta(x) - \\log p_{\\theta+d}(x)] \u0026 \\\\ \u0026\\approx \\mathbb{E}_{x \\sim p_\\theta} [ \\log p_\\theta(x) -( \\log p_{\\theta}(x) + \\nabla_\\theta \\log p_{\\theta}(x) d + \\frac{1}{2}d^\\top \\nabla^2_\\theta \\log p_{\\theta}(x) d)] \u0026 \\scriptstyle{\\text{; Taylor expand }\\log p_{\\theta+d}} \\\\ \u0026\\approx - \\mathbb{E}_x [\\nabla_\\theta \\log p_{\\theta}(x)] d - \\frac{1}{2}d^\\top \\mathbb{E}_x [\\nabla^2_\\theta \\log p_{\\theta}(x)] d \u0026 \\end{aligned} $$ where\n$$ \\begin{aligned} \\mathbb{E}_x [\\nabla_\\theta \\log p_{\\theta}] d \u0026= \\int_{x\\sim p_\\theta} p_\\theta(x) \\nabla_\\theta \\log p_\\theta(x) \u0026 \\\\ \u0026= \\int_{x\\sim p_\\theta} p_\\theta(x) \\frac{1}{p_\\theta(x)} \\nabla_\\theta p_\\theta(x) \u0026 \\\\ \u0026= \\nabla_\\theta \\Big( \\int_{x} p_\\theta(x) \\Big) \u0026 \\scriptstyle{\\textrm{; note that }p_\\theta(x)\\textrm{ is probability distribution.}} \\\\ \u0026= \\nabla_\\theta (1) = 0 \\end{aligned} $$ Finally we have,\n$$ \\text{KL}[p_\\theta \\| p_{\\theta+d}] = - \\frac{1}{2}d^\\top \\mathbf{F}_\\theta d \\text{, where }\\mathbf{F}_\\theta = \\mathbb{E}_x [(\\nabla_\\theta \\log p_{\\theta}) (\\nabla_\\theta \\log p_{\\theta})^\\top] $$ where $\\mathbf{F}_\\theta$ is called the Fisher Information Matrix and it is the covariance matrix of $\\nabla_\\theta \\log p_\\theta$ since $\\mathbb{E}[\\nabla_\\theta \\log p_\\theta] = 0$.\nThe solution to the following optimization problem:\n$$ \\max \\mathcal{J}(\\theta + d) \\approx \\max \\big( \\mathcal{J}(\\theta) + {\\nabla_\\theta\\mathcal{J}(\\theta)}^\\top d \\big)\\;\\text{ s.t. }\\text{KL}[p_\\theta \\| p_{\\theta+d}] - \\epsilon = 0 $$ can be found using a Lagrangian multiplier,\n$$ \\begin{aligned} \\mathcal{L}(\\theta, d, \\beta) \u0026= \\mathcal{J}(\\theta) + \\nabla_\\theta\\mathcal{J}(\\theta)^\\top d - \\beta (\\frac{1}{2}d^\\top \\mathbf{F}_\\theta d + \\epsilon) = 0 \\text{ s.t. } \\beta \u003e 0 \\\\ \\nabla_d \\mathcal{L}(\\theta, d, \\beta) \u0026= \\nabla_\\theta\\mathcal{J}(\\theta) - \\beta\\mathbf{F}_\\theta d = 0 \\\\ \\text{Thus } d_\\text{N}^* \u0026= \\nabla_\\theta^\\text{N} \\mathcal{J}(\\theta) = \\mathbf{F}_\\theta^{-1} \\nabla_\\theta\\mathcal{J}(\\theta) \\end{aligned} $$ where $d_\\text{N}^*$ only extracts the direction of the optimal moving step on $\\theta$, ignoring the scalar $\\beta^{-1}$.\nThe natural gradient samples (black solid arrows) in the right are the plain gradient samples (black solid arrows) in the left multiplied by the inverse of their covariance. In this way, a gradient direction with high uncertainty (indicated by high covariance with other samples) are penalized with a small weight. The aggregated natural gradient (red dash arrow) is therefore more trustworthy than the natural gradient (green solid arrow). (Image source: additional annotations on Fig 2 in NES paper) NES Algorithm The fitness associated with one sample is labeled as $f(x)$ and the search distribution over $x$ is parameterized by $\\theta$. NES is expected to optimize the parameter $\\theta$ to achieve maximum expected fitness:\n$$ \\mathcal{J}(\\theta) = \\mathbb{E}_{x\\sim p_\\theta(x)} [f(x)] = \\int_x f(x) p_\\theta(x) dx $$ Using the same log-likelihood trick in REINFORCE:\n$$ \\begin{aligned} \\nabla_\\theta\\mathcal{J}(\\theta) \u0026= \\nabla_\\theta \\int_x f(x) p_\\theta(x) dx \\\\ \u0026= \\int_x f(x) \\frac{p_\\theta(x)}{p_\\theta(x)}\\nabla_\\theta p_\\theta(x) dx \\\\ \u0026 = \\int_x f(x) p_\\theta(x) \\nabla_\\theta \\log p_\\theta(x) dx \\\\ \u0026 = \\mathbb{E}_{x \\sim p_\\theta} [f(x) \\nabla_\\theta \\log p_\\theta(x)] \\end{aligned} $$ Besides natural gradients, NES adopts a couple of important heuristics to make the algorithm performance more robust.\nNES applies rank-based fitness shaping, that is to use the rank under monotonically increasing fitness values instead of using $f(x)$ directly. Or it can be a function of the rank (“utility function”), which is considered as a free parameter of NES. NES adopts adaptation sampling to adjust hyperparameters at run time. When changing $\\theta \\to \\theta’$, samples drawn from $p_\\theta$ are compared with samples from $p_{\\theta’}$ using [Mann-Whitney U-test(https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test)]; if there shows a positive or negative sign, the target hyperparameter decreases or increases by a multiplication constant. Note the score of a sample $x’_i \\sim p_{\\theta’}(x)$ has importance sampling weights applied $w_i’ = p_\\theta(x) / p_{\\theta’}(x)$. Applications: ES in Deep Reinforcement Learning OpenAI ES for RL The concept of using evolutionary algorithms in reinforcement learning can be traced back long ago, but only constrained to tabular RL due to computational limitations.\nInspired by NES, researchers at OpenAI (Salimans, et al. 2017) proposed to use NES as a gradient-free black-box optimizer to find optimal policy parameters $\\theta$ that maximizes the return function $F(\\theta)$. The key is to add Gaussian noise $\\epsilon$ on the model parameter $\\theta$ and then use the log-likelihood trick to write it as the gradient of the Gaussian pdf. Eventually only the noise term is left as a weighting scalar for measured performance.\nLet’s say the current parameter value is $\\hat{\\theta}$ (the added hat is to distinguish the value from the random variable $\\theta$). The search distribution of $\\theta$ is designed to be an isotropic multivariate Gaussian with a mean $\\hat{\\theta}$ and a fixed covariance matrix $\\sigma^2 I$,\n$$ \\theta \\sim \\mathcal{N}(\\hat{\\theta}, \\sigma^2 I) \\text{ equivalent to } \\theta = \\hat{\\theta} + \\sigma\\epsilon, \\epsilon \\sim \\mathcal{N}(0, I) $$ The gradient for $\\theta$ update is:\n$$ \\begin{aligned} \u0026 \\nabla_\\theta \\mathbb{E}_{\\theta\\sim\\mathcal{N}(\\hat{\\theta}, \\sigma^2 I)} F(\\theta) \\\\ \u0026= \\nabla_\\theta \\mathbb{E}_{\\epsilon\\sim\\mathcal{N}(0, I)} F(\\hat{\\theta} + \\sigma\\epsilon) \\\\ \u0026= \\nabla_\\theta \\int_{\\epsilon} p(\\epsilon) F(\\hat{\\theta} + \\sigma\\epsilon) d\\epsilon \u0026 \\scriptstyle{\\text{; Gaussian }p(\\epsilon)=(2\\pi)^{-\\frac{n}{2}} \\exp(-\\frac{1}{2}\\epsilon^\\top\\epsilon)} \\\\ \u0026= \\int_{\\epsilon} p(\\epsilon) \\nabla_\\epsilon \\log p(\\epsilon) \\nabla_\\theta \\epsilon\\;F(\\hat{\\theta} + \\sigma\\epsilon) d\\epsilon \u0026 \\scriptstyle{\\text{; log-likelihood trick}}\\\\ \u0026= \\mathbb{E}_{\\epsilon\\sim\\mathcal{N}(0, I)} [ \\nabla_\\epsilon \\big(-\\frac{1}{2}\\epsilon^\\top\\epsilon\\big) \\nabla_\\theta \\big(\\frac{\\theta - \\hat{\\theta}}{\\sigma}\\big) F(\\hat{\\theta} + \\sigma\\epsilon) ] \u0026 \\\\ \u0026= \\mathbb{E}_{\\epsilon\\sim\\mathcal{N}(0, I)} [ (-\\epsilon) (\\frac{1}{\\sigma}) F(\\hat{\\theta} + \\sigma\\epsilon) ] \u0026 \\\\ \u0026= \\frac{1}{\\sigma}\\mathbb{E}_{\\epsilon\\sim\\mathcal{N}(0, I)} [ \\epsilon F(\\hat{\\theta} + \\sigma\\epsilon) ] \u0026 \\scriptstyle{\\text{; negative sign can be absorbed.}} \\end{aligned} $$ In one generation, we can sample many $epsilon_i, i=1,\\dots,n$ and evaluate the fitness in parallel. One beautiful design is that no large model parameter needs to be shared. By only communicating the random seeds between workers, it is enough for the master node to do parameter update. This approach is later extended to adaptively learn a loss function; see my previous post on Evolved Policy Gradient.\nThe algorithm for training a RL policy using evolution strategies. (Image source: ES-for-RL paper) To make the performance more robust, OpenAI ES adopts virtual batch normalization (BN with mini-batch used for calculating statistics fixed), mirror sampling (sampling a pair of $(-\\epsilon, \\epsilon)$ for evaluation), and fitness shaping.\nExploration with ES Exploration (vs exploitation) is an important topic in RL. The optimization direction in the ES algorithm above is only extracted from the cumulative return $F(\\theta)$. Without explicit exploration, the agent might get trapped in a local optimum.\nNovelty-Search ES (NS-ES; Conti et al, 2018) encourages exploration by updating the parameter in the direction to maximize the novelty score. The novelty score depends on a domain-specific behavior characterization function $b(\\pi_\\theta)$. The choice of $b(\\pi_\\theta)$ is specific to the task and seems to be a bit arbitrary; for example, in the Humanoid locomotion task in the paper, $b(\\pi_\\theta)$ is the final $(x,y)$ location of the agent.\nEvery policy’s $b(\\pi_\\theta)$ is pushed to an archive set $\\mathcal{A}$. Novelty of a policy $\\pi_\\theta$ is measured as the k-nearest neighbor score between $b(\\pi_\\theta)$ and all other entries in $\\mathcal{A}$. (The use case of the archive set sounds quite similar to episodic memory.) $$ N(\\theta, \\mathcal{A}) = \\frac{1}{\\lambda} \\sum_{i=1}^\\lambda \\| b(\\pi_\\theta), b^\\text{knn}_i \\|_2 \\text{, where }b^\\text{knn}_i \\in \\text{kNN}(b(\\pi_\\theta), \\mathcal{A}) $$ The ES optimization step relies on the novelty score instead of fitness:\n$$ \\nabla_\\theta \\mathbb{E}_{\\theta\\sim\\mathcal{N}(\\hat{\\theta}, \\sigma^2 I)} N(\\theta, \\mathcal{A}) = \\frac{1}{\\sigma}\\mathbb{E}_{\\epsilon\\sim\\mathcal{N}(0, I)} [ \\epsilon N(\\hat{\\theta} + \\sigma\\epsilon, \\mathcal{A}) ] $$ NS-ES maintains a group of $M$ independently trained agents (“meta-population”), $\\mathcal{M} = \\{\\theta_1, \\dots, \\theta_M \\}$ and picks one to advance proportional to the novelty score. Eventually we select the best policy. This process is equivalent to ensembling; also see the same idea in SVPG.\n$$ \\begin{aligned} m \u0026\\leftarrow \\text{pick } i=1,\\dots,M\\text{ according to probability}\\frac{N(\\theta_i, \\mathcal{A})}{\\sum_{j=1}^M N(\\theta_j, \\mathcal{A})} \\\\ \\theta_m^{(t+1)} \u0026\\leftarrow \\theta_m^{(t)} + \\alpha \\frac{1}{\\sigma}\\sum_{i=1}^N \\epsilon_i N(\\theta^{(t)}_m + \\epsilon_i, \\mathcal{A}) \\text{ where }\\epsilon_i \\sim \\mathcal{N}(0, I) \\end{aligned} $$ where $N$ is the number of Gaussian perturbation noise vectors and $\\alpha$ is the learning rate.\nNS-ES completely discards the reward function and only optimizes for novelty to avoid deceptive local optima. To incorporate the fitness back into the formula, another two variations are proposed.\nNSR-ES:\n$$ \\theta_m^{(t+1)} \\leftarrow \\theta_m^{(t)} + \\alpha \\frac{1}{\\sigma}\\sum_{i=1}^N \\epsilon_i \\frac{N(\\theta^{(t)}_m + \\epsilon_i, \\mathcal{A}) + F(\\theta^{(t)}_m + \\epsilon_i)}{2} $$ NSRAdapt-ES (NSRA-ES): the adaptive weighting parameter $w = 1.0$ initially. We start decreasing $w$ if performance stays flat for a number of generations. Then when the performance starts to increase, we stop decreasing $w$ but increase it instead. In this way, fitness is preferred when the performance stops growing but novelty is preferred otherwise.\n$$ \\theta_m^{(t+1)} \\leftarrow \\theta_m^{(t)} + \\alpha \\frac{1}{\\sigma}\\sum_{i=1}^N \\epsilon_i \\big((1-w) N(\\theta^{(t)}_m + \\epsilon_i, \\mathcal{A}) + w F(\\theta^{(t)}_m + \\epsilon_i)\\big) $$ (Left) The environment is Humanoid locomotion with a three-sided wall which plays a role as a deceptive trap to create local optimum. (Right) Experiments compare ES baseline and other variations that encourage exploration. (Image source: NS-ES paper) CEM-RL Architectures of the (a) CEM-RL and (b) ERL algorithms (Image source: CEM-RL paper) The CEM-RL method (Pourchot \u0026 Sigaud, 2019) combines Cross Entropy Method (CEM) with either DDPG or TD3. CEM here works pretty much the same as the simple Gaussian ES described above and therefore the same function can be replaced using CMA-ES. CEM-RL is built on the framework of Evolutionary Reinforcement Learning (ERL; Khadka \u0026 Tumer, 2018) in which the standard EA algorithm selects and evolves a population of actors and the rollout experience generated in the process is then added into reply buffer for training both RL-actor and RL-critic networks.\nWorkflow:\nThe mean actor of the CEM population is $\\pi_\\mu$ is initialized with a random actor network. The critic network $Q$ is initialized too, which will be updated by DDPG/TD3. Repeat until happy: a. Sample a population of actors $\\sim \\mathcal{N}(\\pi_\\mu, \\Sigma)$. b. Half of the population is evaluated. Their fitness scores are used as the cumulative reward $R$ and added into replay buffer. c. The other half are updated together with the critic. d. The new $\\pi_mu$ and $\\Sigma$ is computed using top performing elite samples. CMA-ES can be used for parameter update too. Extension: EA in Deep Learning (This section is not on evolution strategies, but still an interesting and relevant reading.)\nThe Evolutionary Algorithms have been applied on many deep learning problems. POET (Wang et al, 2019) is a framework based on EA and attempts to generate a variety of different tasks while the problems themselves are being solved. POET has been introduced in my last post on meta-RL. Evolutionary Reinforcement Learning (ERL) is another example; See Fig. 7 (b).\nBelow I would like to introduce two applications in more detail, Population-Based Training (PBT) and Weight-Agnostic Neural Networks (WANN).\nHyperparameter Tuning: PBT Paradigms of comparing different ways of hyperparameter tuning. (Image source: PBT paper) Population-Based Training (Jaderberg, et al, 2017), short for PBT applies EA on the problem of hyperparameter tuning. It jointly trains a population of models and corresponding hyperparameters for optimal performance.\nPBT starts with a set of random candidates, each containing a pair of model weights initialization and hyperparameters, $\\{(\\theta_i, h_i)\\mid i=1, \\dots, N\\}$. Every sample is trained in parallel and asynchronously evaluates its own performance periodically. Whenever a member deems ready (i.e. after taking enough gradient update steps, or when the performance is good enough), it has a chance to be updated by comparing with the whole population:\nexploit(): When this model is under-performing, the weights could be replaced with a better performing model. explore(): If the model weights are overwritten, explore step perturbs the hyperparameters with random noise. In this process, only promising model and hyperparameter pairs can survive and keep on evolving, achieving better utilization of computational resources.\nThe algorithm of population-based training. (Image source: PBT paper) Network Topology Optimization: WANN Weight Agnostic Neural Networks (short for WANN; Gaier \u0026 Ha 2019) experiments with searching for the smallest network topologies that can achieve the optimal performance without training the network weights. By not considering the best configuration of network weights, WANN puts much more emphasis on the architecture itself, making the focus different from NAS. WANN is heavily inspired by a classic genetic algorithm to evolve network topologies, called NEAT (“Neuroevolution of Augmenting Topologies”; Stanley \u0026 Miikkulainen 2002).\nThe workflow of WANN looks pretty much the same as standard GA:\nInitialize: Create a population of minimal networks. Evaluation: Test with a range of shared weight values. Rank and Selection: Rank by performance and complexity. Mutation: Create new population by varying best networks. mutation operations for searching for new network topologies in WANN (Image source: WANN paper) At the “evaluation” stage, all the network weights are set to be the same. In this way, WANN is actually searching for network that can be described with a minimal description length. In the “selection” stage, both the network connection and the model performance are considered.\nPerformance of WANN found network topologies on different RL tasks are compared with baseline FF networks commonly used in the literature. \"Tuned Shared Weight\" only requires adjusting one weight value. (Image source: WANN paper) As shown in Fig. 11, WANN results are evaluated with both random weights and shared weights (single weight). It is interesting that even when enforcing weight-sharing on all weights and tuning this single parameter, WANN can discover topologies that achieve non-trivial good performance.\nCited as:\n@article{weng2019ES, title = \"Evolution Strategies\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2019\", url = \"https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/\" } References [1] Nikolaus Hansen. “The CMA Evolution Strategy: A Tutorial” arXiv preprint arXiv:1604.00772 (2016).\n[2] Marc Toussaint. Slides: “Introduction to Optimization”\n[3] David Ha. “A Visual Guide to Evolution Strategies” blog.otoro.net. Oct 2017.\n[4] Daan Wierstra, et al. “Natural evolution strategies.” IEEE World Congress on Computational Intelligence, 2008.\n[5] Agustinus Kristiadi. “Natural Gradient Descent” Mar 2018.\n[6] Razvan Pascanu \u0026 Yoshua Bengio. “Revisiting Natural Gradient for Deep Networks.” arXiv preprint arXiv:1301.3584 (2013).\n[7] Tim Salimans, et al. “Evolution strategies as a scalable alternative to reinforcement learning.” arXiv preprint arXiv:1703.03864 (2017).\n[8] Edoardo Conti, et al. “Improving exploration in evolution strategies for deep reinforcement learning via a population of novelty-seeking agents.” NIPS. 2018.\n[9] Aloïs Pourchot \u0026 Olivier Sigaud. “CEM-RL: Combining evolutionary and gradient-based methods for policy search.” ICLR 2019.\n[10] Shauharda Khadka \u0026 Kagan Tumer. “Evolution-guided policy gradient in reinforcement learning.” NIPS 2018.\n[11] Max Jaderberg, et al. “Population based training of neural networks.” arXiv preprint arXiv:1711.09846 (2017).\n[12] Adam Gaier \u0026 David Ha. “Weight Agnostic Neural Networks.” arXiv preprint arXiv:1906.04358 (2019).\n",
+  "wordCount" : "4578",
+  "inLanguage": "en",
+  "datePublished": "2019-09-05T00:00:00Z",
+  "dateModified": "2019-09-05T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Evolution Strategies
+    </h1>
+    <div class="post-meta">Date: September 5, 2019  |  Estimated Reading Time: 22 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#what-are-evolution-strategies" aria-label="What are Evolution Strategies?">What are Evolution Strategies?</a></li>
+                <li>
+                    <a href="#simple-gaussian-evolution-strategies" aria-label="Simple Gaussian Evolution Strategies">Simple Gaussian Evolution Strategies</a></li>
+                <li>
+                    <a href="#covariance-matrix-adaptation-evolution-strategies-cma-es" aria-label="Covariance Matrix Adaptation Evolution Strategies (CMA-ES)">Covariance Matrix Adaptation Evolution Strategies (CMA-ES)</a><ul>
+                        
+                <li>
+                    <a href="#updating-the-mean" aria-label="Updating the Mean">Updating the Mean</a></li>
+                <li>
+                    <a href="#controlling-the-step-size" aria-label="Controlling the Step Size">Controlling the Step Size</a></li>
+                <li>
+                    <a href="#adapting-the-covariance-matrix" aria-label="Adapting the Covariance Matrix">Adapting the Covariance Matrix</a></li></ul>
+                </li>
+                <li>
+                    <a href="#natural-evolution-strategies" aria-label="Natural Evolution Strategies">Natural Evolution Strategies</a><ul>
+                        
+                <li>
+                    <a href="#natural-gradients" aria-label="Natural Gradients">Natural Gradients</a></li>
+                <li>
+                    <a href="#estimation-using-fisher-information-matrix" aria-label="Estimation using Fisher Information Matrix">Estimation using Fisher Information Matrix</a></li>
+                <li>
+                    <a href="#nes-algorithm" aria-label="NES Algorithm">NES Algorithm</a></li></ul>
+                </li>
+                <li>
+                    <a href="#applications-es-in-deep-reinforcement-learning" aria-label="Applications: ES in Deep Reinforcement Learning">Applications: ES in Deep Reinforcement Learning</a><ul>
+                        
+                <li>
+                    <a href="#openai-es-for-rl" aria-label="OpenAI ES for RL">OpenAI ES for RL</a></li>
+                <li>
+                    <a href="#exploration-with-es" aria-label="Exploration with ES">Exploration with ES</a></li>
+                <li>
+                    <a href="#cem-rl" aria-label="CEM-RL">CEM-RL</a></li></ul>
+                </li>
+                <li>
+                    <a href="#extension-ea-in-deep-learning" aria-label="Extension: EA in Deep Learning">Extension: EA in Deep Learning</a><ul>
+                        
+                <li>
+                    <a href="#hyperparameter-tuning-pbt" aria-label="Hyperparameter Tuning: PBT">Hyperparameter Tuning: PBT</a></li>
+                <li>
+                    <a href="#network-topology-optimization-wann" aria-label="Network Topology Optimization: WANN">Network Topology Optimization: WANN</a></li></ul>
+                </li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Gradient descent is not the only option when learning optimal model parameters. Evolution Strategies (ES)  works out well in the cases where we don't know the precise analytic form of an objective function or cannot compute the gradients directly. This post dives into several classic ES methods, as well as how ES can be used in deep reinforcement learning. -->
+<p>Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function $f(x): \mathbb{R}^n \to \mathbb{R}$, even when you don&rsquo;t know the precise analytic form of $f(x)$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include <a href="https://en.wikipedia.org/wiki/Simulated_annealing">Simulated Annealing</a>, <a href="https://en.wikipedia.org/wiki/Hill_climbing">Hill Climbing</a> and <a href="https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method">Nelder-Mead method</a>.</p>
+<p><strong>Evolution Strategies (ES)</strong> is one type of black-box optimization algorithms, born in the family of <strong>Evolutionary Algorithms (EA)</strong>. In this post, I would dive into a couple of classic ES methods and introduce a few applications of how ES can play a role in deep reinforcement learning.</p>
+<h1 id="what-are-evolution-strategies">What are Evolution Strategies?<a hidden class="anchor" aria-hidden="true" href="#what-are-evolution-strategies">#</a></h1>
+<p>Evolution strategies (ES) belong to the big family of evolutionary algorithms. The optimization targets of ES are vectors of real numbers, $x \in \mathbb{R}^n$.</p>
+<p>Evolutionary algorithms refer to a division of population-based optimization algorithms inspired by <em>natural selection</em>. Natural selection believes that individuals with traits beneficial to their survival can live through generations and pass down the good characteristics to the next generation. Evolution happens by the selection process gradually and the population grows better adapted to the environment.</p>
+<figure>
+	<img src="EA-illustration.png" style="width: 100%;"  />
+	<figcaption>How natural selection works. (Image source: Khan Academy: <a href="https://www.khanacademy.org/science/biology/her/evolution-and-natural-selection/a/darwin-evolution-natural-selection" target="_blank">Darwin, evolution, & natural selection</a>)</figcaption>
+</figure>
+<p>Evolutionary algorithms can be summarized in the following <a href="https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf">format</a> as a general optimization solution:</p>
+<p>Let&rsquo;s say we want to optimize a function $f(x)$ and we are not able to compute gradients directly. But we still can evaluate $f(x)$ given any $x$ and the result is deterministic. Our belief in the probability distribution over $x$ as a good solution to $f(x)$ optimization is $p_\theta(x)$, parameterized by $\theta$. The goal is to find an optimal configuration of $\theta$.</p>
+<blockquote>
+<p>Here given a fixed format of distribution (i.e. Gaussian), the parameter $\theta$ carries  the knowledge about the best solutions and is being iteratively updated across generations.</p>
+</blockquote>
+<p>Starting with an initial value of $\theta$, we can continuously update $\theta$ by looping three steps as follows:</p>
+<ol>
+<li>Generate a population of samples $D = \{(x_i, f(x_i)\}$ where $x_i \sim p_\theta(x)$.</li>
+<li>Evaluate the &ldquo;fitness&rdquo; of samples in $D$.</li>
+<li>Select the best subset of individuals and use them to update $\theta$, generally based on fitness or rank.</li>
+</ol>
+<p>In <strong>Genetic Algorithms (GA)</strong>, another popular subcategory of EA, $x$ is a sequence of binary codes, $x \in \{0, 1\}^n$. While in ES, $x$ is just a vector of real numbers, $x \in \mathbb{R}^n$.</p>
+<h1 id="simple-gaussian-evolution-strategies">Simple Gaussian Evolution Strategies<a hidden class="anchor" aria-hidden="true" href="#simple-gaussian-evolution-strategies">#</a></h1>
+<p><a href="http://blog.otoro.net/2017/10/29/visual-evolution-strategies/">This</a> is the most basic and canonical version of evolution strategies. It models $p_\theta(x)$ as a $n$-dimensional isotropic Gaussian distribution, in which $\theta$ only tracks the mean $\mu$ and standard deviation $\sigma$.</p>
+<div>
+$$
+\theta = (\mu, \sigma),\;p_\theta(x) \sim \mathcal{N}(\mathbf{\mu}, \sigma^2 I) = \mu + \sigma \mathcal{N}(0, I)
+$$
+</div>
+<p>The process of Simple-Gaussian-ES, given $x \in \mathcal{R}^n$:</p>
+<ol>
+<li>Initialize $\theta = \theta^{(0)}$ and the generation counter $t=0$</li>
+<li>Generate the offspring population of size $\Lambda$ by sampling from the Gaussian distribution:<br/><br/>$D^{(t+1)}=\{ x^{(t+1)}_i \mid x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{ where } y^{(t+1)}_i \sim \mathcal{N}(x \vert 0, \mathbf{I}),;i = 1, \dots, \Lambda\}$<br/>.</li>
+<li>Select a top subset of $\lambda$ samples with optimal $f(x_i)$ and this subset is called <strong>elite</strong> set. Without loss of generality, we may consider the first $k$ samples in $D^{(t+1)}$ to belong to the elite group &mdash; Let&rsquo;s label them as</li>
+</ol>
+  <div>
+  $$
+  D^{(t+1)}\_\text{elite} = \\{x^{(t+1)}\_i \mid x^{(t+1)}\_i \in D^{(t+1)}, i=1,\dots, \lambda, \lambda\leq \Lambda\\}
+  $$
+  </div>
+<ol start="4">
+<li>Then we estimate the new mean and std for the next generation using the elite set:<br/><br/></li>
+</ol>
+  <div>
+  $$
+  \begin{aligned}
+  \mu^{(t+1)} &= \text{avg}(D^{(t+1)}_\text{elite}) = \frac{1}{\lambda}\sum_{i=1}^\lambda x_i^{(t+1)} \\
+  {\sigma^{(t+1)}}^2 &= \text{var}(D^{(t+1)}_\text{elite}) = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)} -\mu^{(t)})^2
+  \end{aligned}
+  $$
+  </div>
+<ol start="5">
+<li>Repeat steps (2)-(4) until the result is good enough ✌️</li>
+</ol>
+<h1 id="covariance-matrix-adaptation-evolution-strategies-cma-es">Covariance Matrix Adaptation Evolution Strategies (CMA-ES)<a hidden class="anchor" aria-hidden="true" href="#covariance-matrix-adaptation-evolution-strategies-cma-es">#</a></h1>
+<p>The standard deviation $\sigma$ accounts for the level of exploration: the larger $\sigma$ the bigger search space we can sample our offspring population. In <a href="#simple-gaussian-evolution-strategies">vanilla ES</a>, $\sigma^{(t+1)}$ is highly correlated with $\sigma^{(t)}$, so the algorithm is not able to rapidly adjust the exploration space when needed (i.e. when the confidence level changes).</p>
+<p><a href="https://en.wikipedia.org/wiki/CMA-ES"><strong>CMA-ES</strong></a>, short for <em>&ldquo;Covariance Matrix Adaptation Evolution Strategy&rdquo;</em>, fixes the problem by tracking pairwise dependencies between the samples in the distribution with a covariance matrix $C$. The new distribution parameter becomes:</p>
+<div>
+$$
+\theta = (\mu, \sigma, C),\; p_\theta(x) \sim \mathcal{N}(\mu, \sigma^2 C) \sim \mu + \sigma \mathcal{N}(0, C)
+$$
+</div>
+<p>where $\sigma$ controls for the overall scale of the distribution,  often known as <em>step size</em>.</p>
+<p>Before we dig into how the parameters are updated in CMA-ES, it is better to review how the covariance matrix works in the multivariate Gaussian distribution first. As a real symmetric matrix, the covariance matrix $C$ has the following nice features (See <a href="http://s3.amazonaws.com/mitsloan-php/wp-faculty/sites/30/2016/12/15032137/Symmetric-Matrices-and-Eigendecomposition.pdf">proof</a> &amp; <a href="http://control.ucsd.edu/mauricio/courses/mae280a/lecture11.pdf">proof</a>):</p>
+<ul>
+<li>It is always diagonalizable.</li>
+<li>Always positive semi-definite.</li>
+<li>All of its eigenvalues are real non-negative numbers.</li>
+<li>All of its eigenvectors are orthogonal.</li>
+<li>There is an orthonormal basis of $\mathbb{R}^n$ consisting of its eigenvectors.</li>
+</ul>
+<p>Let the matrix $C$ have an <em>orthonormal</em> basis of eigenvectors $B = [b_1, \dots, b_n]$, with corresponding eigenvalues $\lambda_1^2, \dots, \lambda_n^2$. Let $D=\text{diag}(\lambda_1, \dots, \lambda_n)$.</p>
+<div>
+$$
+C = B^\top D^2 B
+= \begin{bmatrix} 
+\mid & \mid &  & \mid \\
+b_1 & b_2 & \dots & b_n\\
+\mid & \mid &  & \mid \\
+\end{bmatrix}
+\begin{bmatrix}
+\lambda_1^2 & 0 & \dots & 0 \\
+0 & \lambda_2^2 & \dots & 0 \\
+\vdots & \dots & \ddots & \vdots \\
+0 & \dots & 0 & \lambda_n^2
+\end{bmatrix}
+\begin{bmatrix} 
+- & b_1 & - \\
+- & b_2 & - \\
+  & \dots & \\
+- & b_n & - \\
+\end{bmatrix}
+$$
+</div>
+<p>The square root of $C$ is:</p>
+<div>
+$$
+C^{\frac{1}{2}} = B^\top D B
+$$
+</div>
+<table>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$x_i^{(t)} \in \mathbb{R}^n$</td>
+          <td>the $i$-th samples at the generation (t)</td>
+      </tr>
+      <tr>
+          <td>$y_i^{(t)} \in \mathbb{R}^n$</td>
+          <td>$x_i^{(t)} = \mu^{(t-1)} + \sigma^{(t-1)} y_i^{(t)} $</td>
+      </tr>
+      <tr>
+          <td>$\mu^{(t)}$</td>
+          <td>mean of the generation (t)</td>
+      </tr>
+      <tr>
+          <td>$\sigma^{(t)}$</td>
+          <td>step size</td>
+      </tr>
+      <tr>
+          <td>$C^{(t)}$</td>
+          <td>covariance matrix</td>
+      </tr>
+      <tr>
+          <td>$B^{(t)}$</td>
+          <td>a matrix of $C$&rsquo;s eigenvectors as row vectors</td>
+      </tr>
+      <tr>
+          <td>$D^{(t)}$</td>
+          <td>a diagonal matrix with $C$&rsquo;s eigenvalues on the diagnose.</td>
+      </tr>
+      <tr>
+          <td>$p_\sigma^{(t)}$</td>
+          <td>evaluation path for $\sigma$ at the generation (t)</td>
+      </tr>
+      <tr>
+          <td>$p_c^{(t)}$</td>
+          <td>evaluation path for $C$ at the generation (t)</td>
+      </tr>
+      <tr>
+          <td>$\alpha_\mu$</td>
+          <td>learning rate for $\mu$&rsquo;s update</td>
+      </tr>
+      <tr>
+          <td>$\alpha_\sigma$</td>
+          <td>learning rate for $p_\sigma$</td>
+      </tr>
+      <tr>
+          <td>$d_\sigma$</td>
+          <td>damping factor for $\sigma$&rsquo;s update</td>
+      </tr>
+      <tr>
+          <td>$\alpha_{cp}$</td>
+          <td>learning rate for $p_c$</td>
+      </tr>
+      <tr>
+          <td>$\alpha_{c\lambda}$</td>
+          <td>learning rate for $C$&rsquo;s rank-min(λ, n) update</td>
+      </tr>
+      <tr>
+          <td>$\alpha_{c1}$</td>
+          <td>learning rate for $C$&rsquo;s rank-1 update</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="updating-the-mean">Updating the Mean<a hidden class="anchor" aria-hidden="true" href="#updating-the-mean">#</a></h2>
+<div>
+$$
+\mu^{(t+1)} = \mu^{(t)} + \alpha_\mu \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)} - \mu^{(t)})
+$$
+</div>
+<p>CMA-ES has a learning rate $\alpha_\mu \leq 1$ to control how fast the mean $\mu$ should be updated.  Usually it is set to 1 and thus the equation becomes the same as in vanilla ES, $\mu^{(t+1)} = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)}$.</p>
+<h2 id="controlling-the-step-size">Controlling the Step Size<a hidden class="anchor" aria-hidden="true" href="#controlling-the-step-size">#</a></h2>
+<p>The sampling process can be decoupled from the mean and standard deviation:</p>
+<div>
+$$
+x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{, where } y^{(t+1)}_i = \frac{x_i^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)
+$$
+</div>
+<p>The parameter $\sigma$ controls the overall scale of the distribution. It is separated from the covariance matrix so that we can change steps faster than the full covariance. A larger step size leads to faster parameter update. In order to evaluate whether the current step size is proper, CMA-ES constructs an <em>evolution path</em> $p_\sigma$ by summing up a consecutive sequence of moving steps, $\frac{1}{\lambda}\sum_{i}^\lambda y_i^{(j)}, j=1, \dots, t$. By comparing this path length with its expected length under random selection (meaning single steps are uncorrelated), we are able to adjust $\sigma$ accordingly (See Fig. 2).</p>
+<figure>
+	<img src="CMA-ES-step-size-path.png" style="width: 100%;"  />
+	<figcaption>Three scenarios of how single steps are correlated in different ways and their impacts on step size update. (Image source: additional annotations on Fig 5 in <a href="https://arxiv.org/abs/1604.00772" target="_blank">CMA-ES tutorial</a> paper)</figcaption>
+</figure>
+<p>Each time the evolution path is updated with the average of moving step $y_i$ in the same generation.</p>
+<div>
+$$
+\begin{aligned}
+&\frac{1}{\lambda}\sum_{i=1}^\lambda y_i^{(t+1)} 
+= \frac{1}{\lambda} \frac{\sum_{i=1}^\lambda x_i^{(t+1)} - \lambda \mu^{(t)}}{\sigma^{(t)}}
+= \frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \\
+&\frac{1}{\lambda}\sum_{i=1}^\lambda y_i^{(t+1)} 
+\sim \frac{1}{\lambda}\mathcal{N}(0, \lambda C^{(t)}) 
+\sim \frac{1}{\sqrt{\lambda}}{C^{(t)}}^{\frac{1}{2}}\mathcal{N}(0, I) \\
+&\text{Thus } \sqrt{\lambda}\;{C^{(t)}}^{-\frac{1}{2}} \frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, I)
+\end{aligned}
+$$
+</div>
+<blockquote>
+<p>By multiplying with $C^{-\frac{1}{2}}$, the evolution path is transformed to be independent of its direction. The term ${C^{(t)}}^{-\frac{1}{2}} = {B^{(t)}}^\top {D^{(t)}}^{-\frac{1}{2}} {B^{(t)}}$ transformation works as follows:</p>
+</blockquote>
+<ol>
+<li>${B^{(t)}}$ contains row vectors of $C$&rsquo;s eigenvectors. It projects the original space onto the perpendicular principal axes.</li>
+<li>Then ${D^{(t)}}^{-\frac{1}{2}} = \text{diag}(\frac{1}{\lambda_1}, \dots, \frac{1}{\lambda_n})$ scales the length of principal axes to be equal.</li>
+<li>${B^{(t)}}^\top$ transforms the space back to the original coordinate system.</li>
+</ol>
+<p>In order to assign higher weights to recent generations, we use polyak averaging to update the evolution path with learning rate $\alpha_\sigma$. Meanwhile, the weights are balanced so that $p_\sigma$ is <a href="https://en.wikipedia.org/wiki/Conjugate_prior">conjugate</a>, $\sim \mathcal{N}(0, I)$ both before and after one update.</p>
+<div>
+$$
+\begin{aligned}
+p_\sigma^{(t+1)} 
+& = (1 - \alpha_\sigma) p_\sigma^{(t)} + \sqrt{1 - (1 - \alpha_\sigma)^2}\;\sqrt{\lambda}\; {C^{(t)}}^{-\frac{1}{2}} \frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \\
+& = (1 - \alpha_\sigma) p_\sigma^{(t)} + \sqrt{c_\sigma (2 - \alpha_\sigma)\lambda}\;{C^{(t)}}^{-\frac{1}{2}} \frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}}
+\end{aligned}
+$$
+</div>
+<p>The expected length of $p_\sigma$ under random selection is $\mathbb{E}|\mathcal{N}(0,I)|$, that is the expectation of the L2-norm of a $\mathcal{N}(0,I)$ random variable. Following the idea in Fig. 2, we adjust the step size according to the ratio of $|p_\sigma^{(t+1)}| / \mathbb{E}|\mathcal{N}(0,I)|$:</p>
+<div>
+$$
+\begin{aligned}
+\ln\sigma^{(t+1)} &= \ln\sigma^{(t)} + \frac{\alpha_\sigma}{d_\sigma} \Big(\frac{\|p_\sigma^{(t+1)}\|}{\mathbb{E}\|\mathcal{N}(0,I)\|} - 1\Big) \\
+\sigma^{(t+1)} &= \sigma^{(t)} \exp\Big(\frac{\alpha_\sigma}{d_\sigma} \Big(\frac{\|p_\sigma^{(t+1)}\|}{\mathbb{E}\|\mathcal{N}(0,I)\|} - 1\Big)\Big)
+\end{aligned}
+$$
+</div>
+<p>where $d_\sigma \approx 1$ is a damping parameter, scaling how fast $\ln\sigma$ should be changed.</p>
+<h2 id="adapting-the-covariance-matrix">Adapting the Covariance Matrix<a hidden class="anchor" aria-hidden="true" href="#adapting-the-covariance-matrix">#</a></h2>
+<p>For the covariance matrix, it can be estimated from scratch using $y_i$ of elite samples (recall that $y_i \sim \mathcal{N}(0, C)$):</p>
+<div>
+$$
+C_\lambda^{(t+1)} 
+= \frac{1}{\lambda}\sum_{i=1}^\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\top
+= \frac{1}{\lambda {\sigma^{(t)}}^2} \sum_{i=1}^\lambda (x_i^{(t+1)} - \mu^{(t)})(x_i^{(t+1)} - \mu^{(t)})^\top
+$$
+</div>
+<p>The above estimation is only reliable when the selected population is large enough. However, we do want to run <em>fast</em> iteration with a <em>small</em> population of samples in each generation. That&rsquo;s why CMA-ES invented a more reliable but also more complicated way to update $C$. It involves two independent routes,</p>
+<ul>
+<li><em>Rank-min(λ, n) update</em>: uses the history of $\{C_\lambda\}$, each estimated from scratch in one generation.</li>
+<li><em>Rank-one update</em>: estimates the moving steps $y_i$ and the sign information from the history.</li>
+</ul>
+<p>The first route considers the estimation of $C$ from the entire history of $\{C_\lambda\}$. For example, if we have experienced a large number of generations, $C^{(t+1)} \approx \text{avg}(C_\lambda^{(i)}; i=1,\dots,t)$ would be a good estimator. Similar to $p_\sigma$, we also use polyak averaging with a learning rate to incorporate the history:</p>
+<div>
+$$
+C^{(t+1)} 
+= (1 - \alpha_{c\lambda}) C^{(t)} + \alpha_{c\lambda} C_\lambda^{(t+1)}
+= (1 - \alpha_{c\lambda}) C^{(t)} + \alpha_{c\lambda} \frac{1}{\lambda} \sum_{i=1}^\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\top
+$$
+</div>
+<p>A common choice for the learning rate is $\alpha_{c\lambda} \approx \min(1, \lambda/n^2)$.</p>
+<p>The second route tries to solve the issue that $y_i{y_i}^\top = (-y_i)(-y_i)^\top$ loses the sign information. Similar to how we adjust the step size $\sigma$, an evolution path $p_c$ is used to track the sign information and it is constructed in a way that $p_c$ is conjugate, $\sim \mathcal{N}(0, C)$ both before and after a new generation.</p>
+<p>We may consider $p_c$ as another way to compute $\text{avg}_i(y_i)$ (notice that both $\sim \mathcal{N}(0, C)$) while the entire history is used and the sign information is maintained. Note that we&rsquo;ve known $\sqrt{k}\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)$ in the <a href="#controlling-the-step-size">last section</a>,</p>
+<div>
+$$
+\begin{aligned}
+p_c^{(t+1)} 
+&= (1-\alpha_{cp}) p_c^{(t)} + \sqrt{1 - (1-\alpha_{cp})^2}\;\sqrt{\lambda}\;\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \\
+&= (1-\alpha_{cp}) p_c^{(t)} + \sqrt{\alpha_{cp}(2 - \alpha_{cp})\lambda}\;\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}}
+\end{aligned}
+$$
+</div>
+<p>Then the covariance matrix is updated according to $p_c$:</p>
+<div>
+$$
+C^{(t+1)} = (1-\alpha_{c1}) C^{(t)} + \alpha_{c1}\;p_c^{(t+1)} {p_c^{(t+1)}}^\top
+$$
+</div>
+<p>The <em>rank-one update</em> approach is claimed to generate a significant improvement over the <em>rank-min(λ, n)-update</em> when $k$ is small, because the signs of moving steps and correlations between consecutive steps are all utilized and passed down through generations.</p>
+<p>Eventually we combine two approaches together,</p>
+<div>
+$$
+C^{(t+1)} 
+= (1 - \alpha_{c\lambda} - \alpha_{c1}) C^{(t)}
++ \alpha_{c1}\;\underbrace{p_c^{(t+1)} {p_c^{(t+1)}}^\top}_\textrm{rank-one update}
++ \alpha_{c\lambda} \underbrace{\frac{1}{\lambda} \sum_{i=1}^\lambda y^{(t+1)}_i {y^{(t+1)}_i}^\top}_\textrm{rank-min(lambda, n) update}
+$$
+</div>
+<figure>
+	<img src="CMA-ES-algorithm.png" style="width: 100%;"  />
+<p>In all my examples above, each elite sample is considered to contribute an equal amount of weights, $1/\lambda$. The process can be easily extended to the case where selected samples are assigned with different weights, $w_1, \dots, w_\lambda$, according to their performances. See more detail in <a href="https://arxiv.org/abs/1604.00772">tutorial</a>.</p>
+<figure>
+	<img src="CMA-ES-illustration.png" style="width: 80%;"  />
+	<figcaption>Illustration of how CMA-ES works on a 2D optimization problem (the lighter color the better). Black dots are samples in one generation. The samples are more spread out initially but when the model has higher confidence in finding a good solution in the late stage, the samples become very concentrated over the global optimum. (Image source: <a href="https://en.wikipedia.org/wiki/CMA-ES" target="_blank">Wikipedia CMA-ES</a>)</figcaption>
+</figure>
+<h1 id="natural-evolution-strategies">Natural Evolution Strategies<a hidden class="anchor" aria-hidden="true" href="#natural-evolution-strategies">#</a></h1>
+<p>Natural Evolution Strategies (<strong>NES</strong>; <a href="https://arxiv.org/abs/1106.4487">Wierstra, et al, 2008</a>) optimizes in a search distribution of parameters and moves the distribution in the direction of high fitness indicated by the <em>natural gradient</em>.</p>
+<h2 id="natural-gradients">Natural Gradients<a hidden class="anchor" aria-hidden="true" href="#natural-gradients">#</a></h2>
+<p>Given an objective function $\mathcal{J}(\theta)$ parameterized by $\theta$, let&rsquo;s say our goal is to find the optimal $\theta$ to maximize the objective function value. A <em>plain gradient</em> finds the steepest direction within a small Euclidean distance from the current $\theta$; the distance restriction is applied on the parameter space. In other words, we compute the plain gradient with respect to a small change of the absolute value of $\theta$. The optimal step is:</p>
+<div>
+$$
+d^{*} = \operatorname*{argmax}_{\|d\| = \epsilon} \mathcal{J}(\theta + d)\text{, where }\epsilon \to 0
+$$
+</div>
+<p>Differently, <em>natural gradient</em> works with a probability <a href="https://arxiv.org/abs/1301.3584v7">distribution</a> <a href="https://wiseodd.github.io/techblog/2018/03/14/natural-gradient/">space</a> parameterized by $\theta$, $p_\theta(x)$ (referred to as &ldquo;search distribution&rdquo; in NES <a href="https://arxiv.org/abs/1106.4487">paper</a>). It looks for the steepest direction within a small step in the distribution space where the distance is measured by KL divergence. With this constraint we ensure that each update is moving along the distributional manifold with constant speed, without being slowed down by its curvature.</p>
+<div>
+$$
+d^{*}_\text{N} = \operatorname*{argmax}_{\text{KL}[p_\theta \| p_{\theta+d}] = \epsilon} \mathcal{J}(\theta + d)
+$$
+</div>
+<h2 id="estimation-using-fisher-information-matrix">Estimation using Fisher Information Matrix<a hidden class="anchor" aria-hidden="true" href="#estimation-using-fisher-information-matrix">#</a></h2>
+<p>But, how to compute $\text{KL}[p_\theta | p_{\theta+\Delta\theta}]$ precisely? By running Taylor expansion of $\log p_{\theta + d}$ at $\theta$, we get:</p>
+<div>
+$$
+\begin{aligned}
+& \text{KL}[p_\theta \| p_{\theta+d}] \\
+&= \mathbb{E}_{x \sim p_\theta} [\log p_\theta(x) - \log p_{\theta+d}(x)] & \\
+&\approx \mathbb{E}_{x \sim p_\theta} [ \log p_\theta(x) -( \log p_{\theta}(x) + \nabla_\theta \log p_{\theta}(x) d + \frac{1}{2}d^\top \nabla^2_\theta \log p_{\theta}(x) d)] & \scriptstyle{\text{; Taylor expand }\log p_{\theta+d}} \\
+&\approx - \mathbb{E}_x [\nabla_\theta \log p_{\theta}(x)] d - \frac{1}{2}d^\top \mathbb{E}_x [\nabla^2_\theta \log p_{\theta}(x)] d & 
+\end{aligned}
+$$
+</div>
+<p>where</p>
+<div>
+$$
+\begin{aligned}
+\mathbb{E}_x [\nabla_\theta \log p_{\theta}] d 
+&= \int_{x\sim p_\theta} p_\theta(x) \nabla_\theta \log p_\theta(x) & \\
+&= \int_{x\sim p_\theta} p_\theta(x) \frac{1}{p_\theta(x)} \nabla_\theta p_\theta(x) & \\
+&= \nabla_\theta \Big( \int_{x} p_\theta(x) \Big) & \scriptstyle{\textrm{; note that }p_\theta(x)\textrm{ is probability distribution.}} \\
+&= \nabla_\theta (1) = 0
+\end{aligned}
+$$
+</div>
+<p>Finally we have,</p>
+<div>
+$$
+\text{KL}[p_\theta \| p_{\theta+d}] = - \frac{1}{2}d^\top \mathbf{F}_\theta d 
+\text{, where }\mathbf{F}_\theta = \mathbb{E}_x [(\nabla_\theta \log p_{\theta}) (\nabla_\theta \log p_{\theta})^\top]
+$$
+</div>
+<p>where $\mathbf{F}_\theta$ is called the <strong><a href="http://mathworld.wolfram.com/FisherInformationMatrix.html">Fisher Information Matrix</a></strong> and <a href="https://wiseodd.github.io/techblog/2018/03/11/fisher-information/">it is</a> the covariance matrix of $\nabla_\theta \log p_\theta$ since $\mathbb{E}[\nabla_\theta \log p_\theta] = 0$.</p>
+<p>The solution to the following optimization problem:</p>
+<div>
+$$
+\max \mathcal{J}(\theta + d) \approx \max \big( \mathcal{J}(\theta) + {\nabla_\theta\mathcal{J}(\theta)}^\top d \big)\;\text{ s.t. }\text{KL}[p_\theta \| p_{\theta+d}] - \epsilon = 0
+$$
+</div>
+<p>can be found using a Lagrangian multiplier,</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}(\theta, d, \beta) &= \mathcal{J}(\theta) + \nabla_\theta\mathcal{J}(\theta)^\top d - \beta (\frac{1}{2}d^\top \mathbf{F}_\theta d + \epsilon) = 0 \text{ s.t. } \beta > 0 \\
+\nabla_d \mathcal{L}(\theta, d, \beta) &= \nabla_\theta\mathcal{J}(\theta) - \beta\mathbf{F}_\theta d = 0 \\
+\text{Thus } d_\text{N}^* &= \nabla_\theta^\text{N} \mathcal{J}(\theta) = \mathbf{F}_\theta^{-1} \nabla_\theta\mathcal{J}(\theta) 
+\end{aligned}
+$$
+</div>
+<p>where $d_\text{N}^*$ only extracts the direction of the optimal moving step on $\theta$, ignoring the scalar $\beta^{-1}$.</p>
+<figure>
+	<img src="CMA-ES-coordinates.png" style="width: 90%;"  />
+	<figcaption>The natural gradient samples (black solid arrows) in the right are the plain gradient samples (black solid arrows)  in the left multiplied by the inverse of their covariance. In this way, a gradient direction with high uncertainty (indicated by high covariance with other samples) are penalized with a small weight. The aggregated natural gradient (red dash arrow) is therefore more trustworthy than the natural gradient (green solid arrow). (Image source: additional annotations on Fig 2 in <a href="https://arxiv.org/abs/1106.4487" target="_blank">NES</a> paper)</figcaption>
+</figure>
+<h2 id="nes-algorithm">NES Algorithm<a hidden class="anchor" aria-hidden="true" href="#nes-algorithm">#</a></h2>
+<p>The fitness associated with one sample is labeled as $f(x)$ and the search distribution over $x$ is parameterized by $\theta$. NES is expected to optimize the parameter $\theta$ to achieve maximum expected fitness:</p>
+<div>
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim p_\theta(x)} [f(x)] = \int_x f(x) p_\theta(x) dx
+$$
+</div>
+<p>Using the same log-likelihood <a href="http://blog.shakirm.com/2015/11/machine-learning-trick-of-the-day-5-log-derivative-trick/">trick</a> in <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#reinforce">REINFORCE</a>:</p>
+<div>
+$$
+\begin{aligned}
+\nabla_\theta\mathcal{J}(\theta) 
+&= \nabla_\theta \int_x f(x) p_\theta(x) dx \\
+&= \int_x f(x) \frac{p_\theta(x)}{p_\theta(x)}\nabla_\theta p_\theta(x) dx \\
+& = \int_x f(x) p_\theta(x) \nabla_\theta \log p_\theta(x) dx \\
+& = \mathbb{E}_{x \sim p_\theta} [f(x) \nabla_\theta \log p_\theta(x)]
+\end{aligned}
+$$      
+</div>
+<figure>
+	<img src="NES-algorithm.png" style="width: 80%;"  />
+<p>Besides natural gradients, NES adopts a couple of important heuristics to make the algorithm performance more robust.</p>
+<ul>
+<li><a id="fitness-shaping"></a>NES applies <strong>rank-based fitness shaping</strong>, that is to use the <em>rank</em> under monotonically increasing fitness values instead of using $f(x)$ directly. Or it can be a function of the rank (“utility function”), which is considered as a free parameter of NES.</li>
+<li>NES adopts <strong>adaptation sampling</strong> to adjust hyperparameters at run time. When changing $\theta \to \theta’$, samples drawn from $p_\theta$ are compared with samples from $p_{\theta’}$ using [Mann-Whitney U-test(https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test)]; if there shows a positive or negative sign, the target hyperparameter decreases or increases by a multiplication constant. Note the score of a sample $x’_i \sim p_{\theta’}(x)$ has importance sampling weights applied $w_i’ = p_\theta(x) / p_{\theta’}(x)$.</li>
+</ul>
+<h1 id="applications-es-in-deep-reinforcement-learning">Applications: ES in Deep Reinforcement Learning<a hidden class="anchor" aria-hidden="true" href="#applications-es-in-deep-reinforcement-learning">#</a></h1>
+<h2 id="openai-es-for-rl">OpenAI ES for RL<a hidden class="anchor" aria-hidden="true" href="#openai-es-for-rl">#</a></h2>
+<p>The concept of using evolutionary algorithms in reinforcement learning can be traced back <a href="https://arxiv.org/abs/1106.0221">long ago</a>, but only constrained to tabular RL due to computational limitations.</p>
+<p>Inspired by <a href="#natural-evolution-strategies">NES</a>, researchers at OpenAI (<a href="https://arxiv.org/abs/1703.03864">Salimans, et al. 2017</a>) proposed to use NES as a gradient-free black-box optimizer to find optimal policy parameters $\theta$ that maximizes the return function $F(\theta)$. The key is to add Gaussian noise $\epsilon$ on the model parameter $\theta$ and then use the log-likelihood trick to write it as the gradient of the Gaussian pdf. Eventually only the noise term is left as a weighting scalar for measured performance.</p>
+<p>Let’s say the current parameter value is $\hat{\theta}$ (the added hat is to distinguish the value from the random variable $\theta$). The search distribution of $\theta$ is designed to be an isotropic multivariate Gaussian with a mean $\hat{\theta}$ and a fixed covariance matrix $\sigma^2 I$,</p>
+<div>
+$$
+\theta \sim \mathcal{N}(\hat{\theta}, \sigma^2 I) \text{ equivalent to } \theta = \hat{\theta} + \sigma\epsilon, \epsilon \sim \mathcal{N}(0, I)
+$$
+</div>
+<p>The gradient for $\theta$ update is:</p>
+<div>
+$$
+\begin{aligned}
+& \nabla_\theta \mathbb{E}_{\theta\sim\mathcal{N}(\hat{\theta}, \sigma^2 I)} F(\theta) \\
+&= \nabla_\theta \mathbb{E}_{\epsilon\sim\mathcal{N}(0, I)} F(\hat{\theta} + \sigma\epsilon) \\
+&= \nabla_\theta \int_{\epsilon} p(\epsilon) F(\hat{\theta} + \sigma\epsilon) d\epsilon & \scriptstyle{\text{; Gaussian }p(\epsilon)=(2\pi)^{-\frac{n}{2}} \exp(-\frac{1}{2}\epsilon^\top\epsilon)} \\
+&= \int_{\epsilon} p(\epsilon) \nabla_\epsilon \log p(\epsilon) \nabla_\theta \epsilon\;F(\hat{\theta} + \sigma\epsilon) d\epsilon & \scriptstyle{\text{; log-likelihood trick}}\\
+&= \mathbb{E}_{\epsilon\sim\mathcal{N}(0, I)} [ \nabla_\epsilon \big(-\frac{1}{2}\epsilon^\top\epsilon\big) \nabla_\theta \big(\frac{\theta - \hat{\theta}}{\sigma}\big) F(\hat{\theta} + \sigma\epsilon) ] & \\
+&= \mathbb{E}_{\epsilon\sim\mathcal{N}(0, I)} [ (-\epsilon) (\frac{1}{\sigma}) F(\hat{\theta} + \sigma\epsilon) ] & \\
+&= \frac{1}{\sigma}\mathbb{E}_{\epsilon\sim\mathcal{N}(0, I)} [ \epsilon F(\hat{\theta} + \sigma\epsilon) ] & \scriptstyle{\text{; negative sign can be absorbed.}}
+\end{aligned}
+$$
+</div>
+<p>In one generation, we can sample many $epsilon_i, i=1,\dots,n$ and evaluate the fitness <em>in parallel</em>. One beautiful design is that no large model parameter needs to be shared. By only communicating the random seeds between workers, it is enough for the master node to do parameter update. This approach is later extended to adaptively learn a loss function; see my previous post on <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#meta-learning-the-loss-function">Evolved Policy Gradient</a>.</p>
+<figure>
+	<img src="OpenAI-ES-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm for training a RL policy using evolution strategies. (Image source: <a href="https://arxiv.org/abs/1703.03864" target="_blank">ES-for-RL</a> paper)</figcaption>
+</figure>
+<p>To make the performance more robust, OpenAI ES adopts virtual batch normalization (BN with mini-batch used for calculating statistics fixed), mirror sampling (sampling a pair of $(-\epsilon, \epsilon)$ for evaluation), and <a href="#fitness-shaping">fitness shaping</a>.</p>
+<h2 id="exploration-with-es">Exploration with ES<a hidden class="anchor" aria-hidden="true" href="#exploration-with-es">#</a></h2>
+<p>Exploration (<a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#exploitation-vs-exploration">vs exploitation</a>) is an important topic in RL. The optimization direction in the ES algorithm <a href="TBA">above</a> is only extracted from the cumulative return $F(\theta)$. Without explicit exploration, the agent might get trapped in a local optimum.</p>
+<p>Novelty-Search ES (<strong>NS-ES</strong>; <a href="https://arxiv.org/abs/1712.06560">Conti et al, 2018</a>) encourages exploration by updating the parameter in the direction to maximize the <em>novelty</em> score. The novelty score depends on a domain-specific behavior characterization function $b(\pi_\theta)$. The choice of $b(\pi_\theta)$ is specific to the task and seems to be a bit arbitrary; for example, in the Humanoid locomotion task in the paper, $b(\pi_\theta)$ is the final $(x,y)$ location of the agent.</p>
+<ol>
+<li>Every policy&rsquo;s $b(\pi_\theta)$ is pushed to an archive set $\mathcal{A}$.</li>
+<li>Novelty of a policy $\pi_\theta$ is measured as the k-nearest neighbor score between $b(\pi_\theta)$ and all other entries in $\mathcal{A}$.
+(The use case of the archive set sounds quite similar to <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#episodic-control">episodic memory</a>.)</li>
+</ol>
+<div>
+$$
+N(\theta, \mathcal{A}) = \frac{1}{\lambda} \sum_{i=1}^\lambda \| b(\pi_\theta), b^\text{knn}_i \|_2
+\text{, where }b^\text{knn}_i \in \text{kNN}(b(\pi_\theta), \mathcal{A})
+$$
+</div>
+<p>The ES optimization step relies on the novelty score instead of fitness:</p>
+<div>
+$$
+\nabla_\theta \mathbb{E}_{\theta\sim\mathcal{N}(\hat{\theta}, \sigma^2 I)} N(\theta, \mathcal{A})
+= \frac{1}{\sigma}\mathbb{E}_{\epsilon\sim\mathcal{N}(0, I)} [ \epsilon N(\hat{\theta} + \sigma\epsilon, \mathcal{A}) ]
+$$
+</div>
+<p>NS-ES maintains a group of $M$ independently trained agents (&ldquo;meta-population&rdquo;), $\mathcal{M} = \{\theta_1, \dots, \theta_M \}$ and picks one to advance proportional to the novelty score. Eventually we select the best policy. This process is equivalent to ensembling; also see the same idea in <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#svpg">SVPG</a>.</p>
+<div>
+$$
+\begin{aligned}
+m &\leftarrow \text{pick } i=1,\dots,M\text{ according to probability}\frac{N(\theta_i, \mathcal{A})}{\sum_{j=1}^M N(\theta_j, \mathcal{A})} \\
+\theta_m^{(t+1)} &\leftarrow \theta_m^{(t)} + \alpha \frac{1}{\sigma}\sum_{i=1}^N \epsilon_i N(\theta^{(t)}_m + \epsilon_i, \mathcal{A}) \text{ where }\epsilon_i \sim \mathcal{N}(0, I)
+\end{aligned}
+$$
+</div>
+<p>where $N$ is the number of Gaussian perturbation noise vectors and $\alpha$ is the learning rate.</p>
+<p>NS-ES completely discards the reward function and only optimizes for novelty to avoid deceptive local optima. To incorporate the fitness back into the formula, another two variations are proposed.</p>
+<p><strong>NSR-ES</strong>:</p>
+<div>
+$$
+\theta_m^{(t+1)} \leftarrow \theta_m^{(t)} + \alpha \frac{1}{\sigma}\sum_{i=1}^N \epsilon_i \frac{N(\theta^{(t)}_m + \epsilon_i, \mathcal{A}) + F(\theta^{(t)}_m + \epsilon_i)}{2}
+$$
+</div>
+<p><strong>NSRAdapt-ES (NSRA-ES)</strong>: the adaptive weighting parameter $w = 1.0$ initially. We start decreasing $w$ if performance stays flat for a number of generations. Then when the performance starts to increase, we stop decreasing $w$ but increase it instead. In this way, fitness is preferred when the performance stops growing but novelty is preferred otherwise.</p>
+<div>
+$$
+\theta_m^{(t+1)} \leftarrow \theta_m^{(t)} + \alpha \frac{1}{\sigma}\sum_{i=1}^N \epsilon_i \big((1-w) N(\theta^{(t)}_m + \epsilon_i, \mathcal{A}) + w F(\theta^{(t)}_m + \epsilon_i)\big)
+$$
+</div>
+<figure>
+	<img src="NS-ES-experiments.png" style="width: 100%;"  />
+	<figcaption>(Left) The environment is Humanoid locomotion with a three-sided wall which plays a role as a deceptive trap to create local optimum. (Right) Experiments compare ES baseline and other variations that encourage exploration. (Image source: <a href="https://arxiv.org/abs/1712.06560" target="_blank">NS-ES</a> paper)</figcaption>
+</figure>
+<h2 id="cem-rl">CEM-RL<a hidden class="anchor" aria-hidden="true" href="#cem-rl">#</a></h2>
+<figure>
+	<img src="CEM-RL.png" style="width: 100%;"  />
+	<figcaption>Architectures of the (a) CEM-RL and (b) <a href="https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf" target="_blank">ERL</a> algorithms (Image source: <a href="https://arxiv.org/abs/1810.01222" target="_blank">CEM-RL</a> paper)</figcaption>
+</figure>
+<p>The CEM-RL method (<a href="https://arxiv.org/abs/1810.01222">Pourchot &amp; Sigaud, 2019</a>) combines Cross Entropy Method (CEM) with either <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#ddpg">DDPG</a> or <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#td3">TD3</a>. CEM here works pretty much the same as the simple Gaussian ES described <a href="#simple-gaussian-evolution-strategies">above</a> and therefore the same function can be replaced using CMA-ES. CEM-RL is built on the framework of <em>Evolutionary Reinforcement Learning</em> (<em>ERL</em>; <a href="https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf">Khadka &amp; Tumer, 2018</a>) in which the standard EA algorithm selects and evolves a population of actors and the rollout experience generated in the process is then added into reply buffer for training both RL-actor and RL-critic networks.</p>
+<p>Workflow:</p>
+<ul>
+<li>
+<ol>
+<li>The mean actor of the CEM population is $\pi_\mu$ is initialized with a random actor network.</li>
+</ol>
+</li>
+<li>
+<ol start="2">
+<li>The critic network $Q$ is initialized too, which will be updated by DDPG/TD3.</li>
+</ol>
+</li>
+<li>
+<ol start="3">
+<li>Repeat until happy:</li>
+</ol>
+<ul>
+<li>a. Sample a population of actors $\sim \mathcal{N}(\pi_\mu, \Sigma)$.</li>
+<li>b. Half of the population is evaluated. Their fitness scores are used as the cumulative reward $R$ and added into replay buffer.</li>
+<li>c. The other half are updated together with the critic.</li>
+<li>d. The new $\pi_mu$ and $\Sigma$ is computed using top performing elite samples. <a href="#covariance-matrix-adaptation-evolution-strategies-cma-es">CMA-ES</a> can be used for parameter update too.</li>
+</ul>
+</li>
+</ul>
+<h1 id="extension-ea-in-deep-learning">Extension: EA in Deep Learning<a hidden class="anchor" aria-hidden="true" href="#extension-ea-in-deep-learning">#</a></h1>
+<p>(This section is not on evolution strategies, but still an interesting and relevant reading.)</p>
+<p>The <em>Evolutionary Algorithms</em> have been applied on many deep learning problems. POET (<a href="https://arxiv.org/abs/1901.01753">Wang et al, 2019</a>) is a framework based on EA and attempts to generate a variety of different tasks while the problems themselves are being solved. POET has been introduced in my <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#task-generation-by-domain-randomization">last post</a> on meta-RL. Evolutionary Reinforcement Learning (ERL) is another example; See Fig. 7 (b).</p>
+<p>Below I would like to introduce two applications in more detail, <em>Population-Based Training (PBT)</em> and <em>Weight-Agnostic Neural Networks (WANN)</em>.</p>
+<h2 id="hyperparameter-tuning-pbt">Hyperparameter Tuning: PBT<a hidden class="anchor" aria-hidden="true" href="#hyperparameter-tuning-pbt">#</a></h2>
+<figure>
+	<img src="PBT.png" style="width: 100%;"  />
+	<figcaption>Paradigms of comparing different ways of hyperparameter tuning. (Image source: <a href="https://arxiv.org/abs/1711.09846" target="_blank">PBT</a> paper)</figcaption>
+</figure>
+<p>Population-Based Training (<a href="https://arxiv.org/abs/1711.09846">Jaderberg, et al, 2017</a>), short for <strong>PBT</strong> applies EA on the problem of hyperparameter tuning. It jointly trains a population of models and corresponding hyperparameters for optimal performance.</p>
+<p>PBT starts with a set of random candidates, each containing a pair of model weights initialization and hyperparameters, $\{(\theta_i, h_i)\mid i=1, \dots, N\}$. Every sample is trained in parallel and asynchronously evaluates its own performance periodically. Whenever a member deems ready (i.e. after taking enough gradient update steps, or when the performance is good enough), it has a chance to be updated by comparing with the whole population:</p>
+<ul>
+<li><strong><code>exploit()</code></strong>: When this model is under-performing, the weights could be replaced with a better performing model.</li>
+<li><strong><code>explore()</code></strong>: If the model weights are overwritten, <code>explore</code> step perturbs the hyperparameters with random noise.</li>
+</ul>
+<p>In this process, only promising model and hyperparameter pairs can survive and keep on evolving, achieving better utilization of computational resources.</p>
+<figure>
+	<img src="PBT-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm of population-based training. (Image source: <a href="https://arxiv.org/abs/1711.09846" target="_blank">PBT</a> paper)</figcaption>
+</figure>
+<h2 id="network-topology-optimization-wann">Network Topology Optimization: WANN<a hidden class="anchor" aria-hidden="true" href="#network-topology-optimization-wann">#</a></h2>
+<p><em>Weight Agnostic Neural</em> Networks (short for <strong>WANN</strong>; <a href="https://arxiv.org/abs/1906.04358">Gaier &amp; Ha 2019</a>) experiments with searching for the smallest network topologies that can achieve the optimal performance without training the network weights. By not considering the best configuration of network weights, WANN puts much more emphasis on the architecture itself, making the focus different from <a href="http://openaccess.thecvf.com/content_cvpr_2018/papers/Zoph_Learning_Transferable_Architectures_CVPR_2018_paper.pdf">NAS</a>. WANN is heavily inspired by a classic genetic algorithm to evolve network topologies, called <em>NEAT</em> (&ldquo;Neuroevolution of Augmenting Topologies&rdquo;; <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.gecco02_1.pdf">Stanley &amp; Miikkulainen 2002</a>).</p>
+<p>The workflow of WANN looks pretty much the same as standard GA:</p>
+<ol>
+<li>Initialize: Create a population of minimal networks.</li>
+<li>Evaluation: Test with a range of <em>shared</em> weight values.</li>
+<li>Rank and Selection: Rank by performance and complexity.</li>
+<li>Mutation: Create new population by varying best networks.</li>
+</ol>
+<figure>
+	<img src="WANN-mutations.png" style="width: 100%;"  />
+	<figcaption>mutation operations for searching for new network topologies in WANN (Image source: <a href="https://arxiv.org/abs/1906.04358" target="_blank">WANN</a> paper)</figcaption>
+</figure>
+<p>At the &ldquo;evaluation&rdquo; stage, all the network weights are set to be the same. In this way, WANN is actually searching for network that can be described with a minimal description length. In the &ldquo;selection&rdquo; stage, both the network connection and the model performance are considered.</p>
+<figure>
+	<img src="WANN-results.png" style="width: 100%;"  />
+	<figcaption>Performance of WANN found network topologies on different RL tasks are compared with baseline FF networks commonly used in the literature. "Tuned Shared Weight" only requires adjusting one weight value. (Image source: <a href="https://arxiv.org/abs/1906.04358" target="_blank">WANN</a> paper)</figcaption>
+</figure>
+<p>As shown in Fig. 11, WANN results are evaluated with both random weights and shared weights (single weight). It is interesting that even when enforcing weight-sharing on all weights and tuning this single parameter, WANN can discover topologies that achieve non-trivial good performance.</p>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2019ES,
+  title   = &#34;Evolution Strategies&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2019&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Nikolaus Hansen. <a href="https://arxiv.org/abs/1604.00772">&ldquo;The CMA Evolution Strategy: A Tutorial&rdquo;</a> arXiv preprint arXiv:1604.00772 (2016).</p>
+<p>[2] Marc Toussaint. <a href="https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf">Slides: &ldquo;Introduction to Optimization&rdquo;</a></p>
+<p>[3] David Ha. <a href="http://blog.otoro.net/2017/10/29/visual-evolution-strategies/">&ldquo;A Visual Guide to Evolution Strategies&rdquo;</a> blog.otoro.net. Oct 2017.</p>
+<p>[4] Daan Wierstra, et al. <a href="https://arxiv.org/abs/1106.4487">&ldquo;Natural evolution strategies.&rdquo;</a> IEEE World Congress on Computational Intelligence, 2008.</p>
+<p>[5] Agustinus Kristiadi. <a href="https://wiseodd.github.io/techblog/2018/03/14/natural-gradient/">&ldquo;Natural Gradient Descent&rdquo;</a> Mar 2018.</p>
+<p>[6] Razvan Pascanu &amp; Yoshua Bengio. <a href="https://arxiv.org/abs/1301.3584v7">&ldquo;Revisiting Natural Gradient for Deep Networks.&rdquo;</a> arXiv preprint arXiv:1301.3584 (2013).</p>
+<p>[7] Tim Salimans, et al. <a href="https://arxiv.org/abs/1703.03864">&ldquo;Evolution strategies as a scalable alternative to reinforcement learning.&rdquo;</a> arXiv preprint arXiv:1703.03864 (2017).</p>
+<p>[8] Edoardo Conti, et al. <a href="https://arxiv.org/abs/1712.06560">&ldquo;Improving exploration in evolution strategies for deep reinforcement learning via a population of novelty-seeking agents.&rdquo;</a> NIPS. 2018.</p>
+<p>[9] Aloïs Pourchot &amp; Olivier Sigaud. <a href="https://arxiv.org/abs/1810.01222">&ldquo;CEM-RL: Combining evolutionary and gradient-based methods for policy search.&rdquo;</a> ICLR 2019.</p>
+<p>[10] Shauharda Khadka &amp; Kagan Tumer. <a href="https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf">&ldquo;Evolution-guided policy gradient in reinforcement learning.&rdquo;</a> NIPS 2018.</p>
+<p>[11] Max Jaderberg, et al. <a href="https://arxiv.org/abs/1711.09846">&ldquo;Population based training of neural networks.&rdquo;</a> arXiv preprint arXiv:1711.09846 (2017).</p>
+<p>[12] Adam Gaier &amp; David Ha. <a href="https://arxiv.org/abs/1906.04358">&ldquo;Weight Agnostic Neural Networks.&rdquo;</a> arXiv preprint arXiv:1906.04358 (2019).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/evolution/">Evolution</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">
+    <span class="title">« </span>
+    <br>
+    <span>Self-Supervised Representation Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/">
+    <span class="title"> »</span>
+    <br>
+    <span>Meta Reinforcement Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on twitter"
+        href="https://twitter.com/intent/tweet/?text=Evolution%20Strategies&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f&amp;hashtags=evolution%2creinforcement-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f&amp;title=Evolution%20Strategies&amp;summary=Evolution%20Strategies&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f&title=Evolution%20Strategies">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on whatsapp"
+        href="https://api.whatsapp.com/send?text=Evolution%20Strategies%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Evolution Strategies on telegram"
+        href="https://telegram.me/share/url?text=Evolution%20Strategies&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-09-05-evolution-strategies%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

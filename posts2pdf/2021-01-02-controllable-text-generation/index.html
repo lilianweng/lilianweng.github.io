@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Controllable Neural Text Generation | Lil&#39;Log</title>
+<meta name="keywords" content="nlp, language-model, alignment, steerability, reinforcement-learning&#34;, long-read" />
+<meta name="description" content="
+[Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.]
+
+[Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the &ldquo;prompt design&rdquo; section.]
+
+[Updated on 2021-09-19: Add &ldquo;unlikelihood training&rdquo;.]">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Controllable Neural Text Generation" />
+<meta property="og:description" content="
+[Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.]
+
+[Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the &ldquo;prompt design&rdquo; section.]
+
+[Updated on 2021-09-19: Add &ldquo;unlikelihood training&rdquo;.]" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-01-02T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2021-01-02T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Controllable Neural Text Generation"/>
+<meta name="twitter:description" content="
+[Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.]
+
+[Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the &ldquo;prompt design&rdquo; section.]
+
+[Updated on 2021-09-19: Add &ldquo;unlikelihood training&rdquo;.]"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Controllable Neural Text Generation",
+      "item": "https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Controllable Neural Text Generation",
+  "name": "Controllable Neural Text Generation",
+  "description": " [Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.] [Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the \u0026ldquo;prompt design\u0026rdquo; section.] [Updated on 2021-09-19: Add \u0026ldquo;unlikelihood training\u0026rdquo;.]\n",
+  "keywords": [
+    "nlp", "language-model", "alignment", "steerability", "reinforcement-learning\"", "long-read"
+  ],
+  "articleBody": " [Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.] [Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the “prompt design” section.] [Updated on 2021-09-19: Add “unlikelihood training”.]\nThere is a gigantic amount of free text on the Web, several magnitude more than labelled benchmark datasets. The state-of-the-art language models (LM) are trained with unsupervised Web data in large scale. When generating samples from LM by iteratively sampling the next token, we do not have much control over attributes of the output text, such as the topic, the style, the sentiment, etc. Many applications would demand a good control over the model output. For example, if we plan to use LM to generate reading materials for kids, we would like to guide the output stories to be safe, educational and easily understood by children.\nHow to steer a powerful unconditioned language model? In this post, we will delve into several approaches for controlled content generation with an unconditioned langage model. Note that model steerability is still an open research question. Each introduced method has certain pros \u0026 cons.\nApply guided decoding strategies and select desired outputs at test time. Optimize for the most desired outcomes via good prompt design. Fine-tune the base model or steerable layers to do conditioned content generation. In the following discussion, we assume we have access to a pretrained generative language model $p_\\theta$. The model has learned the distribution over token sequences by optimizing for the next token prediction: $ \\mathcal{L}_\\text{ML} = - \\sum_t \\log p_\\theta(x_t \\vert x_{",
+  "wordCount" : "8839",
+  "inLanguage": "en",
+  "datePublished": "2021-01-02T00:00:00Z",
+  "dateModified": "2021-01-02T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Controllable Neural Text Generation
+    </h1>
+    <div class="post-meta">Date: January 2, 2021  |  Estimated Reading Time: 42 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#decoding-strategies" aria-label="Decoding Strategies">Decoding Strategies</a><ul>
+                        
+                <li>
+                    <a href="#common-decoding-methods" aria-label="Common Decoding Methods">Common Decoding Methods</a></li>
+                <li>
+                    <a href="#guided-decoding" aria-label="Guided Decoding">Guided Decoding</a></li>
+                <li>
+                    <a href="#trainable-decoding" aria-label="Trainable Decoding">Trainable Decoding</a></li></ul>
+                </li>
+                <li>
+                    <a href="#smart-prompt-design" aria-label="Smart Prompt Design">Smart Prompt Design</a><ul>
+                        
+                <li>
+                    <a href="#gradient-based-search" aria-label="Gradient-based Search">Gradient-based Search</a></li>
+                <li>
+                    <a href="#heuristic-based-search" aria-label="Heuristic-based Search">Heuristic-based Search</a></li></ul>
+                </li>
+                <li>
+                    <a href="#fine-tuning" aria-label="Fine-tuning">Fine-tuning</a><ul>
+                        
+                <li>
+                    <a href="#conditional-training" aria-label="Conditional Training">Conditional Training</a></li>
+                <li>
+                    <a href="#rl-fine-tuning" aria-label="RL Fine-tuning">RL Fine-tuning</a></li>
+                <li>
+                    <a href="#rl-fine-tuning-with-human-preferences" aria-label="RL Fine-tuning with Human Preferences">RL Fine-tuning with Human Preferences</a></li>
+                <li>
+                    <a href="#guided-fine-tuning-with-steerable-layer" aria-label="Guided Fine-tuning with Steerable Layer">Guided Fine-tuning with Steerable Layer</a></li>
+                <li>
+                    <a href="#distributional-approach" aria-label="Distributional Approach">Distributional Approach</a></li>
+                <li>
+                    <a href="#unlikelihood-training" aria-label="Unlikelihood Training">Unlikelihood Training</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- The modern language model with SOTA results on many NLP tasks is trained on large scale free text on the Internet. It is challenging to steer such a model to generate content with desired attributes. Although still not perfect, there are several approaches for controllable text generation, such as guided or learned decoding strategy, smart prompt design, or fine-tuning the model with various methods. -->
+<p><span class="update">[Updated on 2021-02-01: Updated to version 2.0 with several work added and many typos fixed.]</span>
+<br />
+<span class="update">[Updated on 2021-05-26: Add P-tuning and Prompt Tuning in the <a href="#gradient-based-search">&ldquo;prompt design&rdquo;</a> section.]</span>
+<br />
+<span class="update">[Updated on 2021-09-19: Add <a href="##unlikelihood-training">&ldquo;unlikelihood training&rdquo;</a>.]</span></p>
+<p>There is a gigantic amount of free text on the Web, several magnitude more than labelled benchmark datasets. The state-of-the-art language models (LM) are trained with unsupervised Web data in large scale. When generating samples from LM by iteratively sampling the next token, we do not have much control over attributes of the output text, such as the topic, the style, the sentiment, etc. Many applications would demand a good control over the model output. For example, if we plan to use LM to generate reading materials for kids, we would like to guide the output stories to be safe, educational and easily understood by children.</p>
+<p>How to steer a powerful unconditioned language model? In this post, we will delve into several approaches for controlled content generation with an unconditioned langage model.
+Note that model steerability is still an open research question. Each introduced method has certain pros &amp; cons.</p>
+<ol>
+<li>Apply guided decoding strategies and select desired outputs at test time.</li>
+<li>Optimize for the most desired outcomes via good prompt design.</li>
+<li>Fine-tune the base model or steerable layers to do conditioned content generation.</li>
+</ol>
+<p>In the following discussion, we assume we have access to a pretrained generative language model $p_\theta$. The model has learned the distribution over token sequences by optimizing for the next token prediction: $ \mathcal{L}_\text{ML} = - \sum_t \log p_\theta(x_t \vert x_{&lt;t}) $.</p>
+<h1 id="decoding-strategies">Decoding Strategies<a hidden class="anchor" aria-hidden="true" href="#decoding-strategies">#</a></h1>
+<p>By adopting different decoding methods, we can place restrictions or preferences on the sampling process to alter the generated samples without modifying any model weights. Even though decoding strategies do not change the values of any trainable parameter, it is a quite important component.</p>
+<h2 id="common-decoding-methods">Common Decoding Methods<a hidden class="anchor" aria-hidden="true" href="#common-decoding-methods">#</a></h2>
+<p>Since the final layer of the model predicts logits $o$ over the vocabulary space, the next token can be sampled by applying softmax with temperature $T$. The probability of sampling the $i$-th token is</p>
+<div>
+$$
+p_i \propto \frac{\exp(o_i / T)}{\sum_j \exp(o_j/T)}
+$$
+</div>
+<p>A low temperature would make the distribution sharper and a high value makes it softer.</p>
+<p><strong>Greedy search</strong>: Always pick the next token with the <em>highest</em> probability, equivalent to setting temperature $T=0$. However, it tends to create repetitions of phrases, even for well-trained models.</p>
+<p><strong>Beam search</strong>: It essentially does breadth-first search, one token per tree level, but with a limited bandwidth. At each level of the search tree, beam search keeps track of $n$ (named &ldquo;beam width&rdquo;) best candidates and expands all the successors of these candidates in the next level. Beam search could stop expanding a node if it hits the EOS (end-of-sentence) token.</p>
+<p>However, maximization-based decoding does not guarantee high-quality generation.</p>
+<p><a id="beam-search-surprise" ></a></p>
+<figure>
+	<img src="beam_search_less_surprising.png" style="width: 65%;"  />
+	<figcaption>The probability assigned to the next token by beam search versus by humans. The human selected tokens have much higher variance in predicted probability and thus more surprising. (Image source: <a href="https://arxiv.org/abs/1904.09751" target="_blank">Holtzman et al. 2019</a>)</figcaption>
+</figure>
+<p><strong>Top-k sampling</strong> (<a href="https://arxiv.org/abs/1805.04833">Fan et al., 2018</a>): At each sampling step, only the top $k$ most likely tokens are selected and the probability mass is redistributed among them. In <a href="https://arxiv.org/abs/1805.04833">Fan et al., 2018</a>, the authors proposed to use <em>top-k random sampling</em> where the next token is randomly selected among the top $k$ most likely candidates and they argued that this approach can generate more novel and less repetitive content than beam search.</p>
+<p><a id="nucleus"></a><strong>Nucleus sampling</strong> (<a href="https://arxiv.org/abs/1904.09751">Holtzman et al. 2019</a>): Also known as &ldquo;Top-p sampling&rdquo;. One drawback of top-k sampling is that the predefined number $k$ does not take into consideration how <em>skewed</em> the probability distribution might be. The nucleus sampling selects the smallest set of top candidates with the cumulative probability exceeding a threshold (e.g. 0.95) and then the distribution is rescaled among selected candidates.</p>
+<p>Both top-k and nucleus sampling have less repetitions with a proper set of hyperparameters.</p>
+<p><strong>Penalized sampling</strong> (<a href="https://arxiv.org/abs/1909.05858">Keskar et al. 2019</a>): To avoid the common failure case of generating duplicate substrings, the <a href="https://arxiv.org/abs/1909.05858">CTRL</a> paper proposed a new sampling method to penalize repetitions by discounting the scores of previously generated tokens. The probability distribution for the next token with repetition penalty is defined as:</p>
+<div>
+$$
+p_i = \frac{\exp(o_i / (T \cdot \mathbb{1}(i \in g)))}{\sum_j \exp(o_j / (T \cdot \mathbb{1}(j \in g)))} \quad
+\mathbb{1}(c) = \theta \text{ if the condition }c\text{ is True else }1
+$$
+</div>
+<p>where $g$ contains a set of previously generated tokens, $\mathbb{1}(.)$ is an identity function. $\theta=1.2$ is found to yield a good balance between less repetition and truthful generation.</p>
+<h2 id="guided-decoding">Guided Decoding<a hidden class="anchor" aria-hidden="true" href="#guided-decoding">#</a></h2>
+<p>All the above standard decoding strategies sample tokens according to the predicted probability, with no additional information. Our preferences on topic or sentiment can be baked into the candidate ranking function to guide the sample generation by altering the candidate ranking score. The ranking score for token selection at each decoding step can be set as a combination of LM log-likelihood and a set of desired feature discriminators. The features are designed to quantify human preferences by heuristics (<a href="https://www.aclweb.org/anthology/P17-4008/">Ghazvininejad et al., 2017</a>), supervised learning (<a href="https://arxiv.org/abs/1805.06087">Holtzman et al., 2018</a>) or RL (<a href="https://arxiv.org/abs/1701.06549">Li et al., 2017</a>).</p>
+<p><a href="https://www.aclweb.org/anthology/P17-4008/">Ghazvininejad et al. (2017)</a> built a system called &ldquo;Hafez&rdquo; for generating poetry in desired style by adjusting sampling weights in beam search at decoding steps. The likelihood of sampling for the next token $x_{t+1}$ at step $t$ is augmented by a scoring function:</p>
+<div>
+$$
+\text{score}(x_{t+1}, b_t) = \text{score}(b_t) + \log p(x_{t+1}) + \color{green}{\sum_i \alpha_i f_i(x_{t+1})}
+$$
+</div>
+<p>where $\log p(x_{t+1})$ is the log-likelihood predicted by LM. $\text{score}(b_t)$ is the accumulated score of the already-generated words in the current beam state $b_t$. The green part can incorporate many different features for steering the style of the output. A set of feature functions $f_i(.)$ define the preferences and the associated weights $alpha_i$ work like &ldquo;control knobs&rdquo; that can be easily customized at decoding time. Features can measure a variety of attributes and can be easily combined; for example,</p>
+<ul>
+<li>whether $x_{t+1}$ exists in a bag of desired or banned topical words.</li>
+<li>whether $x_{t+1}$ indicates certain sentiments.</li>
+<li>whether $x_{t+1}$ is a repeated token (and thus $f_i$ needs to take the history as input too).</li>
+<li>the length of $x_{t+1}$ if longer or shorter words are in particular preferred.</li>
+</ul>
+<p>Similar to Hafez, <a href="https://arxiv.org/abs/1809.01215">Baheti et al. (2018)</a> manually designed features for ranking and altered the sampling distribution by appending similarity scores between topic distribution or embeddings of the context and the completion.</p>
+<p><a href="https://arxiv.org/abs/1805.06087">Holtzman et al. (2018)</a> adopted a set of learned discriminators, each specializing in a different principle of communication guided by <a href="https://en.wikipedia.org/wiki/Cooperative_principle">Grice’s maxims</a>: quality, quantity, relation and manner. The discriminators learn to encode these desired principles by measuring repetition, entailment, relevance, and lexical diversity, respectively. Given some ground truth completion, all the discriminator models are trained to minimize the ranking log-likelihood, $\log\sigma(f_i(y_g) - f_i(y))$, because the gold continuation $y_g$ is expected to obtain a higher score than the generated one $y$. Here the weight coefficients $\alpha_i$ are also learned to minimize the score difference between the golden standard and the generated completion.  Discriminative Adversarial Search (DAS; <a href="https://arxiv.org/abs/2002.10375">Scialom et al., 2020</a>) is inspired by GAN and trains the discriminator to tell apart human created text from machine generated text. The discriminator predicts a label for each token instead of for the entire sequence. The discriminator logprob is added to the score to guide sampling towards the human-written style.</p>
+<p><a href="https://arxiv.org/abs/2010.02650">Meister et al. (2020)</a> studied beam search in a regularized decoding framework:</p>
+<div>
+$$
+\mathbf{y}^* = \arg\max_{\mathbf{y}\in\mathcal{Y}} \big( \underbrace{\log p_\theta(\mathbf{y}\vert\mathbf{x})}_\text{MAP} - \underbrace{\lambda\mathcal{R}(\mathbf{y})}_\text{regularizer} \big)
+$$
+</div>
+<p>Since we expect maximum probability to have minimum surprise, the surprisal of a LM at time step $t$ can be defined as follows:</p>
+<div>
+$$
+\begin{aligned}
+u_0(\texttt{BOS}) &= 0 \text{  ; BOS is a placeholder token for the beginning of a sentence.}\\
+u_t(y) &= -\log P_\theta(y \vert \mathbf{x}, \mathbf{y}_{<{t}}) \text{ for }t \geq 1
+\end{aligned}
+$$
+</div>
+<p>The MAP (maximum a posteriori) part demands for sequences with maximum probability given context, while the regularizer introduces other constraints. It is possible a global optimal strategy may need to have a high-surprisal step occasionally so that it can shorten the output length or produce more low-surprisal steps afterwards.</p>
+<p>Beam search has gone through the test of time in the field of NLP. The question is: <em>If we want to model beam search as exact search in a regularized decoding framework, how should $\mathcal{R}(\mathbf{y})$ be modeled?</em> The paper proposed a connection between beam search and the <em>uniform information density</em> (UID) hypothesis.</p>
+<blockquote>
+<p>&ldquo;The uniform information density hypothesis (UID; Levy and Jaeger, 2007)  states that—subject to the constraints of the grammar—humans prefer sentences that distribute information (in the sense of information theory) equally across the linguistic signal, e.g., a sentence.&rdquo;</p>
+</blockquote>
+<p>In other words, it hypothesizes that humans prefer text with evenly distributed surprisal. Popular decoding methods like top-k sampling or nuclear sampling actually filter out high-surprisal options, thus implicitly encouraging the UID property in output sequences.</p>
+<p>The paper experimented with several forms of regularizers:</p>
+<ol>
+<li><em>Greedy</em>: $\mathcal{R}_\text{greedy}(\mathbf{y}) = \sum_{t=1}^{\vert\mathbf{y}\vert} \big(u_t(y_t) - \min_{y&rsquo; \in \mathcal{V}} u_t(y&rsquo;) \big)^2$; if set $\lambda \to \infty$, we have greedy search. Note that being greedy at each individual step does not guarantee global optimality.</li>
+<li><em>Variance regularizer</em>: $\mathcal{R}_\text{var}(\mathbf{y}) = \frac{1}{\vert\mathbf{y}\vert}\sum_{t=1}^{\vert\mathbf{y}\vert} \big(u_t(y_t) - \bar{u} \big)^2$ , where $\bar{u}$ is the average surprisal over all timesteps. It directly encodes the UID hypothesis.</li>
+<li><em>Local consistency</em>: $\mathcal{R}_\text{local}(\mathbf{y}) = \frac{1}{\vert\mathbf{y}\vert}\sum_{t=1}^{\vert\mathbf{y}\vert} \big(u_t(y_t) - u_{t-1}(y_{t-1}) \big)^2$; this decoding regularizer encourages adjacent tokens to have similar surprisal.</li>
+<li><em>Max regularizer</em>: $\mathcal{R}_\text{max}(\mathbf{y}) = \max_t u_t(y_t)$ penalizes the maximum compensation of surprisal.</li>
+<li><em>Squared regularizer</em>: $\mathcal{R}_\text{square}(\mathbf{y}) = \sum_{t=1}^{\vert\mathbf{y}\vert} u_t(y_t)^2$ encourages all the tokens to have surprisal close to 0.</li>
+</ol>
+<p>An experiment with greedy regularizers showed that larger $\lambda$ results in better performance (e.g. measured by BLEU for NMT task) and lower std dev of surprisal.</p>
+<figure>
+	<img src="beam-search-greedy-regularizer.png" style="width: 65%;"  />
+	<figcaption>The plot of BLEU and std. dev of surprisals as functions of the strength of the regularizer $\lambda$. The subgraph in grey shows the relationship between BLEU and surprisal std. dev. (Image source: <a href="https://arxiv.org/abs/2010.02650" target="_blank">Meister et al. 2020</a>)</figcaption>
+</figure>
+<p>A default beam search would have text generation of decreased quality when beam size increases. Regularized beam search greatly helps alleviate this issue. A combined regularizer further improves the performance. In their experiments for NMT, they found $\lambda=5$ for greedy and $\lambda=2$ for squared work out as the optimal combined regularizer.</p>
+<figure>
+	<img src="beam-search-size-regularized.png" style="width: 100%;"  />
+	<figcaption>The plot of BLEU of a function of beam size (left) and BLEU scores for translations created by different regularized decoding strategies. (Image source: <a href="https://arxiv.org/abs/2010.02650" target="_blank">Meister et al. 2020</a>)</figcaption>
+</figure>
+<p>Guided decoding essentially runs a more expensive beam search where the sampling probability distribution is altered by side information about human preferences.</p>
+<h2 id="trainable-decoding">Trainable Decoding<a hidden class="anchor" aria-hidden="true" href="#trainable-decoding">#</a></h2>
+<p>Given a trained language model, <a href="https://arxiv.org/abs/1702.02429">Gu et al (2017)</a> proposed a <strong>trainable greedy decoding</strong> algorithm to maximize an arbitrary objective for sampling sequences. The idea is based on the <em>noisy, parallel approximate decoding</em> (<a href="https://arxiv.org/abs/1605.03835">NPAD</a>). NPAD injects unstructured noise into the model hidden states and runs noisy decoding multiple times in parallel to avoid potential degradation. To take a step further, trainable greedy decoding replaces the unstructured noise with a learnable random variable, predicted by a RL agent that takes the previous hidden state, the previous decoded token and the context as input. In other words, the decoding algorithm learns a RL actor to manipulate the model hidden states for better outcomes.</p>
+<p><a href="https://arxiv.org/abs/1906.09531">Grover et al. (2019)</a> trained a binary classifier to distinguish samples from data distribution and samples from the generative model. This classifier is used to estimate <em>importance weights</em> for constructing a new unnormalized distribution. The proposed strategy is called <strong>likelihood-free importance weighting (LFIW)</strong>.</p>
+<p>Let $p$ be the real data distribution and $p_\theta$ be a learned generative model. A classical approach for evaluating the expectation of a given function $f$ under $p$ using samples from $p_\theta$ is to use importance sampling.</p>
+<div>
+$$
+\mathbb{E}_{\mathbf{x}\sim p} [f(\mathbf{x})] 
+= \mathbb{E}_{\mathbf{x}\sim p_\theta} \Big[\frac{p(\mathbf{x})}{p_\theta(\mathbf{x})} f(\mathbf{x})\Big]
+\approx \frac{1}{N} \sum_{i=1}^N w(\mathbf{x}_i)f(\mathbf{x}_i)
+$$
+</div>
+<p>However, $p(\mathbf{x})$ can only be estimated via finite datasets. Let $c_\phi: \mathcal{X} \to [0,1]$ be a probabilistic binary classifier for predicting whether a sample $\mathbf{x}$ is from the true data distribution ($y=1$). The joint distribution over $\mathcal{X}\times\mathcal{Y}$ is denoted as $q(\mathbf{x}, y)$.</p>
+<div>
+$$
+q(\mathbf{x}\vert y) = \begin{cases}
+p_\theta(\mathbf{x}) & \text{ if }y=0\text{; predicted to be generated data} \\
+p(\mathbf{x}) & \text{ otherwise; from the true data distribution}
+\end{cases}
+$$
+</div>
+<p>Then if $c_\phi$ is <a href="https://svivek.com/teaching/lectures/slides/prob-learning/bayes-optimal-classifier.pdf">Bayes optimal</a>, the importance weight can be estimated by:</p>
+<div>
+$$
+w_\phi(\mathbf{x}) 
+= \frac{p(\mathbf{x})}{p_\theta(\mathbf{x})}
+= \frac{q(\mathbf{x} \vert y=1)}{q(\mathbf{x} \vert y=0)}
+= \frac{q(y=0)}{q(y=1)} \frac{q(y=1 \vert \mathbf{x})}{q(y=0 \vert \mathbf{x})}
+= \gamma \frac{c_\phi(\mathbf{x})}{1 - c_\phi(\mathbf{x})}
+$$
+</div>
+<p>where $\gamma = \frac{q(y=0)}{q(y=1)} &gt; 0$ is a fixed odd ratio.</p>
+<p>Since we cannot learn a perfect optimal classifier, the importance weight would be an estimation $\hat{w}_\phi$. A couple of practical tricks can be applied to offset cases when the classifier exploits artifacts in the generated samples to make very confident predictions (i.e. very small importance weights):</p>
+<ol>
+<li>Self-normalization: normalize the weight by the sum $\hat{w}_\phi(\mathbf{x}_i) / \sum_{j=1}^N \hat{w}_\phi(\mathbf{x}_j)$.</li>
+<li>Flattening: add a power scaling parameter $\alpha &gt; 0$, $\hat{w}_\phi(\mathbf{x}_i)^\alpha$.</li>
+<li>Clipping: specify a lower bound $\max(\hat{w}_\phi(\mathbf{x}_i), \beta)$.</li>
+</ol>
+<p>To sample from an importance resampled generative model, $\mathbf{x}\sim p_{\theta, \phi}(\mathbf{x}) \propto p_\theta(\mathbf{x})\hat{w}_\phi(\mathbf{x})$, they adopt SIR (Sampling-Importance-Resampling),</p>
+<figure>
+	<img src="SIR-importance-resampling.png" style="width: 100%;"  />
+	<figcaption>The algorithm for sampling from a generative model according to importance weights $\hat{w}(\mathbf{x}\_i)$ using SIR. (Image source: <a href="https://arxiv.org/abs/1906.09531" target="_blank">Grover et al., 2019)</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2004.11714">Deng et al., 2020</a> proposed to learn a EBM to steer a LM in the <a href="https://arxiv.org/abs/1906.03351">residual space</a>, $P_\theta(x) \propto P_\text{LM}(x)\exp(-E_\theta(x))$, where $P_\theta$ is the joint model; $E_\theta$ is the residual energy function to be learned. If we know the partition function $Z$, we can model the generative model for generative a sequence $x_{p+1}, \dots, x_T$ as:</p>
+<div>
+$$
+P_\theta(x_{p+1:T}\vert x_{1:p}) = \frac{P_\text{LM}(x_{p+1:T}\vert x_{1:p}) \exp(-E_\theta(x_{1:T}))}{Z_\theta(x_{1:p})}
+$$
+</div>
+<p>The goal is to learn the parameters of the energy function $E_\theta$ such that the joint model $P_\theta$ gets closer to the desired data distribution. The residual energy function is trained by noise contrastive estimation (<a href="https://www.kdnuggets.com/2019/07/introduction-noise-contrastive-estimation.html">NCE</a>), considering $P_\theta$ as the model distribution and $P_\text{LM}$ as the noise distribution:</p>
+<div>
+$$
+\theta = \arg\max_{\theta} \mathbb{E}_{x^+ \sim P_\text{data}} \log\frac{1}{1+\exp(E_\theta(x^+))} + \mathbb{E}_{x^- \sim P_\text{LM}} \log\frac{1}{1+\exp(-E_\theta(x^-))}
+$$
+</div>
+<p>However, the partition function is intractable in practice. The paper proposed a simple way to first sample from the original LM and then to resample from them according to the energy function. This is unfortunately quite expensive.</p>
+<figure>
+	<img src="top-k-joint-sampling.png" style="width: 80%;"  />
+	<figcaption>Top k samples from the base LM are resampled according to the residual energy function. (Image source: <a href="https://arxiv.org/abs/2004.11714" target="_blank">Deng et al., 2020</a>)</figcaption>
+</figure>
+<h1 id="smart-prompt-design">Smart Prompt Design<a hidden class="anchor" aria-hidden="true" href="#smart-prompt-design">#</a></h1>
+<p>Large language models have been shown to be very powerful on many NLP tasks, even with only <em>prompting</em> and no task-specific fine-tuning (<a href="https://lilianweng.github.io/posts/2019-01-31-lm/#gpt-2">GPT2</a>, <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#gpt-3">GPT3</a>. The prompt design has a big impact on the performance on downstream tasks and often requires time-consuming manual crafting. For example, factual questions can gain a big boost with smart prompt design in &ldquo;closed-book exam&rdquo; (<a href="https://arxiv.org/abs/2010.15980">Shin et al., 2020</a>, <a href="https://arxiv.org/abs/1911.12543">Jiang et al., 2020)</a>). I’m expecting to see an increasing amount of literature on automatic smart prompt design.</p>
+<h2 id="gradient-based-search">Gradient-based Search<a hidden class="anchor" aria-hidden="true" href="#gradient-based-search">#</a></h2>
+<p><strong>AutoPrompt</strong> (<a href="https://arxiv.org/abs/2010.15980">Shin et al., 2020</a>; <a href="http://ucinlp.github.io/autoprompt">code</a>) is a method to automatically create prompts for various tasks via gradient-based search. AutoPrompt constructs a prompt by combining the original task inputs $x$ with a collection of trigger tokens $x_\text{trig}$ according to a template $\lambda$. The trigger tokens are shared across all inputs and thus <em>universally</em> effective.</p>
+<figure>
+	<img src="autoprompt.png" style="width: 100%;"  />
+	<figcaption>The overview of AutoPrompt. The trigger tokens are retrieved to optimize for the target outputs across all inputs. (Image source: <a href="https://arxiv.org/abs/2010.15980" target="_blank">Shin et al., 2020</a>)</figcaption>
+</figure>
+<p>The universal trigger tokens are identified using a gradient-guided search strategy same as in <a href="https://arxiv.org/abs/1908.07125">Wallace et al., 2019</a>. The <em>universal</em> setting means that the trigger tokens $x_\text{trig}$ can optimize for the target output $\tilde{y}$ for all inputs from a dataset:</p>
+<div>
+$$
+x_\text{trig} = \arg\min_{x’_\text{trig}} \mathbb{E}_{x\sim\mathcal{X}} [\mathcal{L}(\tilde{y}, f(x’_\text{trig}; x))]
+$$
+</div>
+<p>The search operates in the embedding space. The embedding of every trigger token  $e_{\text{trig}_i}$ is first initialized to some default value and then gets updated to minimize the first-order Taylor expansion of the task-specific loss around the current token embedding:</p>
+<div>
+$$
+e^{(t+1)}_\text{trig} = \arg\min_{e\in\mathcal{V}} [e - e^{(t)}_{\text{trig}_i}]^\top \nabla_{e^{(t)}_{\text{trig}_i}} \mathcal{L}
+$$
+</div>
+<p>where $\mathcal{V}$ refers to the embedding matrix of all the tokens. $\nabla_{e^{(t)}_{\text{trig}_i}} \mathcal{L}$ is the average gradient of the task loss over a batch at iteration $t$. We can brute-force the optimal $e$ by a $\vert \mathcal{V} \vert d$-dimensional dot product, which is cheap and can be computed in parallel.</p>
+<figure>
+	<img src="universal-adv-triggers.png" style="width: 62%;"  />
+	<figcaption>We search for trigger tokens by updating their embeddings with the gradient of the task loss per batch. (Image source: <a href="https://arxiv.org/abs/1908.07125" target="_blank">Wallace et al., 2019</a>)</figcaption>
+</figure>
+<p>The above token replacement method can be augmented with beam search. When looking for the optimal token embedding $e$, we can pick top-$k$ candidates instead of a single one, searching from left to right and score each beam by $\mathcal{L}$ on the current data batch.</p>
+<figure>
+	<img src="autoprompt-examples.png" style="width: 100%;"  />
+	<figcaption>Example prompts discovered by AutoPrompt for different tasks. (Image source: <a href="https://arxiv.org/abs/2010.15980" target="_blank">Shin et al., 2020</a>)</figcaption>
+</figure>
+<p><a id="prefix-tuning" ></a>Smart prompt design essentially produces efficient context that can lead to desired completion. Motivated by this observation, <a href="https://arxiv.org/abs/2101.00190">Li &amp; Liang (2021)</a> proposed <strong>Prefix-Tuning</strong> which assigns a small number of trainable parameters at the beginning of an input sequence (named &ldquo;prefix&rdquo;) to steer a LM, $[\text{PREFIX}; x; y]$. Let $\mathcal{P}_\text{idx}$ be a set of prefix indices and $\text{dim}(h_i)$ be the embedding size. The prefix parameters $P_\theta$ has the dimension $\vert\mathcal{P}_\text{idx}\vert \times \text{dim}(h_i) $ and the hidden state takes the form:</p>
+<div>
+$$
+h_i = \begin{cases}
+P_\theta[i,:], & \text{if }i \in \mathcal{P}_\text{idx}\\
+\text{LM}_\phi(z_i, h_{<{i}}), & \text{otherwise}
+\end{cases}
+$$
+</div>
+<p>Note that only $P_\theta$ is trainable and the LM parameters $\phi$ is frozen during training.</p>
+<figure>
+	<img src="prefix-tuning.png" style="width: 70%;"  />
+	<figcaption>Illustrations of fine-tuning versus prefix-tuning. (Image source: <a href="https://arxiv.org/abs/2101.00190" target="_blank">Li & Liang 2021</a>)</figcaption>
+</figure>
+<p>The prefix parameters do not tie to any embeddings associated with the real words and thus they are more <em>expressive</em> for steering the context. Direct optimizing $P_\theta$ unfortunately results in poor performance. To reduce the difficulty associated with high dimensionality training, the matrix $P_\theta$ is reparameterized by a smaller matrix $P&rsquo;_\theta \in \mathbb{R}^{\vert\mathcal{P}_\text{idx}\vert \times c}$ and a large feed forward network $\text{MLP}_\theta \in \mathbb{R}^{c\times \text{dim}(h_i)}$.</p>
+<p>The performance increases with the prefix length $\vert\mathcal{P}_\text{idx}\vert$ up to some value. And this value varies with tasks.</p>
+<figure>
+	<img src="prefix-tuning-length.png" style="width: 100%;"  />
+	<figcaption>Task performance, summarization (left) and table-to-text (right), as a function of prefix length. (Image source: <a href="https://arxiv.org/abs/2101.00190" target="_blank">Li & Liang 2021</a>)</figcaption>
+</figure>
+<p>A few other interesting learnings from their ablation studies include:</p>
+<ul>
+<li>Tuning only the embedding layer (without prefix) is not sufficiently expressive.</li>
+<li>Placing the trainable parameter between $x$ and $y$, $[x; \text{INFIX}; y]$, slightly underperforms prefix-tuning, likely because it only affects the context for $y$ while prefix affects both.</li>
+<li>Random initialization of $P_\theta$ leads to low performance with high variance. In contrast, initializing $P_\theta$ with activations of real words improves generation, even the words are irrelevant to the task.</li>
+</ul>
+<p>Fine-tuned models achieve better task performance but they can fail in the low data regime. Both AutoPrompt and Prefix-Tuning were found to outperform fine-tuning in the regime where the training dataset is small (i.e. $10^2-10^3$ samples). As an alternative to fine-tuning, prompt design or learning the context embedding is much cheaper. AutoPrompt improves the accuracy for sentiment classification a lot more than manual prompts and achieves similar performance as linear probing. For the NLI task, AutoPrompt obtains higher accuracy than linear probing. It is able to retrieve facts more accurately than manual prompts too. In low data regime, Prefix-Tuning achieves performance comparable with fine-tuning on table-to-text generation and summarization.</p>
+<p>Two successive works, <strong>P-tuning</strong> (<a href="https://arxiv.org/abs/2103.10385">Liu et al. 2021</a>; <a href="https://github.com/THUDM/P-tuning">code</a>) and <strong>Prompt Tuning</strong> (<a href="https://arxiv.org/abs/2104.08691">Lester et al. 2021</a>), follow the similar idea of explicit training continuous prompt embeddings but with a few different choices over the trainable parameters and architecture. Different from Prefix-Tuning which concatenates continuous prompt tokens in every hidden state layer of the transformer, both P-tuning and Prompt Tuning non-invasively add continuous prompts <em>only in the input</em> to work well.</p>
+<p>Let $[P_i]$ be the $i$-th token in the prompt template of <strong>P-tuning</strong> (<a href="https://arxiv.org/abs/2103.10385">Liu et al. 2021</a>), we can denote a prompt as a sequence $T=\{[P_{0:i}], \mathbf{x}, [P_{i+1:m}], \mathbf{y}\}$. Each token $[P_i]$ does not have to be a real token in the model vocabulary (&ldquo;pseudo-token&rdquo;), and thus the encoded template $T^e$ looks like the following and the pseudo-token hidden state can be optimized with gradient descent.</p>
+<div>
+$$
+T^e = \{ h_0, \dots, h_i, \text{embed}(\mathbf{x}), h_{i+1}, \dots, h_m, \text{embed}(\mathbf{y})\}
+$$
+</div>
+<figure>
+	<img src="p-tuning.png" style="width: 75%;"  />
+	<figcaption>The illustration of P-tuning. Sometimes, adding a few task-related anchor tokens, such as “capital” in the figure, can bring further improvement. (Image source: <a href="https://arxiv.org/abs/2103.10385" target="_blank">Liu et al. 2021</a>)</figcaption>
+</figure>
+<p>There are two major optimization challenges in P-tuning:</p>
+<ol>
+<li>Discreteness: The word embedding of a pretrained language model are highly discrete. It is hard to optimize $h_i$ if they are intialized at random.</li>
+<li>Association: $h_i$ should be dependent on each other. Thus they develop a mechanism to model this dependency by training a light-weighted LSTM-based prompt encoder:</li>
+</ol>
+<div>
+$$
+h_i = \text{MLP}([\text{LSTM}(h_{0:i}): \text{LSTM}(h_{i:m})])
+$$
+</div>
+<p>P-tuning is more flexible than prefix-tuning, as it inserts trainable tokens in the middle of a prompt not just at the beginning. The usage of task-specific anchor tokens is like combining manual prompt engineering with trainable prompts.</p>
+<p><strong>Prompt Tuning</strong> (<a href="https://arxiv.org/abs/2104.08691">Lester et al. 2021</a>) largely simplifies the idea of prefix tuning by only allowing an additional $k$ tunable tokens per downstream task to be prepended to the input text. The conditional generation is $p_{\theta, \theta_P}(Y \vert [P; X])$, where $P$ is the &ldquo;pseudo prompt&rdquo; with parameters $\theta_P$ trainable via back-propagation. Both $X$ and $P$ are embedding vectors and we have $X \in \mathbb{R}^{n \times d^e}, P \in \mathbb{R}^{k \times d^e}$ and $[P;X] \in \mathbb{R}^{(n+k) \times d^e}$, where $d^e$ is the embedding space dimensionality.</p>
+<ul>
+<li>Prompt tuning produces competitive results as model fine-tuning when the model gets <em>large</em> (billions of parameters and up). This result is especially interesting given that large models are expensive to fine-tune and execute at inference time.</li>
+<li>With learned task-specific parameters, prompt tuning achieves better transfer learning when adapting to new domains. It outperforms fine-tuning on domain shift problems.</li>
+<li>They also showed that prompt ensembling of multiple prompts for the same task introduces further improvement.</li>
+</ul>
+<figure>
+	<img src="prompt-tuning.png" style="width: 75%;"  />
+	<figcaption>The illustration of how Prompt Tuning works. (Image source: <a href="https://arxiv.org/abs/2104.08691" target="_blank">Lester et al. 2021</a>)</figcaption>
+</figure>
+<p>The experiments investigated several prompt initialization schemes:</p>
+<ol>
+<li>Random initialization by uniformly sampling from [-0.5, 0.5];</li>
+<li>Sample embeddings of top 5000 common tokens;</li>
+<li>Use the embedding values of the class label strings. If we don&rsquo;t have enough class labels to initialize the soft-prompt, we fall back to scheme 2.
+Random initialization performs noticeably worse than the other two options.</li>
+</ol>
+<figure>
+	<img src="prompt-tuning-exp1.png" style="width: 100%;"  />
+	<figcaption>The effect of (a) different prompt initialization schemes and (b) different prompt lengths. (Image source: <a href="https://arxiv.org/abs/2104.08691" target="_blank">Lester et al. 2021</a>)</figcaption>
+</figure>
+<p>The pre-training objectives also have a big impact on the quality of prompt tuning. T5’s “span corruption” is not a good option here.</p>
+<p>Prompt tuning is found to be less likely to overfit to a specific dataset. To evaluate the robustness to data shifting problem, they trained the model on one dataset of one task and evaluated it on the test dataset but in a <em>different domain</em>. Prompt tuning is more resilient and can generalize to different domains better.</p>
+<figure>
+	<img src="prompt-tuning-exp2.png" style="width: 50%;"  />
+	<figcaption>Prompt tuning is more resilient to domain shift between train and test sets. (Image source: <a href="https://arxiv.org/abs/2104.08691" target="_blank">Lester et al. 2021</a>)</figcaption>
+</figure>
+<h2 id="heuristic-based-search">Heuristic-based Search<a hidden class="anchor" aria-hidden="true" href="#heuristic-based-search">#</a></h2>
+<p>Paraphrasing is a quick way to explore more prompts similar to the known version, which can be done via <em>back-translation</em>.  Using back-translation, the initial prompt is translated into $B$ candidates in another language and then each is translated back into $B$ candidates in the original language. The resulting total $B^2$ candidates are scored and ranked by their round-trip probabilities.</p>
+<p><a href="https://www.aclweb.org/anthology/P18-1079/">Ribeiro et al (2018)</a> identified <em>semantically equivalent adversaries (SEA)</em> by generating a variety of paraphrases $\{x&rsquo;\}$ of input $x$ until it triggers a different prediction of target function $f$:</p>
+<div>
+$$
+\begin{aligned}
+SEA(x, x') &= \mathbb{1}[\text{SemEq}(x, x') \land f(x) \neq f(x')] \\
+\text{where SemEq}(x, x') &= \mathbb{1}[\min\Big(1, \frac{p(x'\vert x)}{p(x\vert x)} \Big) \geq \tau]
+\end{aligned}
+$$
+</div>
+<p>where the score $p(x&rsquo;\vert x)$ is proportional to translating $x$ into multiple languages and then translating it back to the original language.</p>
+<p>Examples of SEA rules include (<em>What <code>NOUN</code>→Which <code>NOUN</code></em>), (<em><code>WP</code> is → <code>WP</code>&rsquo;s&rsquo;</em>), (<em>was→is</em>), etc. They are considered as &ldquo;bugs&rdquo; in the model. Applying those rules as data augmentation in model training helps robustify the model and fix bugs.</p>
+<p><a href="https://arxiv.org/abs/1911.12543">Jiang et al (2020)</a> attempts to validate whether a trained language model knows certain knowledge by automatically discovering better prompts to query. Within the scope of knowledge retrieval where factual knowledge is represented in the form of a triple $\langle x, r, y \rangle$ (subject, relation, object). The prompts can be mined from training sentences (e.g. Wikipedia description) or expanded by paraphrase.</p>
+<p>Interestingly some small modifications in the prompts may lead to big gain, as shown in Fig. X.</p>
+<figure>
+	<img src="prompt-small-modifications.png" style="width: 52%;"  />
+	<figcaption>Small modifications in prompt templates can lead to big performance gains: replacement in blue, insertion in green, deletion in red. (Image source: <a href="https://arxiv.org/abs/1911.12543" target="_blank">Jiang et al., 2020</a>)</figcaption>
+</figure>
+<h1 id="fine-tuning">Fine-tuning<a hidden class="anchor" aria-hidden="true" href="#fine-tuning">#</a></h1>
+<p>Fine-tuning is an intuitive way to guide a LM to output desired content, commonly by training on supervised datasets or by RL. We can fine-tune all the weights in the model or restrict the fine-tuning to only top or additional layers.</p>
+<h2 id="conditional-training">Conditional Training<a hidden class="anchor" aria-hidden="true" href="#conditional-training">#</a></h2>
+<p>Conditional training aims to learn a generative model conditioned on a control variable $z$, $p(y \vert x, z)$.</p>
+<p><a href="https://arxiv.org/abs/1805.04833">Fan et al (2018)</a> trained a conditional language model for 2-step story generation. First, a model outputs the story sketch and then a story writing model creates a story following that sketch. The mechanism of conditioning on the sketch is implemented by a <em>fusion</em> model architecture. The fusion model enforces a form of <em>residual learning</em> that allows the story writing model to focus on learning what the first sketch generation model is missing. Also for story generation, <a href="https://www.aclweb.org/anthology/W18-1505/">Peng et al (2018)</a> experimented with an ending valence-conditioned story generator LM, $p(x_t \vert x_{&lt;t}, z)$ where $z$ is the label of the story ending (sad, happy or neutral). Their language model is a bidirectional LSTM and the label is mapped into a learned embedding which then blends into the LSTM cell.</p>
+<p><a id="ctrl" ></a><strong>CTRL</strong> (<a href="https://arxiv.org/abs/1909.05858">Keskar et al., 2019</a>; <a href="https://github.com/salesforce/ctrl">code</a>) aims to train a language model conditioned control code $z$ using controllable datasets. CTRL learns the conditioned distribution $p(x \vert z)$ by training on raw text sequences with <em>control code prefixes</em>, such as <code>[horror]</code>, <code>[legal]</code>, etc. Then the learned model is able to generate text with respect to the prompt prefix. The training data contains Wikipedia, OpenWebText, books, Amazon reviews, reddit corpus and many more, where each dataset is assigned with a control code and subreddit in the reddit corpus has its own topic as control code.</p>
+<figure>
+	<img src="CTRL-control-code.png" style="width: 90%;"  />
+	<figcaption>Datasets used for training CTRL and associated control codes. (Image source: Edited from Table 7 in <a href="https://arxiv.org/abs/1909.05858" target="_blank">Keskar et al., 2019</a>)</figcaption>
+</figure>
+<p>The control code also can be used for <em>domain annotation</em> given tokens, because $p(z \vert x) \propto p(x \vert z) p(z)$, assuming the prior over domains is uniform. One limitation of CTRL is the lack of control for <em>what not to generate</em> (e.g. avoid toxicity).</p>
+<figure>
+	<img src="CTRL-examples.png" style="width: 100%;"  />
+	<figcaption>The examples of conditioned sample generation by CTRL. (Image source: <a href="https://arxiv.org/abs/1909.05858" target="_blank">Keskar et al., 2019</a>)</figcaption>
+</figure>
+<p>Note that CTRL trains a transformer model from scratch. However, labelling all the text within the same dataset with the same control code (e.g. All the wikipedia articles have &ldquo;wikipedia&rdquo; as control code) feels quite constrained. Considering that often we need highly customized control codes but only have a limited amount of labelled data, I would expect fine-tuning an unconditional LM with a small labelled dataset in the same way as CTRL to work out well too. Although how much data is needed and how good the sample quality might be are subject to experimentation.</p>
+<h2 id="rl-fine-tuning">RL Fine-tuning<a hidden class="anchor" aria-hidden="true" href="#rl-fine-tuning">#</a></h2>
+<p>Fine-tuning a sequential model with RL regarding any arbitrary and possibly non-differentiable reward function has been proved to work well years ago (<a href="https://arxiv.org/abs/1511.06732">Ranzato et al., 2015</a>). RL fine-tuning can resolve several problems with <em>teacher forcing</em> method. With teacher forcing, the model only minimizes a maximum-likelihood loss at each individual decoding step during training but it is asked to predict the entire sequence from scratch at test time. Such a discrepancy between train and test could lead to exposure bias and accumulated error. In contrast, RL fine-tuning is able to directly optimize task-specific metrics on the sequence level, such as BLEU for translation (<a href="https://arxiv.org/abs/1511.06732">Ranzato et al., 2015</a>, <a href="https://arxiv.org/abs/1609.08144">Wu et al., 2016</a>, <a href="https://arxiv.org/abs/1707.07402">Nguyen et al., 2017</a>), ROUGE for summarization (<a href="https://arxiv.org/abs/1511.06732">Ranzato et al., 2015</a>, <a href="https://arxiv.org/abs/1705.04304">Paulus et al., 2017</a>, <a href="https://arxiv.org/abs/1804.07036">Wu and Hu, 2018</a>) and customized metric for story generation (<a href="https://arxiv.org/abs/1809.10736">Tambwekar et al., 2018</a>).</p>
+<p><a href="https://arxiv.org/abs/1511.06732">Ranzato et al (2015)</a> applied REINFORCE to train RNN models for sequence generation tasks. The model is first trained to predict the next token using cross-entropy loss (ML loss) and then fine-tuned alternatively by both ML loss and REINFORCE (RL loss). At the second fine-tuning stage, the number of training steps for next-token prediction is gradually decreasing until none and eventually only RL loss is used. This sequence-level RL fine-tuning was shown by experiments to lead to great improvements over several supervised learning baselines back then.</p>
+<p>Google implemented the similar approach in their neural machine translation system (<a href="https://arxiv.org/abs/1609.08144">Wu et al., 2016</a>) and <a href="https://arxiv.org/abs/1705.04304">Paulus et al (2017)</a> adopted such approach for summarization task. The training objective contains two parts, ML loss for next token prediction, $\mathcal{L}_\text{ML} = \sum_{(x, y^*)\sim\mathcal{D}} \log p_\theta(y^* \vert x)$, and RL loss $\mathcal{L}_\text{RL}$ for maximizing the expected reward where the reward per sequence is measured by BLEU or ROUGE. The model is first trained with $\mathcal{L}_\text{ML}$ until convergence and then fine-tuned with a linear combination of two losses, $\mathcal{L}_\text{mix} = \alpha \mathcal{L}_\text{ML} + (1 - \alpha)\mathcal{L}_\text{RL}$.</p>
+<p>The RL loss of Google NMT is to maximize the expected BLEU score:</p>
+<div>
+$$
+\mathcal{L}_\text{RL} = - \sum_{(x, y^*)\sim\mathcal{D}} \mathbb{E}_{y\sim p_\theta(.\vert x)} [R(y, y^*)]
+$$
+</div>
+<p>where $y$ is the predicted sequence and $y^*$ is the ground truth.</p>
+<p><a href="https://arxiv.org/abs/1705.04304">Paulus et al (2017)</a> added an extra weighting term based on the reward difference between two output sequences, $y$ by sampling the next token according to the predicted probability and $\hat{y}$ by greedily taking the most likely token. This RL loss maximizes the conditional likelihood of the sampled sequence $y$ if it obtains a higher reward than the greedy baseline $\hat{y}$:</p>
+<div>
+$$
+\mathcal{L}_\text{RL} = \sum_{(x, y^*)\sim\mathcal{D}} (R(\hat{y}, y^*) - R(y, y^*)) \sum_{t=1}^{n'} \log p(y_t \vert y_{<{t}}, x)
+$$
+</div>
+<h2 id="rl-fine-tuning-with-human-preferences">RL Fine-tuning with Human Preferences<a hidden class="anchor" aria-hidden="true" href="#rl-fine-tuning-with-human-preferences">#</a></h2>
+<p>Reward learning is critical for defining human preferences. Quantitative measurement like BLEU or ROUGE computes the overlap of words and n-gram phrases between sequences and does not always correlate with better quality by human judges. Reward learning from human feedback (<a href="https://arxiv.org/abs/1706.03741">Christiano et al., 2017</a>) is a better way to align what we measure with what we actually care about. Human feedback has been applied to learn a reward function for applications like story generation (<a href="https://arxiv.org/abs/1904.13015">Yi et al., 2019</a>) and summarization (<a href="https://arxiv.org/abs/1909.01214">Böhm et al., 2019</a>, <a href="https://arxiv.org/abs/1909.08593">Ziegler et al., 2019</a>, <a href="https://arxiv.org/abs/2009.01325">Stiennon et al., 2020</a>).</p>
+<p>In order to generate more coherent conversation, <a href="https://arxiv.org/abs/1904.13015">Yi et al (2019)</a> collected 4 types of binary human feedback given a conversation pair (user utterance, system response), whether the system response is (1) comprehensive, (2) on topic, (3) interesting and (4) leading to continuation of the conversation.
+An evaluator is trained to predict human feedback and then is used to rerank the beam search samples, to finetune the model or to do both. (Actually they didn’t use RL fine-tuning but rather use the evaluator to provide a discriminator loss in supervised fine-tuning.)</p>
+<p>Let&rsquo;s define a learned reward function $R_\psi(x, y)$ parameterized by $\psi$ as a measurement for the quality of output $y$ given the input $x$.</p>
+<p>To learn the ground truth reward $R^*$ defined by human judgements, <a href="https://arxiv.org/abs/1909.01214">Böhm et al (2019)</a> compared two loss functions:</p>
+<p>(1) Regression loss: simply minimizing the mean squared error.</p>
+<div>
+$$
+\mathcal{L}^\text{MSE}_\text{rm} = [R^*(x, y) - R_\psi(x, y)]^2
+$$
+</div>
+<p>(2) Preference loss: learning to agree with the ground truth reward,</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}^\text{pref}_\text{rm} =& - \sum_{i,j} \big(\mathbb{1}[R^*(x, y_i) > R^*(x, y_j)] \log P(y_i \succ y_j) + \\
+&\mathbb{1}[R^*(x, y_j) > R^*(x, y_i)] \log P(y_j \succ y_i) \big)\\ 
+\text{where }P(y_i \succ y_j) =& \frac{\exp(R_\psi(x, y_i))}{\exp(R_\psi(x, y_i)) + \exp(R_\psi(x, y_j))}
+\end{aligned}
+$$
+</div>
+<p>Their experiments showed that the <em>preference loss</em> achieves the best performance, where the reward model is a thin MLP layer on top of BERT sentence embedding.</p>
+<p><a href="https://arxiv.org/abs/1909.08593">Ziegler et al (2019)</a> collected human labels by asking humans to select the best candidate $y_b$ out of a few options $\{y_i\}$ given the input $x \sim \mathcal{D}$. The candidates are sampled by $y_0, y_1 \sim p(.\vert x), y_2, y_3 \sim \pi(.\vert x)$. We should be aware that human labeling might have very high disagreement when the ground truth is fuzzy.</p>
+<figure>
+	<img src="finetune-human-feedback.png" style="width: 80%;"  />
+	<figcaption>The overview of the training framework for fine-tuning a language model policy with reward learned from human feedback. (Image source: <a href="https://arxiv.org/abs/1909.08593" target="_blank">Ziegler et al., 2019</a>)</figcaption>
+</figure>
+<p>The reward model is implemented by a pretrained language model with an extra random linear layer of the final embedding output. It it trained to minimize the loss:</p>
+<div>
+$$
+\mathcal{L}_\text{rm} = -\mathbb{E}_{(x, \{y_i\}, b) \sim \mathcal{D}} \Big[ \log \frac{\exp(R_\psi(x, y_b))}{\sum_i \exp(R_\psi(x, y_i))} \Big]
+$$
+</div>
+<p>To keep the scale consistent during training, the reward model is normalized to have mean 0 and variance 1.</p>
+<p><a id="kl-penalty" ></a>During RL fine-tuning, the policy $\pi$, initialized by a pretrained language model $p$, is optimized via <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#ppo">PPO</a> with the above learned reward model. To avoid the policy&rsquo;s deviating from its original behavior too much, a <strong>KL penalty</strong> is added:</p>
+<div>
+$$
+R(x, y) = R_\psi(x, y) - \beta\log\frac{\pi(y \vert x)}{p(y \vert x)}
+$$
+</div>
+<p>If running online data collection, human label collection process is continued during RL fine-tuning and thus the human labelers can review results generated by the latest policy. The number of human labels are evenly spread out during the training process. Meanwhile the reward model is also retrained periodically. Online data collection turns out to be important for the summarization task but not for the text continuation task. In their experiments, jointly training the reward model and the policy with shared parameters did not work well and can lead to overfitting due to the big imbalance between dataset sizes.</p>
+<p>In the following work (<a href="https://arxiv.org/abs/2009.01325">Stiennon et al., 2020</a>), the human label collection was further simplified to select the best option between a pair of summaries, $y_b \in\{y_0, y_1\}$ The reward model loss was updated to optimize the log odds of the selected summary:</p>
+<div>
+$$
+\mathcal{L}_\text{rm} = - \mathbb{E}_{(x, y_0, y_1, b)\sim\mathcal{D}} [\log(\sigma(r_\theta(x, y_b) − r_\theta(x, y_{1−b})))]
+$$
+</div>
+<figure>
+	<img src="summarize-human-feedback.png" style="width: 100%;"  />
+	<figcaption>The overview of fine-tuning the language model policy from human feedback for summarization, including (1) human feedback collection, (2) reward model training, and (3) policy training. (Image source: <a href="https://arxiv.org/abs/2009.01325" target="_blank">Stiennon et al., 2020</a>)</figcaption>
+</figure>
+<h2 id="guided-fine-tuning-with-steerable-layer">Guided Fine-tuning with Steerable Layer<a hidden class="anchor" aria-hidden="true" href="#guided-fine-tuning-with-steerable-layer">#</a></h2>
+<p>Instead of fine-tuning the entire model, only fine-tuning a small extra set of parameters while the base model stays fixed is computationally cheaper.</p>
+<p><a id="pplm" ></a>In computer vision, plug-and-play generative networks (PPGN; <a href="https://arxiv.org/abs/1612.00005">Nguyen et al., 2017</a>) generate images with different attributes by plugging a discriminator $p(a \vert x)$ into a base generative model $p(x)$. Then the sample with a desired attribute $a$ can be sampled from $p(x \vert a) \propto p(a \vert x)p(x)$. Inspired by PPGN, the <strong>plug-and-play language model</strong> (<strong>PPLM</strong>; <a href="https://arxiv.org/abs/1912.02164">Dathathri et al., 2019</a>) combines one or multiple simple attribute models with a pretrained language model for controllable text generation.</p>
+<p>Given an attribute $a$ and the generated sample $x$, let an attribute model be $p(a\vert x)$. To control content generation, the current latent representation at time $t$, $H_t$ (containing a list of key-value pairs per layer), can be shifted by $\Delta H_t$  in the direction of the sum of two gradients:</p>
+<ul>
+<li>One toward higher log-likelihood of the attribute $a$ under $p(a \vert x)$ &mdash; so that the output content acquires a desired attribute.</li>
+<li>The other toward higher log-likelihood of the unmodified language model $p(x)$ &mdash; so that the generated text is still in fluent and smooth natural language.</li>
+</ul>
+<p>To shift the output, at decoding time, PPLM runs one forward → one backward → one forward, three passes in total:</p>
+<ol>
+<li>First a forward pass is performed to compute the likelihood of attribute $a$ by $p(a\vert x)$;</li>
+<li>Let $\Delta H_t$ be a stepwise update to the hidden state $H_t$ such that $(H_t + \Delta H_t)$ shifts the distribution of generated text closer to having the attribute $a$. $\Delta H_t$ is initialized at zero.
+Then a backward pass updates the LM hidden states using normalized gradients from the attribute model $\nabla_{\Delta H_t} \log p(a \vert H_t + \Delta H_t)$ as</li>
+</ol>
+<div>
+$$
+\Delta H_t \leftarrow \Delta H_t + \alpha \frac{\nabla_{\Delta H_t} \log p(a|H_t + \Delta H_t)}{\| \nabla_{\Delta H_t} \log p(a|H_t + \Delta H_t) \|^\gamma}
+$$
+</div>
+<p>where $\gamma$ is a normalization scaling coefficient, set per layer. $\alpha$ is step size. This update can be repeated $m \in [3, 10]$ times
+3. The final forward pass recomputes a new distribution over the vocabulary, generated from the updated latents $\tilde{H}_t = H_t + \Delta H_t$. The next token is sampled from the updated distribution.</p>
+<figure>
+	<img src="PPLM.png" style="width: 80%;"  />
+	<figcaption>The overview of how PPLM runs three passes to update the model output to increase the likelihood of a desired attribute. (Image source: <a href="https://arxiv.org/abs/1912.02164" target="_blank">Dathathri et al., 2019</a>)</figcaption>
+</figure>
+<p>Multiple attribute models can be mix-and-matched during generation with customized weights, acting as a set of &ldquo;control knobs&rdquo;. The PPLM paper explored two types of attribute models:</p>
+<ol>
+<li>The simplest attribution model is based on a predefined <em>bag of words</em> (BoW), $\{w_1, \dots, w_k\}$, that specifies a topic of interest.<br/></li>
+</ol>
+<div>
+$$
+\log p(a \vert x) = \log\big( \sum_{i=1}^k p_{t+1} [w_i] \big)
+$$
+</div>
+<p><br/>To encourage the model to output the desired words at least once but not at every step, they normalize the gradient by the maximum gradient norm.
+<br/>Interestingly, they found that increasing the probability of generating words in the bag also increases the probability of generating <em>related</em> but not identical words about the same topic.
+2. The discriminator attribute models are based on learned classifiers which define preferences by a distribution instead of hard samples.</p>
+<p>To ensure the fluency in language, PPLM applied two additional designs:</p>
+<ol>
+<li>Minimizing the KL diverge between modified and unmodified LM, commonly seen in other RL fine-tuning approaches (see <a href="#kl-penalty">above</a>).</li>
+<li>It performs <a href="https://arxiv.org/abs/1809.00125">post-norm fusion</a> to constantly tie the generated text to the unconditional LM $p(x)$, $x_{t+1} \sim \frac{1}{\beta}(\tilde{p}_{t+1}^{\gamma_\text{gm}} p_{t+1}^{1-\gamma_\text{gm}})$, where $p_{t+1}$ and $\tilde{p}_{t+1}$ are the unmodified and modified output distributions, respectively. $\beta$ is a normalizing factor. $\gamma_\text{gm} \in [0.8, 0.95]$ balances between prediction from before and after models.</li>
+</ol>
+<figure>
+	<img src="PPLM-examples.png" style="width: 100%;"  />
+	<figcaption>Examples of controllable text generation by PPLM. (Image source: <a href="https://arxiv.org/abs/1912.02164" target="_blank">Dathathri et al., 2019</a>)</figcaption>
+</figure>
+<p>Interestingly, they found a large variance in the extent of controllability across topics. Some topics (religion, science, politics) are easier to control for compared to others (computers, space).</p>
+<p>One obvious drawback of PPLM is that due to multiple passes at every decoding step, the test time computation becomes much more expensive.</p>
+<p>Similar to PPLM, <strong>DELOREAN</strong> (DEcoding for nonmonotonic LOgical REAsoNing; <a href="https://arxiv.org/abs/2010.05906">Qin et al., 2020</a>) incorporates the future context by back-propagation. Given input text $\mathbf{x}$, DELOREAN aims to generate continuation completion $\mathbf{y} = [y_1, \dots, y_N]$ such that $y$ satisfies certain constraints defined by a context $z$. To keep the generation differentiable, a soft representation of $y$ is tracked, $\tilde{\mathbf{y}}=(\tilde{y}_1, \dots, \tilde{y}_N)$ where $\tilde{y}_i \in \mathbb{R}^V$ are logits over the vocabulary. $\tilde{\mathbf{y}}^{(t)}$ is the soft representation at iteration $t$.</p>
+<p>Given the representation $\tilde{y}^{(t-1)}$ at iteration $t$, it runs the following procedures:</p>
+<ol>
+<li><strong>Backward</strong>: The constraint is represented as a loss function $\mathcal{L}(\mathbf{x}, \tilde{\mathbf{y}}^{(t-1)}, z))$. The logits are updated via gradient descent: $\tilde{y}^{(t), b}_n = \tilde{y}_n^{(t-1)} - \lambda \nabla_{\tilde{y}_n} \mathcal{L}(\mathbf{x}, \tilde{\mathbf{y}}^{(t-1)}, z)$.</li>
+<li><strong>Forward</strong>: Run forward pass to ensure the generated text is fluent. $\tilde{y}^{(t),f}_n = \text{LM}(\mathbf{x}, \tilde{\mathbf{y}}^{(t)}_{1:n-1})$.</li>
+<li>Then linearly combine two logits together to create a new representation $\tilde{y}^{(t)}_n = \gamma \tilde{y}^{(t), f}_n + (1-\gamma) \tilde{y}^{(t), b}_n$. Note that each $\tilde{y}^{(t)}_n$ is needed to sample the next $\tilde{y}^{(t),f}_{n+1}$.</li>
+</ol>
+<p><strong>Side-tuning</strong> (<a href="https://arxiv.org/abs/1912.13503">Zhang et al., 2019</a>) trains a light-weighted side network that learns a residual on top of the original model outputs without modifying the pre-trained model weights. Unlike PPLM, no gradient update is applied on the hidden states. It is a simple yet effective approach for incremental learning. The base model is treated as a black-box model and does not necessarily have to be a neural network. Side-tuning setup assumes the base and side models are fed exactly the same input and the side model is independently learned.</p>
+<figure>
+	<img src="side-tuning.png" style="width: 60%;"  />
+	<figcaption>Comparison of fixed weights, fine-tuning and side-tuning. (Image source: <a href="https://arxiv.org/abs/1912.13503" target="_blank">Zhang et al., 2019</a>)</figcaption>
+</figure>
+<p>The paper explored different strategies of fusing predictions from the base and side models: <code>product</code> is the worst while <code>sum</code> ($\alpha$-blending), MLP, and <a href="https://arxiv.org/abs/1709.07871">FiLM</a> are comparable. Side-tuning is able to achieve better performance, when it is trained with intermediate amounts of data and when the base network is large.</p>
+<p><strong>Auxiliary tuning</strong> (<a href="https://arxiv.org/abs/2006.16823">Zeldes et al., 2020</a>) supplements the original pre-trained model with an <em>auxiliary</em> model that shifts the output distribution according to the target task. The base and auxiliary model outputs are merged on the logits level. The combined model is trained to maximize the likelihood $p(x_t\vert x_{&lt;t}, z)$ of target output.</p>
+<p>The conditional probability of $p(x_t\vert x_{&lt;t}, z)$ can be decomposed into two parts:</p>
+<ol>
+<li>$p(x_t\vert x_{&lt;t})$ assigns high probabilities to fluent sequences of tokens;</li>
+<li>a shift on $p(x_t\vert x_{&lt;t})$ towards $p(x_t\vert x_{&lt;t}, z)$.</li>
+</ol>
+<div>
+$$
+p(x_t\vert x_{<{t}}, z) = \text{softmax}(\text{logits}_\text{LM}(x_t \vert x_{<{t}}) + \text{logits}_\text{aux}(x_t \vert x_{<{t}}, z))
+$$
+</div>
+<p>By Bayesian rule, we have</p>
+<div>
+$$
+p(x_t\vert x_{<{t}}, z)
+= \frac{p(z \vert x_{\leq t})}{p(z)} p(x_t \vert x_{<{t}}) 
+\propto p(z \vert x_{\leq t}) p(x_t \vert x_{<{t}})
+$$
+</div>
+<p>And therefore the auxiliary model $\text{logits}_\text{aux}(x_t \vert x_{&lt;t}, z))$ effectively should learn to predict $p(z \vert x_{\leq t})$. In the experiments of <a href="https://arxiv.org/abs/2006.16823">Zeldes et al., 2020</a>, the auxiliary model can re-use the intermediate layers of the pre-trained LM for feature extraction.</p>
+<figure>
+	<img src="side-auxiliary.png" style="width: 75%;"  />
+	<figcaption>The auxiliary model is trained by reusing features extracted from multiple layers of the base model. (Image source: <a href="https://arxiv.org/abs/2006.16823" target="_blank">Zeldes et al., 2020</a>)</figcaption>
+</figure>
+<p><strong>GeDi</strong> (<a href="https://arxiv.org/abs/2009.06367">Kruse et al., 2020</a>) guides the text generation by <em>Generative Discriminator</em>. The discriminator is implemented as a class conditional language model (CC-LM), $p_\theta(x_{1:t} \vert z)$. The discriminator guides generation at each decoding step by computing classification probabilities for all possible next tokens via Bayes rule by normalizing over <em>two</em> contrastive class-conditional distributions:</p>
+<ol>
+<li>One conditioned on the control code $z$ for desired attribute.</li>
+<li>The other conditioned on the anti-control code $\bar{z}$ for undesired attributes.</li>
+</ol>
+<p>GeDi relies on the contract between $p_\theta(x_{1:t} \vert z)$ and $p_\theta(x_{1:t} \vert \bar{z})$ to compute the probability of the sequence belonging to the desired class. The discriminator loss is to maximize the probability of desired attribute $z$:</p>
+<div>
+$$
+\begin{aligned}
+p_\theta(z \vert x_{1:t}) &= \frac{p(z) p_\theta(x_{1:\tau} \vert z)^{\alpha/\tau}}{\sum_{z' \in \{z, \bar{z}\}} p(z') p_\theta(x_{1:\tau} \vert z')^{\alpha/\tau} } \\
+\mathcal{L}_\text{desc} 
+&= -\frac{1}{N} \sum_{i=1}^N \log p_\theta(z^{(i)} \vert x^{(i)}_{1:\tau_i}) \\
+&= -\frac{1}{N} \sum_{i=1}^N \log \frac{p(z) p_\theta(x^{(i)}_{1:\tau_i} \vert z^{(i)})^{\alpha/t_i}}{\sum_{z' \in \{z, \bar{z}\} } p(z')p_\theta(x^{(i)}_{1:\tau_i} \vert z')^{\alpha/\tau_i}}
+\end{aligned}
+$$
+</div>
+<p>where $p(z) = \exp(b_z) / \sum_{z&rsquo;} \exp(b_{z&rsquo;})$ and $b_z$ is a learned class prior. The probabilities are normalized by the current sequence length $\tau$ to robustify generation sequences of variable lengths. $\tau_i$ is the sequence length of the $i$-th input $x^{(i)}$ in the dataset.</p>
+<figure>
+	<img src="GeDi.png" style="width: 100%;"  />
+	<figcaption>An illustration of how GeDi works via Bayesian rule. (Image source: <a href="https://arxiv.org/abs/2009.06367" target="_blank">Kruse et al., 2020</a>)</figcaption>
+</figure>
+<p>They finetuned a GPT2-medium model with control code similar to how <a href="#ctrl">CTRL</a> is trained to form a CC-LM using a linear combination of discriminative loss and generative loss. This discriminator model is then used as GiDe to guide generation by a larger language model like GPT2-XL.</p>
+<p>One way of decoding from GeDi is to sample from a weighted posterior $p^w(x_{t+1}\vert x_{1:t}, z) \propto p(z \vert x_{1:t+1})^w p(x_{t+1} \vert x_{1:t})$ where $w&gt;1$ applies additional bias toward the desired class $z$. In the sampling process, only tokens with the class or next-token probability larger than a certain threshold are selected.</p>
+<p>GeDi guided generation in their experiments showed strong controllability and ran 30x faster than <a href="#pplm">PPLM</a>.</p>
+<h2 id="distributional-approach">Distributional Approach<a hidden class="anchor" aria-hidden="true" href="#distributional-approach">#</a></h2>
+<p><strong>Generation with Distributional Control</strong> (GDC; <a href="https://arxiv.org/abs/2012.11635">Khalifa, et al. 2020</a>) frames controlled text generation as the optimization of a probability distribution with a constraint. It involves two major steps.</p>
+<p><strong>Step 1: Learn a EBM of the target model</strong></p>
+<p>Let&rsquo;s label a pretrained LM as $a$ and a target LM with desired features as $p$. The desired features can be defined by a set of pre-defined real-valued feature functions $\phi_i(x), i=1,\dots,k$ over $x \in X$, denoted as a vector $\boldsymbol{\phi}$. When sequences $x \in X$ are sampled according to the desired model $p$, the expectations of features $\mathbb{E}_{x\sim p}\boldsymbol{\phi}(x)$ should be close to $\bar{\boldsymbol{\mu}}$ , named &ldquo;<em>moment constraints</em>&rdquo;. The feature function $\phi_i$ can have distinct values (e.g. identity function for binary classifier) or continuous probabilities. In the meantime, the fine-tuned model $p$ should not diverge from $a$ too much by maintaining a small KL divergence measure.</p>
+<p>In summary, given a pretrained model $a$, we would like to find a target model $p$ such that:</p>
+<div>
+$$
+\begin{aligned}
+\bar{\boldsymbol{\mu}} &= \mathbb{E}_{x\sim p}\boldsymbol{\phi}(x) \\
+p &= \arg\min_{c \in \mathcal{C}} D_\text{KL}(c, a)
+\end{aligned}
+$$
+</div>
+<p>where $\mathcal{C}$ is the set of all distributions over $X$ that satisfy the moment constraints.</p>
+<p>According to theorems in Information Geometry, $p$ can be approximated by an EBM (energy-based model; an unnormalized probability distribution) $P$ in the form of exponential function, such that $p(x) \propto P(x)$ and $p(x)=\frac{1}{Z}P(x)$ where $Z=\sum_x P(x)$. The energy-based model can be approximated by:</p>
+<div>
+$$
+P(x)=a(x)\exp\big(\sum_i \lambda_i \phi_i(x)\big)=a(x)\exp(\boldsymbol{\lambda}\cdot\boldsymbol{\phi}(x))
+$$
+</div>
+<p>Let&rsquo;s define <em>importance weight</em> $w(x, \boldsymbol{\lambda}) = \frac{P(x)}{a(x)} = \exp\langle\boldsymbol{\lambda}\cdot\boldsymbol{\phi}(x)\rangle$. Given a large number of sequences sampled from the pretrained model $x_1, \dots, x_N \sim a(x)$,</p>
+<div>
+$$
+\begin{aligned}
+\mu(\boldsymbol{\lambda}) 
+&= \mathbb{E}_{x\sim p}\boldsymbol{\phi}(x)
+= \mathbb{E}_{x\sim a} \frac{p(x)}{a(x)}\boldsymbol{\phi}(x)
+= \frac{1}{Z}\mathbb{E}_{x\sim a} w(x, \boldsymbol{\lambda}) \boldsymbol{\phi}(x) \\
+&= \frac{\mathbb{E}_{x\sim a} w(x, \boldsymbol{\lambda}) \boldsymbol{\phi}(x)}{\sum_{x\in X} P(x)}
+= \frac{\mathbb{E}_{x\sim a} w(x, \boldsymbol{\lambda}) \boldsymbol{\phi}(x)}{\sum_{x\in X} w(x, \boldsymbol{\lambda})a(x)}
+= \frac{\mathbb{E}_{x\sim a} w(x, \boldsymbol{\lambda}) \boldsymbol{\phi}(x)}{\mathbb{E}_{x\sim a} w(x, \boldsymbol{\lambda})} \\
+&\simeq \frac{\sum_{i=1}^N w(x_i,\boldsymbol{\lambda}) \boldsymbol{\phi}(x_i)}{\sum_{i=1}^N w(x_i, \boldsymbol{\lambda})}
+= \frac{\sum_{i=1}^N \exp\langle\boldsymbol{\lambda}\cdot\boldsymbol{\phi}(x)\rangle \boldsymbol{\phi}(x_i)}{\sum_{i=1}^N \exp\langle\boldsymbol{\lambda}\cdot\boldsymbol{\phi}(x)\rangle}
+\end{aligned}
+$$
+</div>
+<p>Using SGD over the objective $|\boldsymbol{\mu}(\boldsymbol{\lambda}) - \bar{\boldsymbol{\mu}}|^2_2$, we can obtain an estimated value for $\boldsymbol{\lambda}$ and a representation of $P(x)=a(x)\exp\langle\boldsymbol{\lambda}\cdot\boldsymbol{\phi}(x)\rangle$. $P(x)$ is a sequential EBM because $a$ is an autoregressive model.</p>
+<p><strong>Step 2: Learn the target probability distribution</strong></p>
+<p>The EBM $P(x)$ can compute ratios of probabilities of two sequences, but cannot sample from $p(x)$ with knowing $Z$. In order to sample from a sequential EBM, the paper proposed to use <a href="https://arxiv.org/abs/1912.08517">Distributional Policy Gradient</a> (DPG; but not this <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#dpg">DPG</a>) with the objective to obtain an autoregressive policy $\pi_\theta$ to approximate a target distribution $p$ by minimizing the cross entropy $H(p, \pi_\theta)$. DPG runs through a sequence of iterations. Within each iteration, the proposed distribution $q$ is used for sampling and we can correct the cross entropy loss with importance weights too:</p>
+<div>
+$$
+\begin{aligned}
+\nabla_\theta H(p, \pi_\theta) 
+&= - \nabla_\theta \mathbb{E}_{x\sim p} \log \pi_\theta(x)
+= - \mathbb{E}_{x\sim p} \nabla_\theta  \log \pi_\theta(x) \\
+&= - \mathbb{E}_{x\sim q} \frac{p(x)}{q(x)} \nabla_\theta  \log \pi_\theta(x)
+= - \frac{1}{Z}\mathbb{E}_{x\sim q} \frac{P(x)}{q(x)} \nabla_\theta  \log \pi_\theta(x)
+\end{aligned}
+$$
+</div>
+<p>To learn such a $\pi_\theta$, the paper adopts a KL-adaptive version of DPG: It only updates $q$ when the estimated policy $\pi_\theta$ gets closer to $p$. This adaptive step is important for fast convergence.</p>
+<figure>
+	<img src="GDC-KL-adaptive-DPG.png" style="width: 45%;"  />
+	<figcaption>The algorithm of distributional policy gradient to make it possible to sample from a EBM $P(x)$, where $q$ is initialized to be $a$. (Image source: <a href="https://arxiv.org/abs/2012.11635" target="_blank">Khalifa, et al. 2020</a>)</figcaption>
+</figure>
+<p>This approach can be used to model various constraints in controllable text generation:</p>
+<ol>
+<li>Pointwise constraints: $\phi_i$ is a binary feature; such as constraining the presence or absence of words, or classifier-based constraints.</li>
+<li>Distributional constraints: $\phi_i$ represents a probability distribution; such as constraining the probability of gender, topic, etc. Their experiments showed great progress in debiasing a GPT-2 model that was trained on Wikipedia Biographies corpus. The percentage of generated biographies on females increased from 7.4% to 35.6%.</li>
+<li>Hybrid constraints: combine multiple constraints by simply summing them up.</li>
+</ol>
+<figure>
+	<img src="GDC-debiasing.png" style="width: 60%;"  />
+	<figcaption>Debiasing experiments using GDC with various constraints. (Image source: <a href="https://arxiv.org/abs/2012.11635" target="_blank">Khalifa, et al. 2020</a>)</figcaption>
+</figure>
+<p>Compared to other baselines, GDC using pointwise constraints diverges less from the base model $a$ and produces smoother curves.</p>
+<figure>
+	<img src="GDC-ablation.png" style="width: 100%;"  />
+	<figcaption>Compare pointwise constrained GDC with several baselines. Low Self-BLEU-5 and high Dist-1 indicate high diversity. (Image source: <a href="https://arxiv.org/abs/2012.11635" target="_blank">Khalifa, et al. 2020</a>)</figcaption>
+</figure>
+<ul>
+<li>REINFORCE that optimizes the reward $\phi$ directly ($\text{REINFORCE}$ in Fig. X.) without constraints converges fast but has a high deviation from the original model.</li>
+<li>REINFORCE that optimizes $P(x)$ ($\text{REINFORCE}_{P(x)}$ in Fig. X.) has low sample diversity.</li>
+<li>Compared to <a href="https://arxiv.org/abs/1909.08593">Ziegler et al., 2019</a> GDC has smoother learning curves and produces a richer vocabulary.</li>
+</ul>
+<h2 id="unlikelihood-training">Unlikelihood Training<a hidden class="anchor" aria-hidden="true" href="#unlikelihood-training">#</a></h2>
+<p>The standard way of maximizing the log-likelihood loss in language model training leads to <a href="#beam-search-surprise">incorrect token distribution</a>, which cannot be fixed with only smart decoding methods. Such models tend to output high-frequency words too often and low-frequency words too rarely, especially when using deterministic decoding (e.g. greedy, beam search). In other words, they are overconfident in their predictions.</p>
+<p>Unlikelihood training (<a href="https://arxiv.org/abs/1908.04319">Welleck &amp; Kulikov et al. 2019</a>] tries to combat this and incorporates preference to <em>unwanted</em> content into the training objective directly. It combines two updates:</p>
+<ul>
+<li>A routine maximized likelihood update to assign true tokens with high probability;</li>
+<li>A new type of unlikelihood update to avoid unwanted tokens with high probability.</li>
+</ul>
+<p>Given a sequence of tokens $(x_1, \dots, x_T)$ and a set of negative candidate tokens $\mathcal{C}^t = \{c_1, \dots , c_m\}$ at step $t$, where each token $x_i, c_j \in \mathcal{V}$, the combined loss for step $t$ is defined as:</p>
+<div>
+$$
+\mathcal{L}^t_\text{UL}(p_\theta (. \vert x_{<{t}}), \mathcal{C}^t)
+= - \alpha \cdot \underbrace{\sum_{c \in \mathcal{C}^t} \log(1 - p_\theta(c \vert x_{<{t}}))}_\text{unlikelihood} - \underbrace{\log p_\theta (x_t \vert x_{<{t}})}_\text{likelihood}
+$$
+</div>
+<p>One approach for constructing $\mathcal{C}^t$ is to randomly select candidates from model-generated sequences.</p>
+<p>The unlikelihood training can be extended to be on the <em>sequence</em>-level, where the negative continuation is defined by a sequence of per-step negative candidate sets. They should be designed to penalize properties that we don&rsquo;t like. For example, we can penalize repeating n-grams as follows:</p>
+<div>
+$$
+\mathcal{C}^t_\text{repeat-n} = \{x_t\} \text{ if }(x_{t-i}, \dots, x_{t+j}) \in x_{<{t-i}} \text{ for any } (j-i)=n, i\leq n \leq j.
+$$
+</div>
+<p>Their experiments used unlikelihood training to avoid repetitions in language model outputs and indeed showed better results on less repetition and more unique tokens compared to standard MLE training.</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Jan 2021). Controllable neural text generation. Lil&rsquo;Log. https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2021conditional,
+  title   = &#34;Controllable Neural Text Generation.&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2021&#34;,
+  month   = &#34;Jan&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Patrick von Platen. <a href="https://huggingface.co/blog/how-to-generate">&ldquo;How to generate text: using different decoding methods for language generation with Transformers&rdquo;</a> Hugging face blog, March 18, 2020.</p>
+<p>[2] Angela Fan, et al. <a href="https://arxiv.org/abs/1805.04833">&ldquo;Hierarchical Neural Story Generation/&rdquo;</a> arXiv preprint arXiv:1805.04833 (2018).</p>
+<p>[3] Ari Holtzman et al. <a href="https://arxiv.org/abs/1904.09751">&ldquo;The Curious Case of Neural Text Degeneration.&rdquo;</a> ICLR 2020.</p>
+<p>[4] Marjan Ghazvininejad et al. <a href="https://www.aclweb.org/anthology/P17-4008">&ldquo;Hafez: an interactive poetry generation system.&rdquo;</a> ACL 2017.</p>
+<p>[5] Ari Holtzman et al. <a href="https://arxiv.org/abs/1805.06087">&ldquo;Learning to write with cooperative discriminators.&rdquo;</a> ACL 2018.</p>
+<p>[6] Ashutosh Baheti et al. <a href="https://arxiv.org/abs/1809.01215">&ldquo;Generating More Interesting Responses in Neural Conversation Models with Distributional Constraints.&rdquo;</a> EMNLP 2018.</p>
+<p>[7] Jiatao Gu et al. <a href="https://arxiv.org/abs/1702.02429">&ldquo;Trainable greedy decoding for neural machine translation.&rdquo;</a> EMNLP 2017.</p>
+<p>[8] Kyunghyun Cho. <a href="https://arxiv.org/abs/1605.03835">&ldquo;Noisy Parallel Approximate Decoding for Conditional Recurrent Language Model.&rdquo;</a> arXiv preprint arXiv:1605.03835. (2016).</p>
+<p>[9] Marco Tulio Ribeiro et al. <a href="https://www.aclweb.org/anthology/P18-1079/">&ldquo;Semantically equivalent adversarial rules for debugging NLP models.&rdquo;</a> ACL 2018.</p>
+<p>[10] Eric Wallace et al. <a href="https://arxiv.org/abs/1908.07125">&ldquo;Universal Adversarial Triggers for Attacking and Analyzing NLP.&rdquo;</a> EMNLP 2019. [<a href="https://github.com/Eric-Wallace/universal-triggers">code</a>]</p>
+<p>[11] Taylor Shin et al. <a href="https://arxiv.org/abs/2010.15980">&ldquo;AutoPrompt: Eliciting Knowledge from Language Models with Automatically Generated Prompts.&rdquo;</a> EMNLP 2020. [<a href="http://ucinlp.github.io/autoprompt">code</a>]</p>
+<p>[12] Zhengbao Jiang et al. <a href="https://arxiv.org/abs/1911.12543">&ldquo;How Can We Know What Language Models Know?&rdquo;</a> TACL 2020.</p>
+<p>[13] Nanyun Peng et al. <a href="https://www.aclweb.org/anthology/W18-1505/">&ldquo;Towards Controllable Story Generation.&rdquo;</a> NAACL 2018.</p>
+<p>[14] Nitish Shirish Keskar, et al. <a href="https://arxiv.org/abs/1909.05858">&ldquo;CTRL: A Conditional Transformer Language Model for Controllable Generation&rdquo;</a> arXiv preprint arXiv:1909.05858 (2019).[<a href="https://github.com/salesforce/ctrl">code</a>]</p>
+<p>[15] Marc’Aurelio Ranzato et al. <a href="https://arxiv.org/abs/1511.06732">&ldquo;Sequence Level Training with Recurrent Neural Networks.&rdquo;</a> ICLR 2016.</p>
+<p>[16] Yonghui Wu et al. <a href="https://arxiv.org/abs/1609.08144">&ldquo;Google&rsquo;s Neural Machine Translation System: Bridging the Gap between Human and Machine Translation.&rdquo;</a> CoRR 2016.</p>
+<p>[17] Romain Paulus et al. <a href="https://arxiv.org/abs/1705.04304">&ldquo;A Deep Reinforced Model for Abstractive Summarization.&rdquo;</a> ICLR 2018.</p>
+<p>[18] Paul Christiano et al. <a href="https://arxiv.org/abs/1706.03741">&ldquo;Deep Reinforcement Learning from Human Preferences.&rdquo;</a> NIPS 2017.</p>
+<p>[19] Sanghyun Yi et al. <a href="https://arxiv.org/abs/1904.13015">&ldquo;Towards coherent and engaging spoken dialog response generation using automatic conversation evaluators.&rdquo;</a> INLG 2019.</p>
+<p>[20] Florian Böhm et al. <a href="https://arxiv.org/abs/1909.01214">&ldquo;Better rewards yield better summaries: Learning to summarise without references.&rdquo;</a> EMNLP 2019. [<a href="https://github.com/yg211/summary-reward-no-reference">code</a>]</p>
+<p>[21] Daniel M Ziegler et al. <a href="https://arxiv.org/abs/1909.08593">&ldquo;Fine-tuning language models from human preferences.&rdquo;</a> arXiv preprint arXiv:1909.08593 (2019). [<a href="https://github.com/openai/lm-human-preferences">code</a>]</p>
+<p>[22] Nisan Stiennon, et al. <a href="https://arxiv.org/abs/2009.01325">&ldquo;Learning to summarize from human feedback.&rdquo;</a> arXiv preprint arXiv:2009.01325 (2020).</p>
+<p>[23] Sumanth Dathathri et al. <a href="https://arxiv.org/abs/1912.02164">&ldquo;Plug and play language models: a simple approach to controlled text generation.&rdquo;</a> ICLR 2020. [<a href="https://github.com/uber-research/PPLM">code</a>]</p>
+<p>[24] Jeffrey O Zhang et al. <a href="https://arxiv.org/abs/1912.13503">&ldquo;Side-tuning: Network adaptation via additive side networks&rdquo;</a> ECCV 2020.</p>
+<p>[25] Ben Kruse et al. <a href="https://arxiv.org/abs/2009.06367">&ldquo;GeDi: Generative Discriminator Guided Sequence Generation.&rdquo;</a> arXiv preprint arXiv:2009.06367.</p>
+<p>[26] Yoel Zeldes et al. <a href="https://arxiv.org/abs/2006.16823">&ldquo;Technical Report: Auxiliary Tuning and its Application to Conditional Text Generatio.&rdquo;</a> arXiv preprint arXiv:2006.16823.</p>
+<p>[27] Thomas Scialom, et al. <a href="https://arxiv.org/abs/2002.10375">&ldquo;Discriminative Adversarial Search for Abstractive Summarization&rdquo;</a> ICML 2020.</p>
+<p>[28] Clara Meister, et al. <a href="https://arxiv.org/abs/2010.02650">&ldquo;If beam search is the answer, what was the question?&rdquo;</a> EMNLP 2020.</p>
+<p>[29] Xiang Lisa Li and Percy Liang. <a href="https://arxiv.org/abs/2101.00190">&ldquo;Prefix-Tuning: Optimizing Continuous Prompts for Generation.&rdquo;</a> arXiv preprint arXiv:2101.00190 (2021).</p>
+<p>[30] Lianhui Qin, et al. <a href="https://arxiv.org/abs/2010.05906">&ldquo;Back to the Future: Unsupervised Backprop-based Decoding for Counterfactual and Abductive Commonsense Reasoning.&rdquo;</a> arXiv preprint arXiv:2010.05906 (2020).</p>
+<p>[31] Muhammad Khalifa, et al. <a href="https://arxiv.org/abs/2012.11635">&ldquo;A Distributional Approach to Controlled Text Generation&rdquo;</a> Accepted by ICLR 2021.</p>
+<p>[32] Aditya Grover, et al. <a href="https://arxiv.org/abs/1906.09531">&ldquo;Bias correction of learned generative models using likelihood-free importance weighting.&rdquo;</a> NeuriPS 2019.</p>
+<p>[33] Yuntian Deng et al. <a href="https://arxiv.org/abs/2004.11714">&ldquo;Residual Energy-Based Models for Text Generation.&rdquo;</a> ICLR 2020.</p>
+<p>[34] Brian Lester et al. <a href="https://arxiv.org/abs/2104.08691">“The Power of Scale for Parameter-Efficient Prompt Tuning.”</a> arXiv preprint arXiv:2104.08691 (2021).</p>
+<p>[35] Xiao Liu et al. <a href="https://arxiv.org/abs/2103.10385">“GPT Understands, Too.”</a> arXiv preprint arXiv:2103.10385 (2021).</p>
+<p>[36] Welleck &amp; Kulikov et al. <a href="https://arxiv.org/abs/1908.04319">“Neural Text Generation with Unlikelihood Training”</a> arXiv:1908.04319 (2019).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/alignment/">Alignment</a></li>
+      <li><a href="https://lilianweng.github.io/tags/steerability/">Steerability</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning&#34;</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/">
+    <span class="title">« </span>
+    <br>
+    <span>Reducing Toxicity in Language Models</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2020-10-29-odqa/">
+    <span class="title"> »</span>
+    <br>
+    <span>How to Build an Open-Domain Question Answering System?</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on twitter"
+        href="https://twitter.com/intent/tweet/?text=Controllable%20Neural%20Text%20Generation&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f&amp;hashtags=nlp%2clanguage-model%2calignment%2csteerability%2creinforcement-learning%22%2clong-read">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f&amp;title=Controllable%20Neural%20Text%20Generation&amp;summary=Controllable%20Neural%20Text%20Generation&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f&title=Controllable%20Neural%20Text%20Generation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on whatsapp"
+        href="https://api.whatsapp.com/send?text=Controllable%20Neural%20Text%20Generation%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Controllable Neural Text Generation on telegram"
+        href="https://telegram.me/share/url?text=Controllable%20Neural%20Text%20Generation&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-01-02-controllable-text-generation%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

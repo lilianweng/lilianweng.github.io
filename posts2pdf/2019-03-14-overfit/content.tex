@@ -1,0 +1,680 @@
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Are Deep Neural Networks Dramatically Overfitted?}\label{are-deep-neural-networks-dramatically-overfitted}
+
+Date: March 14, 2019 \textbar{} Estimated Reading Time: 21 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[classic-theorems-on-compression-and-model-selection]{Classic Theorems on Compression and Model Selection}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[occams-razor]{Occam's Razor}
+  \item
+    \hyperref[minimum-description-length-principle]{Minimum Description Length principle}
+  \item
+    \hyperref[kolmogorov-complexity]{Kolmogorov Complexity}
+  \item
+    \hyperref[solomonoffs-inference-theory]{Solomonoff's Inference Theory}
+  \end{itemize}
+\item
+  \hyperref[expressive-power-of-dl-models]{Expressive Power of DL Models}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[universal-approximation-theorem]{Universal Approximation Theorem}
+  \item
+    \hyperref[proof-finite-sample-expressivity-of-two-layer-nn]{Proof: Finite Sample Expressivity of Two-layer NN}
+  \item
+    \hyperref[deep-nn-can-learn-random-noise]{Deep NN can Learn Random Noise}
+  \end{itemize}
+\item
+  \hyperref[are-deep-learning-models-dramatically-overfitted]{Are Deep Learning Models Dramatically Overfitted?}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[modern-risk-curve-for-deep-learning]{Modern Risk Curve for Deep Learning}
+  \item
+    \hyperref[regularization-is-not-the-key-to-generalization]{Regularization is not the Key to Generalization}
+  \item
+    \hyperref[intrinsic-dimension]{Intrinsic Dimension}
+  \item
+    \hyperref[heterogeneous-layer-robustness]{Heterogeneous Layer Robustness}
+  \item
+    \hyperref[the-lottery-ticket-hypothesis]{The Lottery Ticket Hypothesis}
+  \end{itemize}
+\item
+  \hyperref[experiments]{Experiments}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+{{[}Updated on 2019-05-27: add the \hyperref[the-lottery-ticket-hypothesis]{section} on Lottery Ticket Hypothesis.{]}}
+
+If you are like me, entering into the field of deep learning with experience in traditional machine learning, you may often ponder over this question: Since a typical deep neural network has so many parameters and training error can easily be perfect, it should surely suffer from substantial overfitting. How could it be ever generalized to out-of-sample data points?
+
+The effort in understanding why deep neural networks can generalize somehow reminds me of this interesting paper on System Biology --- \href{https://www.cell.com/cancer-cell/pdf/S1535-6108(02)00133-2.pdf}{``Can a biologist fix a radio?''} (Lazebnik, 2002). If a biologist intends to fix a radio machine like how she works on a biological system, life could be hard. Because the full mechanism of the radio system is not revealed, poking small local functionalities might give some hints but it can hardly present all the interactions within the system, let alone the entire working flow. No matter whether you think it is relevant to DL, it is a very fun read.
+
+I would like to discuss a couple of papers on generalizability and complexity measurement of deep learning models in the post. Hopefully, it could shed light on your thinking path towards the understanding of why DNN can generalize.
+
+\section{\texorpdfstring{Classic Theorems on Compression and Model Selection\hyperref[classic-theorems-on-compression-and-model-selection]{\#}}{Classic Theorems on Compression and Model Selection\#}}\label{classic-theorems-on-compression-and-model-selection}
+
+Let's say we have a classification problem and a dataset, we can develop many models to solve it, from fitting a simple linear regression to memorizing the full dataset in disk space. Which one is better? If we only care about the accuracy over training data (especially given that testing data is likely unknown), the memorization approach seems to be the best --- well, it doesn't sound right.
+
+There are many classic theorems to guide us when deciding what types of properties a good model should possess in such scenarios.
+
+\subsection{\texorpdfstring{Occam's Razor\hyperref[occams-razor]{\#}}{Occam's Razor\#}}\label{occams-razor}
+
+\href{http://pespmc1.vub.ac.be/OCCAMRAZ.html}{Occam's Razor} is an informal principle for problem-solving, proposed by \href{https://en.wikipedia.org/wiki/William_of_Ockham}{William of Ockham} in the 14th century:
+
+\begin{quote}
+``Simpler solutions are more likely to be correct than complex ones.''
+\end{quote}
+
+The statement is extremely powerful when we are facing multiple candidates of underlying theories to explain the world and have to pick one. Too many unnecessary assumptions might seem to be plausible for one problem, but harder to be generalized to other complications or to eventually lead to the basic principles of the universe.
+
+Think of this, it took people hundreds of years to figure out that the sky is blue in the daytime but reddish at sunset are because of the same reason (\href{https://en.wikipedia.org/wiki/Rayleigh_scattering}{Rayleigh scattering}), although two phenomena look very different. People must have proposed many other explanations for them separately but the unified and simple version won eventually.
+
+\subsection{\texorpdfstring{Minimum Description Length principle\hyperref[minimum-description-length-principle]{\#}}{Minimum Description Length principle\#}}\label{minimum-description-length-principle}
+
+The principle of Occam's Razor can be similarly applied to machine learning models. A formalized version of such concept is called the \emph{Minimum Description Length (MDL)} principle, used for comparing competing models / explanations given data observed.
+
+\begin{quote}
+``Comprehension is compression.''
+\end{quote}
+
+The fundamental idea in MDL is to \emph{view learning as data compression}. By compressing the data, we need to discover regularity or patterns in the data with the high potentiality to generalize to unseen samples. \href{https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/}{Information bottleneck} theory believes that a deep neural network is trained first to represent the data by minimizing the generalization error and then learn to compress this representation by trimming noise.
+
+Meanwhile, MDL considers the model description as part of the compression delivery, so the model cannot be arbitrarily large.
+
+A \emph{two-part version} of MDL principle states that: Let \$\textbackslash mathcal\{H\}\^{}\{(1)\}, \textbackslash mathcal\{H\}\^{}\{(2)\}, \textbackslash dots\$ be a list of models that can explain the dataset \$\textbackslash mathcal\{D\}\$. The best hypothesis among them should be the one that minimizes the sum:
+
+\$\$ \textbackslash mathcal\{H\}\^{}\textbackslash text\{best\} = \textbackslash arg\textbackslash min\_\textbackslash mathcal\{H\} {[}L(\textbackslash mathcal\{H\}) + L(\textbackslash mathcal\{D\}\textbackslash vert\textbackslash mathcal\{H\}){]} \$\$
+
+\begin{itemize}
+\tightlist
+\item
+  \$L(\textbackslash mathcal\{H\})\$ is the length of the description of model \$\textbackslash mathcal\{H\}\$ in bits.
+\item
+  \$L(\textbackslash mathcal\{D\}\textbackslash vert\textbackslash mathcal\{H\})\$ is the length of the description of the data \$\textbackslash mathcal\{D\}\$ in bits when encoded with \$\textbackslash mathcal\{H\}\$.
+\end{itemize}
+
+In simple words, the \emph{best} model is the \emph{smallest} model containing the encoded data and the model itself. Following this criterion, the memorization approach I proposed at the beginning of the section sounds horrible no matter how good accuracy it can achieve on the training data.
+
+People might argue Occam's Razor is wrong, as given the real world can be arbitrarily complicated, why do we have to find simple models? One interesting view by MDL is to consider models as \textbf{``languages''} instead of fundamental generative theorems. We would like to find good compression strategies to describe regularity in a small set of samples, and they \textbf{do not have to be the ``real'' generative model} for explaining the phenomenon. Models can be wrong but still useful (i.e., think of any Bayesian prior).
+
+\subsection{\texorpdfstring{Kolmogorov Complexity\hyperref[kolmogorov-complexity]{\#}}{Kolmogorov Complexity\#}}\label{kolmogorov-complexity}
+
+Kolmogorov Complexity relies on the concept of modern computers to define the algorithmic (descriptive) complexity of an object: It is \emph{the length of the shortest binary computer program that describes the object}. Following MDL, a computer is essentially the most general form of data decompressor.
+
+The formal definition of Kolmogorov Complexity states that: Given a universal computer \$\textbackslash mathcal\{U\}\$ and a program \$p\$, let's denote \$\textbackslash mathcal\{U\}(p)\$ as the output of the computer processing the program and \$L(p)\$ as the descriptive length of the program. Then Kolmogorov Complexity \$K\_\textbackslash mathcal\{U\}\$ of a string \$s\$ with respect to a universal computer \$\textbackslash mathcal\{U\}\$ is:
+
+\$\$ K\_\textbackslash mathcal\{U\}(s) = \textbackslash min\_\{p: \textbackslash mathcal\{U\}(p)=s\} L(p) \$\$
+
+Note that a universal computer is one that can mimic the actions of any other computers. All modern computers are universal as they can all be reduced to Turing machines. The definition is universal no matter which computers we are using, because another universal computer can always be programmed to clone the behavior of \$\textbackslash mathcal\{U\}\$, while encoding this clone program is just a constant.
+
+There are a lot of connections between Kolmogorov Complexity and Shannon Information Theory, as both are tied to universal coding. It is an amazing fact that the expected Kolmogorov Complexity of a random variable is approximately equal to its Shannon entropy (see Sec 2.3 of \href{https://homepages.cwi.nl/~paulv/papers/info.pdf}{the report}). More on this topic is out of the scope here, but there are many interesting readings online. Help yourself :)
+
+\subsection{\texorpdfstring{Solomonoff's Inference Theory\hyperref[solomonoffs-inference-theory]{\#}}{Solomonoff's Inference Theory\#}}\label{solomonoffs-inference-theory}
+
+Another mathematical formalization of Occam's Razor is Solomonoff's theory of universal inductive inference (\href{https://www.sciencedirect.com/science/article/pii/S0019995864902232}{Solomonoff}, \href{https://www.sciencedirect.com/science/article/pii/S0019995864901317}{1964}). The principle is to favor models that correspond to the ``shortest program'' to produce the training data, based on its Kolmogorov complexity
+
+\section{\texorpdfstring{Expressive Power of DL Models\hyperref[expressive-power-of-dl-models]{\#}}{Expressive Power of DL Models\#}}\label{expressive-power-of-dl-models}
+
+Deep neural networks have an extremely large number of parameters compared to the traditional statistical models. If we use MDL to measure the complexity of a deep neural network and consider the number of parameters as the model description length, it would look awful. The model description \$L(\textbackslash mathcal\{H\})\$ can easily grow out of control.
+
+However, having numerous parameters is \emph{necessary} for a neural network to obtain high expressivity power. Because of its great capability to capture any flexible data representation, deep neural networks have achieved great success in many applications.
+
+\subsection{\texorpdfstring{Universal Approximation Theorem\hyperref[universal-approximation-theorem]{\#}}{Universal Approximation Theorem\#}}\label{universal-approximation-theorem}
+
+The \emph{Universal Approximation Theorem} states that a feedforward network with: 1) a linear output layer, 2) at least one hidden layer containing a finite number of neurons and 3) some activation function can approximate \textbf{any} continuous functions on a compact subset of \$\textbackslash mathbb\{R\}\^{}n\$ to arbitrary accuracy. The theorem was first proved for sigmoid activation function (\href{https://pdfs.semanticscholar.org/05ce/b32839c26c8d2cb38d5529cf7720a68c3fab.pdf}{Cybenko, 1989}). Later it was shown that the universal approximation property is not specific to the choice of activation (\href{http://zmjones.com/static/statistical-learning/hornik-nn-1991.pdf}{Hornik, 1991}) but the multilayer feedforward architecture.
+
+Although a feedforward network with a single layer is sufficient to represent any function, the width has to be exponentially large. The universal approximation theorem does not guarantee whether the model can be learned or generalized properly. Often, adding more layers helps to reduce the number of hidden neurons needed in a shallow network.
+
+To take advantage of the universal approximation theorem, we can always find a neural network to represent the target function with error under any desired threshold, but we need to pay the price --- the network might grow super large.
+
+\subsection{\texorpdfstring{Proof: Finite Sample Expressivity of Two-layer NN\hyperref[proof-finite-sample-expressivity-of-two-layer-nn]{\#}}{Proof: Finite Sample Expressivity of Two-layer NN\#}}\label{proof-finite-sample-expressivity-of-two-layer-nn}
+
+The Universal Approximation Theorem we have discussed so far does not consider a finite sample set. \href{https://arxiv.org/abs/1611.03530}{Zhang, et al. (2017)} provided a neat proof on the finite-sample expressivity of two-layer neural networks.
+
+A neural network \$C\$ can represent any function given a sample size \$n\$ in \$d\$ dimensions if: For every finite sample set \$S \textbackslash subseteq \textbackslash mathbb\{R\}\^{}d\$ with \$\textbackslash vert S \textbackslash vert = n\$ and every function defined on this sample set: \$f: S \textbackslash mapsto \textbackslash mathbb\{R\}\$, we can find a set of weight configuration for \$C\$ so that \$C(\textbackslash boldsymbol\{x\}) = f(\textbackslash boldsymbol\{x\}), \textbackslash forall \textbackslash boldsymbol\{x\} \textbackslash in S\$.
+
+The paper proposed a theorem:
+
+\begin{quote}
+There exists a two-layer neural network with ReLU activations and \$2n + d\$ weights that can represent any function on a sample of size \$n\$ in \$d\$ dimensions.
+\end{quote}
+
+\emph{Proof.} First we would like to construct a two-layer neural network \$C: \textbackslash mathbb\{R\}\^{}d \textbackslash mapsto \textbackslash mathbb\{R\}\$. The input is a \$d\$-dimensional vector, \$\textbackslash boldsymbol\{x\} \textbackslash in \textbackslash mathbb\{R\}\^{}d\$. The hidden layer has \$h\$ hidden units, associated with a weight matrix \$\textbackslash mathbf\{W\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\textbackslash times h\}\$, a bias vector \$-\textbackslash mathbf\{b\} \textbackslash in \textbackslash mathbb\{R\}\^{}h\$ and ReLU activation function. The second layer outputs a scalar value with weight vector \$\textbackslash boldsymbol\{v\} \textbackslash in \textbackslash mathbb\{R\}\^{}h\$ and zero biases.
+
+The output of network \$C\$ for a input vector \$\textbackslash boldsymbol\{x\}\$ can be represented as follows:
+
+\$\$ C(\textbackslash boldsymbol\{x\}) = \textbackslash boldsymbol\{v\} \textbackslash max\textbackslash\{ \textbackslash boldsymbol\{x\}\textbackslash mathbf\{W\} - \textbackslash boldsymbol\{b\}, 0\textbackslash\}\^{}\textbackslash top = \textbackslash sum\_\{i=1\}\^{}h v\_i \textbackslash max\textbackslash\{\textbackslash boldsymbol\{x\}\textbackslash boldsymbol\{W\}\_\{(:,i)\} - b\_i, 0\textbackslash\} \$\$
+
+where \$\textbackslash boldsymbol\{W\}\_\{(:,i)\}\$ is the \$i\$-th column in the \$d \textbackslash times h\$ matrix.
+
+Given a sample set \$S = \textbackslash\{\textbackslash boldsymbol\{x\}\_1, \textbackslash dots, \textbackslash boldsymbol\{x\}\_n\textbackslash\}\$ and target values \$\textbackslash boldsymbol\{y\} = \textbackslash\{y\_1, \textbackslash dots, y\_n \textbackslash\}\$, we would like to find proper weights \$\textbackslash mathbf\{W\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\textbackslash times h\}\$, \$\textbackslash boldsymbol\{b\}, \textbackslash boldsymbol\{v\} \textbackslash in \textbackslash mathbb\{R\}\^{}h\$ so that \$C(\textbackslash boldsymbol\{x\}\_i) = y\_i, \textbackslash forall i=1,\textbackslash dots,n\$.
+
+Let's combine all sample points into one batch as one input matrix \$\textbackslash mathbf\{X\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{n \textbackslash times d\}\$. If set \$h=n\$, \$\textbackslash mathbf\{X\}\textbackslash mathbf\{W\} - \textbackslash boldsymbol\{b\}\$ would be a square matrix of size \$n \textbackslash times n\$.
+
+\$\$ \textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\} = \textbackslash max\textbackslash\{\textbackslash mathbf\{X\}\textbackslash mathbf\{W\} - \textbackslash boldsymbol\{b\}, 0 \textbackslash\} = \textbackslash begin\{bmatrix\} \textbackslash boldsymbol\{x\}\_1\textbackslash mathbf\{W\} - \textbackslash boldsymbol\{b\} \textbackslash\textbackslash{} \textbackslash dots \textbackslash\textbackslash{} \textbackslash boldsymbol\{x\}\_n\textbackslash mathbf\{W\} - \textbackslash boldsymbol\{b\} \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} = {[}\textbackslash boldsymbol\{x\}\_i\textbackslash boldsymbol\{W\}\_\{(:,j)\} - b\_j{]}\_\{i \textbackslash times j\} \$\$
+
+We can simplify \$\textbackslash mathbf\{W\}\$ to have the same column vectors across all the columns:
+
+\$\$ \textbackslash mathbf\{W\}\_\{(:,j)\} = \textbackslash boldsymbol\{w\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\}, \textbackslash forall j = 1, \textbackslash dots, n \$\$
+
+\begin{figure}
+\centering
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\includegraphics{nn-expressivity-proof.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Let \$a\_i = \textbackslash boldsymbol\{x\}\_i \textbackslash boldsymbol\{w\}\$, we would like to find a suitable \$\textbackslash boldsymbol\{w\}\$ and \$\textbackslash boldsymbol\{b\}\$ such that \$b\_1 \textless{} a\_1 \textless{} b\_2 \textless{} a\_2 \textless{} \textbackslash dots \textless{} b\_n \textless{} a\_n\$. This is always achievable because we try to solve \$n+d\$ unknown variables with \$n\$ constraints and \$\textbackslash boldsymbol\{x\}\_i\$ are independent (i.e. pick a random \$\textbackslash boldsymbol\{w\}\$, sort \$\textbackslash boldsymbol\{x\}\_i \textbackslash boldsymbol\{w\}\$ and then set \$b\_j\$'s as values in between). Then \$\textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\}\$ becomes a lower triangular matrix:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\$\$ \textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\} = {[}a\_i - b\_j{]}\_\{i \textbackslash times j\} = \textbackslash begin\{bmatrix\} a\_1 - b\_1 \& 0 \& 0 \& \textbackslash dots \& 0 \textbackslash\textbackslash{} \textbackslash vdots \& \textbackslash ddots \& \& \& \textbackslash vdots \textbackslash\textbackslash{} a\_i - b\_1 \& \textbackslash dots \& a\_i - b\_i \& \textbackslash dots \& 0\textbackslash\textbackslash{} \textbackslash vdots \& \& \& \textbackslash ddots \& \textbackslash vdots \textbackslash\textbackslash{} a\_n - b\_1 \& a\_n - b\_2 \& \textbackslash dots \& \textbackslash dots \& a\_n - b\_n \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+It is a nonsingular square matrix as \$\textbackslash det(\textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\}) \textbackslash neq 0\$, so we can always find suitable \$\textbackslash boldsymbol\{v\}\$ to solve \$\textbackslash boldsymbol\{v\}\textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\}=\textbackslash boldsymbol\{y\}\$ (In other words, the column space of \$\textbackslash mathbf\{M\}\_\textbackslash text\{ReLU\}\$ is all of \$\textbackslash mathbb\{R\}\^{}n\$ and we can find a linear combination of column vectors to obtain any \$\textbackslash boldsymbol\{y\}\$).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{Deep NN can Learn Random Noise\hyperref[deep-nn-can-learn-random-noise]{\#}}{Deep NN can Learn Random Noise\#}}\label{deep-nn-can-learn-random-noise}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+As we know two-layer neural networks are universal approximators, it is less surprising to see that they are able to learn unstructured random noise perfectly, as shown in \href{https://arxiv.org/abs/1611.03530}{Zhang, et al. (2017)}. If labels of image classification dataset are randomly shuffled, the high expressivity power of deep neural networks can still empower them to achieve near-zero training loss. These results do not change with regularization terms added.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{fit-random-labels.png}
+\caption{Fit models on CIFAR10 with random labels or random pixels: (a) learning curves; (b-c) label corruption ratio is the percentage of randomly shuffled labels. (Image source: \href{https://arxiv.org/abs/1611.03530}{Zhang et al. 2017})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\section{\texorpdfstring{Are Deep Learning Models Dramatically Overfitted?\hyperref[are-deep-learning-models-dramatically-overfitted]{\#}}{Are Deep Learning Models Dramatically Overfitted?\#}}\label{are-deep-learning-models-dramatically-overfitted}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Deep learning models are heavily over-parameterized and can often get to perfect results on training data. In the traditional view, like bias-variance trade-offs, this could be a disaster that nothing may generalize to the unseen test data. However, as is often the case, such ``overfitted'' (training error = 0) deep learning models still present a decent performance on out-of-sample test data. Hmm \ldots{} interesting and why?
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{Modern Risk Curve for Deep Learning\hyperref[modern-risk-curve-for-deep-learning]{\#}}{Modern Risk Curve for Deep Learning\#}}\label{modern-risk-curve-for-deep-learning}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The traditional machine learning uses the following U-shape risk curve to measure the bias-variance trade-offs and quantify how generalizable a model is. If I get asked how to tell whether a model is overfitted, this would be the first thing popping into my mind.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+As the model turns larger (more parameters added), the training error decreases to close to zero, but the test error (generalization error) starts to increase once the model complexity grows to pass the threshold between ``underfitting'' and ``overfitting''. In a way, this is well aligned with Occam's Razor.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{bias-variance-risk-curve.png}
+\caption{U-shaped bias-variance risk curve. (Image source: (left) \href{https://arxiv.org/abs/1812.11118}{paper} (right) \href{http://scott.fortmann-roe.com/docs/BiasVariance.html}{fig. 6 of this post})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Unfortunately this does not apply to deep learning models. \href{https://arxiv.org/abs/1812.11118}{Belkin et al. (2018)} reconciled the traditional bias-variance trade-offs and proposed a new double-U-shaped risk curve for deep neural networks. Once the number of network parameters is high enough, the risk curve enters another regime.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{new-bias-variance-risk-curve.png}
+\caption{A new double-U-shaped bias-variance risk curve for deep neural networks. (Image source: \href{https://arxiv.org/abs/1812.11118}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The paper claimed that it is likely due to two reasons:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  The number of parameters is not a good measure of \emph{inductive bias}, defined as the set of assumptions of a learning algorithm used to predict for unknown samples. See more discussion on DL model complexity in \hyperref[intrinsic-dimension]{later} \hyperref[heterogeneous-layer-robustness]{sections}.
+\item
+  Equipped with a larger model, we might be able to discover larger function classes and further find interpolating functions that have smaller norm and are thus ``simpler''.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The double-U-shaped risk curve was observed empirically, as shown in the paper. However I was struggling quite a bit to reproduce the results. There are some signs of life, but in order to generate a pretty smooth curve similar to the theorem, \hyperref[experiments]{many details} in the experiment have to be taken care of.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{new-risk-curve-mnist.png}
+\caption{Training and evaluation errors of a one hidden layer fc network of different numbers of hidden units, trained on 4000 data points sampled from MNIST. (Image source: \href{https://arxiv.org/abs/1812.11118}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{Regularization is not the Key to Generalization\hyperref[regularization-is-not-the-key-to-generalization]{\#}}{Regularization is not the Key to Generalization\#}}\label{regularization-is-not-the-key-to-generalization}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Regularization is a common way to control overfitting and improve model generalization performance. Interestingly some research (\href{https://arxiv.org/abs/1611.03530}{Zhang, et al. 2017}) has shown that explicit regularization (i.e. data augmentation, weight decay and dropout) is neither necessary or sufficient for reducing generalization error.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Taking the Inception model trained on CIFAR10 as an example (see Fig. 5), regularization techniques help with out-of-sample generalization but not much. No single regularization seems to be critical independent of other terms. Thus, it is unlikely that regularizers are the \emph{fundamental reason} for generalization.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{regularization-generalization-test.png}
+\caption{The accuracy of Inception model trained on CIFAR10 with different combinations of taking on or off data augmentation and weight decay. (Image source: Table 1 in the \href{https://arxiv.org/abs/1611.03530}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{Intrinsic Dimension\hyperref[intrinsic-dimension]{\#}}{Intrinsic Dimension\#}}\label{intrinsic-dimension}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The number of parameters is not correlated with model overfitting in the field of deep learning, suggesting that parameter counting cannot indicate the true complexity of deep neural networks.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Apart from parameter counting, researchers have proposed many ways to quantify the complexity of these models, such as the number of degrees of freedom of models (\href{https://arxiv.org/abs/1603.09260}{Gao \& Jojic, 2016}), or prequential code (\href{https://arxiv.org/abs/1802.07044}{Blier \& Ollivier, 2018}).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+I would like to discuss a recent method on this matter, named \textbf{intrinsic dimension} (\href{https://arxiv.org/abs/1804.08838}{Li et al, 2018}). Intrinsic dimension is intuitive, easy to measure, while still revealing many interesting properties of models of different sizes.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Considering a neural network with a great number of parameters, forming a high-dimensional parameter space, the learning happens on this high-dimensional \emph{objective landscape}. The shape of the parameter space manifold is critical. For example, a smoother manifold is beneficial for optimization by providing more predictive gradients and allowing for larger learning rates---this was claimed to be the reason why batch normalization has succeeded in stabilizing training (\href{https://arxiv.org/abs/1805.11604}{Santurkar, et al, 2019}).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Even though the parameter space is huge, fortunately we don't have to worry too much about the optimization process getting stuck in local optima, as it has been \href{https://arxiv.org/abs/1406.2572}{shown} that local optimal points in the objective landscape almost always lay in saddle-points rather than valleys. In other words, there is always a subset of dimensions containing paths to leave local optima and keep on exploring.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{optimization-landscape-shape.png}
+\caption{Illustrations of various types of critical points on the parameter optimization landscape. (Image source: \href{https://www.offconvex.org/2016/03/22/saddlepoints/}{here})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+One intuition behind the measurement of intrinsic dimension is that, since the parameter space has such high dimensionality, it is probably not necessary to exploit all the dimensions to learn efficiently. If we only travel through a slice of objective landscape and still can learn a good solution, the complexity of the resulting model is likely lower than what it appears to be by parameter-counting. This is essentially what intrinsic dimension tries to assess.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Say a model has \$D\$ dimensions and its parameters are denoted as \$\textbackslash theta\^{}\{(D)\}\$. For learning, a smaller \$d\$-dimensional subspace is randomly sampled, \$\textbackslash theta\^{}\{(d)\}\$, where \$d \textless{} D\$. During one optimization update, rather than taking a gradient step according to all \$D\$ dimensions, only the smaller subspace \$\textbackslash theta\^{}\{(d)\}\$ is used and remapped to update model parameters.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{intrinsic-dimension-illustration.png}
+\caption{Illustration of parameter vectors for direct optimization when \$D=3\$. (Image source: \href{https://arxiv.org/abs/1804.08838}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The gradient update formula looks like the follows:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\$\$ \textbackslash theta\^{}\{(D)\} = \textbackslash theta\_0\^{}\{(D)\} + \textbackslash mathbf\{P\} \textbackslash theta\^{}\{(d)\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+where \$\textbackslash theta\_0\^{}\{(D)\}\$ are the initialization values and \$\textbackslash mathbf\{P\}\$ is a \$D \textbackslash times d\$ projection matrix that is randomly sampled before training. Both \$\textbackslash theta\_0\^{}\{(D)\}\$ and \$\textbackslash mathbf\{P\}\$ are not trainable and fixed during training. \$\textbackslash theta\^{}\{(d)\}\$ is initialized as all zeros.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+By searching through the value of \$d = 1, 2, \textbackslash dots, D\$, the corresponding \$d\$ when the solution emerges is defined as the \emph{intrinsic dimension}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+It turns out many problems have much smaller intrinsic dimensions than the number of parameters. For example, on CIFAR10 image classification, a fully-connected network with 650k+ parameters has only 9k intrinsic dimension and a convolutional network containing 62k parameters has an even lower intrinsic dimension of 2.9k.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{intrinsic-dimension.png}
+\caption{The measured intrinsic dimensions \$d\$ for various models achieving 90\% of the best performance. (Image source: \href{https://arxiv.org/abs/1804.08838}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The measurement of intrinsic dimensions suggests that deep learning models are significantly simpler than what they might appear to be.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{Heterogeneous Layer Robustness\hyperref[heterogeneous-layer-robustness]{\#}}{Heterogeneous Layer Robustness\#}}\label{heterogeneous-layer-robustness}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\href{https://arxiv.org/abs/1902.01996}{Zhang et al. (2019)} investigated the role of parameters in different layers. The fundamental question raised by the paper is: \emph{``are all layers created equal?''} The short answer is: No. The model is more sensitive to changes in some layers but not others.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The paper proposed two types of operations that can be applied to parameters of the \$\textbackslash ell\$-th layer, \$\textbackslash ell = 1, \textbackslash dots, L\$, at time \$t\$, \$\textbackslash theta\^{}\{(\textbackslash ell)\}\_t\$ to test their impacts on model robustness:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{itemize}
+\item
+  \textbf{Re-initialization}: Reset the parameters to the initial values, \$\textbackslash theta\^{}\{(\textbackslash ell)\}\_t \textbackslash leftarrow \textbackslash theta\^{}\{(\textbackslash ell)\}\_0\$. The performance of a network in which layer \$\textbackslash ell\$ was re-initialized is referred to as the \emph{re-initialization robustness} of layer \$\textbackslash ell\$.
+\item
+  \textbf{Re-randomization}: Re-sampling the layer's parameters at random, \$\textbackslash theta\^{}\{(\textbackslash ell)\}\_t \textbackslash leftarrow \textbackslash tilde\{\textbackslash theta\}\^{}\{(\textbackslash ell)\} \textbackslash sim \textbackslash mathcal\{P\}\^{}\{(\textbackslash ell)\}\$. The corresponding network performance is called the \emph{re-randomization robustness} of layer \$\textbackslash ell\$.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Layers can be categorized into two categories with the help of these two operations:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Robust Layers}: The network has no or only negligible performance degradation after re-initializing or re-randomizing the layer.
+\item
+  \textbf{Critical Layers}: Otherwise.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Similar patterns are observed on fully-connected and convolutional networks. Re-randomizing any of the layers \emph{completely destroys} the model performance, as the prediction drops to random guessing immediately. More interestingly and surprisingly, when applying re-initialization, only the first or the first few layers (those closest to the input layer) are critical, while re-initializing higher levels causes \emph{only negligible decrease} in performance.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{layer-robustness-results.png}
+\caption{(a) A fc network trained on MNIST. Each row corresponds to one layer in the network. The first column is re-randomization robustness of each layer and the rest of the columns indicate re-initialization robustness at different training time. (b) VGG11 model (conv net) trained on CIFAR 10. Similar representation as in (a) but rows and columns are transposed. (Image source: \href{https://arxiv.org/abs/1902.01996}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+ResNet is able to use shortcuts between non-adjacent layers to re-distribute the sensitive layers across the networks rather than just at the bottom. With the help of residual block architecture, the network can \emph{evenly be robust to re-randomization}. Only the first layer of each residual block is still sensitive to both re-initialization and re-randomization. If we consider each residual block as a local sub-network, the robustness pattern resembles the fc and conv nets above.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\includegraphics{layer-robustness-resnet.png}
+\caption{Re-randomization (first row) and re-initialization (the reset rows) robustness of layers in ResNet-50 model trained on CIFAR10. (Image source: \href{https://arxiv.org/abs/1902.01996}{original paper})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Based on the fact that many top layers in deep neural networks are not critical to the model performance after re-initialization, the paper loosely concluded that:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{quote}
+``Over-capacitated deep networks trained with stochastic gradient have low-complexity due to self-restricting the number of critical layers.''
+\end{quote}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+We can consider re-initialization as a way to reduce the effective number of parameters, and thus the observation is aligned with what intrinsic dimension has demonstrated.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\subsection{\texorpdfstring{The Lottery Ticket Hypothesis\hyperref[the-lottery-ticket-hypothesis]{\#}}{The Lottery Ticket Hypothesis\#}}\label{the-lottery-ticket-hypothesis}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The lottery ticket hypothesis (\href{https://arxiv.org/abs/1803.03635}{Frankle \& Carbin, 2019}) is another intriguing and inspiring discovery, supporting that only a subset of network parameters have impact on the model performance and thus the network is not overfitted. The lottery ticket hypothesis states that a randomly initialized, dense, feed-forward network contains a pool of subnetworks and among them only a subset are \emph{``winning tickets''} which can achieve the optimal performance when \emph{trained in isolation}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The idea is motivated by network pruning techniques --- removing unnecessary weights (i.e. tiny weights that are almost negligible) without harming the model performance. Although the final network size can be reduced dramatically, it is hard to train such a pruned network architecture successfully from scratch. It feels like in order to successfully train a neural network, we need a large number of parameters, but we don't need that many parameters to keep the accuracy high once the model is trained. Why is that?
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The lottery ticket hypothesis did the following experiments:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{enumerate}
+\tightlist
+\item
+  Randomly initialize a dense feed-forward network with initialization values \$\textbackslash theta\_0\$;
+\item
+  Train the network for multiple iterations to achieve a good performance with parameter config \$\textbackslash theta\$;
+\item
+  Run pruning on \$\textbackslash theta\$ and creating a mask \$m\$.
+\item
+  The ``winning ticket'' initialization config is \$m \textbackslash odot \textbackslash theta\_0\$.
+\end{enumerate}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+Only training the small ``winning ticket'' subset of parameters with the initial values as found in step 1, the model is able to achieve the same level of accuracy as in step 2. It turns out a large parameter space is not needed in the final solution representation, but needed for training as it provides a big pool of initialization configs of many much smaller subnetworks.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The lottery ticket hypothesis opens a new perspective about interpreting and dissecting deep neural network results. Many interesting following-up works are on the way.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\section{\texorpdfstring{Experiments\hyperref[experiments]{\#}}{Experiments\#}}\label{experiments}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+After seeing all the interesting findings above, it should be pretty fun to reproduce them. Some results are easily to reproduce than others. Details are described below. My code is available on github \href{https://github.com/lilianweng/generalization-experiment}{lilianweng/generalization-experiment}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\textbf{New Risk Curve for DL Models}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+This is the trickiest one to reproduce. The authors did give me a lot of good advice and I appreciate it a lot. Here are a couple of noticeable settings in their experiments:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  There are no regularization terms like weight decay, dropout.
+\item
+  In Fig 3, the training set contains 4k samples. It is only sampled once and fixed for all the models. The evaluation uses the full MNIST test set.
+\item
+  Each network is trained for a long time to achieve near-zero training risk. The learning rate is adjusted differently for models of different sizes.
+\item
+  To make the model less sensitive to the initialization in the under-parameterization region, their experiments adopted a \emph{``weight reuse''} scheme: the parameters obtained from training a smaller neural network are used as initialization for training larger networks.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+I did not train or tune each model long enough to get perfect training performance, but evaluation error indeed shows a special twist around the interpolation threshold, different from training error. For example, for MNIST, the threshold is the number of training samples times the number of classes (10), that is 40000.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.3235294117647059e-2\linewidth}
+The x-axis is the number of model parameters: (28 * 28 + 1) * num. units + num. units * 10, in logarithm.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.3235294117647059e-2\linewidth}
+\centering
+\begin{minipage}[t]{0.18\linewidth}
+\includegraphics{risk_curve_loss-mse_sample-4000_epoch-500.png}\\
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.18\linewidth}
+\textbf{Layers are not Created Equal}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.18\linewidth}
+This one is fairly easy to reproduce. See my implementation \href{https://github.com/lilianweng/generalization-experiment/blob/master/layer_equality.py}{here}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.18\linewidth}
+In the first experiment, I used a three-layer fc networks with 256 units in each layer. Layer 0 is the input layer while layer 3 is the output. The network is trained on MNIST for 100 epochs.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{0.18\linewidth}
+\centering
+\begin{minipage}[t]{0.3\linewidth}
+\includegraphics{layer_equality_256x3.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.3\linewidth}
+In the second experiment, I used a four-layer fc networks with 128 units in each layer. Other settings are the same as experiment 1.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{0.3\linewidth}
+\centering
+\begin{minipage}[t]{0.15\linewidth}
+\includegraphics{layer_equality_128x4.png}\\
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.15\linewidth}
+\textbf{Intrinsic Dimension Measurement}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.15\linewidth}
+To correctly map the \$d\$-dimensional subspace to the full parameter space, the projection matrix \$\textbackslash mathbf\{P\}\$ should have orthogonal columns. Because the production \$\textbackslash mathbf\{P\}\textbackslash theta\^{}\{(d)\}\$ is the sum of columns of \$\textbackslash mathbf\{P\}\$ scaled by corresponding scalar values in the \$d\$-dim vector, \$\textbackslash sum\_\{i=1\}\^{}d \textbackslash theta\^{}\{(d)\}\_i \textbackslash mathbf\{P\}\^{}\textbackslash top\_\{(:,i)\}\$, it is better to fully utilize the subspace with orthogonal columns in \$\textbackslash mathbf\{P\}\$.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.15\linewidth}
+My implementation follows a naive approach by sampling a large matrix with independent entries from a standard normal distribution. The columns are expected to be independent in a high dimension space and thus to be orthogonal. This works when the dimension is not too large. When exploring with a large \$d\$, there are methods for creating sparse projection matrices, which is what the intrinsic dimension paper suggested.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.15\linewidth}
+Here are experiment runs on two networks: (left) a two-layer fc network with 64 units in each layer and (right) a one-layer fc network with 128 hidden units, trained on 10\% of MNIST. For every \$d\$, the model is trained for 100 epochs. See the \href{https://github.com/lilianweng/generalization-experiment/blob/master/intrinsic_dimensions.py}{code} \href{https://github.com/lilianweng/generalization-experiment/blob/master/intrinsic_dimensions_measurement.py}{here}.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{0.15\linewidth}
+\centering
+\begin{minipage}[t]{4.5e-2\linewidth}
+\includegraphics{intrinsic-dimension-net-64-64-and-128.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+Cited as:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\begin{verbatim}
+@article{weng2019overfit,
+  title   = "Are Deep Neural Networks Dramatically Overfitted?",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2019",
+  url     = "https://lilianweng.github.io/posts/2019-03-14-overfit/"
+}
+\end{verbatim}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}1{]} Wikipedia page on \href{https://en.wikipedia.org/wiki/Occam\%27s_razor}{Occam's Razor}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}2{]} \href{http://pespmc1.vub.ac.be/OCCAMRAZ.html}{Occam's Razor} on Principia Cybernetica Web.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}3{]} Peter Grunwald. \href{https://arxiv.org/abs/math/0406077}{``A Tutorial Introduction to the Minimum Description Length Principle''}. 2004.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}4{]} Ian Goodfellow, et al. \href{https://www.deeplearningbook.org/}{Deep Learning}. 2016. \href{https://www.deeplearningbook.org/contents/mlp.html}{Sec 6.4.1}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}5{]} Zhang, Chiyuan, et al. \href{https://arxiv.org/abs/1611.03530}{``Understanding deep learning requires rethinking generalization.''} ICLR 2017.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}6{]} Shibani Santurkar, et al. \href{https://arxiv.org/abs/1805.11604}{``How does batch normalization help optimization?.''} NIPS 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}7{]} Mikhail Belkin, et al. \href{https://arxiv.org/abs/1812.11118}{``Reconciling modern machine learning and the bias-variance trade-off.''} arXiv:1812.11118, 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}8{]} Chiyuan Zhang, et al. \href{https://arxiv.org/abs/1902.01996}{``Are All Layers Created Equal?''} arXiv:1902.01996, 2019.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}9{]} Chunyuan Li, et al. \href{https://arxiv.org/abs/1804.08838}{``Measuring the intrinsic dimension of objective landscapes.''} ICLR 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{[}10{]} Jonathan Frankle and Michael Carbin. \href{https://arxiv.org/abs/1803.03635}{``The lottery ticket hypothesis: Finding sparse, trainable neural networks.''} ICLR 2019.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/information-theory/}{Information-Theory}
+\item
+  \href{https://lilianweng.github.io/tags/foundation/}{Foundation}
+\item
+  \href{https://lilianweng.github.io/tags/learning-dynamics/}{Learning-Dynamics}
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{{« }\\
+{Domain Randomization for Sim2Real Transfer}} \href{https://lilianweng.github.io/posts/2019-01-31-lm/}{{ »}\\
+{Generalized Language Models}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\href{https://twitter.com/intent/tweet/?text=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f&hashtags=information-theory\%2cfoundation\%2clearning-dynamics}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f&title=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f&summary=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f&title=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f}{} \href{https://api.whatsapp.com/send?text=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f}{} \href{https://telegram.me/share/url?text=Are\%20Deep\%20Neural\%20Networks\%20Dramatically\%20Overfitted\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-03-14-overfit\%2f}{}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+\end{minipage}
+\hfill
+\begin{minipage}[t]{4.5e-2\linewidth}
+\phantomsection\label{top-link}\hyperref[top]{}
+\end{minipage}
+\caption{}
+\end{subfigure}
+\caption{}
+\end{subfigure}
+\caption{}
+\end{subfigure}
+\caption{}
+\end{subfigure}
+\caption{}
+\end{figure}

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Reducing Toxicity in Language Models | Lil&#39;Log</title>
+<meta name="keywords" content="nlp, language-model, alignment, steerability, safety" />
+<meta name="description" content="
+Large pretrained language models are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Reducing Toxicity in Language Models" />
+<meta property="og:description" content="
+Large pretrained language models are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-03-21T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2021-03-21T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Reducing Toxicity in Language Models"/>
+<meta name="twitter:description" content="
+Large pretrained language models are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Reducing Toxicity in Language Models",
+      "item": "https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reducing Toxicity in Language Models",
+  "name": "Reducing Toxicity in Language Models",
+  "description": " Large pretrained language models are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process.\n",
+  "keywords": [
+    "nlp", "language-model", "alignment", "steerability", "safety"
+  ],
+  "articleBody": " Large pretrained language models are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process.\nMany challenges are associated with the effort to diminish various types of unsafe content:\nFirst, there are a variety of unsafe content types, such as toxicity, abusiveness, hate speech, biases, stereotypes, cyberbullying, identity attacks and more, which may or may not demand different treatment. Second, there is no clearly and widely agreed-upon categorization and definition of unsafe behavior in pretrained language models. Individual perceptions could vary a lot due to different social backgrounds. In this post, we delve into the issue of toxicity in language models. As I’m still struggling to find a concrete definition of toxic content, I list a couple in the literature below.\n[Perspective API] A rude, disrespectful, or unreasonable comment; likely to make people leave a discussion.\n[Kurita et al. 2019] Content that can offend or harm its recipients, including hate speech, racism, and offensive language.\n[Pavlopoulos et al. 2020] We use the term ’toxic’ as an umbrella term, but we note that the literature uses several terms for different kinds of toxic language or related phenomena: ‘offensive’, ‘abusive’, ‘hateful’, etc.\nOverall, toxicity is a broad term to describe several types of unsafe content. Methodologies in this post can be applied given some form of definition of toxicity; e.g. presented in the instruction for annotators. How to properly define the concept of toxicity and thus collect accurate annotation labels is out of the scope of this post.\nCategorization of Toxic Content How to categorize toxic content is not a straightforward task. Which content should be considered toxic and what types of toxic content exist can be very subjective. Language that does not look offensive to one group might seem inappropriate to another.\nOne popular categorization of offensive language is proposed by Zampieri et al. (2019), a three-level hierarchical taxonomy considering both the type and the target of offense. The Offensive Language Identification Dataset (OLID) dataset is collected based on this taxonomy.\nThe three-level hierarchical taxonomy for categorizing offensive language, proposed by Zampieri et al. (2019). Level A: “Is it offensive?” [OFF] Offensive: Inappropriate language, insults, or threats. [NOT] Not offensive: No offense or profanity. Level B: “Is the offensive text targeted?” [TIN] Targeted Insult: Targeted insult or threat towards an individual, a group or other. [UNT] Untargeted: Non-targeted profanity and swearing. Level C: What is the target? [IND] The offense targets an individual, often defined as “cyberbullying”. [GRP] The offense targets a group of people based on ethnicity, gender, sexual orientation, religion, or other common characteristic, often defined as “hate speech”. [OTH] The target can belong to other categories, such as an organization, an event, an issue, etc. Data Collection Preparing a dataset of samples labelled as “safe” vs “unsafe” is the foundation for training a toxic language classifier and further providing signals for model detoxification.\nHuman Annotations Vidgen \u0026 Derczynski (2020) summarized that training data annotations for toxicity detection on the high level can be collected by:\nExpert coding: An expert has enough knowledge or training to complete the annotation tasks with good quality, such as a researcher who studies prejudice, a student with moderate level of training, or a NLP practitioner. It is more expensive but produces high-quality data. Crowdsourcing: Crowdsourcing platform pairs a large number of non-expert annotators with tasks. It is easier to scale up but demands more attention on quality control. Professional moderators: Professional moderators are experienced, well-trained on the tasks, but their goals are likely to optimize for the output specific to the platform. Synthetic data: Training dataset can also be manually created by relevant content creators to cover a broad range of toxic content types. Crowdsourcing is the most common approach among them (Davidson et al. 2017, Zampieri et al. 2019) and there are several good practices to improve the data quality:\nTest data: A small set of annotations collected from a few experts can be used as test questions (Zampieri et al. 2019) to filter out human annotators on the crowdsourcing platform who cannot achieve a certain threshold. Clear guidelines: Detailed instructions are useful to guide annotators to produce aligned and consistent labels. Without any guideline, annotators are encouraged to apply their personal perceptions, which could be problematic because (1) subjective interpretation of toxic content varies across individuals greatly and (2) it is tricky to mark certain types of noise like sarcasm and irony without any guideline. Majority vote: It is very common that we need labels from multiple annotators per sample and take the majority vote. Understanding annotators’ identities: Demographic background has a big impact on the annotator’s understanding of the task. We should aim to recruit diverse and qualified annotators. Semi-supervised Dataset Khatri et al. (2018) proposed a simple approach to bootstrap a large amount of semi-supervised dataset for learning toxic content classifiers. Their approach relies on a small annotated dataset and a large unlabelled dataset.\nFirst, they gather a blacklist of 800+ words covering topics of profanity, hate, sexual content and insults. A black list of profanities may have high precision and low recall, but it can provide weak supervised signals. Subreddits are sorted by the percentage of blacklisted words. Then sensitive examples are sampled from the top subreddits and non-sensitive ones from the bottom, respectively. Train a weak binary classifier to further select more samples from the sorted subreddits, Sensitive: contain blacklisted words or toxic classifier confidence \u003e 0.8; Non-sensitive: not contain blacklisted words and toxic classifier confidence \u003c 0.3 Given this large expanded dataset, train a new classifier named “Two-stage bootstrap” (TS bootstrap). Their experiments showed that the TS bootstrap classifier achieved pretty good numbers on F1 score, accuracy and recall and it could also transfer to out-of-domain test data.\nThe two-stage bootstrap classifier is trained on a dataset bootstrapped by a weak toxic binary classifier on Reddit data. (Image source: Khatri et al. 2018) SOLID (Semi-Supervised Offensive Language Identification Dataset; Rosenthal et al. 2020) contains 9+ M tweets annotated with the same taxonomy system as for OLID. SOLID treats OLID as a seed and extends it via a semi-supervised technique called democratic co-training. Democratic co-training (Zhou \u0026 Goldman, 2004) creates a large dataset from noisy labels provided by a collection of diverse models trained on a small supervised dataset. SOLID is constructed by:\nFirst, train a diverse set of supervised models on the labeled dataset OLID. The paper experimented with PMI (n-gram-based similarity), FastText (shallow neural model similar to BoW model), LSTM and BERT. For each sample in the unannotated dataset, each model predicts a confidence score for the target class. The scores are aggregated by taking avg() or min(). Samples with high confidence are added into the dataset. BERT model performance does not improve when the supervised dataset is large enough for a simple task, but can benefit from a big semi-supervised dataset if the original supervised dataset is too small for the task.\nToxicity Detection Given a supervised dataset, we can train a text classifier from scratch or fine-tune a pretrained language model to perform the classification task. But what if training samples are not good or sufficient enough? What if we don’t have access to such a supervised dataset?\nAdversarial Attacks To create a toxicity detection model that is robust to adversarial attacks, Dinan et al. (2019) proposed an iterative “build it, break it, fix it” strategy to improve the dialogue system safety with humans in the loop.\nBuild it: A BERT model is trained to classify toxic comments on the Jigsaw dataset. Break it: Crowdsourced workers are asked to write toxic messages that are mistakenly labelled as “safe” by the model. Fix it: The model is re-trained on the combination of the original dataset and newly collected adversarial samples. Repeat: Redeploy the robustified model and repeat a new round from step 1. The illustration of iteratively improving a toxic content detection model via the \"build it, break it, fix it\" process. (Image source: Dinan et al. 2019) One baseline in their experiments is to replace the adversarial collection in the “break it” step with the standard collection where workers are asked to submit “offensive” messages directly . Compared to the standard collection, the adversarial collection has less explicit profanity and more negations to trick the model. The tasks become more challenging in the later rounds.\nAdversarial models are more robust against adversarial attacks than baseline models trained on the standard collection. The third round adversarial model has worse performance on the standard task than the standard model, likely due to overfitting. I’m curious about how the model performance would be like if it is trained on both adversarial and standard collection, but I didn’t find it in the paper.\nThe comparison of performance on standard and adversarial tasks of models trained on standard ($S\\_i$) and adversarial data collection ($A\\_i$). The subscript $i$ indicates the number of training rounds. (Image source: Dinan et al. 2019) Another type of adversarial attack is to trick the detection model to mistakenly classify a toxic sentence as safe by replacing or scrambling a subset of characters. Kurita et al. (2019) developed a method of generating such model-agnostic adversarial attacks, incorporating several types of character-level perturbations:\nCharacter scrambling: randomly permute character positions. Homoglyph substitution: replace one or multiple letters with similar looking international letters. Dictionary-based near-neighbor replacement: find closest but distinct token in terms of Levenshtein distance. Distractor injection: inject distractor tokens by repeating random selected sequences of non-toxic tokens. Adversarial noise combining token obfuscation and distractor tokens leads to substantial performance degradation of a toxic classifier. Character-level perturbation degrades performance more than distractors.\nThe paper proposed two ways to resolve adversarial attacks:\nAdversarial training refers to training the model on a dataset with noise. However, you need to know the details of the incoming attacks in advance. And there is no guarantee that training samples with arbitrary noise would generalize to the test set. CDAE (contextual denoising autoencoder) uses character-level and contextual information to denoise obfuscated tokens. CDAE takes a noise sample to predict the denoised version. Still, you need to know what types of character-level perturbation can be applied to create noise samples. CDAE performs comparable to BERT, but not substantially better. Perspective API perspective API (www.perspectiveapi.com) is the most widely used commercial API for toxic content detection. Perspective trains machine learning models to provide scores for several different attributes: toxicity, severe toxicity, insult, profanity, identity attack, threat, and sexually explicit. Each score is a number between [0, 1], indicating how likely the message contains a given attribute (i.e. confidence of a binary classifier) and it does not signify the severity of the attribute.\nThe overview of Perspective API scores. (Image source: About Perspective API) Gehman et al. (2020) measured the Perspective API toxicity scores of unprompted generations sampled from several pretrained language models. “Unprompted” means that the generation is only conditioned on the start-of-sentence tokens, without injecting any additional context. Noticeably, all the tested models get to the expected maximum toxicity \u003e 0.5 after 100 generations. They also pointed out that training datasets for large LMs contain an non-negligible amount of toxic content.\nPerspective API toxicity scores of unprompted generations. Each model generates a pool of 10k samples and the expected maximum toxicity score is estimated via bootstrapping. (Image source: Gehman et al. 2020) They collected the RealToxicityPrompt dataset for studying toxicity in conditional language model generation. It contains 100k naturally occurring prompts with associated toxicity scores from Perspective API. Some prompts that do not contain any toxic language still can trigger very offensive completion.\nDespite of its popularity, Perspective API contains known biases, as summarized by Gehman et al. (2020):\n… exhibit biases against minorities and suffer from low agreement in annotations, partially due to annotator identity influencing their perception of hate speech and differences in annotation task setup.\nNotably, recent work has found that systems are overestimating the prevalence of toxicity in text that contains a minority identity mention (e.g., “I’m a gay man”) or text by racial minorities (e.g., text in African American English). This is partially due to detectors’ over-reliance on lexical cues of toxicity (including swearwords, slurs, and other “bad” words).\nPrompt-based Detection Self-diagnosis (Schick, et al. 2021) is a process of exploiting the capacity of a pretrained language model to detect socially undesired attributes in its own outputs. The diagnosis depends on a predefined prompt template where the attributes are described in short text and measures the normalized probability of the model outputting “yes” versus “no”. Note that self-diagnosis does not need to access a labelled dataset for training.\n# Self-diagnosis template \"{sample text}\" Question: Does the above text contain {undesired attribute}? Answer: {yes/no} They use RealToxicityPrompts dataset and Perspective API for evaluation in the experiments. The self-diagnosis performance is positively correlated with the model size.\nSelf-diagnosis abilities for identifying undesired attributes. The ground truth is provided by Perspective API. (Image source: Schick, et al. 2021) Detoxification Blacklisting Bad word filtering is a pretty intuitive and effective way to avoid explicit profane words in the language model generation. At decoding time, we can manually reduce the probabilities of blocked words to avoid sampling them. However, it is not perfect, as it is still possible to have unsafe content composed of safe tokens.\nVocabulary shifting (Gehman et al. 2020) learns a 2-dimensional representation of toxicity versus non-toxicity for every token in the vocabulary of the pretrained model. Then the representation that encodes the non-toxicity is used to boost the likelihood of non-toxic tokens at decoding time.\nPrompt-based Detox Self-debiasing (Schick et al. 2021) follows the similar idea as in self-diagnosis. It is a process for using the internal knowledge of a pretrained language model to reduce the probability of undesired attributes in the model generation.\n# Self-debiasing template, denoted as sdb(.) The following text contains {undesired attribute s}: {sample text x} Given an input prompt $\\mathbf{x}$, a textual description of undesired attributes $s$, and the language model $M$, self-debiasing computes the difference between the probability of next words without and with the self-debiasing template $\\text{sdb}(.)$:\n$$ \\Delta(w, \\mathbf{x}, s) = p_M(w\\vert\\mathbf{x}) - p_M(w\\vert\\text{sdb}(\\mathbf{x}, s)) $$ Because $\\text{sdb}(.)$ is expected to boost the probabilities of undesired words, $\\Delta(w, \\mathbf{x}, s)$ should be negative for undesirable words.\nIn self-diasing decoding, a scaling function of the probability difference $\\alpha(\\Delta(w, \\mathbf{x}, s)): \\mathbb{R}\\to[0,1]$ is used to alter the true sampling distribution,\n$$ \\tilde{p}_M(w\\vert\\mathbf{x}) \\propto \\alpha(\\Delta(w, \\mathbf{x}, s)) p_M(w\\vert\\mathbf{x}) $$ In the paper, they used a soft variant where the probabilities of the words with negative $\\Delta$ are reduced w.r.t. the magnitude of $\\Delta(w, \\mathbf{x}, s)$:\n$$ \\alpha(x)=\\begin{cases} 1 \u0026 \\text{ if } x\\geq 0 \\\\ e^{\\lambda\\cdot x} \u0026 \\text{ otherwise} \\end{cases} $$ Self-diasing decoding can reduce the probabilities of undesirable attributes. The scores are provided by Perspective API. (Image source: Schick et al. 2021) There are a couple of major limitations in self-debiasing detoxification:\nThe evaluation solely relies on Perspective API, so it cannot capture bias \u0026 toxicity attributes that are not covered by Perspective API, such as gender biases. Using human evaluation is another alternative but the scale is limited. Self-debiasing sometimes acts too aggressively and filters out harmless words and it does not maintain the same level of perplexity as the original model. The approach is constrained by the internal capacity of the model. For example, if the model is not aware of certain biases, it would not be able to correct them. Text Style Transfer Unsupervised style transfer can be used to translate offensive sentences into innocuous ones (Santos et al. 2018). The approach should work for non-parallel datasets, meaning that we only have access to two separate datasets of offensive and non-offensive samples, but not paired versions. To preserve the content when transferring the text into another style, a cycle consistency loss (Zhu et al. 2017) is adopted.\nThe training process of a neural text style transfer algorithm using non-parallel data. (Image source: Santos et al. 2018) Let $s_i$ be the desired style ($i=0$ for offensive and $i=1$ for non-offensive), and $\\mathbf{x}^i_k$ be the $k$-th sample of style $s_i$, $k = 1, \\dots, n$. Both the encoder $E$ and decoder $G$ take a sample (or hidden state) along with a style label. The classifier $C$ predicts a probability distribution over the style labels given an input sample.\nFollowing the illustration in Fig. 9:\nThe top branch of forward transfer is auto encoder: ​$E(\\mathbf{x}^i_k, s_i) \\to H^i_k \\to G(H^i_k, s_i) \\to \\hat{\\mathbf{x}}^{i\\to i}_k$. Two losses are computed: Reconstruction loss measures how well the decoder can reconstruct the sample back: $$ \\mathcal{L}_\\text{self} = \\mathbb{E}_{\\mathbf{x}^i_k \\sim \\mathcal{X}} [-\\log p_G(\\mathbf{x}_k^i \\mid E(\\mathbf{x}^i_k, s_i), s_i)] $$ The bottom branch of forward transfer: $E(\\mathbf{x}^i_k, s_i) \\to H^i_k \\to G(H^i_k, s_j) \\to \\hat{\\mathbf{x}}^{i\\to j}_k$ Classification loss measures the effectiveness of style transfer: $$ \\mathcal{L}_\\text{style_fwd} = \\mathbb{E}_{\\hat{\\mathbf{x}}^{i\\to j}_k \\sim \\hat{\\mathcal{X}}} [-\\log p_C(s_j \\mid \\hat{\\mathbf{x}}^{i\\to j}_k)] $$ The back transfer uses cycle consistency loss: $E(\\hat{\\mathbf{x}}^{i\\to j}_k, s_j) \\to H^{i\\to j}_k \\to G(H^{i\\to j}_k, s_i) \\to \\hat{\\mathbf{x}}^{i\\to j \\to i}_k$ The cycle consistency loss controls how well the transferred sample can be converted back to the original form to encourage content preservation: $$ \\mathcal{L}_\\text{cycle} = \\mathbb{E}_{\\mathbf{x}^i_k \\sim \\mathcal{X}} [-\\log p_G(\\mathbf{x}_k^i \\mid E(\\hat{\\mathbf{x}}^{i \\to j}_k, s_j), s_i)] $$ - The classification loss ensures that the back-transferred sample has the correct label: $$ \\mathcal{L}_\\text{style_back} = \\mathbb{E}_{\\hat{\\mathbf{x}}^{i\\to j}_k \\sim \\hat{\\mathcal{X}}} [-\\log p_C(s_i \\mid G(E(\\hat{\\mathbf{x}}^{i\\to j}_k, s_j), s_i))] $$ There is an additional supervised classification loss for training an accurate classifier: $$ \\mathcal{L}_\\text{class} = \\mathbb{E}_{\\hat{\\mathbf{x}}^{i\\to j}_k \\sim \\hat{\\mathcal{X}}} [-\\log p_C(s_i \\mid \\hat{\\mathbf{x}}^i_k)] $$ The final training objective is as follows and the encoder, decoder and classifier are jointly trained:\n$$ \\mathcal{L}(\\theta_E, \\theta_G, \\theta_C) = \\min_{E, G, C} \\mathcal{L}_\\text{self} + \\mathcal{L}_\\text{style_fwd} + \\mathcal{L}_\\text{cycle} + \\mathcal{L}_\\text{style_back}+ \\mathcal{L}_\\text{class} $$ Style Transformer (Dai et al. 2019) also aims to learn unsupervised text style transfer. Different from the encoder-decoder model in Santos et al. 2018, it learns a Transformer-based style transfer function $f_\\theta(\\mathbf{x}, s)$ for a given input sample $\\mathbf{x}$ and a desired style control variable $s$.\nThe comparison of style transformer and previous models that depend on disentangled latent representation. (Image source: Dai et al. 2019) Without access to the parallel corpus, the style transformer adopts a discriminator to create supervision from non-parallel dataset.\nLet $s$ and $\\hat{s}$ be two mutually exclusive style variables and $\\mathbf{x}$ is a sample of style $s$, style transformer computes several losses:\nSelf reconstruction loss: $\\mathcal{L}_\\text{self} = - p_\\theta (\\mathbf{x} \\vert \\mathbf{x}, s)$ Cycle-consistency loss: $\\mathcal{L}_\\text{cycle} = - p_\\theta (\\mathbf{x} \\vert f_\\theta(\\mathbf{x}, \\hat{s}), s)$ Style controlling loss: This is necessary because otherwise the model would simply learn to copy the input over. $$ \\mathcal{L}_\\text{style} = - p_\\phi(\\text{class} = 1 \\vert f_\\theta(\\mathbf{x}, \\hat{s}), \\hat{s}) $$ , where the discriminator is a simple binary classifier trained to optimize the negative log-likelihood of the correct style. The discriminator is trained by labelling\n$\\{(\\mathbf{x}, s), (f_\\theta(\\mathbf{x}, s), s), (f_\\theta(\\mathbf{x}, \\hat{s}), \\hat{s})\\}$ as positive class 1 $\\{(\\mathbf{x}, \\hat{s}), (f_\\theta(\\mathbf{x}, s), \\hat{s}), (f_\\theta(\\mathbf{x}, \\hat{s}), s)\\}$ as negative class 0. The training process of Style Transformer. (Image source: Dai et al. 2019) Driven by the research question “Can we fine-tune a pre-trained language model to suggest civil rephrasings of rude comments using a dataset solely annotated in toxicity?”, Laugier et al. (2021) fine-tuned a pretrained text-to-text transformer with a denoising and cyclic auto-encoder loss.\nLet $s$ be the attribute of $\\mathbf{x}$ (e.g. “civil”) and $\\bar{s}$ be the other opposite attribute (e.g. “toxic”). These two attributes are mutually exclusive. The goal is to learn a mapping function $f_\\theta$ such that it translates $x$ to a new fluent sequence $y$ with target attribute $a$ while preserving $x$’s content.\nThe encoder-decoder model is trained with the loss:\n$$ \\mathcal{L} = \\lambda_\\text{DAE} \\mathcal{L}_\\text{DAE} + \\lambda_\\text{cycle} \\mathcal{L}_\\text{cycle} $$ The denoising auto-encoder loss is the loss for denoising auto-encoders, where $\\eta$ is a masking function same as in BERT training: $$ \\mathcal{L}_\\text{DAE} = \\mathbb{E}_{\\mathbf{x} \\sim \\mathcal{X}} [−\\log p_\\theta(\\mathbf{x} \\mid \\eta(\\mathbf{x}), s)] $$ The cycle consistency loss (Zhu et al. 2017) has $\\tilde{\\theta}$ to produce a non-differentiable pseudo-prediction $\\hat{\\mathbf{y}}$ and it does not take gradient backpropagation. $$ \\mathcal{L}_\\text{cycle} = \\mathbb{E}_{\\mathbf{x} \\sim \\mathcal{X}} [−\\log p_\\theta(\\mathbf{x} \\mid f_{\\tilde{\\theta}}(\\mathbf{x}, \\bar{s}), s)] $$ They used the above loss to fine-tune a T5 model, resulting in a model named CAE-T5. The conditioning is implemented like CTRL via control code (“civil” or “toxic”) prepended to the start of a sequence.\nAutomatic evaluation of the text style transferred results relies on three metrics:\nAccuracy: Classification accuracy measures how successful the style transfer is. Fluency: Fluency is commonly measured by perplexity by another separately trained LM on non-toxic samples. Content preservation: It is the content similarity between transferred and original sentences, measured by BLEU or embedding based content similarity. Human evaluation is also necessary but more costly.\nCompared to the baseline (Shen et al. 2017), the style transfer method by Santos et al. 2018 achieves better classification accuracy, better content preservation, but worse perplexity. CAE-T5 has worse classification accuracy, competitive content preservation, and better perplexity compared to a set of baselines including Style Transformer.\nControllable Generation We can try to avoid toxic outputs via controllable text generation. There are several popular approaches for steering a pretrained language model toward desired styles, topics or safety criteria:\nApply guided decoding strategies and select desired outputs at test time. Optimize for the most desired outcomes via good prompt design. Fine-tune the base model or steerable layers to do conditioned content generation. Read more in my last post on controllable neural text generation, introducing methods like AutoPrompt, CTRL, PPLM, GeDi and many more.\nGehman et al. (2020) experimented with both data-based (supervised fine-tuning, CTRL training) and decoding-based (vocabulary shifting, blocked word filtering, PPLM) methods for language model detoxification. They found that toxicity control tokens (CTRL) and swear word filters are less successful than more computationally or data-intensive methods like fine-tuning on non-toxic corpora and PPLM.\nTable list expected maximum toxicity score over 25 generations (left) and the empirical probability of generating toxic text over 25 generations (right) for several detoxification methods. Scores are provided by Perspective API. (Image source: Gehman et al., 2020) System-level Safety Solution Xu et al. (2020) presented a thorough system-level design for building safe chatbots.\nIllustration of a safe chat bot system. (Image source: Xu et al. 2020) They consider four general strategies in the recipes for making the bot safer:\nDetect unsafe content: Adopt a classifier for detecting unsafe language on both the input and output side, as an extra safety layer on top of the language model. The classifier is trained on an enhanced version of the Jigsaw toxic comment dataset (safe vs unsafe binary labels), extended with adversarial human attacks (Dinan et al. 2019) and semi-supervision (Khatri et al. 2018). The safety classifier can be used on both the user input and the model output. If it detects unsafe content, the system is configured to return a canned, predefined response (e.g “I’m sorry I’m not sure what to say.”), or decide to change topics. It is worthy noting that this approach relies on a high-quality classifier. The conversation experience would be drastically disrupted with too many false positives. Bot adversarial dialogue (BAD) safety: The idea is to collect data on humans adversarially probing the system to make mistakes and then use the data for further training. During annotation, human labellers can tag the bot’s response with an unsafe-safe rating based on the percentage of population who may consider it as unsafe. This probing data collection is used to train a multi-turn safety classifier, predicting whether a response is offensive given the dialogue context. Safe generation: Train a model that is less likely to output unsafe responses. A predefined list of unsafe words/n-grams can be blocked at decoding time. The pretraining data is filtered by the above safety classifier, or filtered based on known authors. The problem with pre-training only with safe datasets is that if the model has never seen toxic language during training, it would not know how to respond at test time (OOD; e.g. may just copy the offensive content). They instead prepare a collection of training samples where the last utterance is labelled as “unsafe” and then attach a safe response following that unsafe attack. Then the model is fine-tuned on the “baked-in” safety data. Do CTRL style training by assigning “safe” vs “unsafe” label using the safety classifier. Avoid sensitive topics: In order to avoid sensitive topics (politics, religion, drug use, medical advice, and NSFW and relationships/dating), they trained a multi-class classifier to detect those topics using crowdsourced lists of subreddits. The classifier can be periodically re-trained to capture the changes within topics over time. A small validation set is collected by recruiting crowdsourced workers to discuss one of the target topics. Gender bias mitigation: They used CTRL style training to mitigate gender biases. Precisely, given a gendered word list, tag the training samples with $F^0 M^0$, $F^0 M^+$, $F^+ M^+$, and $F^+ M^0$ labels, indicating whether the response contains female / male words ($+$ contains, $-$ does not contain). At test time, the system runs with a control label $F^0 M^0$ to avoid outputting gender specific words. Appendix: Datasets (*Only datasets in English are listed here.)\nHate Speech and Offensive Language Dataset (2017): contains about 25k tweets, each labelled manually as one of three categories: hate speech, offensive but not hate speech, or neither offensive nor hate speech. [Download]\nJigsaw Toxic Comments Classification Dataset (2018): contains about 160k examples extracted from Wikipedia discussion pages, each annotated for 7 classes: toxic, severe toxic, obscene, threat, insult, identity hate and non-toxic. The labelling process involved 5000 crowdsourced annotators. [Download]\nJigsaw Unintended Bias in Toxicity Classification Dataset (2019): contains about 2 Millions comments from the Civil Comments platform, which shut down in 2017. This data is annotated for toxicity, toxicity sub-types, and mentions of identities, which enables evaluation of unintended bias with respect to identity mentions. [Download]\nOLID (Offensive Language Identification Dataset; 2019): contains 14,100 English tweets, annotated according to the three-level taxonomy as described here. [Download]\nSOLID (Semi-Supervised Offensive Language Identification Dataset; 2020): contains 9+ Millions tweets annotated following OLID’s three level taxonomy. [Download]\nRealToxicityPrompts dataset (2020): contains 100k sentence snippets from the web with Perspective API toxicity scores for studying the risk of neural toxic degeneration in language models. [Download]\nCitation Cited as:\nWeng, Lilian. (Mar 2021). Reducing toxicity in language models. Lil’Log. https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/.\nOr\n@article{weng2021toxic, title = \"Reducing Toxicity in Language Models.\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2021\", month = \"Mar\", url = \"https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/\" } References [1] Vidgen, et al. “Challenges and frontiers in abusive content detection.” Workshop on Abusive Language Online 2019.\n[2] Zampieri et al. “Predicting the type and target of offensive posts in social media.” NAACL 2019.\n[3] Vidgen \u0026 Deczynski. “Directions in abusive language training data, a systematic review: Garbage in, garbage out.” PLoS ONE 15(12): e0243300 (2020).\n[4] Davidson et al. “Automated hate speech detection and the problem of offensive language.” ICWSM 2017.\n[5] Khatri et al. “Detecting offensive content in open-domain conversations using two stage semi-supervision.” NeuriIPS CONVAI Workshop 2018.\n[6] Rosenthal et al. “A Large-Scale Semi-Supervised Dataset for Offensive Language Identification” arXiv:2004.14454 (2020).\n[7] Pavlopoulos et al. “Toxicity Detection: Does Context Really Matter?” arXiv:2006.00998 (2020).\n[8] Dinan et al. “Build it, break it, fix it for dialogue safety: Robustness from adversarial human attack.” arXiv:1908.06083 (2019).\n[9] Kurita et al. “Towards Robust Toxic Content Classification” arXiv:1912.06872 (2019)\n[10] Santos et al. “Fighting offensive language on social media with unsupervised text style transfer.” arXiv:1805.07685 (2018)\n[11] Dai et al. “Style Transformer: Unpaired Text Style Transfer without Disentangled Latent Representation” ACL 2019.\n[12] Laugier et al. “Civil Rephrases Of Toxic Texts With Self-Supervised Transformers” arXiv:2102.05456 (2021). code\n[13] Schick et al. “Self-Diagnosis and Self-Debiasing: A Proposal for Reducing Corpus-Based Bias in NLP” arXiv:2103.00453 (2021).\n[14] Gehman et al. “RealToxicityPrompts: Evaluating Neural Toxic Degeneration in Language Models” EMNLP 2020.\n[15] Xu et al. “Recipes for Safety in Open-domain Chatbots” arXiv:2010.07079 (2020).\n",
+  "wordCount" : "4683",
+  "inLanguage": "en",
+  "datePublished": "2021-03-21T00:00:00Z",
+  "dateModified": "2021-03-21T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Reducing Toxicity in Language Models
+    </h1>
+    <div class="post-meta">Date: March 21, 2021  |  Estimated Reading Time: 22 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#categorization-of-toxic-content" aria-label="Categorization of Toxic Content">Categorization of Toxic Content</a></li>
+                <li>
+                    <a href="#data-collection" aria-label="Data Collection">Data Collection</a><ul>
+                        
+                <li>
+                    <a href="#human-annotations" aria-label="Human Annotations">Human Annotations</a></li>
+                <li>
+                    <a href="#semi-supervised-dataset" aria-label="Semi-supervised Dataset">Semi-supervised Dataset</a></li></ul>
+                </li>
+                <li>
+                    <a href="#toxicity-detection" aria-label="Toxicity Detection">Toxicity Detection</a><ul>
+                        
+                <li>
+                    <a href="#adversarial-attacks" aria-label="Adversarial Attacks">Adversarial Attacks</a></li>
+                <li>
+                    <a href="#perspective-api" aria-label="Perspective API">Perspective API</a></li>
+                <li>
+                    <a href="#prompt-based-detection" aria-label="Prompt-based Detection">Prompt-based Detection</a></li></ul>
+                </li>
+                <li>
+                    <a href="#detoxification" aria-label="Detoxification">Detoxification</a><ul>
+                        
+                <li>
+                    <a href="#blacklisting" aria-label="Blacklisting">Blacklisting</a></li>
+                <li>
+                    <a href="#prompt-based-detox" aria-label="Prompt-based Detox">Prompt-based Detox</a></li>
+                <li>
+                    <a href="#text-style-transfer" aria-label="Text Style Transfer">Text Style Transfer</a></li>
+                <li>
+                    <a href="#controllable-generation" aria-label="Controllable Generation">Controllable Generation</a></li>
+                <li>
+                    <a href="#system-level-safety-solution" aria-label="System-level Safety Solution">System-level Safety Solution</a></li></ul>
+                </li>
+                <li>
+                    <a href="#appendix-datasets" aria-label="Appendix: Datasets">Appendix: Datasets</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Toxicity prevents us from safely deploying powerful pretrained language models for real-world applications. To reduce toxicity in language models, in this post, we will delve into three aspects of the problem: training dataset collection, toxic content detection and model detoxification. -->
+<p>Large pretrained <a href="https://lilianweng.github.io/posts/2019-01-31-lm/">language models</a> are trained over a sizable collection of online data. They unavoidably acquire certain toxic behavior and biases from the Internet. Pretrained language models are very powerful and have shown great success in many NLP tasks. However, to safely deploy them for practical real-world applications demands a strong safety control over the model generation process.</p>
+<p>Many challenges are associated with the effort to diminish various types of unsafe content:</p>
+<ul>
+<li>First, there are a variety of unsafe content types, such as toxicity, abusiveness, hate speech, biases, stereotypes, cyberbullying, identity attacks and more, which may or may not demand different treatment.</li>
+<li>Second, there is no clearly and widely agreed-upon categorization and definition of unsafe behavior in pretrained language models. Individual perceptions could vary a lot due to different social backgrounds.</li>
+</ul>
+<p>In this post, we delve into the issue of toxicity in language models. As I&rsquo;m still struggling to find a concrete definition of toxic content, I list a couple in the literature below.</p>
+<blockquote>
+<p>[<a href="https://support.perspectiveapi.com/s/about-the-api-attributes-and-languages">Perspective API</a>] A rude, disrespectful, or unreasonable comment; likely to make people leave a discussion.</p>
+</blockquote>
+<blockquote>
+<p>[<a href="https://arxiv.org/abs/1912.06872">Kurita et al. 2019</a>] Content that can offend or harm its recipients, including hate speech, racism, and offensive language.</p>
+</blockquote>
+<blockquote>
+<p>[<a href="https://arxiv.org/abs/2006.00998">Pavlopoulos et al. 2020</a>] We use the term &rsquo;toxic&rsquo; as an umbrella term, but we note that the literature uses several terms for different kinds of toxic language or related phenomena: &lsquo;offensive&rsquo;, &lsquo;abusive&rsquo;, &lsquo;hateful&rsquo;, etc.</p>
+</blockquote>
+<p>Overall, toxicity is a broad term to describe several types of unsafe content. Methodologies in this post can be applied given some form of definition of toxicity; e.g. presented in the instruction for annotators. How to properly define the concept of toxicity and thus collect accurate annotation labels is out of the scope of this post.</p>
+<h1 id="categorization-of-toxic-content">Categorization of Toxic Content<a hidden class="anchor" aria-hidden="true" href="#categorization-of-toxic-content">#</a></h1>
+<p>How to categorize toxic content is not a straightforward task. Which content should be considered toxic and what types of toxic content exist can be very subjective. Language that does not look offensive to one group might seem inappropriate to another.</p>
+<p>One popular categorization of offensive language is proposed by <a href="https://arxiv.org/abs/1902.09666">Zampieri et al. (2019)</a>, a three-level hierarchical taxonomy considering both the type and the target of offense. The Offensive Language Identification Dataset (<a href="#OLID">OLID</a>) dataset is collected based on this taxonomy.</p>
+<figure>
+	<img src="offensive-taxonomy.png" style="width: 100%;"  />
+	<figcaption>The three-level hierarchical taxonomy for categorizing offensive language, proposed by <a href="https://arxiv.org/abs/1902.09666" target="_blank">Zampieri et al. (2019)</a>.</figcaption>
+</figure>
+<ul>
+<li>Level A: &ldquo;Is it offensive?&rdquo;
+<ul>
+<li><code>[OFF]</code> Offensive: Inappropriate language, insults, or threats.</li>
+<li><code>[NOT]</code> Not offensive: No offense or profanity.</li>
+</ul>
+</li>
+<li>Level B: &ldquo;Is the offensive text targeted?&rdquo;
+<ul>
+<li><code>[TIN]</code> Targeted Insult: Targeted insult or threat towards an individual, a group or other.</li>
+<li><code>[UNT]</code> Untargeted: Non-targeted profanity and swearing.</li>
+</ul>
+</li>
+<li>Level C: What is the target?
+<ul>
+<li><code>[IND]</code> The offense targets an individual, often defined as &ldquo;cyberbullying&rdquo;.</li>
+<li><code>[GRP]</code> The offense targets a group of people based on ethnicity, gender, sexual orientation, religion, or other common characteristic, often defined as &ldquo;hate speech&rdquo;.</li>
+<li><code>[OTH]</code> The target can belong to other categories, such as an organization, an event, an issue, etc.</li>
+</ul>
+</li>
+</ul>
+<h1 id="data-collection">Data Collection<a hidden class="anchor" aria-hidden="true" href="#data-collection">#</a></h1>
+<p>Preparing a dataset of samples labelled as &ldquo;safe&rdquo; vs &ldquo;unsafe&rdquo; is the foundation for training a toxic language classifier and further providing signals for model detoxification.</p>
+<h2 id="human-annotations">Human Annotations<a hidden class="anchor" aria-hidden="true" href="#human-annotations">#</a></h2>
+<p><a href="https://arxiv.org/abs/2004.01670">Vidgen &amp; Derczynski (2020)</a> summarized that training data annotations for toxicity detection on the high level can be collected by:</p>
+<ol>
+<li><em>Expert coding</em>: An expert has enough knowledge or training to complete the annotation tasks with good quality, such as a researcher who studies prejudice, a student with moderate level of training, or a NLP practitioner. It is more expensive but produces high-quality data.</li>
+<li><em>Crowdsourcing</em>: Crowdsourcing platform pairs a large number of non-expert annotators with tasks. It is easier to scale up but demands more attention on quality control.</li>
+<li><em>Professional moderators</em>: Professional moderators are experienced, well-trained on the tasks, but their goals are likely to optimize for the output specific to the platform.</li>
+<li><em>Synthetic data</em>: Training dataset can also be manually created by relevant content creators to cover a broad range of toxic content types.</li>
+</ol>
+<p>Crowdsourcing is the most common approach among them (<a href="https://arxiv.org/abs/1703.04009">Davidson et al. 2017</a>, <a href="https://arxiv.org/abs/1902.09666">Zampieri et al. 2019</a>) and there are several good practices to improve the data quality:</p>
+<ol>
+<li><em>Test data</em>:  A small set of annotations collected from a few experts can be used as test questions (<a href="https://arxiv.org/abs/1902.09666">Zampieri et al. 2019</a>) to filter out human annotators on the crowdsourcing platform who cannot achieve a certain threshold.</li>
+<li><em>Clear guidelines</em>: Detailed instructions are useful to guide annotators to produce aligned and consistent labels. Without any guideline, annotators are encouraged to apply their personal perceptions, which could be problematic because (1) subjective interpretation of toxic content varies across individuals greatly and (2) it is tricky to mark certain types of noise like sarcasm and irony without any guideline.</li>
+<li><em>Majority vote</em>: It is very common that we need labels from multiple annotators per sample and take the majority vote.</li>
+<li><em>Understanding annotators&rsquo; identities</em>: Demographic background has a big impact on the annotator&rsquo;s understanding of the task. We should aim to recruit diverse and qualified annotators.</li>
+</ol>
+<h2 id="semi-supervised-dataset">Semi-supervised Dataset<a hidden class="anchor" aria-hidden="true" href="#semi-supervised-dataset">#</a></h2>
+<p><a href="https://arxiv.org/abs/1811.12900">Khatri et al. (2018)</a> proposed a simple approach to bootstrap a large amount of semi-supervised dataset for learning toxic content classifiers. Their approach relies on a small annotated dataset and a large unlabelled dataset.</p>
+<ol>
+<li>First, they gather a blacklist of 800+ words covering topics of profanity, hate, sexual content and insults. A black list of profanities may have high precision and low recall, but it can provide weak supervised signals.</li>
+<li>Subreddits are sorted by the percentage of blacklisted words. Then sensitive examples are sampled from the top subreddits and non-sensitive ones from the bottom, respectively.</li>
+<li>Train a weak binary classifier to further select more samples from the sorted subreddits,
+<ul>
+<li>Sensitive: contain blacklisted words or toxic classifier confidence &gt; 0.8;</li>
+<li>Non-sensitive: not contain blacklisted words and toxic classifier confidence &lt; 0.3</li>
+</ul>
+</li>
+<li>Given this large expanded dataset, train a new classifier named &ldquo;Two-stage bootstrap&rdquo; (<strong>TS bootstrap</strong>).</li>
+</ol>
+<p>Their experiments showed that the TS bootstrap classifier achieved pretty good numbers on F1 score, accuracy and recall and it could also transfer to out-of-domain test data.</p>
+<figure>
+	<img src="TS-bootstrap.png" style="width: 100%;"  />
+	<figcaption>The two-stage bootstrap classifier is trained on a dataset bootstrapped by a weak toxic binary classifier on Reddit data. (Image source: <a href="https://arxiv.org/abs/1811.12900" target="_blank">Khatri et al. 2018</a>)</figcaption>
+</figure>
+<p><a href="#SOLID">SOLID</a> (Semi-Supervised Offensive Language Identification Dataset; <a href="https://arxiv.org/abs/2004.14454">Rosenthal et al. 2020</a>) contains 9+ M tweets annotated with the same taxonomy system as for <a href="#OLID">OLID</a>. SOLID treats OLID as a seed and extends it via a semi-supervised technique called <strong>democratic co-training</strong>. Democratic co-training (<a href="https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.76.3152&amp;rep=rep1&amp;type=pdf">Zhou &amp; Goldman, 2004</a>) creates a large dataset from noisy labels provided by a collection of diverse models trained on a small supervised dataset. SOLID is constructed by:</p>
+<ol>
+<li>First, train a diverse set of supervised models on the labeled dataset OLID. The paper experimented with PMI (n-gram-based similarity), FastText (shallow neural model similar to BoW model), LSTM and BERT.</li>
+<li>For each sample in the unannotated dataset, each model predicts a confidence score for the target class. The scores are aggregated by taking <code>avg()</code> or <code>min()</code>. Samples with high confidence are added into the dataset.</li>
+</ol>
+<p>BERT model performance does not improve when the supervised dataset is large enough for a simple task, but can benefit from a big semi-supervised dataset if the original supervised dataset is too small for the task.</p>
+<h1 id="toxicity-detection">Toxicity Detection<a hidden class="anchor" aria-hidden="true" href="#toxicity-detection">#</a></h1>
+<p>Given a supervised dataset, we can train a text classifier from scratch or fine-tune a pretrained language model to perform the classification task. But what if training samples are not good or sufficient enough? What if we don’t have access to such a supervised dataset?</p>
+<h2 id="adversarial-attacks">Adversarial Attacks<a hidden class="anchor" aria-hidden="true" href="#adversarial-attacks">#</a></h2>
+<p>To create a toxicity detection model that is robust to adversarial attacks, <a href="https://arxiv.org/abs/1908.06083">Dinan et al. (2019)</a> proposed an iterative &ldquo;<strong>build it, break it, fix it</strong>&rdquo; strategy to improve the dialogue system safety with humans in the loop.</p>
+<ol>
+<li><em>Build it</em>: A BERT model is trained to classify toxic comments on the <a href="#jigsaw">Jigsaw dataset</a>.</li>
+<li><em>Break it</em>: Crowdsourced workers are asked to write toxic messages that are mistakenly labelled as &ldquo;safe&rdquo; by the model.</li>
+<li><em>Fix it</em>: The model is re-trained on the combination of the original dataset and newly collected adversarial samples.</li>
+<li><em>Repeat</em>: Redeploy the robustified model and repeat a new round from step 1.</li>
+</ol>
+<figure>
+	<img src="build-break-fix.png" style="width: 50%;"  />
+	<figcaption>The illustration of iteratively improving a toxic content detection model via the "build it, break it, fix it" process. (Image source:  <a href="https://arxiv.org/abs/1908.06083" target="_blank">Dinan et al. 2019</a>)</figcaption>
+</figure>
+<p>One baseline in their experiments is to replace the adversarial collection in the &ldquo;break it&rdquo; step with the standard collection where workers are asked to submit &ldquo;offensive&rdquo; messages directly . Compared to the standard collection, the adversarial collection has less explicit profanity and more negations to trick the model. The tasks become more challenging in the later rounds.</p>
+<p>Adversarial models are more robust against adversarial attacks than baseline models trained on the standard collection.  The third round adversarial model has worse performance on the standard task than the standard model, likely due to overfitting. I’m curious about how the model performance would be like if it is trained on both adversarial and standard collection, but I didn’t find it in the paper.</p>
+<figure>
+	<img src="build-break-fix-it-results.png" style="width: 100%;"  />
+	<figcaption>The comparison of performance on standard and adversarial tasks of models trained on standard ($S\_i$) and adversarial data collection ($A\_i$). The subscript $i$ indicates the number of training rounds. (Image source: <a href="https://arxiv.org/abs/1908.06083" target="_blank">Dinan et al. 2019</a>)</figcaption>
+</figure>
+<p>Another type of adversarial attack is to trick the detection model to mistakenly classify a toxic sentence as safe by replacing or scrambling a subset of characters. <a href="https://arxiv.org/abs/1912.06872">Kurita et al. (2019)</a> developed a method of generating such model-agnostic adversarial attacks, incorporating several types of character-level perturbations:</p>
+<ol>
+<li><em>Character scrambling</em>: randomly permute character positions.</li>
+<li><em>Homoglyph substitution</em>: replace one or multiple letters with similar looking international letters.</li>
+<li><em>Dictionary-based near-neighbor replacement</em>: find closest but distinct token in terms of Levenshtein distance.</li>
+<li><em>Distractor injection</em>: inject distractor tokens by repeating random selected sequences of non-toxic tokens.</li>
+</ol>
+<p>Adversarial noise combining token obfuscation and distractor tokens leads to substantial performance degradation of a toxic classifier. Character-level perturbation degrades performance more than distractors.</p>
+<p>The paper proposed two ways to resolve adversarial attacks:</p>
+<ul>
+<li><em>Adversarial training</em> refers to training the model on a dataset with noise. However, you need to know the details of the incoming attacks in advance. And there is no guarantee that training samples with arbitrary noise would generalize to the test set.</li>
+<li><em>CDAE (contextual denoising autoencoder)</em> uses character-level and contextual information to denoise obfuscated tokens. CDAE takes a noise sample to predict the denoised version. Still, you need to know what types of character-level perturbation can be applied to create noise samples. CDAE performs comparable to BERT, but not substantially better.</li>
+</ul>
+<h2 id="perspective-api">Perspective API<a hidden class="anchor" aria-hidden="true" href="#perspective-api">#</a></h2>
+<p><strong>perspective API</strong> (<a href="https://www.perspectiveapi.com/">www.perspectiveapi.com</a>) is the most widely used commercial API for toxic content detection. Perspective trains machine learning models to provide scores for several different <a href="https://support.perspectiveapi.com/s/about-the-api-attributes-and-languages">attributes</a>: toxicity, severe toxicity, insult, profanity, identity attack, threat, and sexually explicit. Each score is a number between [0, 1], indicating how likely the message contains a given attribute (i.e. confidence of a binary classifier) and it does not signify the severity of the attribute.</p>
+<figure>
+	<img src="about-perspective-api.png" style="width: 100%;"  />
+	<figcaption>The overview of Perspective API scores. (Image source: <a href="https://support.perspectiveapi.com/s/about-the-api" target="_blank">About Perspective API</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2009.11462">Gehman et al. (2020)</a> measured the Perspective API toxicity scores of unprompted generations sampled from several pretrained language models. &ldquo;Unprompted&rdquo; means that the generation is only conditioned on the start-of-sentence tokens, without injecting any additional context. Noticeably, all the tested models get to the expected maximum toxicity &gt; 0.5 after 100 generations. They also pointed out that training datasets for large LMs contain an non-negligible amount of toxic content.</p>
+<figure>
+	<img src="unprompted-toxicity.png" style="width: 45%;"  />
+	<figcaption>Perspective API toxicity scores of unprompted generations. Each model generates a pool of 10k samples and the expected maximum toxicity score is estimated via bootstrapping. (Image source: <a href="https://arxiv.org/abs/2009.11462" target="_blank">Gehman et al. 2020</a>)</figcaption>
+</figure>
+<p>They collected the <a href="#RealToxicityPrompt"><strong>RealToxicityPrompt</strong> dataset</a> for studying toxicity in conditional language model generation. It contains 100k naturally occurring prompts with associated toxicity scores from Perspective API. Some prompts that do not contain any toxic language still can trigger very offensive completion.</p>
+<p><a id="perspective-api-biases" ></a>Despite of its popularity, Perspective API contains known biases, as summarized by <a href="https://arxiv.org/abs/2009.11462">Gehman et al. (2020)</a>:</p>
+<blockquote>
+<p>&hellip; exhibit biases against minorities and suffer from low agreement in annotations, partially due to annotator identity influencing their perception of hate speech and differences in annotation task setup.</p>
+</blockquote>
+<blockquote>
+<p>Notably, recent work has found that systems are overestimating the prevalence of toxicity in text that contains a minority identity mention (e.g., &ldquo;I’m a gay man&rdquo;) or text by racial minorities (e.g., text in African American English). This is partially due to detectors’ over-reliance on lexical cues of toxicity (including swearwords, slurs, and other &ldquo;bad&rdquo; words).</p>
+</blockquote>
+<h2 id="prompt-based-detection">Prompt-based Detection<a hidden class="anchor" aria-hidden="true" href="#prompt-based-detection">#</a></h2>
+<p><strong>Self-diagnosis</strong> (<a href="https://arxiv.org/abs/2103.00453">Schick, et al. 2021</a>) is a process of exploiting the capacity of a pretrained language model to detect socially undesired attributes in its own outputs. The diagnosis depends on a predefined prompt template where the attributes are described in short text and measures the normalized probability of the model outputting &ldquo;yes&rdquo; versus &ldquo;no&rdquo;. Note that self-diagnosis does not need to access a labelled dataset for training.</p>
+<pre tabindex="0"><code># Self-diagnosis template
+&#34;{sample text}&#34;
+Question: Does the above text contain {undesired attribute}?
+Answer: {yes/no}
+</code></pre><p>They use RealToxicityPrompts dataset and Perspective API for evaluation in the experiments. The self-diagnosis performance is positively correlated with the model size.</p>
+<figure>
+	<img src="self-diagnosis-toxicity-score.png" style="width: 55%;"  />
+	<figcaption>Self-diagnosis abilities for identifying undesired attributes. The ground truth is provided by Perspective API. (Image source: <a href="https://arxiv.org/abs/2103.00453" target="_blank">Schick, et al. 2021</a>)</figcaption>
+</figure>
+<h1 id="detoxification">Detoxification<a hidden class="anchor" aria-hidden="true" href="#detoxification">#</a></h1>
+<h2 id="blacklisting">Blacklisting<a hidden class="anchor" aria-hidden="true" href="#blacklisting">#</a></h2>
+<p><strong>Bad word filtering</strong> is a pretty intuitive and effective way to avoid explicit profane <a href="https://github.com/%20LDNOOBW/List-of-Dirty-Naughty-Obscene-%20and-Otherwise-Bad-Words">words</a> in the language model generation. At decoding time, we can manually reduce the probabilities of blocked words to avoid sampling them. However, it is not perfect, as it is still possible to have unsafe content composed of safe tokens.</p>
+<p><strong>Vocabulary shifting</strong> (<a href="https://arxiv.org/abs/2009.11462">Gehman et al. 2020</a>) learns a 2-dimensional representation of toxicity versus non-toxicity for every token in the vocabulary of the pretrained model. Then the representation that encodes the non-toxicity is used to boost the likelihood of non-toxic tokens at decoding time.</p>
+<h2 id="prompt-based-detox">Prompt-based Detox<a hidden class="anchor" aria-hidden="true" href="#prompt-based-detox">#</a></h2>
+<p><strong>Self-debiasing</strong> (<a href="https://arxiv.org/abs/2103.00453">Schick et al. 2021</a>) follows the similar idea as in <a href="#prompt-based-detection">self-diagnosis</a>. It is a process for using the internal knowledge of a pretrained language model to reduce the probability of undesired attributes in the model generation.</p>
+<pre tabindex="0"><code># Self-debiasing template, denoted as sdb(.)
+The following text contains {undesired attribute s}:
+{sample text x}
+</code></pre><p>Given an input prompt $\mathbf{x}$, a textual description of undesired attributes $s$, and the language model $M$, self-debiasing computes the difference between the probability of next words without and with the self-debiasing template $\text{sdb}(.)$:</p>
+<div>
+$$
+\Delta(w, \mathbf{x}, s) = p_M(w\vert\mathbf{x}) - p_M(w\vert\text{sdb}(\mathbf{x}, s))
+$$
+</div>
+<p>Because $\text{sdb}(.)$ is expected to boost the probabilities of undesired words, $\Delta(w, \mathbf{x}, s)$ should be negative for undesirable words.</p>
+<p>In self-diasing decoding, a scaling function of the probability difference $\alpha(\Delta(w, \mathbf{x}, s)): \mathbb{R}\to[0,1]$ is used to alter the true sampling distribution,</p>
+<div>
+$$
+\tilde{p}_M(w\vert\mathbf{x}) \propto \alpha(\Delta(w, \mathbf{x}, s)) p_M(w\vert\mathbf{x})
+$$
+</div>
+<p>In the paper, they used a soft variant where the probabilities of the words with negative $\Delta$ are reduced w.r.t. the magnitude of $\Delta(w, \mathbf{x}, s)$:</p>
+<div>
+$$
+\alpha(x)=\begin{cases} 1 & \text{ if } x\geq 0 \\ e^{\lambda\cdot x} & \text{ otherwise} \end{cases}
+$$
+</div>
+<figure>
+	<img src="self-debiasing-decoding.png" style="width: 100%;"  />
+	<figcaption>Self-diasing decoding can reduce the probabilities of undesirable attributes. The scores are provided by Perspective API. (Image source: <a href="https://arxiv.org/abs/2103.00453" target="_blank">Schick et al. 2021</a>)</figcaption>
+</figure>
+<p>There are a couple of major limitations in self-debiasing detoxification:</p>
+<ol>
+<li>The evaluation solely relies on Perspective API, so it cannot capture bias &amp; toxicity attributes that are <a href="#perspective-api-biases">not covered</a> by Perspective API, such as gender biases. Using human evaluation is another alternative but the scale is limited.</li>
+<li>Self-debiasing sometimes acts too aggressively and filters out harmless words and it does not maintain the same level of perplexity as the original model.</li>
+<li>The approach is constrained by the internal capacity of the model. For example, if the model is not aware of certain biases, it would not be able to correct them.</li>
+</ol>
+<h2 id="text-style-transfer">Text Style Transfer<a hidden class="anchor" aria-hidden="true" href="#text-style-transfer">#</a></h2>
+<p><strong>Unsupervised style transfer</strong> can be used to translate offensive sentences into innocuous ones (<a href="https://arxiv.org/abs/1805.07685">Santos et al. 2018</a>). The approach should work for non-parallel datasets, meaning that we only have access to two separate datasets of offensive and non-offensive samples, but not paired versions. To preserve the content when transferring the text into another style, a cycle consistency loss (<a href="https://arxiv.org/abs/1703.10593">Zhu et al. 2017</a>) is adopted.</p>
+<figure>
+	<img src="offensive-text-style-transfer.png" style="width: 100%;"  />
+	<figcaption>The training process of a neural text style transfer algorithm using non-parallel data. (Image source: <a href="https://arxiv.org/abs/1805.07685" target="_blank">Santos et al. 2018</a>)</figcaption>
+</figure>
+<p>Let $s_i$ be the desired style ($i=0$ for offensive and $i=1$ for non-offensive), and $\mathbf{x}^i_k$ be the $k$-th sample of style $s_i$, $k = 1, \dots, n$. Both the encoder $E$ and decoder $G$ take a sample (or hidden state) along with a style label. The classifier $C$ predicts a probability distribution over the style labels given an input sample.</p>
+<p>Following the illustration in Fig. 9:</p>
+<ul>
+<li>The top branch of forward transfer is auto encoder: ​$E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_i) \to \hat{\mathbf{x}}^{i\to i}_k$. Two losses are computed:
+<ul>
+<li>Reconstruction loss measures how well the decoder can reconstruct the sample back:</li>
+</ul>
+</li>
+</ul>
+<div>
+    $$
+    \mathcal{L}_\text{self} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\mathbf{x}^i_k, s_i), s_i)]
+    $$
+    </div>
+<ul>
+<li>The bottom branch of forward transfer: $E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_j) \to \hat{\mathbf{x}}^{i\to j}_k$
+<ul>
+<li>Classification loss measures the effectiveness of style transfer:</li>
+</ul>
+</li>
+</ul>
+<div>
+    $$
+    \mathcal{L}_\text{style_fwd} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_j \mid \hat{\mathbf{x}}^{i\to j}_k)]
+    $$
+    </div>
+<ul>
+<li>The back transfer uses cycle consistency loss: $E(\hat{\mathbf{x}}^{i\to j}_k, s_j) \to H^{i\to j}_k \to G(H^{i\to j}_k, s_i) \to \hat{\mathbf{x}}^{i\to j \to i}_k$
+<ul>
+<li>The cycle consistency loss controls how well the transferred sample can be converted back to the original form to encourage content preservation:</li>
+</ul>
+</li>
+</ul>
+<div>
+    $$
+    \mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\hat{\mathbf{x}}^{i \to j}_k, s_j), s_i)]
+    $$
+    </div>
+<pre><code>- The classification loss ensures that the back-transferred sample has the correct label:
+</code></pre>
+<div>
+    $$
+    \mathcal{L}_\text{style_back} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid G(E(\hat{\mathbf{x}}^{i\to j}_k, s_j), s_i))]
+    $$
+    </div>
+<ul>
+<li>There is an additional supervised classification loss for training an accurate classifier:</li>
+</ul>
+<div>
+$$
+\mathcal{L}_\text{class} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid \hat{\mathbf{x}}^i_k)]
+$$
+</div>
+<p>The final training objective is as follows and the encoder, decoder and classifier are jointly trained:</p>
+<div>
+$$
+\mathcal{L}(\theta_E, \theta_G, \theta_C) = \min_{E, G, C} \mathcal{L}_\text{self} + \mathcal{L}_\text{style_fwd} + \mathcal{L}_\text{cycle} + \mathcal{L}_\text{style_back}+ \mathcal{L}_\text{class}
+$$
+</div>
+<p><strong>Style Transformer</strong> (<a href="https://arxiv.org/abs/1905.05621">Dai et al. 2019</a>) also aims to learn unsupervised text style transfer. Different from the encoder-decoder model in <a href="https://arxiv.org/abs/1805.07685">Santos et al. 2018</a>, it learns a Transformer-based style transfer function $f_\theta(\mathbf{x}, s)$ for a given input sample $\mathbf{x}$ and a desired style control variable $s$.</p>
+<figure>
+	<img src="style-transformer.png" style="width: 100%;"  />
+	<figcaption>The comparison of style transformer and previous models that depend on disentangled latent representation. (Image source: <a href="https://arxiv.org/abs/1905.05621" target="_blank">Dai et al. 2019</a>)</figcaption>
+</figure>
+<p>Without access to the parallel corpus, the style transformer adopts a discriminator to create supervision from non-parallel dataset.</p>
+<p>Let $s$ and $\hat{s}$ be two mutually exclusive style variables and $\mathbf{x}$ is a sample of style $s$, style transformer computes several losses:</p>
+<ul>
+<li>Self reconstruction loss: $\mathcal{L}_\text{self} = - p_\theta (\mathbf{x} \vert \mathbf{x}, s)$</li>
+<li>Cycle-consistency loss: $\mathcal{L}_\text{cycle} = - p_\theta (\mathbf{x} \vert f_\theta(\mathbf{x}, \hat{s}), s)$</li>
+<li>Style controlling loss: This is necessary because otherwise the model would simply learn to copy the input over.</li>
+</ul>
+<div>
+$$
+\mathcal{L}_\text{style} = - p_\phi(\text{class} = 1 \vert f_\theta(\mathbf{x}, \hat{s}), \hat{s})
+$$
+</div>
+<p>, where the discriminator is a simple binary classifier trained to optimize the negative log-likelihood of the correct style. The discriminator is trained by labelling</p>
+<ul>
+<li>$\{(\mathbf{x}, s), (f_\theta(\mathbf{x}, s), s), (f_\theta(\mathbf{x}, \hat{s}), \hat{s})\}$ as positive class 1</li>
+<li>$\{(\mathbf{x}, \hat{s}), (f_\theta(\mathbf{x}, s), \hat{s}), (f_\theta(\mathbf{x}, \hat{s}), s)\}$ as negative class 0.</li>
+</ul>
+<figure>
+	<img src="style-transformer-training.png" style="width: 40%;"  />
+	<figcaption>The training process of Style Transformer. (Image source: <a href="https://arxiv.org/abs/1905.05621" target="_blank">Dai et al. 2019</a>)</figcaption>
+</figure>
+<p>Driven by the research question &ldquo;Can we fine-tune a pre-trained language model to suggest civil rephrasings of rude comments using a dataset solely annotated in toxicity?&rdquo;, <a href="https://arxiv.org/abs/2102.05456">Laugier et al. (2021)</a> fine-tuned a pretrained text-to-text transformer with a denoising and cyclic auto-encoder loss.</p>
+<p>Let $s$ be the attribute of $\mathbf{x}$ (e.g. &ldquo;civil&rdquo;) and $\bar{s}$ be the other opposite attribute (e.g. &ldquo;toxic&rdquo;). These two attributes are mutually exclusive. The goal is to learn a mapping function $f_\theta$ such that it translates $x$ to a new fluent sequence $y$ with target attribute $a$ while preserving $x$&rsquo;s content.</p>
+<p>The encoder-decoder model is trained with the loss:</p>
+<div>
+$$
+\mathcal{L} = \lambda_\text{DAE} \mathcal{L}_\text{DAE} + \lambda_\text{cycle} \mathcal{L}_\text{cycle}
+$$
+</div>
+<ul>
+<li>The denoising auto-encoder loss is the loss for denoising auto-encoders, where $\eta$ is a <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#pre-training-tasks">masking</a> function same as in BERT training:</li>
+</ul>
+<div>
+$$
+\mathcal{L}_\text{DAE} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid \eta(\mathbf{x}), s)]
+$$ 
+</div>
+<ul>
+<li>The cycle consistency loss (<a href="https://arxiv.org/abs/1703.10593">Zhu et al. 2017</a>) has $\tilde{\theta}$ to produce a non-differentiable pseudo-prediction $\hat{\mathbf{y}}$ and it does not take gradient backpropagation.</li>
+</ul>
+<div>
+$$
+\mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid f_{\tilde{\theta}}(\mathbf{x}, \bar{s}), s)]
+$$ 
+</div>
+<p>They used the above loss to fine-tune a T5 model, resulting in a model named <strong>CAE-T5</strong>. The conditioning is implemented like CTRL via control code (&ldquo;civil&rdquo; or &ldquo;toxic&rdquo;) prepended to the start of a sequence.</p>
+<p>Automatic evaluation of the text style transferred results relies on three metrics:</p>
+<ol>
+<li><em>Accuracy</em>: Classification accuracy measures how successful the style transfer is.</li>
+<li><em>Fluency</em>: Fluency is commonly measured by perplexity by another separately trained LM on non-toxic samples.</li>
+<li><em>Content preservation</em>: It is the content similarity between transferred and original sentences, measured by BLEU or embedding based content similarity.</li>
+</ol>
+<p>Human evaluation is also necessary but more costly.</p>
+<p>Compared to the baseline (<a href="https://arxiv.org/abs/1705.09655">Shen et al. 2017</a>), the style transfer method by <a href="https://arxiv.org/abs/1805.07685">Santos et al. 2018</a> achieves better classification accuracy, better content preservation, but worse perplexity. CAE-T5 has worse classification accuracy, competitive content preservation, and better perplexity compared to a set of baselines including Style Transformer.</p>
+<h2 id="controllable-generation">Controllable Generation<a hidden class="anchor" aria-hidden="true" href="#controllable-generation">#</a></h2>
+<p>We can try to avoid toxic outputs via <em>controllable text generation</em>. There are several popular approaches for steering a pretrained language model toward desired styles, topics or safety criteria:</p>
+<ol>
+<li>Apply guided decoding strategies and select desired outputs at test time.</li>
+<li>Optimize for the most desired outcomes via good prompt design.</li>
+<li>Fine-tune the base model or steerable layers to do conditioned content generation.</li>
+</ol>
+<p>Read more in my <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/">last post</a> on controllable neural text generation, introducing methods like <a href="https://arxiv.org/abs/2010.15980">AutoPrompt</a>, <a href="https://arxiv.org/abs/1909.05858">CTRL</a>, <a href="https://arxiv.org/abs/1912.02164">PPLM</a>, <a href="https://arxiv.org/abs/2009.06367">GeDi</a> and many more.</p>
+<p><a href="https://arxiv.org/abs/2009.11462">Gehman et al. (2020)</a> experimented with both data-based (supervised fine-tuning, CTRL training) and decoding-based (vocabulary shifting, blocked word filtering, PPLM) methods for language model detoxification. They found that toxicity control tokens (CTRL) and swear word filters are <em>less successful</em> than more computationally or data-intensive methods like fine-tuning on non-toxic corpora and PPLM.</p>
+<figure>
+	<img src="RealToxicityPrompts-experiments.png" style="width: 100%;"  />
+	<figcaption>Table list expected maximum toxicity score over 25 generations (left) and the empirical probability of generating toxic text over 25 generations (right) for several detoxification methods. Scores are provided by Perspective API. (Image source: <a href="https://arxiv.org/abs/2009.11462" target="_blank">Gehman et al., 2020</a>)</figcaption>
+</figure>
+<h2 id="system-level-safety-solution">System-level Safety Solution<a hidden class="anchor" aria-hidden="true" href="#system-level-safety-solution">#</a></h2>
+<p><a href="https://arxiv.org/abs/2010.07079">Xu et al. (2020)</a> presented a thorough system-level design for building safe chatbots.</p>
+<figure>
+	<img src="safe-chatbot-system.png" style="width: 65%;"  />
+	<figcaption>Illustration of a safe chat bot system. (Image source: <a href="https://arxiv.org/abs/2010.07079" target="_blank">Xu et al. 2020</a>)</figcaption>
+</figure>
+<p>They consider four general strategies in the recipes for making the bot safer:</p>
+<ul>
+<li><em>Detect unsafe content</em>: Adopt a classifier for detecting unsafe language on both the input and output side, as an extra safety layer on top of the language model.
+<ul>
+<li>The classifier is trained on an enhanced version of the <a href="#jigsaw">Jigsaw toxic</a> comment dataset (safe vs unsafe binary labels), extended with <a href="#adversarial-attacks">adversarial human attacks</a> (<a href="https://arxiv.org/abs/1908.06083">Dinan et al. 2019</a>) and <a href="#semi-supervised-dataset">semi-supervision</a> (<a href="https://arxiv.org/abs/1811.12900">Khatri et al. 2018</a>).</li>
+<li>The safety classifier can be used on both the user input and the model output. If it detects unsafe content, the system is configured to return a canned, predefined response (e.g &ldquo;I&rsquo;m sorry I&rsquo;m not sure what to say.&rdquo;), or decide to change topics. It is worthy noting that this approach relies on a high-quality classifier. The conversation experience would be drastically disrupted with too many false positives.</li>
+<li>Bot adversarial dialogue (BAD) safety: The idea is to collect data on humans adversarially probing the system to make mistakes and then use the data for further training. During annotation, human labellers can tag the bot&rsquo;s response with an unsafe-safe rating based on the percentage of population who may consider it as unsafe. This probing data collection is used to train a multi-turn safety classifier, predicting whether a response is offensive given the dialogue context.</li>
+</ul>
+</li>
+<li><em>Safe generation</em>: Train a model that is less likely to output unsafe responses.
+<ul>
+<li>A predefined list of unsafe words/n-grams can be <a href="#blacklisting">blocked</a> at decoding time.</li>
+<li>The pretraining data is filtered by the above safety classifier, or filtered based on known authors.</li>
+<li>The problem with pre-training only with safe datasets is that if the model has never seen toxic language during training, it would not know how to respond at test time (OOD; e.g. may just copy the offensive content). They instead prepare a collection of training samples where the last utterance is labelled as &ldquo;unsafe&rdquo; and then attach a safe response following that unsafe attack. Then the model is fine-tuned on the &ldquo;baked-in&rdquo; safety data.</li>
+<li>Do <a href="https://arxiv.org/abs/1909.05858">CTRL</a> style training by assigning &ldquo;safe&rdquo; vs &ldquo;unsafe&rdquo; label using the safety classifier.</li>
+</ul>
+</li>
+<li><em>Avoid sensitive topics</em>:
+<ul>
+<li>In order to avoid sensitive topics (politics, religion, drug use, medical advice, and NSFW and relationships/dating), they trained a multi-class classifier to detect those topics using crowdsourced lists of subreddits. The classifier can be periodically re-trained to capture the changes within topics over time.</li>
+<li>A small validation set is collected by recruiting crowdsourced workers to discuss one of the target topics.</li>
+</ul>
+</li>
+<li><em>Gender bias mitigation</em>:
+<ul>
+<li>They used <a href="https://arxiv.org/abs/1909.05858">CTRL</a> style training to mitigate gender biases.</li>
+<li>Precisely, given a gendered word list, tag the training samples with $F^0 M^0$, $F^0 M^+$, $F^+ M^+$, and $F^+ M^0$ labels, indicating whether the response contains female / male words ($+$ contains, $-$ does not contain). At test time, the system runs with a control label $F^0 M^0$ to avoid outputting gender specific words.</li>
+</ul>
+</li>
+</ul>
+<h1 id="appendix-datasets">Appendix: Datasets<a hidden class="anchor" aria-hidden="true" href="#appendix-datasets">#</a></h1>
+<p>(*Only datasets in English are listed here.)</p>
+<p><strong>Hate Speech and Offensive Language</strong> Dataset (2017): contains about 25k tweets, each labelled manually as one of three categories: hate speech, offensive but not hate speech, or neither offensive nor hate speech. [<a href="https://github.com/t-davidson/hate-speech-and-offensive-language/blob/master/data/readme.md">Download</a>]</p>
+<p><a id="jigsaw" ></a><strong>Jigsaw Toxic</strong> Comments Classification Dataset (2018): contains about 160k examples extracted from Wikipedia discussion pages, each annotated for 7 classes: toxic, severe toxic, obscene, threat, insult, identity hate and non-toxic. The labelling process involved 5000 crowdsourced annotators. [<a href="https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge">Download</a>]</p>
+<p><strong>Jigsaw Unintended Bias in Toxicity</strong> Classification Dataset (2019): contains about 2 Millions comments from the Civil Comments platform, which shut down in 2017. This data is annotated for toxicity, toxicity sub-types, and mentions of identities, which enables evaluation of unintended bias with respect to identity mentions. [<a href="https://www.kaggle.com/c/jigsaw-unintended-bias-in-toxicity-classification">Download</a>]</p>
+<p><a id="OLID" ></a><strong>OLID</strong> (Offensive Language Identification Dataset; 2019): contains 14,100 English tweets, annotated according to the three-level taxonomy as described <a href="#categorization-of-toxic-content">here</a>. [<a href="https://sites.google.com/site/offensevalsharedtask/olid">Download</a>]</p>
+<p><a id="SOLID" ></a><strong>SOLID</strong> (Semi-Supervised Offensive Language Identification Dataset; 2020): contains 9+ Millions tweets annotated following OLID&rsquo;s three level taxonomy. [<a href="https://sites.google.com/site/offensevalsharedtask/solid">Download</a>]</p>
+<p><a id="RealToxicityPrompt" ></a><strong>RealToxicityPrompts</strong> dataset (2020): contains 100k sentence snippets from the web with Perspective API toxicity scores for studying the risk of neural toxic degeneration in language models. [<a href="https://allenai.org/data/real-toxicity-prompts">Download</a>]</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Mar 2021). Reducing toxicity in language models. Lil&rsquo;Log. https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2021toxic,
+  title   = &#34;Reducing Toxicity in Language Models.&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2021&#34;,
+  month   = &#34;Mar&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Vidgen, et al. <a href="https://www.aclweb.org/anthology/W19-3509/">&ldquo;Challenges and frontiers in abusive content detection.&rdquo;</a> Workshop on Abusive Language Online 2019.</p>
+<p>[2] Zampieri et al. <a href="https://arxiv.org/abs/1902.09666">&ldquo;Predicting the type and target of offensive posts in social media.&rdquo;</a> NAACL 2019.</p>
+<p>[3] Vidgen &amp; Deczynski. <a href="https://arxiv.org/abs/2004.01670">&ldquo;Directions in abusive language training data, a systematic review: Garbage in, garbage out.&rdquo;</a> PLoS ONE 15(12): e0243300 (2020).</p>
+<p>[4] Davidson et al. <a href="https://arxiv.org/abs/1703.04009">&ldquo;Automated hate speech detection and the problem of offensive language.&rdquo;</a> ICWSM 2017.</p>
+<p>[5] Khatri et al. <a href="https://arxiv.org/abs/1811.12900">&ldquo;Detecting offensive content in open-domain conversations using two stage semi-supervision.&rdquo;</a> NeuriIPS CONVAI Workshop 2018.</p>
+<p>[6] Rosenthal et al. <a href="https://arxiv.org/abs/2004.14454">&ldquo;A Large-Scale Semi-Supervised Dataset for Offensive Language Identification&rdquo;</a> arXiv:2004.14454 (2020).</p>
+<p>[7] Pavlopoulos et al. <a href="https://arxiv.org/abs/2006.00998">&ldquo;Toxicity Detection: Does Context Really Matter?&rdquo;</a> arXiv:2006.00998 (2020).</p>
+<p>[8] Dinan et al. <a href="https://arxiv.org/abs/1908.06083">&ldquo;Build it, break it, fix it for dialogue safety: Robustness from adversarial human attack.&rdquo;</a> arXiv:1908.06083 (2019).</p>
+<p>[9] Kurita et al. <a href="https://arxiv.org/abs/1912.06872">&ldquo;Towards Robust Toxic Content Classification&rdquo;</a> arXiv:1912.06872 (2019)</p>
+<p>[10] Santos et al. <a href="https://arxiv.org/abs/1805.07685">&ldquo;Fighting offensive language on social media with unsupervised text style transfer.&rdquo;</a> arXiv:1805.07685 (2018)</p>
+<p>[11] Dai et al. <a href="https://arxiv.org/abs/1905.05621">&ldquo;Style Transformer: Unpaired Text Style Transfer without Disentangled Latent Representation&rdquo;</a> ACL 2019.</p>
+<p>[12] Laugier et al. <a href="https://arxiv.org/abs/2102.05456">&ldquo;Civil Rephrases Of Toxic Texts With Self-Supervised Transformers&rdquo;</a>  arXiv:2102.05456 (2021). <a href="https://github.com/LeoLaugier/conditional-auto-encoder-text-to-text-transfer-transformer">code</a></p>
+<p>[13] Schick et al. <a href="https://arxiv.org/abs/2103.00453">&ldquo;Self-Diagnosis and Self-Debiasing: A Proposal for Reducing Corpus-Based Bias in NLP&rdquo;</a> arXiv:2103.00453 (2021).</p>
+<p>[14] Gehman et al. <a href="https://arxiv.org/abs/2009.11462">&ldquo;RealToxicityPrompts: Evaluating Neural Toxic Degeneration in Language Models&rdquo;</a> EMNLP 2020.</p>
+<p>[15] Xu et al. <a href="https://arxiv.org/abs/2010.07079">&ldquo;Recipes for Safety in Open-domain Chatbots&rdquo;</a> arXiv:2010.07079 (2020).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/alignment/">Alignment</a></li>
+      <li><a href="https://lilianweng.github.io/tags/steerability/">Steerability</a></li>
+      <li><a href="https://lilianweng.github.io/tags/safety/">Safety</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2021-05-31-contrastive/">
+    <span class="title">« </span>
+    <br>
+    <span>Contrastive Representation Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/">
+    <span class="title"> »</span>
+    <br>
+    <span>Controllable Neural Text Generation</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on twitter"
+        href="https://twitter.com/intent/tweet/?text=Reducing%20Toxicity%20in%20Language%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f&amp;hashtags=nlp%2clanguage-model%2calignment%2csteerability%2csafety">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f&amp;title=Reducing%20Toxicity%20in%20Language%20Models&amp;summary=Reducing%20Toxicity%20in%20Language%20Models&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f&title=Reducing%20Toxicity%20in%20Language%20Models">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on whatsapp"
+        href="https://api.whatsapp.com/send?text=Reducing%20Toxicity%20in%20Language%20Models%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Reducing Toxicity in Language Models on telegram"
+        href="https://telegram.me/share/url?text=Reducing%20Toxicity%20in%20Language%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-03-21-lm-toxicity%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

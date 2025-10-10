@@ -1,0 +1,373 @@
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{How to Explain the Prediction of a Machine Learning Model?}\label{how-to-explain-the-prediction-of-a-machine-learning-model}
+
+Date: August 1, 2017 \textbar{} Estimated Reading Time: 18 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[interpretable-models]{Interpretable Models}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[regression]{Regression}
+  \item
+    \hyperref[naive-bayes]{Naive Bayes}
+  \item
+    \hyperref[decision-treedecision-lists]{Decision Tree/Decision Lists}
+  \item
+    \hyperref[random-forests]{Random Forests}
+  \end{itemize}
+\item
+  \hyperref[interpreting-black-box-models]{Interpreting Black-Box Models}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[prediction-decomposition]{Prediction Decomposition}
+  \item
+    \hyperref[local-gradient-explanation-vector]{Local Gradient Explanation Vector}
+  \item
+    \hyperref[lime-local-interpretable-model-agnostic-explanations]{LIME (Local Interpretable Model-Agnostic Explanations)}
+  \item
+    \hyperref[feature-selection]{Feature Selection}
+  \item
+    \hyperref[beta-black-box-explanation-through-transparent-approximations]{BETA (Black Box Explanation through Transparent Approximations)}
+  \end{itemize}
+\item
+  \hyperref[explainable-artificial-intelligence]{Explainable Artificial Intelligence}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+The machine learning models have started penetrating into critical areas like health care, justice systems, and financial industry. Thus to figure out how the models make the decisions and make sure the decisioning process is aligned with the ethnic requirements or legal regulations becomes a necessity.
+
+Meanwhile, the rapid growth of deep learning models pushes the requirement of interpreting complicated models further. People are eager to apply the power of AI fully on key aspects of everyday life. However, it is hard to do so without enough trust in the models or an efficient procedure to explain unintended behavior, especially considering that the deep neural networks are born as \emph{black-boxes}.
+
+Think of the following cases:
+
+\begin{enumerate}
+\tightlist
+\item
+  The financial industry is highly regulated and loan issuers are required by law to make fair decisions and explain their credit models to provide reasons whenever they decide to decline loan application.
+\item
+  Medical diagnosis model is responsible for human life. How can we be confident enough to treat a patient as instructed by a black-box model?
+\item
+  When using a criminal decision model to predict the risk of recidivism at the court, we have to make sure the model behaves in an equitable, honest and nondiscriminatory manner.
+\item
+  If a self-driving car suddenly acts abnormally and we cannot explain why, are we gonna be comfortable enough to use the technique in real traffic in large scale?
+\end{enumerate}
+
+At \href{https://www.affirm.com/}{Affirm}, we are issuing tens of thousands of installment loans every day and our underwriting model has to provide declination reasons when the model rejects one's loan application. That's one of the many motivations for me to dig deeper and write this post. Model interpretability is a big field in machine learning. This review is never met to exhaust every study, but to serve as a starting point.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{\texorpdfstring{Interpretable Models\hyperref[interpretable-models]{\#}}{Interpretable Models\#}}\label{interpretable-models}
+
+Lipton (2017) summarized the properties of an interpretable model in a theoretical review paper, \href{https://arxiv.org/pdf/1606.03490.pdf}{``The mythos of model interpretability''}: A human can repeat (\emph{``simulatability''}) the computation process with a full understanding of the algorithm (\emph{``algorithmic transparency''}) and every individual part of the model owns an intuitive explanation (\emph{``decomposability''}).
+
+Many classic models have relatively simpler formation and naturally, come with a model-specific interpretation method. Meanwhile, new tools are being developed to help create better interpretable models (\href{http://papers.nips.cc/paper/6300-examples-are-not-enough-learn-to-criticize-criticism-for-interpretability.pdf}{Been, Khanna, \& Koyejo, 2016}; \href{http://www.kdd.org/kdd2016/papers/files/rpp1067-lakkarajuA.pdf}{Lakkaraju, Bach \& Leskovec, 2016}).
+
+\subsection{\texorpdfstring{Regression\hyperref[regression]{\#}}{Regression\#}}\label{regression}
+
+A general form of a linear regression model is:
+
+\$\$ y = w\_0 + w\_1 x\_1 + w\_2 x\_2 + \ldots{} + w\_n x\_n \$\$
+
+The coefficients describe the change of the response triggered by one unit increase of the independent variables. The coefficients are not comparable directly unless the features have been standardized (check sklearn.preprocessing.\href{http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html\#sklearn.preprocessing.StandardScaler}{StandardScalar} and \href{http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html\#sklearn.preprocessing.RobustScaler}{RobustScaler}), since one unit of different features can refer to very different things. Without standardization, the product \$w\_i \textbackslash dot x\_i\$ can be used to quantify one feature's contribution to the response.
+
+\subsection{\texorpdfstring{Naive Bayes\hyperref[naive-bayes]{\#}}{Naive Bayes\#}}\label{naive-bayes}
+
+Naive Bayes is named as ``Naive'' because it works on a very simplified assumption that features are independent of each other and each contributes to the output independently.
+
+Given a feature vector \$\textbackslash mathbf\{x\} = {[}x\_1, x\_2, \textbackslash dots, x\_n{]}\$ and a class label \$c \textbackslash in \textbackslash\{1, 2, \textbackslash dots, C\textbackslash\}\$, the probability of this data point belonging to this class is:
+
+\$\$ \textbackslash begin\{aligned\} p(c \textbar{} x\_1, x\_2, \textbackslash dots, x\_n) \&\textbackslash propto p(c, x\_1, x\_2, \textbackslash dots, x\_n)\textbackslash\textbackslash{} \&\textbackslash propto p(c) p(x\_1 \textbar{} c) p(x\_2 \textbar{} c) \textbackslash dots p(x\_n \textbar{} c)\textbackslash\textbackslash{} \&\textbackslash propto p(c) \textbackslash prod\_\{i=1\}\^{}n p(x\_i \textbar{} c). \textbackslash end\{aligned\} \$\$
+
+The Naive Bayes classifier is then defined as:
+
+\$\$ \textbackslash hat\{y\} = \textbackslash arg\textbackslash max\_\{c \textbackslash in 1, \textbackslash dots, C\} p(c) \textbackslash prod\_\{i=1\}\^{}n p(x\_i \textbar{} c) \$\$
+
+Because the model has learned the prior \$p(x\_i \textbackslash vert c)\$ during the training, the contribution of an individual feature value can be easily measured by the posterior, \$p(c \textbackslash vert x\_i) = p(c)p(x\_i \textbackslash vert c) / p(x\_i)\$.
+
+\subsection{\texorpdfstring{Decision Tree/Decision Lists\hyperref[decision-treedecision-lists]{\#}}{Decision Tree/Decision Lists\#}}\label{decision-treedecision-lists}
+
+Decision lists are a set of boolean functions, usually constructed by the syntax like \texttt{if...\ then...\ else...}. The if-condition contains a function involving one or multiple features and a boolean output. Decision lists are born with good interpretability and can be visualized in a tree structure. Many research on decision lists is driven by medical applications, where the interpretability is almost as crucial as the model itself.
+
+A few types of decision lists are briefly described below:
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://proceedings.mlr.press/v38/wang15a.pdf}{Falling Rule Lists (FRL)} (Wang and Rudin, 2015) has fully enforced monotonicity on feature values. One key point, for example in the binary classification context, is that the probability of prediction \$Y=1\$ associated with each rule decreases as one moves down the decision lists.
+\item
+  \href{https://arxiv.org/abs/1511.01644}{Bayesian Rule List (BRL)} (Letham et al., 2015) is a generative model that yields a posterior distribution over possible decision lists.
+\item
+  \href{https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf}{Interpretable Decision Sets (IDS)} (Lakkaraju, Bach \& Leskovec, 2016) is a prediction framework to create a set of classification rules. The learning is optimized for both accuracy and interpretability simultaneously. IDS is closely related to the BETA method I'm gonna describe \href{https://lilianweng.github.io/posts/2017-08-01-interpretation/\#beta-black-box-explanation-through-transparent-approximations}{later} for interpreting black-box models.
+\end{itemize}
+
+\subsection{\texorpdfstring{Random Forests\hyperref[random-forests]{\#}}{Random Forests\#}}\label{random-forests}
+
+Weirdly enough, many people believe that the \href{http://www.math.univ-toulouse.fr/~agarivie/Telecom/apprentissage/articles/randomforest2001.pdf}{Random Forests} model is a black box, which is not true. Considering that the output of random forests is the majority vote by a large number of independent decision trees and each tree is naturally interpretable.
+
+It is not very hard to gauge the influence of individual features if we look into a single tree at a time. The global feature importance of random forests can be quantified by the total decrease in node impurity averaged over all trees of the ensemble (``mean decrease impurity'').
+
+For one instance, because the decision paths in all the trees are well tracked, we can use the difference between the mean value of data points in a parent node between that of a child node to approximate the contribution of this split. Read more in this series of blog posts: \href{http://blog.datadive.net/interpreting-random-forests/}{Interpreting Random Forests}.
+
+\section{\texorpdfstring{Interpreting Black-Box Models\hyperref[interpreting-black-box-models]{\#}}{Interpreting Black-Box Models\#}}\label{interpreting-black-box-models}
+
+A lot of models are not designed to be interpretable. Approaches to explaining a black-box model aim to extract information from the trained model to justify its prediction outcome, without knowing how the model works in details. To keep the interpretation process independent from the model implementation is good for real-world applications: Even when the base model is being constantly upgraded and refined, the interpretation engine built on top would not worry about the changes.
+
+Without the concern of keeping the model transparent and interpretable, we can endow the model with greater power of expressivity by adding more parameters and nonlinearity computation. That's how deep neural networks become successful in tasks involving rich inputs.
+
+There is no hard requirement on how the explanation should be presented, but the primary goal is mainly to answer: \textbf{Can I trust this model?} When we rely on the model to make a critical or life-and-death decision, we have to make sure the model is trustworthy ahead of time.
+
+The interpretation framework should balance between two goals:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Fidelity}: the prediction produced by an explanation should agree with the original model as much as possible.
+\item
+  \textbf{Interpretability}: the explanation should be simple enough to be human-understandable.
+\end{itemize}
+
+\begin{quote}
+Side Notes: The next three methods are designed for local interpretation.
+\end{quote}
+
+\subsection{\texorpdfstring{Prediction Decomposition\hyperref[prediction-decomposition]{\#}}{Prediction Decomposition\#}}\label{prediction-decomposition}
+
+\href{http://lkm.fri.uni-lj.si/rmarko/papers/RobnikSikonjaKononenko08-TKDE.pdf}{Robnik-Sikonja and Kononenko (2008)} proposed to explain the model prediction for one instance by measuring the difference between the original prediction and the one made with omitting a set of features.
+
+Let's say we need to generate an explanation for a classification model \$f: \textbackslash mathbf\{X\} \textbackslash rightarrow \textbackslash mathbf\{Y\}\$. Given a data point \$x \textbackslash in X\$ which consists of \$a\$ individual values of attribute \$A\_i\$, \$i = 1, \textbackslash dots, a\$, and is labeled with class \$y \textbackslash in Y\$. The \emph{prediction difference} is quantified by computing the difference between the model predicted probabilities with or without knowing \$A\_i\$:
+
+\$\$ \textbackslash text\{probDiff\}\_i (y \textbar{} x) = p(y\textbar{} x) - p(y \textbar{} x \textbackslash backslash A\_i) \$\$
+
+(The paper also discussed on using the odds ratio or the entropy-based information metric to quantify the prediction difference.)
+
+\textbf{Problem}: If the target model outputs a probability, then great, getting \$ p(y \textbackslash vert x) \$ is straightforward. Otherwise, the model prediction has to run through an appropriate post-modeling calibration to translate the prediction score into probabilities. This calibration layer is another piece of complication.
+
+\textbf{Another problem}: If we generate \$x \textbackslash backslash A\_i\$ by replacing \$A\_i\$ with a missing value (like \texttt{None}, \texttt{NaN}, etc.), we have to rely on the model's internal mechanism for missing value imputation. A model which replaces these missing cases with the median should have output very different from a model which imputes a special placeholder. One solution as presented in the paper is to replace \$A\_i\$ with all possible values of this feature and then sum up the prediction weighted by how likely each value shows in the data:
+
+\$\$ \textbackslash begin\{aligned\} p(y \textbackslash vert x \textbackslash backslash A\_i) \&= \textbackslash sum\_\{s=1\}\^{}\{m\_i\} p(A\_i=a\_s \textbackslash vert x \textbackslash backslash A\_i) p(y \textbackslash vert x \textbackslash leftarrow A\_i=a\_s) \textbackslash\textbackslash{} \&\textbackslash approx \textbackslash sum\_\{s=1\}\^{}\{m\_i\} p(A\_i=a\_s) p(y \textbackslash vert x \textbackslash leftarrow A\_i=a\_s) \textbackslash end\{aligned\} \$\$
+
+Where \$p(y \textbackslash vert x \textbackslash leftarrow A\_i=a\_s)\$ is the probability of getting label \$y\$ if we replace the feature \$A\_i\$ with value \$a\_s\$ in the feature vector of \$x\$. There are \$m\_i\$ unique values of \$A\_i\$ in the training set.
+
+With the help of the measures of prediction difference when omitting known features, we can \emph{decompose} the impact of each individual feature on the prediction.
+
+\begin{figure}
+\centering
+\includegraphics{interpretability_prediction_decomposition.png}
+\caption{Explanations for a SVM model predicting the survival of one male adult first-class passenger in the \href{https://www.kaggle.com/c/titanic/data}{Titanic dataset}. The information difference is very similar to the probability difference, but it measures the amount of information necessary to find out \$y\$ is true for the given instance without the knowledge of \$A\textbackslash\_i\$: \$\textbackslash text\{infDiff\}\textbackslash\_i (y\textbar x) = \textbackslash log\textbackslash\_2 p(y\textbar x) - \textbackslash log\textbackslash\_2 p(y\textbar x \textbackslash backslash A\textbackslash\_i)\$. Explanations for particular instance are depicted with dark bars. The light shaded half-height bars are average positive and negative explanations for given attributes\textquotesingle{} values. In this case, being a male adult makes it very less likely to survive; the class level does not impact as much.}
+\end{figure}
+
+\subsection{\texorpdfstring{Local Gradient Explanation Vector\hyperref[local-gradient-explanation-vector]{\#}}{Local Gradient Explanation Vector\#}}\label{local-gradient-explanation-vector}
+
+This method (\href{http://www.jmlr.org/papers/volume11/baehrens10a/baehrens10a.pdf}{Baehrens, et al. 2010}) is able to explain the local decision taken by arbitrary nonlinear classification algorithms, using the local gradients that characterize how a data point has to be moved to change its predicted label.
+
+Let's say, we have a \href{https://en.wikipedia.org/wiki/Bayes_classifier}{Bayes Classifier} which is trained on the data set \$X\$ and outputs probabilities over the class labels \$Y\$, \$p(Y=y \textbackslash vert X=x)\$. And one class label \$y\$ is drawn from the class label pool, \$\textbackslash\{1, 2, \textbackslash dots, C\textbackslash\}\$. This Bayes classifier is constructed as:
+
+\$\$ f\^{}\{*\}(x) = \textbackslash arg \textbackslash min\_\{c \textbackslash in \textbackslash\{1, \textbackslash dots, C\textbackslash\}\} p(Y \textbackslash neq c \textbackslash vert X = x) \$\$
+
+The \emph{local explanation vector} is defined as the derivative of the probability prediction function at the test point \$x = x\_0\$. A large entry in this vector highlights a feature with a big influence on the model decision; A positive sign indicates that increasing the feature would lower the probability of \$x\_0\$ assigned to \$f\^{}\{*\}(x\_0)\$.
+
+However, this approach requires the model output to be a probability (similar to the \href{https://lilianweng.github.io/posts/2017-08-01-interpretation/\#prediction-decomposition}{``Prediction Decomposition''} method above). What if the original model (labelled as \$f\$) is not calibrated to yield probabilities? As suggested by the paper, we can approximate \$f\$ by another classifier in a form that resembles the Bayes classifier \$f\^{}\{*\}\$:
+
+(1) Apply \href{https://en.wikipedia.org/?title=Parzen_window&redirect=no}{Parzen window} to the training data to estimate the weighted class densities:
+
+\$\$ \textbackslash hat\{p\}\_\{\textbackslash sigma\}(x, y=c) = \textbackslash frac\{1\}\{n\} \textbackslash sum\_\{i \textbackslash in I\_c\} k\_\{\textbackslash sigma\} (x - x\_i) \$\$
+
+Where \$I\_c\$ is the index set containing the indices of data points assigned to class \$c\$ by the model \$f\$, \$I\_c = \textbackslash\{i \textbackslash vert f(x\_i) = c\textbackslash\}\$. \$k\_\{\textbackslash sigma\}\$ is a kernel function. Gaussian kernel is a popular one among \href{https://en.wikipedia.org/wiki/Kernel_(statistics)\#Kernel_functions_in_common_use}{many candidates}.
+
+(2) Then, apply the Bayes' rule to approximate the probability \$p(Y=c \textbackslash vert X=x)\$ for all classes:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash hat\{p\}\_\{\textbackslash sigma\}(y=c \textbar{} x) \&= \textbackslash frac\{\textbackslash hat\{p\}\_\{\textbackslash sigma\}(x, y=c)\}\{\textbackslash hat\{p\}\_\{\textbackslash sigma\}(x, y=c) + \textbackslash hat\{p\}\_\{\textbackslash sigma\}(x, y \textbackslash neq c)\} \textbackslash\textbackslash{} \&\textbackslash approx \textbackslash frac\{\textbackslash sum\_\{i \textbackslash in I\_c\} k\_\{\textbackslash sigma\} (x - x\_i)\}\{\textbackslash sum\_i k\_\{\textbackslash sigma\} (x - x\_i)\} \textbackslash end\{aligned\} \$\$
+
+(3) The final estimated Bayes classifier takes the form:
+
+\$\$ \textbackslash hat\{f\}\_\{\textbackslash sigma\} = \textbackslash arg\textbackslash min\_\{c \textbackslash in \textbackslash\{1, \textbackslash dots, C\textbackslash\}\} \textbackslash hat\{p\}\_\{\textbackslash sigma\}(y \textbackslash neq c \textbackslash vert x) \$\$
+
+Noted that we can generate the labeled data with the original model \$f\$, as much as we want, not restricted by the size of the training data. The hyperparameter \$\textbackslash sigma\$ is selected to optimize the chances of \$\textbackslash hat\{f\}\_\{\textbackslash sigma\}(x) = f(x)\$ to achieve high fidelity.
+
+\begin{figure}
+\centering
+\includegraphics{interpretability_local_gradient.png}
+\caption{An example of how local gradient explanation vector is applied on simple object classification with Gaussian Processes Classifier (GPC). The GPC model outputs the probability by nature. (a) shows the training points and their labels in red (positive 1) and blue (negative -1). (b) illustrates a probability function for the positive class. (c-d) shows the local gradients and the directions of the local explanation vectors.}
+\end{figure}
+
+\begin{quote}
+Side notes: As you can see both the methods above require the model prediction to be a probability. Calibration of the model output adds another layer of complication.
+\end{quote}
+
+\subsection{\texorpdfstring{LIME (Local Interpretable Model-Agnostic Explanations)\hyperref[lime-local-interpretable-model-agnostic-explanations]{\#}}{LIME (Local Interpretable Model-Agnostic Explanations)\#}}\label{lime-local-interpretable-model-agnostic-explanations}
+
+\href{https://github.com/marcotcr/lime}{LIME}, short for \emph{local interpretable model-agnostic explanation}, can approximate a black-box model locally in the neighborhood of the prediction we are interested (\href{https://arxiv.org/pdf/1602.04938.pdf}{Ribeiro, Singh, \& Guestrin, 2016}).
+
+Same as above, let us label the black-box model as \$f\$. LIME presents the following steps:
+
+(1) Convert the dataset into interpretable data representation: \$x \textbackslash Rightarrow x\_b\$.
+
+\begin{itemize}
+\tightlist
+\item
+  Text classifier: a binary vector indicating the presence or absence of a word
+\item
+  Image classifier: a binary vector indicating the presence or absence of a contiguous patch of similar pixels (super-pixel).
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{LIME_interpretable_representation.png}
+\caption{An example of converting an image into interpretable data representation. (Image source: \href{https://www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime}{www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime})}
+\end{figure}
+
+(2) Given a prediction \$f(x)\$ with the corresponding interpretable data representation \$x\_b\$, let us sample instances around \$x\_b\$ by drawing nonzero elements of \$x\_b\$ uniformly at random where the number of such draws is also uniformly sampled. This process generates a perturbed sample \$z\_b\$ which contains a fraction of nonzero elements of \$x\_b\$.
+
+Then we recover \$z\_b\$ back into the original input \$z\$ and get a prediction score \$f(z)\$ by the target model.
+
+Use many such sampled data points \$z\_b \textbackslash in \textbackslash mathcal\{Z\}\_b\$ and their model predictions, we can learn an explanation model (such as in a form as simple as a regression) with local fidelity. The sampled data points are weighted differently based on how close they are to \$x\_b\$. The paper used a lasso regression with preprocessing to select top \$k\$ most significant features beforehand, named ``K-LASSO''.
+
+\begin{figure}
+\centering
+\includegraphics{LIME_illustration.png}
+\caption{The pink and blue areas are two classes predicted by the black-box model \$f\$. the big red cross is the point to be explained and other smaller crosses (predicted as pink by \$f\$) and dots (predicted as blue by \$f\$) are sampled data points. Even though the model can be very complicated, we are still able to learn a local explanation model as simple as the grey dash line. (Image source: \href{https://homes.cs.washington.edu/~marcotcr/blog/lime/}{homes.cs.washington.edu/\textasciitilde marcotcr/blog/lime})}
+\end{figure}
+
+Examining whether the explanation makes sense can directly decide whether the model is trustworthy because sometimes the model can pick up spurious correlation or generalization. One interesting example in the paper is to apply LIME on an SVM text classifier for differentiating ``Christianity'' from ``Atheism''. The model achieved a pretty good accuracy (94\% on held-out testing set!), but the LIME explanation demonstrated that decisions were made by very arbitrary reasons, such as counting the words ``re'', ``posting'' and ``host'' which have no connection with neither ``Christianity'' nor ``Atheism'' directly. After such a diagnosis, we learned that even the model gives us a nice accuracy, it cannot be trusted. It also shed lights on ways to improve the model, such as better preprocessing on the text.
+
+\begin{figure}
+\centering
+\includegraphics{LIME.png}
+\caption{Illustration of how to use LIME on an image classifier. (Image source: \href{https://www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime}{www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime})}
+\end{figure}
+
+For more detailed non-paper explanation, please read \href{https://www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime}{this blog post} by the author. A very nice read.
+
+\begin{quote}
+Side Notes: Interpreting a model locally is supposed to be easier than interpreting the model globally, but harder to maintain (thinking about the \href{https://en.wikipedia.org/wiki/Curse_of_dimensionality}{curse of dimensionality}). Methods described below aim to explain the behavior of a model as a whole. However, the global approach is unable to capture the fine-grained interpretation, such as a feature might be important in this region but not at all in another.
+\end{quote}
+
+\subsection{\texorpdfstring{Feature Selection\hyperref[feature-selection]{\#}}{Feature Selection\#}}\label{feature-selection}
+
+Essentially all the classic feature selection methods (\href{http://www.surdeanu.info/mihai/teaching/ista555-spring15/readings/yang97comparative.pdf}{Yang and Pedersen, 1997}; \href{http://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf}{Guyon and Elisseeff, 2003}) can be considered as ways to explain a model globally. Feature selection methods decompose the contribution of multiple features so that we can explain the overall model output by individual feature impact.
+
+There are a ton of resources on feature selection so I would skip the topic in this post.
+
+\subsection{\texorpdfstring{BETA (Black Box Explanation through Transparent Approximations)\hyperref[beta-black-box-explanation-through-transparent-approximations]{\#}}{BETA (Black Box Explanation through Transparent Approximations)\#}}\label{beta-black-box-explanation-through-transparent-approximations}
+
+\href{https://arxiv.org/abs/1707.01154}{BETA}, short for \emph{black box explanation through transparent approximations}, is closely connected to \href{https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf}{Interpretable Decision Sets} (Lakkaraju, Bach \& Leskovec, 2016). BETA learns a compact two-level decision set in which each rule explains part of the model behavior unambiguously.
+
+The authors proposed an novel objective function so that the learning process is optimized for \textbf{high fidelity} (high agreement between explanation and the model), \textbf{low unambiguity} (little overlaps between decision rules in the explanation), and \textbf{high interpretability} (the explanation decision set is lightweight and small). These aspects are combined into one objection function to optimize for.
+
+\begin{figure}
+\centering
+\includegraphics{BETA.png}
+\caption{Measures for desiderata of a good model explanation: fidelity, unambiguity, and interpretability. Given the target model is \$\textbackslash mathcal\{B\}\$, its explanation is a two level decision set \$\textbackslash Re\$ containing a set of rules \$\{(q\textbackslash\_1, s\textbackslash\_1, c\textbackslash\_1), \textbackslash dots, (q\textbackslash\_M, s\textbackslash\_M, c\textbackslash\_M)\}\$, where \$q\textbackslash\_i\$ and \$s\textbackslash\_i\$ are conjunctions of predicates of the form (feature, operator, value) and \$c\textbackslash\_i\$ is a class label. Check \href{https://arxiv.org/abs/1707.01154}{the paper} for more details. (Image source: \href{https://arxiv.org/abs/1707.01154}{arxiv.org/abs/1707.01154})}
+\end{figure}
+
+\section{\texorpdfstring{Explainable Artificial Intelligence\hyperref[explainable-artificial-intelligence]{\#}}{Explainable Artificial Intelligence\#}}\label{explainable-artificial-intelligence}
+
+I borrow the name of this section from the DARPA project \href{https://www.darpa.mil/program/explainable-artificial-intelligence}{``Explainable Artificial Intelligence''}. This Explainable AI (XAI) program aims to develop more interpretable models and to enable human to understand, appropriately trust, and effectively manage the emerging generation of artificially intelligent techniques.
+
+With the progress of the deep learning applications, people start worrying about that \href{https://www.technologyreview.com/s/601860/if-a-driverless-car-goes-bad-we-may-never-know-why/}{we may never know even if the model goes bad}. The complicated structure, the large number of learnable parameters, the nonlinear mathematical operations and \href{https://arxiv.org/abs/1312.6199}{some intriguing properties} (Szegedy et al., 2014) lead to the un-interpretability of deep neural networks, creating a true black-box. Although the power of deep learning is originated from this complexity --- more flexible to capture rich and intricate patterns in the real-world data.
+
+Studies on \textbf{adversarial examples} (\href{https://blog.openai.com/robust-adversarial-inputs/}{OpenAI Blog: Robust Adversarial Examples}, \href{https://blog.openai.com/adversarial-example-research/}{Attacking Machine Learning with Adversarial Examples}, \href{https://arxiv.org/pdf/1412.6572.pdf}{Goodfellow, Shlens \& Szegedy, 2015}; \href{http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Nguyen_Deep_Neural_Networks_2015_CVPR_paper.pdf}{Nguyen, Yosinski, \& Clune, 2015}) raise the alarm on the robustness and safety of AI applications. Sometimes the models could show unintended, unexpected and unpredictable behavior and we have no fast/good strategy to tell why.
+
+\begin{figure}
+\centering
+\includegraphics{adversarial_examples.png}
+\caption{Illustrations of adversarial examples. (a-d) are adversarial images that are generated by adding human-imperceptible noises onto original images (\href{https://arxiv.org/abs/1312.6199}{Szegedy et al., 2013}). A well-trained neural network model can successfully classify original ones but fail adversarial ones. (e-h) are patterns that are generated (\href{http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Nguyen_Deep_Neural_Networks_2015_CVPR_paper.pdf}{Nguyen, Yosinski \& Clune, 2015}). A well-trained neural network model labels them into (e) school bus, (f) guitar, (g) peacock and (h) Pekinese respectively. (Image source: \href{https://arxiv.org/pdf/1702.07800.pdf}{Wang, Raj \& Xing, 2017})}
+\end{figure}
+
+Nvidia recently developed \href{https://blogs.nvidia.com/blog/2017/04/27/how-nvidias-neural-net-makes-decisions/}{a method to visualize the most important pixel points} in their self-driving cars' decisioning process. The visualization provides insights on how AI thinks and what the system relies on while operating the car. If what the AI believes to be important agrees with how human make similar decisions, we can naturally gain more confidence in the black-box model.
+
+Many exciting news and findings are happening in this evolving field every day. Hope my post can give you some pointers and encourage you to investigate more into this topic :)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+Cited as:
+
+\begin{verbatim}
+@article{weng2017gan,
+  title   = "How to Explain the Prediction of a Machine Learning Model?",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2017",
+  url     = "https://lilianweng.github.io/posts/2017-08-01-interpretation/"
+}
+\end{verbatim}
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Zachary C. Lipton. \href{https://arxiv.org/pdf/1606.03490.pdf}{``The mythos of model interpretability.''} arXiv preprint arXiv:1606.03490 (2016).
+
+{[}2{]} Been Kim, Rajiv Khanna, and Oluwasanmi O. Koyejo. ``Examples are not enough, learn to criticize! criticism for interpretability.'' Advances in Neural Information Processing Systems. 2016.
+
+{[}3{]} Himabindu Lakkaraju, Stephen H. Bach, and Jure Leskovec. \href{http://www.kdd.org/kdd2016/papers/files/rpp1067-lakkarajuA.pdf}{``Interpretable decision sets: A joint framework for description and prediction.''} Proc. 22nd ACM SIGKDD Intl. Conf. on Knowledge Discovery and Data Mining. ACM, 2016.
+
+{[}4{]} Robnik-Šikonja, Marko, and Igor Kononenko. \href{http://lkm.fri.uni-lj.si/rmarko/papers/RobnikSikonjaKononenko08-TKDE.pdf}{``Explaining classifications for individual instances.''} IEEE Transactions on Knowledge and Data Engineering 20.5 (2008): 589-600.
+
+{[}5{]} Baehrens, David, et al. \href{http://www.jmlr.org/papers/volume11/baehrens10a/baehrens10a.pdf}{``How to explain individual classification decisions.''} Journal of Machine Learning Research 11.Jun (2010): 1803-1831.
+
+{[}6{]} Marco Tulio Ribeiro, Sameer Singh, and Carlos Guestrin. \href{https://arxiv.org/pdf/1602.04938.pdf}{``Why should I trust you?: Explaining the predictions of any classifier.''} Proc. 22nd ACM SIGKDD Intl. Conf. on Knowledge Discovery and Data Mining. ACM, 2016.
+
+{[}7{]} Yiming Yang, and Jan O. Pedersen. \href{http://www.surdeanu.info/mihai/teaching/ista555-spring15/readings/yang97comparative.pdf}{``A comparative study on feature selection in text categorization.''} Intl. Conf. on Machine Learning. Vol. 97. 1997.
+
+{[}8{]} Isabelle Guyon, and André Elisseeff. \href{http://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf}{``An introduction to variable and feature selection.''} Journal of Machine Learning Research 3.Mar (2003): 1157-1182.
+
+{[}9{]} Ian J. Goodfellow, Jonathon Shlens, and Christian Szegedy. \href{https://arxiv.org/pdf/1412.6572.pdf}{``Explaining and harnessing adversarial examples.''} ICLR 2015.
+
+{[}10{]} Christian Szegedy, Wojciech Zaremba, Ilya Sutskever, Joan Bruna, Dumitru Erhan, Ian Goodfellow, Rob Fergus. \href{https://arxiv.org/abs/1312.6199}{``Intriguing properties of neural networks.''} Intl. Conf. on Learning Representations (2014)
+
+{[}11{]} Nguyen, Anh, Jason Yosinski, and Jeff Clune. \href{http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Nguyen_Deep_Neural_Networks_2015_CVPR_paper.pdf}{``Deep neural networks are easily fooled: High confidence predictions for unrecognizable images.''} Proc. IEEE Conference on Computer Vision and Pattern Recognition. 2015.
+
+{[}12{]} Benjamin Letham, Cynthia Rudin, Tyler H. McCormick, and David Madigan. \href{https://arxiv.org/abs/1511.01644}{``Interpretable classifiers using rules and Bayesian analysis: Building a better stroke prediction model.''} The Annals of Applied Statistics 9, No. 3 (2015): 1350-1371.
+
+{[}13{]} Haohan Wang, Bhiksha Raj, and Eric P. Xing. \href{https://arxiv.org/pdf/1702.07800.pdf}{``On the Origin of Deep Learning.''} arXiv preprint arXiv:1702.07800 (2017).
+
+{[}14{]} \href{https://blog.openai.com/robust-adversarial-inputs/}{OpenAI Blog: Robust Adversarial Examples}
+
+{[}15{]} \href{https://blog.openai.com/adversarial-example-research/}{Attacking Machine Learning with Adversarial Examples}
+
+{[}16{]} \href{https://blogs.nvidia.com/blog/2017/04/27/how-nvidias-neural-net-makes-decisions/}{Reading an AI Car's Mind: How NVIDIA's Neural Net Makes Decisions}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/foundation/}{Foundation}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2017-08-20-gan/}{{« }\\
+{From GAN to WGAN}} \href{https://lilianweng.github.io/posts/2017-07-22-stock-rnn-part-2/}{{ »}\\
+{Predict Stock Prices Using RNN: Part 2}}
+
+\href{https://twitter.com/intent/tweet/?text=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f&hashtags=foundation}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f&title=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f&summary=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f&title=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f}{} \href{https://api.whatsapp.com/send?text=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f}{} \href{https://telegram.me/share/url?text=How\%20to\%20Explain\%20the\%20Prediction\%20of\%20a\%20Machine\%20Learning\%20Model\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-08-01-interpretation\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}

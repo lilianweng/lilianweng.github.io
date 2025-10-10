@@ -1,0 +1,527 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Domain Randomization for Sim2Real Transfer}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={Domain Randomization for Sim2Real Transfer},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{Domain Randomization for Sim2Real Transfer}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Domain Randomization for Sim2Real Transfer}\label{domain-randomization-for-sim2real-transfer}
+
+Date: May 5, 2019 \textbar{} Estimated Reading Time: 14 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[what-is-domain-randomization]{What is Domain Randomization?}
+\item
+  \hyperref[uniform-domain-randomization]{Uniform Domain Randomization}
+\item
+  \hyperref[why-does-domain-randomization-work]{Why does Domain Randomization Work?}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[dr-as-optimization]{DR as Optimization}
+  \item
+    \hyperref[dr-as-meta-learning]{DR as Meta-Learning}
+  \end{itemize}
+\item
+  \hyperref[guided-domain-randomization]{Guided Domain Randomization}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[optimization-for-task-performance]{Optimization for Task Performance}
+  \item
+    \hyperref[match-real-data-distribution]{Match Real Data Distribution}
+  \item
+    \hyperref[guided-by-data-in-simulator]{Guided by Data in Simulator}
+  \end{itemize}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+In Robotics, one of the hardest problems is how to make your model transfer to the real world. Due to the sample inefficiency of deep RL algorithms and the cost of data collection on real robots, we often need to train models in a simulator which theoretically provides an infinite amount of data. However, the reality gap between the simulator and the physical world often leads to failure when working with physical robots. The gap is triggered by an inconsistency between physical parameters (i.e. friction, kp, damping, mass, density) and, more fatally, the incorrect physical modeling (i.e. collision between soft surfaces).
+
+To close the sim2real gap, we need to improve the simulator and make it closer to reality. A couple of approaches:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{System identification}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \emph{System identification} is to build a mathematical model for a physical system; in the context of RL, the mathematical model is the simulator. To make the simulator more realistic, careful calibration is necessary.
+  \item
+    Unfortunately, calibration is expensive. Furthermore, many physical parameters of the same machine might vary significantly due to temperature, humidity, positioning or its wear-and-tear in time.
+  \end{itemize}
+\item
+  \textbf{Domain adaptation}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \emph{Domain adaptation (DA)} refers to a set of transfer learning techniques developed to update the data distribution in sim to match the real one through a mapping or regularization enforced by the task model.
+  \item
+    Many DA models, especially for image classification or end-to-end image-based RL task, are built on adversarial loss or \href{https://lilianweng.github.io/posts/2017-08-20-gan/}{GAN}.
+  \end{itemize}
+\item
+  \textbf{Domain randomization}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    With \emph{domain randomization (DR)}, we are able to create a variety of simulated environments with randomized properties and train a model that works across all of them.
+  \item
+    Likely this model can adapt to the real-world environment, as the real system is expected to be one sample in that rich distribution of training variations.
+  \end{itemize}
+\end{itemize}
+
+Both DA and DR are unsupervised. Compared to DA which requires a decent amount of real data samples to capture the distribution, DR may need \emph{only a little or no} real data. DR is the focus of this post.
+
+\begin{figure}
+\centering
+\includegraphics{sim2real-transfer.png}
+\caption{Conceptual illustrations of three approaches for sim2real transfer.}
+\end{figure}
+
+\section{\texorpdfstring{What is Domain Randomization?\hyperref[what-is-domain-randomization]{\#}}{What is Domain Randomization?\#}}\label{what-is-domain-randomization}
+
+To make the definition more general, let us call the environment that we have full access to (i.e. simulator) \textbf{source domain} and the environment that we would like to transfer the model to \textbf{target domain} (i.e. physical world). Training happens in the source domain. We can control a set of \$N\$ randomization parameters in the source domain \$e\_\textbackslash xi\$ with a configuration \$\textbackslash xi\$, sampled from a randomization space, \$\textbackslash xi \textbackslash in \textbackslash Xi \textbackslash subset \textbackslash mathbb\{R\}\^{}N\$.
+
+During policy training, episodes are collected from source domain with randomization applied. Thus the policy is exposed to a variety of environments and learns to generalize. The policy parameter \$\textbackslash theta\$ is trained to maximize the expected reward \$R(.)\$ average across a distribution of configurations:
+
+\$\$ \textbackslash theta\^{}* = \textbackslash arg\textbackslash max\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash xi \textbackslash sim \textbackslash Xi\} {[}\textbackslash mathbb\{E\}\_\{\textbackslash pi\_\textbackslash theta, \textbackslash tau \textbackslash sim e\_\textbackslash xi\} {[}R(\textbackslash tau){]}{]} \$\$
+
+where \$\textbackslash tau\_\textbackslash xi\$ is a trajectory collected in source domain randomized with \$\textbackslash xi\$. In a way, \emph{``discrepancies between the source and target domains are modeled as variability in the source domain.''} (quote from \href{https://arxiv.org/abs/1710.06537}{Peng et al. 2018}).
+
+\section{\texorpdfstring{Uniform Domain Randomization\hyperref[uniform-domain-randomization]{\#}}{Uniform Domain Randomization\#}}\label{uniform-domain-randomization}
+
+In the original form of DR (\href{https://arxiv.org/abs/1703.06907}{Tobin et al, 2017}; \href{https://arxiv.org/pdf/1611.04201.pdf}{Sadeghi et al. 2016}), each randomization parameter \$\textbackslash xi\_i\$ is bounded by an interval, \$\textbackslash xi\_i \textbackslash in {[}\textbackslash xi\_i\^{}\textbackslash text\{low\}, \textbackslash xi\_i\^{}\textbackslash text\{high\}{]}, i=1,\textbackslash dots,N\$ and each parameter is uniformly sampled within the range.
+
+The randomization parameters can control appearances of the scene, including but not limited to the followings (see Fig. 2). A model trained on simulated and randomized images is able to transfer to real non-randomized images.
+
+\begin{itemize}
+\tightlist
+\item
+  Position, shape, and color of objects,
+\item
+  Material texture,
+\item
+  Lighting condition,
+\item
+  Random noise added to images,
+\item
+  Position, orientation, and field of view of the camera in the simulator.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{DR.png}
+\caption{Images captured in the training environment are randomized. (Image source: \href{https://arxiv.org/abs/1703.06907}{Tobin et al, 2017})}
+\end{figure}
+
+Physical dynamics in the simulator can also be randomized (\href{https://arxiv.org/abs/1710.06537}{Peng et al. 2018}). Studies have showed that a \emph{recurrent} policy can adapt to different physical dynamics including the partially observable reality. A set of physical dynamics features include but are not limited to:
+
+\begin{itemize}
+\tightlist
+\item
+  Mass and dimensions of objects,
+\item
+  Mass and dimensions of robot bodies,
+\item
+  Damping, kp, friction of the joints,
+\item
+  Gains for the PID controller (P term),
+\item
+  Joint limit,
+\item
+  Action delay,
+\item
+  Observation noise.
+\end{itemize}
+
+With visual and dynamics DR, at OpenAI Robotics, we were able to learn a policy that works on real dexterous robot hand (\href{https://arxiv.org/abs/1808.00177}{OpenAI, 2018}). Our manipulation task is to teach the robot hand to rotate an object continously to achieve 50 successive random target orientations. The sim2real gap in this task is very large, due to (a) a high number of simultaneous contacts between the robot and the object and (b) imperfect simulation of object collision and other motions. At first, the policy could barely survive for more than 5 seconds without dropping the object. But with the help of DR, the policy evolved to work surprisingly well in reality eventually.
+
+\phantomsection\label{player}
+
+\section{An error occurred.}\label{an-error-occurred.}
+
+\href{https://www.youtube.com/watch?v=DKe8FumoD4E}{Try watching this video on www.youtube.com}, or enable JavaScript if it is disabled in your browser.
+
+\section{\texorpdfstring{Why does Domain Randomization Work?\hyperref[why-does-domain-randomization-work]{\#}}{Why does Domain Randomization Work?\#}}\label{why-does-domain-randomization-work}
+
+Now you may ask, why does domain randomization work so well? The idea sounds really simple. Here are two non-exclusive explanations I found most convincing.
+
+\subsection{\texorpdfstring{DR as Optimization\hyperref[dr-as-optimization]{\#}}{DR as Optimization\#}}\label{dr-as-optimization}
+
+One idea (\href{https://arxiv.org/abs/1903.11774}{Vuong, et al, 2019}) is to view learning randomization parameters in DR as a \emph{bilevel optimization}. Assuming we have access to the real environment \$e\_\textbackslash text\{real\}\$ and the randomization config is sampled from a distribution parameterized by \$\textbackslash phi\$, \$\textbackslash xi \textbackslash sim P\_\textbackslash phi(\textbackslash xi)\$, we would like to learn a distribution on which a policy \$\textbackslash pi\_\textbackslash theta\$ is trained on can achieve maximal performance in \$e\_\textbackslash text\{real\}\$:
+
+\$\$ \textbackslash begin\{aligned\} \&\textbackslash phi\^{}* = \textbackslash arg\textbackslash min\_\{\textbackslash phi\} \textbackslash mathcal\{L\}(\textbackslash pi\_\{\textbackslash theta\^{}*(\textbackslash phi)\}; e\_\textbackslash text\{real\}) \textbackslash\textbackslash{} \textbackslash text\{where \} \&\textbackslash theta\^{}*(\textbackslash phi) = \textbackslash arg\textbackslash min\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash xi \textbackslash sim P\_\textbackslash phi(\textbackslash xi)\}{[}\textbackslash mathcal\{L\}(\textbackslash pi\_\textbackslash theta; e\_\textbackslash xi){]} \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash mathcal\{L\}(\textbackslash pi; e)\$ is the loss function of policy \$\textbackslash pi\$ evaluated in the environment \$e\$.
+
+Although randomization ranges are hand-picked in uniform DR, it often involves domain knowledge and a couple rounds of trial-and-error adjustment based on the transfer performance. Essentially this is a manual optimization process on tuning \$\textbackslash phi\$ for the optimal \$\textbackslash mathcal\{L\}(\textbackslash pi\_\{\textbackslash theta\^{}*(\textbackslash phi)\}; e\_\textbackslash text\{real\})\$.
+
+Guided domain randomization in the next section is largely inspired by this view, aiming to do bilevel optimization and learn the best parameter distribution automatically.
+
+\subsection{\texorpdfstring{DR as Meta-Learning\hyperref[dr-as-meta-learning]{\#}}{DR as Meta-Learning\#}}\label{dr-as-meta-learning}
+
+In our learning dexterity project (\href{https://arxiv.org/abs/1808.00177}{OpenAI, 2018}), we trained an LSTM policy to generalize across different environmental dynamics. We observed that once a robot achieved the first rotation, the time it needed for the following successes was much shorter. Also, a FF policy without memory was found not able to transfer to a physical robot. Both are evidence of the policy dynamically learning and adapting to a new environment.
+
+In some ways, domain randomization composes a collection of different tasks. Memory in the recurrent network empowers the policy to achieve \href{https://lilianweng.github.io/posts/2018-11-30-meta-learning/}{\emph{meta-learning}} across tasks and further work on a real-world setting.
+
+\section{\texorpdfstring{Guided Domain Randomization\hyperref[guided-domain-randomization]{\#}}{Guided Domain Randomization\#}}\label{guided-domain-randomization}
+
+The vanilla DR assumes no access to the real data, and thus the randomization config is sampled as broadly and uniformly as possible in sim, hoping that the real environment could be covered under this broad distribution. It is reasonable to think of a more sophisticated strategy --- replacing uniform sampling with guidance from \emph{task performance}, \emph{real data}, or \emph{simulator}.
+
+One motivation for guided DR is to save computation resources by avoiding training models in unrealistic environments. Another is to avoid infeasible solutions that might arise from overly wide randomization distributions and thus might hinder successful policy learning.
+
+\subsection{\texorpdfstring{Optimization for Task Performance\hyperref[optimization-for-task-performance]{\#}}{Optimization for Task Performance\#}}\label{optimization-for-task-performance}
+
+Say we train a family of policies with different randomization parameters \$\textbackslash xi \textbackslash sim P\_\textbackslash phi(\textbackslash xi)\$, where \$P\_\textbackslash xi\$ is the distribution for \$\textbackslash xi\$ parameterized by \$\textbackslash phi\$. Later we decide to try every one of them on the downstream task in the target domain (i.e. control a robot in reality or evaluate on a validation set) to collect feedback. This feedback tells us how good a configuration \$\textbackslash xi\$ is and provides signals for optimizing \$\textbackslash phi\$.
+
+\phantomsection\label{AutoAugment}{}Inspired by \href{https://ai.google/research/pubs/pub45826}{NAS}, \textbf{AutoAugment} (\href{https://arxiv.org/abs/1805.09501}{Cubuk, et al. 2018}) frames the problem of learning best data augmentation operations (i.e. shearing, rotation, invert, etc.) for image classification as an RL problem. Note that AutoAugment is not proposed for sim2real transfer, but falls in the bucket of DR guided by task performance. Individual augmentation configuration is tested on the evaluation set and the performance improvement is used as a reward to train a PPO policy. This policy outputs different augmentation strategies for different datasets; for example, for CIFAR-10 AutoAugment mostly picks color-based transformations, while ImageNet prefers geometric based.
+
+\href{https://arxiv.org/abs/1810.02513}{Ruiz (2019)} considered the \emph{task feedback} as \emph{reward} in RL problem and proposed a RL-based method, named ``learning to simulate'', for adjusting \$\textbackslash xi\$. A policy is trained to predict \$\textbackslash xi\$ using performance metrics on the validation data of the main task as rewards, which is modeled as a multivariate Gaussian. Overall the idea is similar to AutoAugment, applying NAS on data generation. According to their experiments, even if the main task model is not converged, it still can provide a reasonable signal to the data generation policy.
+
+\begin{figure}
+\centering
+\includegraphics{learning-to-simulate.png}
+\caption{An overview of the "learning to simulate" approach. (Image source: \href{https://arxiv.org/abs/1810.02513}{Ruiz (2019)})}
+\end{figure}
+
+Evolutionary algorithm is another way to go, where the \emph{feedback} is treated as \emph{fitness} for guiding evolution (\href{https://openreview.net/forum?id=H1g6osRcFQ}{Yu et al, 2019}). In this study, they used \href{https://en.wikipedia.org/wiki/CMA-ES}{CMA-ES} (covariance matrix adaptation evolution strategy) while fitness is the performance of a \$\textbackslash xi\$-conditional policy in target environment. In the appendix, they compared CMA-ES with other ways of modeling the dynamics of \$\textbackslash xi\$, including Bayesian optimization or a neural network. The main claim was those methods are not as stable or sample efficient as CMA-ES. Interestly, when modeling \$P(\textbackslash xi)\$ as a neural network, LSTM is found to notably outperform FF.
+
+Some believe that sim2real gap is a combination of appearance gap and content gap; i.e. most GAN-inspired DA models focus on appearance gap. \textbf{Meta-Sim} (\href{https://arxiv.org/abs/1904.11621}{Kar, et al. 2019}) aims to close the content gap by generating task-specific synthetic datasets. Meta-Sim uses self-driving car training as an example and thus the scene could be very complicated. In this case, the synthetic scenes are parameterized by a hierarchy of objects with properties (i.e., location, color) as well as relationships between objects. The hierarchy is specified by a probabilistic scene grammar akin to structure domain randomization (\textbf{SDR}; \href{https://arxiv.org/abs/1810.10093}{Prakash et al., 2018}) and it is assumed to be known beforehand. A model \$G\$ is trained to augment the distribution of scene properties \$s\$ by following:
+
+\begin{enumerate}
+\tightlist
+\item
+  Learn the prior first: pre-train \$G\$ to learn the identity function \$G(s) = s\$.
+\item
+  Minimize MMD loss between the real and sim data distributions. This involves backpropagation through non-differentiable renderer. The paper computes it numerically by perturbing the attributes of \$G(s)\$.
+\item
+  Minimize REINFORCE task loss when trained on synthetic data but evaluated on real data. Again, very similar to AutoAugment.
+\end{enumerate}
+
+Unfortunately, this family of methods are not suitable for sim2real case. Either an RL policy or an EA model requires a large number of real samples. And it is really expensive to include real-time feedback collection on a physical robot into the training loop. Whether you want to trade less computation resource for real data collection would depend on your task.
+
+\subsection{\texorpdfstring{Match Real Data Distribution\hyperref[match-real-data-distribution]{\#}}{Match Real Data Distribution\#}}\label{match-real-data-distribution}
+
+Using real data to guide domain randomization feels a lot like doing system identification or DA. The core idea behind DA is to improve the synthetic data to match the real data distribution. In the case of real-data-guided DR, we would like to learn the randomization parameters \$\textbackslash xi\$ that bring the state distribution in simulator close to the state distribution in the real world.
+
+The \textbf{SimOpt} model (\href{https://arxiv.org/abs/1810.05687}{Chebotar et al, 2019}) is trained under an initial randomization distribution \$P\_\textbackslash phi(\textbackslash xi)\$ first, getting a policy \$\textbackslash pi\_\{\textbackslash theta, P\_\textbackslash phi\}\$. Then this policy is deployed on both simulator and physical robot to collect trajectories \$\textbackslash tau\_\textbackslash xi\$ and \$\textbackslash tau\_\textbackslash text\{real\}\$ respectively. The optimization objective is to minimize the discrepancy between sim and real trajectories:
+
+\$\$ \textbackslash phi\^{}* = \textbackslash arg\textbackslash min\_\{\textbackslash phi\}\textbackslash mathbb\{E\}\_\{\textbackslash xi \textbackslash sim P\_\textbackslash phi(\textbackslash xi)\} {[}\textbackslash mathbb\{E\}\_\{\textbackslash pi\_\{\textbackslash theta, P\_\textbackslash phi\}\} {[}D(\textbackslash tau\_\textbackslash text\{sim\}, \textbackslash tau\_\textbackslash text\{real\}){]}{]} \$\$
+
+where \$D(.)\$ is a trajectory-based discrepancy measure. Like the ``Learning to simulate'' paper, SimOpt also has to solve the tricky problem of how to propagate gradient through non-differentiable simulator. It used a method called \href{https://www.aaai.org/ocs/index.php/AAAI/AAAI10/paper/viewFile/1851/2264}{relative entropy policy search}, see paper for more details.
+
+\begin{figure}
+\centering
+\includegraphics{simopt.png}
+\caption{An overview of the SimOpt framework. (Image source: \href{https://arxiv.org/abs/1810.05687}{Chebotar et al, 2019})}
+\end{figure}
+
+\textbf{RCAN} (\href{https://arxiv.org/abs/1812.07252}{James et al., 2019}), short for ``Randomized-to-Canonical Adaptation Networks'', is a nice combination of DA and DR for end-to-end RL tasks. An image-conditional GAN (\href{https://arxiv.org/abs/1611.07004}{cGAN}) is trained in sim to translate a domain-randomized image into a non-randomized version (aka ``canonical version''). Later the same model is used to translate real images into corresponding simulated version so that the agent would consume consistent observation as what it has encountered in training. Still, the underlying assumption is that the distribution of domain-randomized sim images is broad enough to cover real-world samples.
+
+\begin{figure}
+\centering
+\includegraphics{RCAN.png}
+\caption{RCAN is an image-conditional generator that can convert a domain-randomized or real image into its corresponding non-randomized simulator version. (Image source: \href{https://arxiv.org/abs/1812.07252}{James et al., 2019})}
+\end{figure}
+
+The RL model is trained end-to-end in a simulator to do vision-based robot arm grasping. Randomization is applied at each timestep, including the position of tray divider, objects to grasp, random textures, as well as the position, direction, and color of the lighting. The canonical version is the default simulator look. RCAN is trying to learn a generator
+
+\$G\$: randomized image \$\textbackslash to\$ \{canonical image, segmentation, depth\}
+
+where segmentation masks and depth images are used as auxiliary tasks. RCAN had a better zero-shot transfer compared to uniform DR, although both were shown to be worse than the model trained on only real images. Conceptually, RCAN operates in a reverse direction of \href{https://arxiv.org/abs/1709.07857}{GraspGAN} which translates synthetic images into real ones by domain adaptation.
+
+\subsection{\texorpdfstring{Guided by Data in Simulator\hyperref[guided-by-data-in-simulator]{\#}}{Guided by Data in Simulator\#}}\label{guided-by-data-in-simulator}
+
+Network-driven domain randomization (\href{https://arxiv.org/abs/1904.02750}{Zakharov et al., 2019}), also known as \textbf{DeceptionNet}, is motivated by learning which randomizations are actually useful to bridge the domain gap for image classification tasks.
+
+Randomization is applied through a set of deception modules with encoder-decoder architecture. The deception modules are specifically designed to transform images; such as change backgrounds, add distortion, change lightings, etc. The other recognition network handles the main task by running classification on transformed images.
+
+The training involves two steps:
+
+\begin{enumerate}
+\tightlist
+\item
+  With the recognition network fixed, \emph{maximize the difference} between the prediction and the labels by applying reversed gradients during backpropagation. So that the deception module can learn the most confusing tricks.
+\item
+  With the deception modules fixed, train the recognition network with input images altered.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\includegraphics{deception-net.png}
+\caption{How DeceptionNet works. (Image source: \href{https://arxiv.org/abs/1904.02750}{Zakharov et al., 2019})}
+\end{figure}
+
+The feedback for training deception modules is provided by the downstream classifier. But rather than trying to maximize the task performance like \hyperref[optimization-for-task-performance]{the section} above, the randomization modules aim to create harder cases. One big disadvantage is you need to manually design different deception modules for different datasets or tasks, making it not easily scalable. Given the fact that it is zero-shot, the results are still worse than SOTA DA methods on MNIST and LineMOD.
+
+Similarly, Active domain randomization (\textbf{ADR}; \href{https://arxiv.org/abs/1904.04762}{Mehta et al., 2019}) also relies on sim data to create harder training samples. ADR searches for the \emph{most informative} environment variations within the given randomization ranges, where the \emph{informativeness} is measured as the discrepancies of policy rollouts in randomized and reference (original, non-randomized) environment instances. Sounds a bit like \hyperref[match-real-data-distribution]{SimOpt}? Well, noted that SimOpt measures the discrepancy between sim and real rollouts, while ADR measures between randomized and non-randomized sim, avoiding the expensive real data collection part.
+
+\begin{figure}
+\centering
+\includegraphics{ADR.png}
+\caption{How active domain randomization (ADR) works. (Image source: \href{https://arxiv.org/abs/1904.04762}{Mehta et al., 2019})}
+\end{figure}
+
+Precisely the training happens as follows:
+
+\begin{enumerate}
+\tightlist
+\item
+  Given a policy, run it on both reference and randomized envs and collect two sets of trajectories respectively.
+\item
+  Train a discriminator model to tell whether a rollout trajectory is randomized apart from reference run. The predicted \$\textbackslash log p\$ (probability of being randomized) is used as reward. The more different randomized and reference rollouts, the easier the prediction, the higher the reward.
+
+  \begin{itemize}
+  \tightlist
+  \item
+    The intuition is that if an environment is easy, the same policy agent can produce similar trajectories as in the reference one. Then the model should reward and explore hard environments by encouraging different behaviors.
+  \end{itemize}
+\item
+  The reward by discriminator is fed into \emph{Stein Variational Policy Gradient} (\href{https://arxiv.org/abs/1704.02399}{SVPG}) particles, outputting a diverse set of randomization configurations.
+\end{enumerate}
+
+The idea of ADR is very appealing with two small concerns. The similarity between trajectories might not be a good way to measure the env difficulty when running a stochastic policy. The sim2real results look unfortunately not as exciting, but the paper pointed out the win being ADR explores a smaller range of randomization parameters.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+Cited as:
+
+\begin{verbatim}
+@article{weng2019DR,
+  title   = "Domain Randomization for Sim2Real Transfer",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2019",
+  url     = "https://lilianweng.github.io/posts/2019-05-05-domain-randomization/"
+}
+\end{verbatim}
+
+Overall, after reading this post, I hope you like domain randomization as much as I do :).
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Josh Tobin, et al. \href{https://arxiv.org/pdf/1703.06907.pdf}{``Domain randomization for transferring deep neural networks from simulation to the real world.''} IROS, 2017.
+
+{[}2{]} Fereshteh Sadeghi and Sergey Levine. \href{https://arxiv.org/abs/1611.04201}{``CAD2RL: Real single-image flight without a single real image.''} arXiv:1611.04201 (2016).
+
+{[}3{]} Xue Bin Peng, et al. \href{https://arxiv.org/abs/1710.06537}{``Sim-to-real transfer of robotic control with dynamics randomization.''} ICRA, 2018.
+
+{[}4{]} Nataniel Ruiz, et al. \href{https://openreview.net/forum?id=HJgkx2Aqt7}{``Learning to Simulate.''} ICLR 2019
+
+{[}5{]} OpenAI. \href{https://arxiv.org/abs/1808.00177}{``Learning Dexterous In-Hand Manipulation.''} arXiv:1808.00177 (2018).
+
+{[}6{]} OpenAI Blog. \href{https://openai.com/blog/learning-dexterity/}{``Learning dexterity''} July 30, 2018.
+
+{[}7{]} Quan Vuong, et al. \href{https://arxiv.org/abs/1903.11774}{``How to pick the domain randomization parameters for sim-to-real transfer of reinforcement learning policies?.''} arXiv:1903.11774 (2019).
+
+{[}8{]} Ekin D. Cubuk, et al. \href{https://arxiv.org/abs/1805.09501}{``AutoAugment: Learning augmentation policies from data.''} arXiv:1805.09501 (2018).
+
+{[}9{]} Wenhao Yu et al. \href{https://openreview.net/forum?id=H1g6osRcFQ}{``Policy Transfer with Strategy Optimization.''} ICLR 2019
+
+{[}10{]} Yevgen Chebotar et al. \href{https://arxiv.org/abs/1810.05687}{``Closing the Sim-to-Real Loop: Adapting Simulation Randomization with Real World Experience.''} Arxiv: 1810.05687 (2019).
+
+{[}11{]} Stephen James et al. \href{https://arxiv.org/abs/1812.07252}{``Sim-to-real via sim-to-sim: Data-efficient robotic grasping via randomized-to-canonical adaptation networks''} CVPR 2019.
+
+{[}12{]} Bhairav Mehta et al. \href{https://arxiv.org/abs/1904.04762}{``Active Domain Randomization''} arXiv:1904.04762
+
+{[}13{]} Sergey Zakharov,et al. \href{https://arxiv.org/abs/1904.02750}{``DeceptionNet: Network-Driven Domain Randomization.''} arXiv:1904.02750 (2019).
+
+{[}14{]} Amlan Kar, et al. \href{https://arxiv.org/abs/1904.11621}{``Meta-Sim: Learning to Generate Synthetic Datasets.''} arXiv:1904.11621 (2019).
+
+{[}15{]} Aayush Prakash, et al. \href{https://arxiv.org/abs/1810.10093}{``Structured Domain Randomization: Bridging the Reality Gap by Context-Aware Synthetic Data.''} arXiv:1810.10093 (2018).
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/robotics/}{Robotics}
+\item
+  \href{https://lilianweng.github.io/tags/meta-learning/}{Meta-Learning}
+\item
+  \href{https://lilianweng.github.io/tags/reinforcement-learning/}{Reinforcement-Learning}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2019-06-23-meta-rl/}{{« }\\
+{Meta Reinforcement Learning}} \href{https://lilianweng.github.io/posts/2019-03-14-overfit/}{{ »}\\
+{Are Deep Neural Networks Dramatically Overfitted?}}
+
+\href{https://twitter.com/intent/tweet/?text=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f&hashtags=robotics\%2cmeta-learning\%2creinforcement-learning}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f&title=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer&summary=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f&title=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f}{} \href{https://api.whatsapp.com/send?text=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f}{} \href{https://telegram.me/share/url?text=Domain\%20Randomization\%20for\%20Sim2Real\%20Transfer&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-05-05-domain-randomization\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2019-05-05-domain-randomization/}{Telegram}
+\end{center}
+
+
+
+\end{document}

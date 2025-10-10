@@ -1,0 +1,638 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Predict Stock Prices Using RNN: Part 1}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={Predict Stock Prices Using RNN: Part 1},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{Predict Stock Prices Using RNN: Part 1}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Predict Stock Prices Using RNN: Part 1}\label{predict-stock-prices-using-rnn-part-1}
+
+Date: July 8, 2017 \textbar{} Estimated Reading Time: 12 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[overview-of-existing-tutorials]{Overview of Existing Tutorials}
+\item
+  \hyperref[the-goal]{The Goal}
+\item
+  \hyperref[data-preparation]{Data Preparation}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[train--test-split]{Train / Test Split}
+  \item
+    \hyperref[normalization]{Normalization}
+  \end{itemize}
+\item
+  \hyperref[model-construction]{Model Construction}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[definitions]{Definitions}
+  \item
+    \hyperref[define-graph]{Define Graph}
+  \item
+    \hyperref[start-training-session]{Start Training Session}
+  \item
+    \hyperref[use-tensorboard]{Use TensorBoard}
+  \end{itemize}
+\item
+  \hyperref[results]{Results}
+\end{itemize}
+
+This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in \href{https://github.com/lilianweng/stock-rnn}{github.com/lilianweng/stock-rnn}. If you don't know what is recurrent neural network or LSTM cell, feel free to check \href{https://lilianweng.github.io/posts/2017-06-21-overview/\#recurrent-neural-network}{my previous post}.
+
+\begin{quote}
+\emph{One thing I would like to emphasize that because my motivation for writing this post is more on demonstrating how to build and train an RNN model in Tensorflow and less on solve the stock prediction problem, I didn't try hard on improving the prediction outcomes. You are more than welcome to take my \href{https://github.com/lilianweng/stock-rnn}{code} as a reference point and add more stock prediction related ideas to improve it. Enjoy!}
+\end{quote}
+
+\section{\texorpdfstring{Overview of Existing Tutorials\hyperref[overview-of-existing-tutorials]{\#}}{Overview of Existing Tutorials\#}}\label{overview-of-existing-tutorials}
+
+There are many tutorials on the Internet, like:
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://monik.in/a-noobs-guide-to-implementing-rnn-lstm-using-tensorflow/}{A noob's guide to implementing RNN-LSTM using Tensorflow}
+\item
+  \href{https://svds.com/tensorflow-rnn-tutorial/}{TensorFlow RNN Tutorial}
+\item
+  \href{https://medium.com/towards-data-science/lstm-by-example-using-tensorflow-feb0c1968537}{LSTM by Example using Tensorflow}
+\item
+  \href{https://medium.com/@erikhallstrm/hello-world-rnn-83cd7105b767}{How to build a Recurrent Neural Network in TensorFlow}
+\item
+  \href{http://www.wildml.com/2016/08/rnns-in-tensorflow-a-practical-guide-and-undocumented-features/}{RNNs in Tensorflow, a Practical Guide and Undocumented Features}
+\item
+  \href{http://mourafiq.com/2016/05/15/predicting-sequences-using-rnn-in-tensorflow.html}{Sequence prediction using recurrent neural networks(LSTM) with TensorFlow}
+\item
+  \href{https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/}{Anyone Can Learn To Code an LSTM-RNN in Python}
+\item
+  \href{https://medium.com/google-cloud/how-to-do-time-series-prediction-using-rnns-and-tensorflow-and-cloud-ml-engine-2ad2eeb189e8}{How to do time series prediction using RNNs, TensorFlow and Cloud ML Engine}
+\end{itemize}
+
+Despite all these existing tutorials, I still want to write a new one mainly for three reasons:
+
+\begin{enumerate}
+\tightlist
+\item
+  Early tutorials cannot cope with the new version any more, as Tensorflow is still under development and changes on API interfaces are being made fast.
+\item
+  Many tutorials use synthetic data in the examples. Well, I would like to play with the real world data.
+\item
+  Some tutorials assume that you have known something about Tensorflow API beforehand, which makes the reading a bit difficult.
+\end{enumerate}
+
+After reading a bunch of examples, I would like to suggest taking the \href{https://github.com/tensorflow/models/tree/master/tutorials/rnn/ptb}{official example} on Penn Tree Bank (PTB) dataset as your starting point. The PTB example showcases a RNN model in a pretty and modular design pattern, but it might prevent you from easily understanding the model structure. Hence, here I will build up the graph in a very straightforward manner.
+
+\section{\texorpdfstring{The Goal\hyperref[the-goal]{\#}}{The Goal\#}}\label{the-goal}
+
+I will explain how to build an RNN model with LSTM cells to predict the prices of S\&P500 index. The dataset can be downloaded from \href{https://finance.yahoo.com/quote/\%5EGSPC/history?p=\%5EGSPC}{Yahoo! Finance \^{}GSPC}. In the following example, I used S\&P 500 data from Jan 3, 1950 (the maximum date that Yahoo! Finance is able to trace back to) to Jun 23, 2017. The dataset provides several price points per day. For simplicity, we will only use the daily \textbf{close prices} for prediction. Meanwhile, I will demonstrate how to use \href{https://www.tensorflow.org/get_started/summaries_and_tensorboard}{TensorBoard} for easily debugging and model tracking.
+
+As a quick recap: the recurrent neural network (RNN) is a type of artificial neural network with self-loop in its hidden layer(s), which enables RNN to use the previous state of the hidden neuron(s) to learn the current state given the new input. RNN is good at processing sequential data. Long short-term memory (LSTM) cell is a specially designed working unit that helps RNN better memorize the long-term context.
+
+For more information in depth, please read \href{https://lilianweng.github.io/posts/2017-06-21-overview/\#recurrent-neural-network}{my previous post} or \href{http://colah.github.io/posts/2015-08-Understanding-LSTMs/}{this awesome post}.
+
+\section{\texorpdfstring{Data Preparation\hyperref[data-preparation]{\#}}{Data Preparation\#}}\label{data-preparation}
+
+The stock prices is a time series of length \$N\$, defined as \$p\_0, p\_1, \textbackslash dots, p\_\{N-1\}\$ in which \$p\_i\$ is the close price on day \$i\$, \$0 \textbackslash le i \textless{} N\$. Imagine that we have a sliding window of a fixed size \$w\$ (later, we refer to this as \texttt{input\_size}) and every time we move the window to the right by size \$w\$, so that there is no overlap between data in all the sliding windows.
+
+\begin{figure}
+\centering
+\includesvg{sliding_window_time_series.svg}
+\caption{The S\&P 500 prices in time. We use content in one sliding windows to make prediction for the next, while there is no overlap between two consecutive windows.}
+\end{figure}
+
+The RNN model we are about to build has LSTM cells as basic hidden units. We use values from the very beginning in the first sliding window \$W\_0\$ to the window \$W\_t\$ at time \$t\$:
+
+\$\$ \textbackslash begin\{aligned\} W\_0 \&= (p\_0, p\_1, \textbackslash dots, p\_\{w-1\}) \textbackslash\textbackslash{} W\_1 \&= (p\_w, p\_\{w+1\}, \textbackslash dots, p\_\{2w-1\}) \textbackslash\textbackslash{} \textbackslash dots \textbackslash\textbackslash{} W\_t \&= (p\_\{tw\}, p\_\{tw+1\}, \textbackslash dots, p\_\{(t+1)w-1\}) \textbackslash end\{aligned\} \$\$
+
+to predict the prices in the following window \$w\_\{t+1\}\$:
+
+\$\$ W\_\{t+1\} = (p\_\{(t+1)w\}, p\_\{(t+1)w+1\}, \textbackslash dots, p\_\{(t+2)w-1\}) \$\$
+
+Essentially we try to learn an approximation function, \$f(W\_0, W\_1, \textbackslash dots, W\_t) \textbackslash approx W\_\{t+1\}\$.
+
+\begin{figure}
+\centering
+\includegraphics{unrolled_RNN.png}
+\caption{Fig. 2 The unrolled version of RNN.}
+\end{figure}
+
+Considering how \href{https://en.wikipedia.org/wiki/Backpropagation_through_time}{back propagation through time (BPTT)} works, we usually train RNN in a ``unrolled'' version so that we don't have to do propagation computation too far back and save the training complication.
+
+Here is the explanation on \texttt{num\_steps} from \href{tensorflow.org/tutorials/recurrent}{Tensorflow's tutorial}:
+
+\begin{quote}
+By design, the output of a recurrent neural network (RNN) depends on arbitrarily distant inputs. Unfortunately, this makes backpropagation computation difficult. In order to make the learning process tractable, it is common practice to create an ``unrolled'' version of the network, which contains a fixed number (\texttt{num\_steps}) of LSTM inputs and outputs. The model is then trained on this finite approximation of the RNN. This can be implemented by feeding inputs of length \texttt{num\_steps} at a time and performing a backward pass after each such input block.
+\end{quote}
+
+The sequence of prices are first split into non-overlapped small windows. Each contains \texttt{input\_size} numbers and each is considered as one independent input element. Then any \texttt{num\_steps} consecutive input elements are grouped into one training input, forming an \textbf{``un-rolled''} version of RNN for training on Tensorfow. The corresponding label is the input element right after them.
+
+\phantomsection\label{input_format_example}{}For instance, if \texttt{input\_size=3} and \texttt{num\_steps=2}, my first few training examples would look like:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash text\{Input\}\_1 \&= {[}{[}p\_0, p\_1, p\_2{]}, {[}p\_3, p\_4, p\_5{]}{]}\textbackslash quad\textbackslash text\{Label\}\_1 = {[}p\_6, p\_7, p\_8{]} \textbackslash\textbackslash{} \textbackslash text\{Input\}\_2 \&= {[}{[}p\_3, p\_4, p\_5{]}, {[}p\_6, p\_7, p\_8{]}{]}\textbackslash quad\textbackslash text\{Label\}\_2 = {[}p\_9, p\_\{10\}, p\_\{11\}{]} \textbackslash\textbackslash{} \textbackslash text\{Input\}\_3 \&= {[}{[}p\_6, p\_7, p\_8{]}, {[}p\_9, p\_\{10\}, p\_\{11\}{]}{]}\textbackslash quad\textbackslash text\{Label\}\_3 = {[}p\_\{12\}, p\_\{13\}, p\_\{14\}{]} \textbackslash end\{aligned\} \$\$
+
+Here is the key part for formatting the data:
+
+\begin{verbatim}
+seq = [np.array(seq[i * self.input_size: (i + 1) * self.input_size]) 
+       for i in range(len(seq) // self.input_size)]
+
+# Split into groups of `num_steps`
+X = np.array([seq[i: i + self.num_steps] for i in range(len(seq) - self.num_steps)])
+y = np.array([seq[i + self.num_steps] for i in range(len(seq) - self.num_steps)])
+\end{verbatim}
+
+The complete code of data formatting is \href{https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py}{here}.
+
+\subsection{\texorpdfstring{Train / Test Split\hyperref[train--test-split]{\#}}{Train / Test Split\#}}\label{train--test-split}
+
+Since we always want to predict the future, we take the \textbf{latest 10\%} of data as the test data.
+
+\subsection{\texorpdfstring{Normalization\hyperref[normalization]{\#}}{Normalization\#}}\label{normalization}
+
+The S\&P 500 index increases in time, bringing about the problem that most values in the test set are out of the scale of the train set and thus the model has to \emph{predict some numbers it has never seen before}. Sadly and unsurprisingly, it does a tragic job. See
+
+\begin{figure}
+\centering
+\includegraphics{a_sad_example_stock_prediction.png}
+\caption{Fig. 3 A very sad example when the RNN model have to predict numbers out of the scale of the training data.}
+\end{figure}
+
+To solve the out-of-scale issue, I normalize the prices in each sliding window. The task becomes predicting the relative change rates instead of the absolute values. In a normalized sliding window \$W'\_t\$ at time \$t\$, all the values are divided by the last unknown price---the last price in \$W\_\{t-1\}\$:
+
+\$\$ W'\_t = (\textbackslash frac\{p\_\{tw\}\}\{p\_\{tw-1\}\}, \textbackslash frac\{p\_\{tw+1\}\}\{p\_\{tw-1\}\}, \textbackslash dots, \textbackslash frac\{p\_\{(t+1)w-1\}\}\{p\_\{tw-1\}\}) \$\$
+
+Here is a data archive \href{https://drive.google.com/open?id=1QKVkiwgCNJsdQMEsfoi6KpqoPgc4O6DD}{stock-data-lilianweng.tar.gz} of S \& P 500 stock prices I crawled up to Jul, 2017. Feel free to play with it :)
+
+\section{\texorpdfstring{Model Construction\hyperref[model-construction]{\#}}{Model Construction\#}}\label{model-construction}
+
+\subsection{\texorpdfstring{Definitions\hyperref[definitions]{\#}}{Definitions\#}}\label{definitions}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{lstm\_size}: number of units in one LSTM layer.
+\item
+  \texttt{num\_layers}: number of stacked LSTM layers.
+\item
+  \texttt{keep\_prob}: percentage of cell units to keep in the \href{https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf}{dropout} operation.
+\item
+  \texttt{init\_learning\_rate}: the learning rate to start with.
+\item
+  \texttt{learning\_rate\_decay}: decay ratio in later training epochs.
+\item
+  \texttt{init\_epoch}: number of epochs using the constant \texttt{init\_learning\_rate}.
+\item
+  \texttt{max\_epoch}: total number of epochs in training
+\item
+  \texttt{input\_size}: size of the sliding window / one training data point
+\item
+  \texttt{batch\_size}: number of data points to use in one mini-batch.
+\end{itemize}
+
+The LSTM model has \texttt{num\_layers} stacked LSTM layer(s) and each layer contains \texttt{lstm\_size} number of LSTM cells. Then a \href{https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf}{dropout} mask with keep probability \texttt{keep\_prob} is applied to the output of every LSTM cell. The goal of dropout is to remove the potential strong dependency on one dimension so as to prevent overfitting.
+
+The training requires \texttt{max\_epoch} epochs in total; an \href{http://www.fon.hum.uva.nl/praat/manual/epoch.html}{epoch} is a single full pass of all the training data points. In one epoch, the training data points are split into mini-batches of size \texttt{batch\_size}. We send one mini-batch to the model for one BPTT learning. The learning rate is set to \texttt{init\_learning\_rate} during the first \texttt{init\_epoch} epochs and then decay by \$\textbackslash times\$ \texttt{learning\_rate\_decay} during every succeeding epoch.
+
+\begin{verbatim}
+# Configuration is wrapped in one object for easy tracking and passing.
+class RNNConfig():
+    input_size=1
+    num_steps=30
+    lstm_size=128
+    num_layers=1
+    keep_prob=0.8
+    batch_size = 64
+    init_learning_rate = 0.001
+    learning_rate_decay = 0.99
+    init_epoch = 5
+    max_epoch = 50
+
+config = RNNConfig()
+\end{verbatim}
+
+\subsection{\texorpdfstring{Define Graph\hyperref[define-graph]{\#}}{Define Graph\#}}\label{define-graph}
+
+A \href{https://www.tensorflow.org/api_docs/python/tf/Graph}{\texttt{tf.Graph}} is not attached to any real data. It defines the flow of how to process the data and how to run the computation. Later, this graph can be fed with data within a \href{https://www.tensorflow.org/api_docs/python/tf/Session}{\texttt{tf.session}} and at this moment the computation happens for real.
+
+\textbf{--- Let's start going through some code ---}
+
+(1) Initialize a new graph first.
+
+\begin{verbatim}
+import tensorflow as tf
+tf.reset_default_graph()
+lstm_graph = tf.Graph()
+\end{verbatim}
+
+(2) How the graph works should be defined within its scope.
+
+\begin{verbatim}
+with lstm_graph.as_default():
+\end{verbatim}
+
+(3) Define the data required for computation. Here we need three input variables, all defined as \href{https://www.tensorflow.org/versions/master/api_docs/python/tf/placeholder}{\texttt{tf.placeholder}} because we don't know what they are at the graph construction stage.
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{inputs}: the training data \emph{X}, a tensor of shape (\# data examples, \texttt{num\_steps}, \texttt{input\_size}); the number of data examples is unknown, so it is \texttt{None}. In our case, it would be \texttt{batch\_size} in training session. Check the \hyperref[input_format_example]{input format example} if confused.
+\item
+  \texttt{targets}: the training label \emph{y}, a tensor of shape (\# data examples, \texttt{input\_size}).
+\item
+  \texttt{learning\_rate}: a simple float.
+\end{itemize}
+
+\begin{verbatim}
+    # Dimension = (
+    #     number of data examples, 
+    #     number of input in one computation step, 
+    #     number of numbers in one input
+    # )
+    # We don't know the number of examples beforehand, so it is None.
+    inputs = tf.placeholder(tf.float32, [None, config.num_steps, config.input_size])
+    targets = tf.placeholder(tf.float32, [None, config.input_size])
+    learning_rate = tf.placeholder(tf.float32, None)
+\end{verbatim}
+
+(4) This function returns one \href{https://www.tensorflow.org/versions/r1.0/api_docs/python/tf/contrib/rnn/LSTMCell}{LSTMCell} with or without dropout operation.
+
+\begin{verbatim}
+    def _create_one_cell():
+        return tf.contrib.rnn.LSTMCell(config.lstm_size, state_is_tuple=True)
+        if config.keep_prob < 1.0:
+            return tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=config.keep_prob)
+\end{verbatim}
+
+(5) Let's stack the cells into multiple layers if needed. \texttt{MultiRNNCell} helps connect sequentially multiple simple cells to compose one cell.
+
+\begin{verbatim}
+    cell = tf.contrib.rnn.MultiRNNCell(
+        [_create_one_cell() for _ in range(config.num_layers)], 
+        state_is_tuple=True
+    ) if config.num_layers > 1 else _create_one_cell()
+\end{verbatim}
+
+(6) \href{https://www.tensorflow.org/api_docs/python/tf/nn/dynamic_rnn}{\texttt{tf.nn.dynamic\_rnn}} constructs a recurrent neural network specified by \texttt{cell} (RNNCell). It returns a pair of (model outpus, state), where the outputs \texttt{val} is of size (\texttt{batch\_size}, \texttt{num\_steps}, \texttt{lstm\_size}) by default. The state refers to the current state of the LSTM cell, not consumed here.
+
+\begin{verbatim}
+    val, _ = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32)
+\end{verbatim}
+
+(7) \href{https://www.tensorflow.org/api_docs/python/tf/transpose}{\texttt{tf.transpose}} converts the outputs from the dimension (\texttt{batch\_size}, \texttt{num\_steps}, \texttt{lstm\_size}) to (\texttt{num\_steps}, \texttt{batch\_size}, \texttt{lstm\_size}). Then the last output is picked.
+
+\begin{verbatim}
+    # Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)
+    # After transpose, val.get_shape() = (num_steps, batch_size, lstm_size)
+    val = tf.transpose(val, [1, 0, 2])
+    # last.get_shape() = (batch_size, lstm_size)
+    last = tf.gather(val, int(val.get_shape()[0]) - 1, name="last_lstm_output")
+\end{verbatim}
+
+(8) Define weights and biases between the hidden and output layers.
+
+\begin{verbatim}
+    weight = tf.Variable(tf.truncated_normal([config.lstm_size, config.input_size]))
+    bias = tf.Variable(tf.constant(0.1, shape=[config.input_size]))
+    prediction = tf.matmul(last, weight) + bias
+\end{verbatim}
+
+(9) We use mean square error as the loss metric and \href{http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf}{the RMSPropOptimizer algorithm} for gradient descent optimization.
+
+\begin{verbatim}
+    loss = tf.reduce_mean(tf.square(prediction - targets))
+    optimizer = tf.train.RMSPropOptimizer(learning_rate)
+    minimize = optimizer.minimize(loss)
+\end{verbatim}
+
+\subsection{\texorpdfstring{Start Training Session\hyperref[start-training-session]{\#}}{Start Training Session\#}}\label{start-training-session}
+
+(1) To start training the graph with real data, we need to start a \href{https://www.tensorflow.org/api_docs/python/tf/Session}{\texttt{tf.session}} first.
+
+\begin{verbatim}
+with tf.Session(graph=lstm_graph) as sess:
+\end{verbatim}
+
+(2) Initialize the variables as defined.
+
+\begin{verbatim}
+    tf.global_variables_initializer().run()
+\end{verbatim}
+
+(0) The learning rates for training epochs should have been precomputed beforehand. The index refers to the epoch index.
+
+\begin{verbatim}
+learning_rates_to_use = [
+    config.init_learning_rate * (
+        config.learning_rate_decay ** max(float(i + 1 - config.init_epoch), 0.0)
+    ) for i in range(config.max_epoch)]
+\end{verbatim}
+
+(3) Each loop below completes one epoch training.
+
+\begin{verbatim}
+    for epoch_step in range(config.max_epoch):
+        current_lr = learning_rates_to_use[epoch_step]
+        
+        # Check https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py
+        # if you are curious to know what is StockDataSet and how generate_one_epoch() 
+        # is implemented.
+        for batch_X, batch_y in stock_dataset.generate_one_epoch(config.batch_size):
+            train_data_feed = {
+                inputs: batch_X, 
+                targets: batch_y, 
+                learning_rate: current_lr
+            }
+            train_loss, _ = sess.run([loss, minimize], train_data_feed)
+\end{verbatim}
+
+(4) Don't forget to save your trained model at the end.
+
+\begin{verbatim}
+    saver = tf.train.Saver()
+    saver.save(sess, "your_awesome_model_path_and_name", global_step=max_epoch_step)
+\end{verbatim}
+
+The complete code is available \href{https://github.com/lilianweng/stock-rnn/blob/master/build_graph.py}{here}.
+
+\subsection{\texorpdfstring{Use TensorBoard\hyperref[use-tensorboard]{\#}}{Use TensorBoard\#}}\label{use-tensorboard}
+
+Building the graph without visualization is like drawing in the dark, very obscure and error-prone. \href{https://github.com/tensorflow/tensorboard}{Tensorboard} provides easy visualization of the graph structure and the learning process. Check out this \href{https://youtu.be/eBbEDRsCmv4}{hand-on tutorial}, only 20 min, but it is very practical and showcases several live demos.
+
+\textbf{Brief Summary}
+
+\begin{itemize}
+\tightlist
+\item
+  Use \texttt{with\ {[}tf.name\_scope{]}(https://www.tensorflow.org/api\_docs/python/tf/name\_scope)("your\_awesome\_module\_name"):} to wrap elements working on the similar goal together.
+\item
+  Many \texttt{tf.*} methods accepts \texttt{name=} argument. Assigning a customized name can make your life much easier when reading the graph.
+\item
+  Methods like \href{https://www.tensorflow.org/api_docs/python/tf/summary/scalar}{\texttt{tf.summary.scalar}} and \href{https://www.tensorflow.org/api_docs/python/tf/summary/histogram}{\texttt{tf.summary.histogram}} help track the values of variables in the graph during iterations.
+\item
+  In the training session, define a log file using \href{https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter}{\texttt{tf.summary.FileWriter}}.
+\end{itemize}
+
+\begin{verbatim}
+with tf.Session(graph=lstm_graph) as sess:
+    merged_summary = tf.summary.merge_all()
+    writer = tf.summary.FileWriter("location_for_keeping_your_log_files", sess.graph)
+    writer.add_graph(sess.graph)
+\end{verbatim}
+
+Later, write the training progress and summary results into the file.
+
+\begin{verbatim}
+_summary = sess.run([merged_summary], test_data_feed)
+writer.add_summary(_summary, global_step=epoch_step)  # epoch_step in range(config.max_epoch)
+\end{verbatim}
+
+\begin{figure}
+\centering
+\includegraphics{tensorboard1.png}
+\caption{Fig. 4a The RNN graph built by the example code. The "train" module has been "removed from the main graph", as it is not a real part of the model during the prediction time.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{tensorboard2.png}
+\caption{Fig. 4b Click the "output\_layer" module to expand it and check the structure in details.}
+\end{figure}
+
+The full working code is available in \href{https://github.com/lilianweng/stock-rnn}{github.com/lilianweng/stock-rnn}.
+
+\section{\texorpdfstring{Results\hyperref[results]{\#}}{Results\#}}\label{results}
+
+I used the following configuration in the experiment.
+
+\begin{verbatim}
+num_layers=1
+keep_prob=0.8
+batch_size = 64
+init_learning_rate = 0.001
+learning_rate_decay = 0.99
+init_epoch = 5
+max_epoch = 100
+num_steps=30
+\end{verbatim}
+
+(Thanks to Yury for cathcing a bug that I had in the price normalization. Instead of using the last price of the previous time window, I ended up with using the last price in the same window. The following plots have been corrected.)
+
+Overall predicting the stock prices is not an easy task. Especially after normalization, the price trends look very noisy.
+
+\begin{figure}
+\centering
+\includegraphics{rnn_input1_lstm32.png}
+\caption{Fig. 5a Predictoin results for the last 200 days in test data. Model is trained with input\_size=1 and lstm\_size=32.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{rnn_input1_lstm128.png}
+\caption{Fig. 5b Predictoin results for the last 200 days in test data. Model is trained with input\_size=1 and lstm\_size=128.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{rnn_input5_lstm128.png}
+\caption{Fig. 5c Predictoin results for the last 200 days in test data. Model is trained with input\_size=5, lstm\_size=128 and max\_epoch=75 (instead of 50).}
+\end{figure}
+
+The example code in this tutorial is available in \href{https://github.com/lilianweng/stock-rnn/tree/master/scripts}{github.com/lilianweng/stock-rnn:scripts}.
+
+{(Updated on Sep 14, 2017)} The model code has been updated to be wrapped into a class: \href{https://github.com/lilianweng/stock-rnn/blob/master/model_rnn.py}{LstmRNN}. The model training can be triggered by \href{https://github.com/lilianweng/stock-rnn/blob/master/main.py}{main.py}, such as:
+
+\begin{verbatim}
+python main.py --stock_symbol=SP500 --train --input_size=1 --lstm_size=128
+\end{verbatim}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/tutorial/}{Tutorial}
+\item
+  \href{https://lilianweng.github.io/tags/rnn/}{Rnn}
+\item
+  \href{https://lilianweng.github.io/tags/tensorflow/}{Tensorflow}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2017-07-22-stock-rnn-part-2/}{{« }\\
+{Predict Stock Prices Using RNN: Part 2}} \href{https://lilianweng.github.io/posts/2017-06-21-overview/}{{ »}\\
+{An Overview of Deep Learning for Curious People}}
+
+\href{https://twitter.com/intent/tweet/?text=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f&hashtags=tutorial\%2crnn\%2ctensorflow}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f&title=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201&summary=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f&title=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f}{} \href{https://api.whatsapp.com/send?text=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f}{} \href{https://telegram.me/share/url?text=Predict\%20Stock\%20Prices\%20Using\%20RNN\%3a\%20Part\%201&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2017-07-08-stock-rnn-part-1\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/}{Telegram}
+\end{center}
+
+
+
+\end{document}

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>How to Train Really Large Models on Many GPUs? | Lil&#39;Log</title>
+<meta name="keywords" content="architecture, transformer, foundation" />
+<meta name="description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2021-09-25-train-large/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-09-25-train-large/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="How to Train Really Large Models on Many GPUs?" />
+<meta property="og:description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2021-09-25-train-large/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-09-24T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2021-09-24T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="How to Train Really Large Models on Many GPUs?"/>
+<meta name="twitter:description" content="
+[Updated on 2022-03-13: add expert choice routing.]
+[Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: &ldquo;Techniques for Training Large Neural Networks&rdquo;"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "How to Train Really Large Models on Many GPUs?",
+      "item": "https://lilianweng.github.io/posts/2021-09-25-train-large/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How to Train Really Large Models on Many GPUs?",
+  "name": "How to Train Really Large Models on Many GPUs?",
+  "description": " [Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: \u0026ldquo;Techniques for Training Large Neural Networks\u0026rdquo;\n",
+  "keywords": [
+    "architecture", "transformer", "foundation"
+  ],
+  "articleBody": " [Updated on 2022-03-13: add expert choice routing.] [Updated on 2022-06-10]: Greg and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: “Techniques for Training Large Neural Networks”\nIn recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained language models. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time.\nHowever an individual GPU worker has limited memory and the sizes of many large models have grown beyond a single GPU. There are several parallelism paradigms to enable model training across multiple GPUs, as well as a variety of model architecture and memory saving designs to help make it possible to train very large neural networks.\nTraining Parallelism The main bottleneck for training very large neural network models is the intense demand for a large amount of GPU memory, way above what can be hosted on an individual GPU machine. Besides the model weights (e.g. tens of billions of floating point numbers), it is usually even more expensive to store intermediate computation outputs such as gradients and optimizer states (e.g. momentums \u0026 variations in Adam). Additionally training a large model often pairs with a large training corpus and thus a single process may just take forever.\nAs a result, parallelism is necessary. Parallelism can happen at different dimensions, including data, model architecture, and tensor operation.\nData Parallelism The most naive way for Data parallelism (DP) is to copy the same model weights into multiple workers and assign a fraction of data to each worker to be processed at the same time.\nNaive DP cannot work well if the model size is larger than a single GPU node’s memory. Methods like GeePS (Cui et al. 2016) offload temporarily unused parameters back to CPU to work with limited GPU memory when the model is too big to fit into one machine. The data swapping transfer should happen at the backend and not interfere with training computation.\nAt the end of each minibatch, workers need to synchronize gradients or weights to avoid staleness. There are two main synchronization approaches and both have clear pros \u0026 cons.\nBulk synchronous parallels (BSP): Workers sync data at the end of every minibatch. It prevents model weights staleness and good learning efficiency but each machine has to halt and wait for others to send gradients. Asynchronous parallel (ASP): Every GPU worker processes the data asynchronously, no waiting or stalling. However, it can easily lead to stale weights being used and thus lower the statistical learning efficiency. Even though it increases the computation time, it may not speed up training time to convergence. Somewhere in the middle is to synchronize gradients globally once every $x$ iterations ($x \u003e 1$). This feature is called “gradient accumulation” in Distribution Data Parallel (DDP) since Pytorch v1.5 (Li et al. 2021). Bucketing gradients avoid immediate AllReduce operations but instead buckets multiple gradients into one AllReduce to improve throughput. Computation and communication scheduling optimization can be made based on the computation graph.\nPseudo code for Pytorch DDP. (Image source: Li et al. 2021) Model Parallelism Model parallelism (MP) aims to solve the case when the model weights cannot fit into a single node. The computation and model parameters are partitioned across multiple machines. Different from data parallelism where each worker hosts a full copy of the entire model, MP only allocates a fraction of model parameters on one worker and thus both the memory usage and the computation are reduced.\nSince deep neural networks usually contain a stack of vertical layers, it feels straightforward to split a large model by layer, where a small consecutive set of layers are grouped into one partition on one worker. However, a naive implementation for running every data batch through multiple such workers with sequential dependency leads to big bubbles of waiting time and severe under-utilization of computation resources.\nA naive model parallelism setup where the model is vertically split into 4 partitions. Data is processed by one worker at a time due to sequential dependency, leading to large “bubbles” of idle time. (Image source: Huang et al. 2019) Pipeline Parallelism Pipeline parallelism (PP) combines model parallelism with data parallelism to reduce inefficient time “bubbles’’. The main idea is to split one minibatch into multiple microbatches and enable each stage worker to process one microbatch simultaneously. Note that every microbatch needs two passes, one forward and one backward. Inter-worker communication only transfers activations (forward) and gradients (backward). How these passes are scheduled and how the gradients are aggregated vary in different approaches. The number of partitions (workers) is also known as pipeline depth.\nIn GPipe (Huang et al. 2019) gradients from multiple microbatches are aggregated and applied synchronously at the end. The synchronous gradient descent guarantees learning consistency and efficiency irrespective of the number of workers. As shown in Fig. 3, bubbles still exist but are much smaller than what’s in Given $m$ evenly split microbatches and $d$ partitions, assuming both forward and backward per microbatch take one unit of time, the fraction of bubble is:\n$$ 1 - \\frac{2md}{(2m + 2(d-1))d} = \\frac{d-1}{m+d-1} $$ The GPipe paper observed that the bubble overhead is almost negligible if the number of microbatches is more than 4x the number of partitions $m \u003e 4d$ (when activation recomputation is applied).\nIllustration of pipeline parallelism in GPipe with 4 microbatches and 4 partitions. GPipe aggregates and updates gradients across devices synchronously at the end of every batch. (Image source: Huang et al. 2019) GPipe achieves almost linear speedup in throughput with the number of devices, although it is not always guaranteed if the model parameters are not evenly distributed across workers.\nPipeDream (Narayanan et al. 2019) schedules each worker to alternatively process the forward and backward passes (1F1B). PipeDream names each model partition “stage” and each stage worker can have multiple replicas to run data parallelism. In this process, PipeDream uses a deterministic round-robin load balancing strategy to assign work among multiple replicas of stages to ensure that the forward and backward passes for the same minibatch happen on the same replica.\nIllustration of `1F1B` microbatch scheduling in PipeDream. (Image source: Harlap et al. 2018) Since PipeDream does not have an end-of-batch global gradient sync across all the workers, an native implementation of 1F1B can easily lead to the forward and backward passes of one microbatch using different versions of model weights, thus lowering the learning efficiency. PipeDream proposed a few designs to tackle this issue:\nWeight stashing: Each worker keeps track of several model versions and makes sure that the same version of weights are used in the forward and backward passes given one data batch. Vertical sync (Optional): The version of model weights flows between stage workers together with activations and gradients. Then the computation adopts the corresponding stashed version propagated from the previous worker. This process keeps version consistency across workers. Note that it is asynchronous, different from GPipe. At the beginning of a training run, PipeDream first profiles the computation memory cost and time of each layer in the model and then optimizes a solution for partitioning layers into stages, which is a dynamic programming problem.\nResults for VGG16 on ILSVRC12. (Top) Accuracy vs time. The integer marks the number of stage workers. ASP = Asynchronous parallel \u0026 BSP = Bulk synchronous parallels. (Bottom) Training time speedup for different parallelism configurations. Straight pipeline refers to pipeline parallelism without data parallelism. (Image source: Harlap et al. 2018) Two variations of PipeDream were later proposed to reduce the memory footprint by stashed model versions (Narayanan et al. 2021).\nPipeDream-flush adds a globally synchronized pipeline flush periodically, just like GPipe. In this way, it greatly reduces the memory footprint (i.e. only maintain a single version of model weights) by sacrificing a little throughput.\nIllustration of pipeline scheduling in PipeDream-flush. (Image source: (Narayanan et al. 2021) PipeDream-2BW maintains only two versions of model weights, where “2BW” is short for “double-buffered weights”. It generates a new model version every $k$ microbatches and $k$ should be larger than the pipeline depth $d$, $k \u003e d$. A newly updated model version cannot fully replace the old version immediately since some leftover backward passes still depend on the old version. In total only two versions need to be saved so the memory cost is much reduced.\nIllustration of pipeline scheduling in PipeDream-2BW. (Image source: (Narayanan et al. 2021) Tensor Parallelism Both model and pipeline parallelisms split a model vertically. OTOH we can horizontally partition the computation for one tensor operation across multiple devices, named Tensor parallelism (TP).\nLet’s take the transformer as an example given its popularity. The transformer model mainly consists of layers of MLP and self-attention blocks. Megatron-LM (Shoeybi et al. 2020) adopts a simple way to parallelize intra-layer computation for MLP and self-attention.\nA MLP layer in a transformer contains a GEMM (General matrix multiply) followed by an non-linear GeLU transfer. Let’s split weight matrix $A$ by column:\n$$ \\begin{aligned} \\text{Split }A \u0026= [A_1, A_2] \\\\ Y \u0026=\\text{GeLU}(XA) \\\\ [Y_1, Y_2] \u0026= [\\text{GeLU}(XA_1), \\text{GeLU}(XA_2)] \\end{aligned} $$ The attention block runs GEMM with query ($Q$), key ($K$), and value weights ($V$) according to the above partitioning in parallel and then combines them with another GEMM to produce the attention head results.\n$$ \\text{Attention}(X, Q, K, V) = \\text{softmax}(\\frac{(XQ) (XK)^\\top}{\\sqrt{d_k}}) XV $$ Illustration of tensor parallelism for key transformer components proposed in Megatron-LM. (Image source: Shoeybi et al. 2020) Narayanan et al. (2021) combined pipeline, tensor and data parallelism with a new pipeline scheduling strategy and named their approach PTD-P. Instead of only positioning a continuous set of layers (“model chunk”) on a device, each worker can be assigned with multiple chunks of smaller continuous subsets of layers (e.g. device 1 has layers 1, 2, 9, 10; device 2 has layers 3, 4, 11, 12; each has two model chunks). The number of microbatches in one batch should be exactly divided by the number of workers ($m % d = 0$). If there are $v$ model chunks per worker, the pipeline bubble time can be reduced by a multiplier of $v$ compared to a GPipe scheduling.\n(Top) Default `1F1B` pipeline schedule as in PipeDream-flush. (Bottom) Interleaved 1F1B pipeline schedule. First model chunks are in dark colors and second chunks are in light colors. (Image source: Narayanan et al. 202)) Mixture-of-Experts (MoE) The Mixture-of-Experts (MoE) approach attracts a lot of attention recently as researchers (mainly from Google) try to push the limit of model size. The core of the idea is ensembling learning: Combination of multiple weak learners gives you a strong learner!\nWithin one deep neural network, ensembling can be implemented with a gating mechanism connecting multiple experts (Shazeer et al., 2017). The gating mechanism controls which subset of the network (e.g. which experts) should be activated to produce outputs. The paper named it “sparsely gated mixture-of-experts” (MoE) layer.\nPrecisely one MoE layer contains\n$n$ feed-forward networks as experts $\\{E_i\\}^n_{i=1}$ A trainable gating network $G$ to learn a probability distribution over $n$ experts so as to route the traffic to a few selected experts. Depending on the gating outputs, not every expert has to be evaluated. When the number of experts is too large, we can consider using a two-level hierarchical MoE.\nIllustration of a mixture-of-experts (MoE) layer. Only 2 out of $n$ experts are selected and activated by the gating network. (Image source: Shazeer et al., 2017) A simple choice of $G$ is to multiply the input with a trainable weight matrix $G_g$ and then do softmax: $G_\\sigma (x) = \\text{softmax}(x W_g)$. However, this produces a dense control vector for gating and does not help save computation resources because we don’t need to evaluate an expert only when $G^{(i)}(x)=0$. Thus the MoE layer only keeps the top $k$ values. It also adds tunable Gaussian noise into $G$ to improve load balancing. This mechanism is called noisy top-k gating.\n$$ \\begin{aligned} G(x) \u0026= \\text{softmax}( \\text{topk}(H(x), k)) \\\\ H^{(i)}(x) \u0026= (xW_g)^{(i)} + \\epsilon \\cdot \\text{softplus}((xW_\\text{noise})^{(i)} ); \\quad \\epsilon \\sim \\mathcal{N}(0, \\mathbf{1}) \\\\ \\text{topk}^{(i)}(v, k) \u0026= \\begin{cases} v^{(i)} \u0026 \\text{if }v^{(i)}\\text{ is in the top }k\\text{ elements of }v \\\\ -\\infty \u0026 \\text{otherwise} \\end{cases} \\end{aligned} $$ where the superscript $v^{(i)}$ denotes the i-th dimension of the vector $v$. The function $\\text{topk}(., k)$ selected the top $k$ dimensions with highest values by setting other dimensions to $-\\infty$.\nTo avoid the self-reinforcing effect that the gating network may favor a few strong experts all the time, Shazeer et al. (2017) proposed a soft constraint via an additional importance loss to encourage all the experts to have the same weights. It is equivalent to the square of the coefficient of variation of batchwise average value per expert.\n$$ L_\\text{aux} = w_\\text{aux} \\cdot \\text{CV}(\\sum_{x \\in X} G(x))^2 $$ where $ \\text{CV}$ is the coefficient of variation and the loss weight $w_\\text{aux}$ is a hyperparameter to tune.\nBecause every expert network only gets a fraction of training samples (“The shrinking batch problem”), we should try to use a batch size as large as possible in MoE. However, it is restricted by GPU memory. Data parallelism and model parallelism can be applied to improve the throughput.\nTest perplexity on 1-Billion-Word language modeling benchmark. (Left) The model capacity increases from left to right, containing 4, 32, 256, 256, 1024 and 4096 experts. (Right) Performance of the 4 billion parameters MoE model, the largest one in the left figure, under different computation budgets. (Image source: Shazeer et al., 2017) GShard (Lepikhin et al., 2020) scales the MoE transformer model up to 600 billion parameters with sharding. The MoE transformer replaces every other feed forward layer with a MoE layer. The sharded MoE transformer only has the MoE layers sharded across multiple machines, while other layers are simply duplicated.\nThere are several improved designs for the gating function $G$ in GShard:\nExpert capacity: The amount of tokens going through one expert should not go above a threshold, named “expert capacity”. If a token is routed to experts that have reached their capacity, the token would be marked “overflowed” and the gating output is changed to a zero vector. Local group dispatching: Tokens are evenly partitioned into multiple local groups and the expert capacity is enforced on the group level. Auxiliary loss: The motivation is similar to the original MoE aux loss. They add an auxiliary loss to minimize the mean square of the fraction of data routed to each expert. Random routing: The 2nd-best expert is selected with a probability proportional to its weight; otherwise, GShard follows a random routing, so as to add some randomness. Pseudo code of the group-level top-2 gating mechanism with auxiliary loss in GShard. (Image source: Lepikhin et al., 2020) Switch Transformer (Fedus et al. 2021) scales the model size up to trillions of parameters (!!) by replacing the dense feed forward layer with a sparse switch FFN layer in which each input is only routed to one expert network. The auxiliary loss for load balancing is $\\text{loss}_\\text{aux} = w_\\text{aux} \\sum_{i=1}^n f_i p_i$ given $n$ experts, where $f_i$ is the fraction of tokens routed to the $i$-th expert and $p_i$ is the routing probability for expert $i$ predicted by the gating network.\nSwitch transformer. The sparse switch FFN layer is in the blue boxes. (Image source: Fedus et al. 2021) To improve training stability, switch transformer incorporates the following designs:\nSelective precision. They showed that selectively casting only a local part of the model to FP32 precision improves stability, while avoiding the expensive communication cost of FP32 tensors. The FP32 precision is only used within the body of the router function and the results are recast to FP16. Smaller initialization. The initialization of weight matrices is sampled from a truncated normal distribution with mean $\\mu=0$ and stdev $\\sigma = \\sqrt{s/n}$. They also recommended reducing the transformer initialization scale parameter $s=1$ to $s=0.1$. Use higher expert dropout. Fine-tuning often works with a small dataset. To avoid overfitting, the dropout rate within each expert is increased by a significant amount. Interestingly they found that increasing dropout across all layers lead to poor performance. In the paper, they used a dropout rate 0.1 at non-expert layers but 0.4 within expert FF layers. The switch transformer paper summarized different data and model parallelism strategies for training large models with a nice illustration:\nAn illustration of various parallelism strategies on how (Top) model weights and (Bottom) data are split over multiple GPU cores. In the top row, each color denotes a unique weight matrix. In the bottom row, different colors indicate different sets of tokens. (Image source: Fedus et al. 2021) Both GShard top-2 and Switch Transformer top-1 depend on token choice, where each token picks the best one or two experts to route through. They both adopt an auxiliary loss to encourage more balanced load allocation but it does not guarantee the best performance. Furthermore, the expert capacity limit may lead to wasted tokens as they would be discarded if an expert reaches its capacity limit.\nExport Choice (EC) (Zhou et al. 2022) routing instead enables each expert to select the top-$k$ tokens. In this way, each expert naturally guarantees a fixed capacity and each token may be routed to multiple experts. EC can achieve perfect load balancing and is shown to improve training convergence by 2x.\nGiven $e$ experts and an input matrix $X \\in \\mathbb{R}^{n \\times d}$, the token-to-expert affinity scores are computed by: $$ S = \\text{softmax}(X \\cdot W_g), \\text{where } W_g \\in \\mathbb{R}^{d \\times e}, S \\in \\mathbb{R}^{n \\times e} $$\nA token-to-expert assignment is represented by three matrices, $I, G \\in \\mathbb{R}^{e\\times k}$ and $P \\in \\mathbb{R}^{e \\times k \\times n}$. $I[i,j]$ annotates which token is the $j$-th selection by the $i$-th expert. The gating matrix $G$ stores the routing weights of selected tokens. $P$ is the one-hot version of $I$, used to produce the input matrix ($P \\cdot X \\in \\mathbb{R}^{e \\times k \\times d}$) for the gated FFN layer. $$ G, I = \\text{top-k}(S^\\top, k)\\quad P = \\text{one-hot}(I) $$\nOne regularization that export choice routing explored is to limit the maximum number of experts per token.\n$$ \\begin{aligned} \u0026 \\max_A \\langle S^\\top, A\\rangle + \\lambda H(A) \\\\ \\text{s.t.} \u0026 \\forall i: \\sum_{j'} A[i, j'] = k,\\quad \\forall j: \\sum_{i'} A[i', j] \\leq b,\\quad \\forall i,j: 0 \\leq A[i,j] \\leq 1 \\end{aligned} $$ where each entry $A[i,j]$ in $A \\in \\mathbb{R}^{e \\times n}$ marks whether the $i$-the expert selects the $j$-th token. Solving this is non-trivial. The paper used Dykstra’s algorithm that runs a sequence of multiple iterative computation steps. Capped expert choice results in a slight decrease in the fine-tuning performance in the experiments.\nThe parameter $k$ is determined by $k=nc/e$, where $n$ is the total number of tokens in one batch and $c$ is a capacity factor indicating the average number of experts used by one token. The paper used $c=2$ in most experiments, but EC with $c=1$ still outperforms the top-1 token choice gating. Interestingly, $c=0.5$ only marginally hurts the training performance.\nOne big drawback of EC is that it does not work when the batch size is too small, neither for auto-regressive text generation, because it needs to know the future tokens to do the top-$k$ selection.\nOther Memory Saving Designs CPU Offloading When the GPU memory is full, one option is to offload temporarily unused data to CPU and read them back when needed later (Rhu et al. 2016). The idea of CPU offloading is straightforward but is less popular in recent years due to the slowdown it brings into the training time.\nActivation Recomputation Activation recomputation (also known as “activation checkpointing” or “gradient checkpointing”; Chen et al. 2016) is a smart yet simple idea to reduce memory footprint at the cost of computation time. It reduces the memory cost of training a $\\ell$ layer deep neural net to $O(\\sqrt{\\ell})$, which only additionally consumes an extra forward pass computation per batch.\nLet’s say, we evenly divide an $\\ell$-layer network into $d$ partitions. Only activations at partition boundaries are saved and communicated between workers. Intermediate activations at intra-partition layers are still needed for computing gradients so they are recomputed during backward passes. With activation recomputation, the memory cost for training $M(\\ell)$ is:\n$$ M(\\ell) =\\max_{i=1,\\dots,k} \\underbrace{\\text{cost-of-one-partition}(i)}_\\text{cost of back-propagation on the i-th partition} + \\underbrace{O(d)}_\\text{store intermediate outputs} = O(\\frac{\\ell}{d}) + O(d) $$ The minimum cost is $O(\\sqrt{\\ell})$ at $d=\\sqrt{\\ell}$.\nActivation recompuation trick can give sublinear memory cost with respect to the model size.\nThe memory cost of different memory saving algorithms. Sharing: Memory used by intermediate results is recycled when no longer needed. Inplace: Save the output directly into memory of an input value. (Image source: Chen et al. 2016) Mixed Precision Training Narang \u0026 Micikevicius et al. (2018) introduced a method to train models using half-precision floating point (FP16) numbers without losing model accuracy.\nThe procedure of mixed precision training at one layer. (Image source: Narang \u0026 Micikevicius, et al. 2018) Three techniques to avoid losing critical information at half-precision:\nFull-precision master copy of weights. Maintain a full precision (FP32) copy of model weights that accumulates gradients. The numbers are rounded up to half-precision for forward \u0026 backward passes. The motivation is that each gradient update (i.e. gradient times the learning rate) might be too small to be fully contained within the FP16 range (i.e. $2^{-24}$ becomes zero in FP16). Loss scaling. Scale up the loss to better handle gradients with small magnitudes (See Fig. 16). Scaling up the gradients helps shift them to occupy a larger section towards the right section (containing larger values) of the representable range, preserving values that are otherwise lost. Arithmetic precision. For common network arithmetic (e.g. vector dot-product, reduction by summing up vector elements), we can accumulate the partial results in FP32 and then save the final output as FP16 before saving into memory. Point-wise operations can be executed in either FP16 or FP32. The histogram of gradients in full precision. The left part up to $2^{-24}$ will be zero-ed off once the model switches to FP16. (Image source: Narang \u0026 Micikevicius, et al. 2018) In their experiments, loss scaling is not needed for some networks (e.g. image classification, Faster R-CNN), but necessary for others (e.g. Multibox SSD, big LSTM language model).\nCompression Intermediate results often consume a lot of memory, although they are only needed in one forward pass and one backward pass. There is a noticeable temporal gap between these two uses. Thus Jain et al. (2018) proposed a data encoding strategy to compress the intermediate results after the first use in the first pass and then decode it back for back-propagation later.\nTheir system Gist incorporates two encoding schemes: Layer-specific lossless encoding; focus on ReLU-Pool (“Binarize”) and ReLU-Conv (“Sparse storage and dense computation”) patterns. Aggressive lossy encoding; use delayed precision reduction (DPR). They observed that the first immediate use of feature maps should be kept at high precision but the second use can tolerate lower precision.\nThe experiments showed that Gist can reduce the memory cost by 2x across 5 SOTA image classification DNNs, with an average of 1.8x with only 4% performance overhead.\nMemory Efficient Optimizer Optimizers are eager for memory consumption. Take the popular Adam optimizer as an example, it internally needs to maintain momentums and variances, both at the same scale as gradients and model parameters. All out of a sudden, we need to save 4x the memory of model weights.\nSeveral optimizers have been proposed to reduce the memory footprint. For example, instead of storing the full momentums and variations as in Adam, Adafactor (Shazeer et al. 2018) only tracks the per-row and per-column sums of the moving averages and then estimates the second moments based on these sums. SM3 (Anil et al. 2019) describes a different adaptive optimization method, leading to largely reduced memory as well.\nZeRO (Zero Redundancy Optimizer; Rajbhandari et al. 2019) optimizes the memory used for training large models based on the observation about two major memory consumption of large model training:\nThe majority is occupied by model states, including optimizer states (e.g. Adam momentums and variances), gradients and parameters. Mixed-precision training demands a lot of memory since the optimizer needs to keep a copy of FP32 parameters and other optimizer states, besides the FP16 version. The remaining is consumed by activations, temporary buffers and unusable fragmented memory (named residual states in the paper). ZeRO combines two approaches, ZeRO-DP and ZeRO-R. ZeRO-DP is an enhanced data parallelism to avoid simple redundancy over model states. It partitions optimizer state, gradients and parameters across multiple data parallel processes via a dynamic communication schedule to minimize the communication volume. ZeRO-R optimizes the memory consumption of residual states, using partitioned activation recomputation, constant buffer size and on-the-fly memory defragmentation.\nCitation Cited as:\nWeng, Lilian. (Sep 2021). How to train really large models on many GPUs? Lil’Log. https://lilianweng.github.io/posts/2021-09-25-train-large/.\nOr\n@article{weng2021large, title = \"How to Train Really Large Models on Many GPUs?\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2021\", month = \"Sep\", url = \"https://lilianweng.github.io/posts/2021-09-25-train-large/\" } References [1] Li et al. “PyTorch Distributed: Experiences on Accelerating Data Parallel Training” VLDB 2020.\n[2] Cui et al. “GeePS: Scalable deep learning on distributed GPUs with a GPU-specialized parameter server” EuroSys 2016\n[3] Shoeybi et al. “Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism.” arXiv preprint arXiv:1909.08053 (2019).\n[4] Narayanan et al. “Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM.” arXiv preprint arXiv:2104.04473 (2021).\n[5] Huang et al. “GPipe: Efficient Training of Giant Neural Networks using Pipeline Parallelism.” arXiv preprint arXiv:1811.06965 (2018).\n[6] Narayanan et al. “PipeDream: Generalized Pipeline Parallelism for DNN Training.” SOSP 2019.\n[7] Narayanan et al. “Memory-Efficient Pipeline-Parallel DNN Training.” ICML 2021.\n[8] Shazeer et al. “The Sparsely-Gated Mixture-of-Experts Layer Noam.” arXiv preprint arXiv:1701.06538 (2017).\n[9] Lepikhin et al. “GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding.” arXiv preprint arXiv:2006.16668 (2020).\n[10] Fedus et al. “Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity.” arXiv preprint arXiv:2101.03961 (2021).\n[11] Narang \u0026 Micikevicius, et al. “Mixed precision training.” ICLR 2018.\n[12] Chen et al. 2016 “Training Deep Nets with Sublinear Memory Cost.” arXiv preprint arXiv:1604.06174 (2016).\n[13] Jain et al. “Gist: Efficient data encoding for deep neural network training.” ISCA 2018.\n[14] Shazeer \u0026 Stern. “Adafactor: Adaptive learning rates with sublinear memory cost.” arXiv preprint arXiv:1804.04235 (2018).\n[15] Anil et al. “Memory-Efficient Adaptive Optimization.” arXiv preprint arXiv:1901.11150 (2019).\n[16] Rajbhandari et al. “ZeRO: Memory Optimization Towards Training A Trillion Parameter Models Samyam.” arXiv preprint arXiv:1910.02054 (2019).\n[17] Zhou et al. “Mixture-of-Experts with Expert Choice Routing” arXiv preprint arXiv:2202.09368 (2022).\n",
+  "wordCount" : "4432",
+  "inLanguage": "en",
+  "datePublished": "2021-09-24T00:00:00Z",
+  "dateModified": "2021-09-24T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2021-09-25-train-large/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      How to Train Really Large Models on Many GPUs?
+    </h1>
+    <div class="post-meta">Date: September 24, 2021  |  Estimated Reading Time: 21 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#training-parallelism" aria-label="Training Parallelism">Training Parallelism</a><ul>
+                        
+                <li>
+                    <a href="#data-parallelism" aria-label="Data Parallelism">Data Parallelism</a></li>
+                <li>
+                    <a href="#model-parallelism" aria-label="Model Parallelism">Model Parallelism</a></li>
+                <li>
+                    <a href="#pipeline-parallelism" aria-label="Pipeline Parallelism">Pipeline Parallelism</a></li>
+                <li>
+                    <a href="#tensor-parallelism" aria-label="Tensor Parallelism">Tensor Parallelism</a></li></ul>
+                </li>
+                <li>
+                    <a href="#mixture-of-experts-moe" aria-label="Mixture-of-Experts (MoE)">Mixture-of-Experts (MoE)</a></li>
+                <li>
+                    <a href="#other-memory-saving-designs" aria-label="Other Memory Saving Designs">Other Memory Saving Designs</a><ul>
+                        
+                <li>
+                    <a href="#cpu-offloading" aria-label="CPU Offloading">CPU Offloading</a></li>
+                <li>
+                    <a href="#activation-recomputation" aria-label="Activation Recomputation">Activation Recomputation</a></li>
+                <li>
+                    <a href="#mixed-precision-training" aria-label="Mixed Precision Training">Mixed Precision Training</a></li>
+                <li>
+                    <a href="#compression" aria-label="Compression">Compression</a></li>
+                <li>
+                    <a href="#memory-efficient-optimizer" aria-label="Memory Efficient Optimizer">Memory Efficient Optimizer</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time. This post reviews several popular training parallelism paradigms, as well as a variety of model architecture and memory saving designs to make it possible to train very large neural networks across a large number of GPUs. -->
+<p><span class="update">[Updated on 2022-03-13: add <a href="#ec">expert choice routing</a>.]</span><br/>
+<span class="update">[Updated on 2022-06-10]: <a href="https://gregbrockman.com/">Greg</a> and I wrote a shorted and upgraded version of this post, published on OpenAI Blog: <a href="https://openai.com/blog/techniques-for-training-large-neural-networks/">&ldquo;Techniques for Training Large Neural Networks&rdquo;</a></p>
+<p>In recent years, we are seeing better results on many NLP benchmark tasks with larger pre-trained <a href="https://lilianweng.github.io/posts/2019-01-31-lm/">language models</a>. How to train large and deep neural networks is challenging, as it demands a large amount of GPU memory and a long horizon of training time.</p>
+<p>However an individual GPU worker has limited memory and the sizes of many large models have grown beyond a single GPU. There are several parallelism paradigms to enable model training across multiple GPUs, as well as a variety of model architecture and memory saving designs to help make it possible to train <em>very large</em> neural networks.</p>
+<h1 id="training-parallelism">Training Parallelism<a hidden class="anchor" aria-hidden="true" href="#training-parallelism">#</a></h1>
+<p>The main bottleneck for training very large neural network models is the intense demand for a large amount of GPU memory, way above what can be hosted on an individual GPU machine. Besides the model weights (e.g. tens of billions of floating point numbers), it is usually even more expensive to store intermediate computation outputs such as gradients and optimizer states (e.g. momentums &amp; variations in Adam). Additionally training a large model often pairs with a large training corpus and thus a single process may just take forever.</p>
+<p>As a result, parallelism is necessary. Parallelism can happen at different dimensions, including data, model architecture, and tensor operation.</p>
+<h2 id="data-parallelism">Data Parallelism<a hidden class="anchor" aria-hidden="true" href="#data-parallelism">#</a></h2>
+<p>The most naive way for <strong>Data parallelism (DP)</strong>  is to copy the same model weights into multiple workers and assign a fraction of data to each worker to be processed at the same time.</p>
+<p>Naive DP cannot work well if the model size is larger than a single GPU node’s memory. Methods like <em>GeePS</em> (<a href="https://www.pdl.cmu.edu/PDL-FTP/CloudComputing/GeePS-cui-eurosys16.pdf">Cui et al. 2016</a>) offload temporarily unused parameters back to CPU to work with limited GPU memory when the model is too big to fit into one machine. The data swapping transfer should happen at the backend and not interfere with training computation.</p>
+<p>At the end of each minibatch, workers need to synchronize gradients or weights to avoid staleness. There are two main synchronization approaches and both have clear pros &amp; cons.</p>
+<ol>
+<li><em>Bulk synchronous parallels (BSP)</em>: Workers sync data at the end of every minibatch. It prevents model weights staleness and good learning efficiency but each machine has to halt and wait for others to send gradients.</li>
+<li><em>Asynchronous  parallel (ASP)</em>: Every GPU worker processes the data asynchronously, no waiting or stalling. However, it can easily lead to stale weights being used and thus lower the statistical learning efficiency. Even though it increases the computation time, it may not speed up training time to convergence.</li>
+</ol>
+<p>Somewhere in the middle is to synchronize gradients globally once every $x$ iterations ($x &gt; 1$). This feature is called “gradient accumulation” in Distribution Data Parallel (<a href="https://pytorch.org/tutorials/intermediate/ddp_tutorial.html">DDP</a>) since Pytorch v1.5 (<a href="https://arxiv.org/abs/2006.15704">Li et al. 2021</a>). Bucketing gradients avoid immediate <code>AllReduce</code> operations but instead buckets multiple gradients into one <code>AllReduce</code> to improve throughput. Computation and communication scheduling optimization can be made based on the computation graph.</p>
+<figure>
+	<img src="pytorch-ddp.png" style="width: 68%;"  />
+	<figcaption>Pseudo code for Pytorch DDP. (Image source: <a href="https://arxiv.org/abs/2006.15704" target="_blank">Li et al. 2021</a>)</figcaption>
+</figure>
+<h2 id="model-parallelism">Model Parallelism<a hidden class="anchor" aria-hidden="true" href="#model-parallelism">#</a></h2>
+<p><strong>Model parallelism (MP)</strong> aims to solve the case when the model weights cannot fit into a single node. The computation and model parameters are partitioned across multiple machines. Different from data parallelism where each worker hosts a full copy of the entire model, MP only allocates a fraction of model parameters on one worker and thus both the memory usage and the computation are reduced.</p>
+<p>Since deep neural networks usually contain a stack of vertical layers, it feels straightforward to split a large model by layer, where a small consecutive set of layers are grouped into one partition on one worker. However, a naive implementation for running every data batch through multiple such workers with sequential dependency leads to big bubbles of waiting time and severe under-utilization of computation resources.</p>
+<figure>
+	<img src="naive-data-parallelism.png" style="width: 90%;"  />
+	<figcaption>A naive model parallelism setup where the model is vertically split into 4 partitions. Data is processed by one worker at a time due to sequential dependency, leading to large “bubbles” of idle time. (Image source: <a href="https://arxiv.org/abs/1811.06965" target="_blank">Huang et al. 2019</a>)</figcaption>
+</figure>
+<h2 id="pipeline-parallelism">Pipeline Parallelism<a hidden class="anchor" aria-hidden="true" href="#pipeline-parallelism">#</a></h2>
+<p><strong>Pipeline parallelism (PP)</strong> combines model parallelism with data parallelism to reduce inefficient time “bubbles&rsquo;&rsquo;. The main idea is to split one minibatch into multiple microbatches and enable each stage worker to process one microbatch simultaneously. Note that every microbatch needs two passes, one forward and one backward. Inter-worker communication only transfers activations (forward) and gradients (backward). How these passes are scheduled and how the gradients are aggregated vary in different approaches. The number of partitions (workers) is also known as <em>pipeline depth</em>.</p>
+<p>In <em>GPipe</em> (<a href="https://arxiv.org/abs/1811.06965">Huang et al. 2019</a>) gradients from multiple microbatches are aggregated and applied synchronously at the end. The synchronous gradient descent guarantees learning consistency and efficiency irrespective of the number of workers. As shown in Fig. 3, bubbles still exist but are much smaller than what’s in Given $m$ evenly split microbatches and $d$ partitions, assuming both forward and backward per microbatch take one unit of time, the fraction of bubble is:</p>
+<div>
+$$
+1 - \frac{2md}{(2m + 2(d-1))d} = \frac{d-1}{m+d-1}
+$$
+</div>
+<p>The GPipe paper observed that the bubble overhead is almost negligible if the number of microbatches is more than 4x the number of partitions $m &gt; 4d$ (when <a href="#activation-recomputation">activation recomputation</a> is applied).</p>
+<figure>
+	<img src="gpipe.png" style="width: 80%;"  />
+	<figcaption>Illustration of pipeline parallelism in GPipe with 4 microbatches and 4 partitions. GPipe aggregates and updates gradients across devices synchronously at the end of every batch. (Image source: <a href="https://arxiv.org/abs/1811.06965" target="_blank">Huang et al. 2019</a>)</figcaption>
+</figure>
+<p>GPipe achieves almost linear speedup in throughput with the number of devices, although it is not always guaranteed if the model parameters are not evenly distributed across workers.</p>
+<p><em>PipeDream</em> (<a href="https://cs.stanford.edu/~matei/papers/2019/sosp_pipedream.pdf">Narayanan et al. 2019</a>) schedules each worker to alternatively process the forward and backward passes (<code>1F1B</code>).
+PipeDream names each model partition “stage” and each stage worker can have multiple replicas to run data parallelism. In this process, PipeDream uses a deterministic round-robin load balancing strategy to assign work among multiple replicas of stages to ensure that the forward and backward passes for the same minibatch happen on the same replica.</p>
+<figure>
+	<img src="pipedream.png" style="width: 75%;"  />
+	<figcaption>Illustration of `1F1B` microbatch scheduling in PipeDream. (Image source: <a href="https://arxiv.org/abs/1806.03377" target="_blank">Harlap et al. 2018</a>)</figcaption>
+</figure>
+<p>Since PipeDream does not have an end-of-batch global gradient sync across all the workers, an native implementation of 1F1B can easily lead to the forward and backward passes of one microbatch using different versions of model weights, thus lowering the learning efficiency. PipeDream proposed a few designs to tackle this issue:</p>
+<ul>
+<li><em>Weight stashing</em>: Each worker keeps track of several model versions and makes sure that the same version of weights are used in the forward and backward passes given one data batch.</li>
+<li><em>Vertical sync</em> (Optional): The version of model weights flows between stage workers together with activations and gradients. Then the computation adopts the corresponding stashed version propagated from the previous worker. This process keeps version consistency across workers. Note that it is asynchronous, different from GPipe.</li>
+</ul>
+<p>At the beginning of a training run, PipeDream first profiles the computation memory cost and time of each layer in the model and then optimizes a solution for partitioning layers into stages, which is a dynamic programming problem.</p>
+<figure>
+	<img src="pipedream-results.png" style="width: 70%;"  />
+	<figcaption>Results for VGG16 on ILSVRC12. (Top) Accuracy vs time. The integer marks the number of stage workers. ASP =  Asynchronous  parallel & BSP = Bulk synchronous parallels. (Bottom) Training time speedup for different parallelism configurations. Straight pipeline refers to pipeline parallelism without data parallelism. (Image source: <a href="https://arxiv.org/abs/1806.03377" target="_blank">Harlap et al. 2018</a>)</figcaption>
+</figure>
+<p>Two variations of PipeDream were later proposed to reduce the memory footprint by stashed model versions (<a href="https://arxiv.org/abs/2006.09503">Narayanan et al. 2021</a>).</p>
+<p><em>PipeDream-flush</em> adds a globally synchronized pipeline flush periodically, just like GPipe. In this way, it greatly reduces the memory footprint (i.e. only maintain a single version of model weights) by sacrificing a little throughput.</p>
+<figure>
+	<img src="pipedream-flush.png" style="width: 70%;"  />
+	<figcaption>Illustration of pipeline scheduling in PipeDream-flush. (Image source: (<a href="https://arxiv.org/abs/2006.09503" target="_blank">Narayanan et al. 2021</a>)</figcaption>
+</figure>
+<p><em>PipeDream-2BW</em> maintains only two versions of model weights, where “2BW” is short for “double-buffered weights”. It generates a new model version every $k$ microbatches and $k$ should be larger than the pipeline depth $d$, $k &gt; d$. A newly updated model version cannot fully replace the old version immediately since some leftover backward passes still depend on the old version. In total only two versions need to be saved so the memory cost is much reduced.</p>
+<figure>
+	<img src="pipedream-2bw.png" style="width: 95%;"  />
+	<figcaption>Illustration of pipeline scheduling in PipeDream-2BW. (Image source: (<a href="https://arxiv.org/abs/2006.09503" target="_blank">Narayanan et al. 2021</a>)</figcaption>
+</figure>
+<h2 id="tensor-parallelism">Tensor Parallelism<a hidden class="anchor" aria-hidden="true" href="#tensor-parallelism">#</a></h2>
+<p>Both model and pipeline parallelisms split a model vertically. OTOH we can horizontally partition the computation for one tensor operation across multiple devices, named <strong>Tensor parallelism (TP)</strong>.</p>
+<p>Let&rsquo;s take the transformer as an example given its popularity. The transformer model mainly consists of layers of MLP and self-attention blocks. <em>Megatron-LM</em> (<a href="https://arxiv.org/abs/1909.08053">Shoeybi et al. 2020</a>) adopts a simple way to parallelize intra-layer computation for MLP and self-attention.</p>
+<p>A MLP layer in a transformer contains a GEMM (General matrix multiply) followed by an non-linear GeLU transfer. Let’s split weight matrix $A$ by column:</p>
+<div>
+$$
+\begin{aligned}
+\text{Split }A &= [A_1, A_2] \\
+Y &=\text{GeLU}(XA) \\
+[Y_1, Y_2] &= [\text{GeLU}(XA_1), \text{GeLU}(XA_2)]
+\end{aligned}
+$$
+</div>
+<p>The attention block runs GEMM with query ($Q$), key ($K$), and value weights ($V$) according to the above partitioning in parallel and then combines them with another GEMM to produce the attention head results.</p>
+<div>
+$$
+\text{Attention}(X, Q, K, V) = \text{softmax}(\frac{(XQ) (XK)^\top}{\sqrt{d_k}}) XV
+$$
+</div>
+<figure>
+	<img src="Megatron-LM.png" style="width: 100%;"  />
+	<figcaption>Illustration of tensor parallelism for key transformer components proposed in Megatron-LM. (Image source: <a href="https://arxiv.org/abs/1909.08053" target="_blank">Shoeybi et al. 2020</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2104.04473">Narayanan et al. (2021)</a> combined pipeline, tensor and data parallelism with a new pipeline scheduling strategy and named their approach <em>PTD-P</em>. Instead of only positioning a continuous set of layers (“model chunk”) on a device, each worker can be assigned with multiple chunks of smaller continuous subsets of layers (e.g. device 1 has layers 1, 2, 9, 10; device 2 has layers 3, 4, 11, 12; each has two model chunks). The number of microbatches in one batch should be exactly divided by the number of workers ($m % d = 0$). If there are $v$ model chunks per worker, the pipeline bubble time can be reduced by a multiplier of $v$ compared to a GPipe scheduling.</p>
+<figure>
+	<img src="PTD-P-interleaved.png" style="width: 100%;"  />
+	<figcaption>(Top) Default `1F1B` pipeline schedule as in PipeDream-flush. (Bottom) Interleaved 1F1B pipeline schedule. First model chunks are in dark colors and second chunks are in light colors. (Image source: <a href="https://arxiv.org/abs/2104.04473" target="_blank">Narayanan et al. 202)</a>)</figcaption>
+</figure>
+<h1 id="mixture-of-experts-moe">Mixture-of-Experts (MoE)<a hidden class="anchor" aria-hidden="true" href="#mixture-of-experts-moe">#</a></h1>
+<p>The <strong>Mixture-of-Experts (MoE)</strong> approach attracts a lot of attention recently as researchers (mainly from Google) try to push the limit of model size. The core of the idea is <a href="https://en.wikipedia.org/wiki/Ensemble_learning">ensembling learning</a>: <em>Combination of multiple weak learners gives you a strong learner!</em></p>
+<p>Within one deep neural network, ensembling can be implemented with a gating mechanism connecting multiple experts (<a href="https://arxiv.org/abs/1701.06538">Shazeer et al., 2017</a>). The gating mechanism controls which subset of the network (e.g. which experts) should be activated to produce outputs. The paper named it &ldquo;sparsely gated mixture-of-experts&rdquo; (MoE) layer.</p>
+<p>Precisely one MoE layer contains</p>
+<ul>
+<li>$n$ feed-forward networks as experts $\{E_i\}^n_{i=1}$</li>
+<li>A trainable gating network $G$ to learn a probability distribution over $n$ experts so as to route the traffic to a few selected experts.</li>
+</ul>
+<p>Depending on the gating outputs, not every expert has to be evaluated. When the number of experts is too large, we can consider using a two-level hierarchical MoE.</p>
+<figure>
+	<img src="moe.png" style="width: 100%;"  />
+	<figcaption>Illustration of a mixture-of-experts (MoE) layer. Only 2 out of $n$ experts are selected and activated by the gating network. (Image source: <a href="https://arxiv.org/abs/1701.06538" target="_blank">Shazeer et al., 2017</a>)</figcaption>
+</figure>
+<p>A simple choice of $G$ is to multiply the input with a trainable weight matrix $G_g$ and then do softmax: $G_\sigma (x) = \text{softmax}(x W_g)$. However, this produces a dense control vector for gating and does not help save computation resources because we don&rsquo;t need to evaluate an expert only when $G^{(i)}(x)=0$. Thus the MoE layer only keeps the top $k$ values. It also adds tunable Gaussian noise into $G$ to improve load balancing. This mechanism is called <em>noisy top-k gating</em>.</p>
+<div>
+$$
+\begin{aligned} 
+G(x) &= \text{softmax}( \text{topk}(H(x), k)) \\
+H^{(i)}(x) &= (xW_g)^{(i)} + \epsilon \cdot \text{softplus}((xW_\text{noise})^{(i)} ); \quad \epsilon \sim \mathcal{N}(0, \mathbf{1}) \\
+\text{topk}^{(i)}(v, k) &= \begin{cases} v^{(i)} & \text{if }v^{(i)}\text{ is in the top }k\text{ elements of }v \\ -\infty & \text{otherwise} 
+\end{cases} 
+\end{aligned}
+$$
+</div>
+<p>where the superscript $v^{(i)}$ denotes the i-th dimension of the vector $v$. The function $\text{topk}(., k)$ selected the top $k$ dimensions with highest values by setting other dimensions to $-\infty$.</p>
+<p>To avoid the self-reinforcing effect that the gating network may favor a few strong experts all the time, <a href="https://arxiv.org/abs/1701.06538">Shazeer et al. (2017)</a> proposed a soft constraint via an additional importance loss to encourage all the experts to have the same weights. It is equivalent to the square of the <a href="https://en.wikipedia.org/wiki/Coefficient_of_variation">coefficient of variation</a> of batchwise average value per expert.</p>
+<div>
+$$
+L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
+$$
+</div>
+<p>where $ \text{CV}$ is the coefficient of variation and the loss weight $w_\text{aux}$ is a hyperparameter to tune.</p>
+<p>Because every expert network only gets a fraction of training samples (&ldquo;The shrinking batch problem&rdquo;), we should try to use a batch size as large as possible in MoE. However, it is restricted by GPU memory. Data parallelism and model parallelism can be applied to improve the throughput.</p>
+<figure>
+	<img src="moe-experiments.png" style="width: 100%;"  />
+	<figcaption>Test perplexity on 1-Billion-Word language modeling benchmark. (Left) The model capacity increases from left to right, containing 4, 32, 256, 256, 1024 and 4096 experts. (Right) Performance of the 4 billion parameters MoE model, the largest one in the left figure, under different computation budgets. (Image source: <a href="https://arxiv.org/abs/1701.06538" target="_blank">Shazeer et al., 2017</a>)</figcaption>
+</figure>
+<p><strong>GShard</strong> (<a href="https://arxiv.org/abs/2006.16668">Lepikhin et al., 2020</a>) scales the MoE transformer model up to 600 billion parameters with sharding. The MoE transformer replaces every other feed forward layer with a MoE layer. The <em>sharded MoE transformer</em> only has the MoE layers sharded across multiple machines, while other layers are simply duplicated.</p>
+<p>There are several improved designs for the gating function $G$ in GShard:</p>
+<ul>
+<li><em>Expert capacity</em>: The amount of tokens going through one expert should not go above a threshold, named “expert capacity”. If a token is routed to experts that have reached their capacity, the token would be marked “overflowed” and the gating output is changed to a zero vector.</li>
+<li><em>Local group dispatching</em>: Tokens are evenly partitioned into multiple local groups and the expert capacity is enforced on the group level.</li>
+<li><em>Auxiliary loss</em>: The motivation is similar to the original MoE aux loss. They add an auxiliary loss to minimize the mean square of the fraction of data routed to each expert.</li>
+<li><em>Random routing</em>: The 2nd-best expert is selected with a probability proportional to its weight; otherwise, GShard follows a random routing, so as to add some randomness.</li>
+</ul>
+<figure>
+	<img src="gshard-algo.png" style="width: 100%;"  />
+	<figcaption>Pseudo code of the group-level top-2 gating mechanism with auxiliary loss in GShard. (Image source: <a href="https://arxiv.org/abs/2006.16668" target="_blank">Lepikhin et al., 2020</a>)</figcaption>
+</figure>
+<p><strong>Switch Transformer</strong> (<a href="https://arxiv.org/abs/2101.03961">Fedus et al. 2021</a>) scales the model size up to trillions of parameters (!!) by replacing the dense feed forward layer with a <em>sparse switch FFN layer</em> in which each input is only routed to <em>one</em> expert network. The auxiliary loss for load balancing is $\text{loss}_\text{aux} = w_\text{aux} \sum_{i=1}^n f_i p_i$ given $n$ experts, where $f_i$ is the fraction of tokens routed to the $i$-th expert and $p_i$ is the routing probability for expert $i$ predicted by the gating network.</p>
+<figure>
+	<img src="switch-transformer.png" style="width: 100%;"  />
+	<figcaption>Switch transformer. The sparse switch FFN layer is in the blue boxes. (Image source: <a href="https://arxiv.org/abs/2101.03961" target="_blank">Fedus et al. 2021</a>)</figcaption>
+</figure>
+<p>To improve training stability, switch transformer incorporates the following designs:</p>
+<ul>
+<li><em>Selective precision</em>. They showed that selectively casting only a local part of the model to FP32 precision improves stability, while avoiding the expensive communication cost of FP32 tensors. The FP32 precision is only used within the body of the router function and the results are recast to FP16.</li>
+<li><em>Smaller initialization</em>. The initialization of weight matrices is sampled from a truncated normal distribution with mean $\mu=0$ and stdev $\sigma = \sqrt{s/n}$. They also recommended reducing the transformer initialization scale parameter $s=1$ to $s=0.1$.</li>
+<li><em>Use higher expert dropout</em>. Fine-tuning often works with a small dataset. To avoid overfitting, the dropout rate within each expert is increased by a significant amount. Interestingly they found that increasing dropout across all layers lead to poor performance. In the paper, they used a dropout rate 0.1 at non-expert layers but 0.4 within expert FF layers.</li>
+</ul>
+<p>The switch transformer paper summarized different data and model parallelism strategies for training large models with a nice illustration:</p>
+<figure>
+	<img src="switch-transformer-parallelism.png" style="width: 100%;"  />
+	<figcaption>An illustration of various parallelism strategies on how (Top) model weights and (Bottom) data are split over multiple GPU cores. In the top row, each color denotes a unique weight matrix. In the bottom row, different colors indicate different sets of tokens.  (Image source: <a href="https://arxiv.org/abs/2101.03961" target="_blank">Fedus et al. 2021</a>)</figcaption>
+</figure>
+<p><a id="ec" ></a>Both GShard top-2 and Switch Transformer top-1 depend on <em>token choice</em>, where each token picks the best one or two experts to route through. They both adopt an auxiliary loss to encourage more balanced load allocation but it does not guarantee the best performance. Furthermore, the expert capacity limit may lead to wasted tokens as they would be discarded if an expert reaches its capacity limit.</p>
+<p><strong>Export Choice (EC)</strong> (<a href="https://arxiv.org/abs/2202.09368">Zhou et al. 2022</a>) routing instead enables each expert to select the top-$k$ tokens. In this way, each expert naturally guarantees a fixed capacity and each token may be routed to multiple experts. EC can achieve perfect load balancing and is shown to improve training convergence by 2x.</p>
+<p>Given $e$ experts and an input matrix $X \in \mathbb{R}^{n \times d}$, the token-to-expert affinity scores are computed by:
+$$
+S = \text{softmax}(X \cdot W_g), \text{where } W_g \in \mathbb{R}^{d \times e}, S \in \mathbb{R}^{n \times e}
+$$</p>
+<p>A token-to-expert assignment is represented by three matrices, $I, G \in \mathbb{R}^{e\times k}$ and $P \in \mathbb{R}^{e \times k \times n}$. $I[i,j]$ annotates which token is the $j$-th selection by the $i$-th expert. The gating matrix $G$ stores the routing weights of selected tokens. $P$ is the one-hot version of $I$, used to produce the input matrix ($P \cdot X \in \mathbb{R}^{e \times k \times d}$) for the gated FFN layer.
+$$
+G, I = \text{top-k}(S^\top, k)\quad P = \text{one-hot}(I)
+$$</p>
+<p>One regularization that export choice routing explored is to limit the maximum number of experts per token.</p>
+<div>
+$$
+\begin{aligned}
+& \max_A \langle S^\top, A\rangle + \lambda H(A) \\
+\text{s.t.} & 
+\forall i: \sum_{j'} A[i, j'] = k,\quad
+\forall j: \sum_{i'} A[i', j] \leq b,\quad
+\forall i,j: 0 \leq A[i,j] \leq 1
+\end{aligned}
+$$
+</div>
+<p>where each entry $A[i,j]$ in $A \in \mathbb{R}^{e \times n}$ marks whether the $i$-the expert selects the $j$-th token. Solving this is non-trivial. The paper used <a href="https://projecteuclid.org/journals/annals-of-probability/volume-13/issue-3/An-Iterative-Procedure-for-Obtaining-I-Projections-onto-the-Intersection/10.1214/aop/1176992918.full">Dykstra&rsquo;s algorithm</a> that runs a sequence of multiple iterative computation steps. Capped expert choice results in a slight decrease in the fine-tuning performance in the experiments.</p>
+<p>The parameter $k$ is determined by $k=nc/e$, where $n$ is the total number of tokens in one batch and $c$ is a capacity factor indicating the average number of experts used by one token. The paper used $c=2$ in most experiments, but EC with $c=1$ still outperforms the top-1 token choice gating. Interestingly, $c=0.5$ only marginally hurts the training performance.</p>
+<p>One big drawback of EC is that it does not work when the batch size is too small, neither for auto-regressive text generation, because it needs to know the future tokens to do the top-$k$ selection.</p>
+<h1 id="other-memory-saving-designs">Other Memory Saving Designs<a hidden class="anchor" aria-hidden="true" href="#other-memory-saving-designs">#</a></h1>
+<h2 id="cpu-offloading">CPU Offloading<a hidden class="anchor" aria-hidden="true" href="#cpu-offloading">#</a></h2>
+<p>When the GPU memory is full, one option is to offload temporarily unused data to CPU and read them back when needed later (<a href="https://arxiv.org/abs/1602.08124">Rhu et al. 2016</a>). The idea of <strong>CPU offloading</strong> is straightforward but is less popular in recent years due to the slowdown it brings into the training time.</p>
+<h2 id="activation-recomputation">Activation Recomputation<a hidden class="anchor" aria-hidden="true" href="#activation-recomputation">#</a></h2>
+<p><strong>Activation recomputation</strong> (also known as “activation checkpointing” or “gradient checkpointing”; <a href="https://arvix.org/abs/1604.06174">Chen et al. 2016</a>) is a smart yet simple idea to reduce memory footprint at the cost of computation time. It reduces the memory cost of training a $\ell$ layer deep neural net to $O(\sqrt{\ell})$, which only additionally consumes an extra forward pass computation per batch.</p>
+<p>Let&rsquo;s say, we evenly divide an $\ell$-layer network into $d$ partitions. Only activations at partition boundaries are saved and communicated between workers. Intermediate activations at intra-partition layers are still needed for computing gradients so they are recomputed during backward passes. With activation recomputation, the memory cost for training $M(\ell)$ is:</p>
+<div>
+$$
+M(\ell) 
+=\max_{i=1,\dots,k} \underbrace{\text{cost-of-one-partition}(i)}_\text{cost of back-propagation on the i-th partition} + \underbrace{O(d)}_\text{store intermediate outputs} 
+= O(\frac{\ell}{d}) + O(d)
+$$
+</div>
+<p>The minimum cost is $O(\sqrt{\ell})$ at $d=\sqrt{\ell}$.</p>
+<p>Activation recompuation trick can give sublinear memory cost with respect to the model size.</p>
+<figure>
+	<img src="activation-checkpointing.png" style="width: 100%;"  />
+	<figcaption>The memory cost of different memory saving algorithms. <u>Sharing</u>: Memory used by intermediate results is recycled when no longer needed. <u>Inplace</u>: Save the output directly into memory of an input value. (Image source: <a href="https://arvix.org/abs/1604.06174" target="_blank">Chen et al. 2016</a>)</figcaption>
+</figure>
+<h2 id="mixed-precision-training">Mixed Precision Training<a hidden class="anchor" aria-hidden="true" href="#mixed-precision-training">#</a></h2>
+<p><a href="https://arxiv.org/abs/1710.03740">Narang &amp; Micikevicius et al. (2018)</a> introduced a method to train models using half-precision floating point (FP16) numbers without losing model accuracy.</p>
+<figure>
+	<img src="mixed-precision-training.png" style="width: 80%;"  />
+	<figcaption>The procedure of mixed precision training at one layer. (Image source: <a href="https://arxiv.org/abs/1710.03740" target="_blank">Narang & Micikevicius, et al. 2018</a>)</figcaption>
+</figure>
+<p>Three techniques to avoid losing critical information at half-precision:</p>
+<ul>
+<li><em>Full-precision master copy of weights</em>. Maintain a full precision (FP32) copy of model weights that accumulates gradients. The numbers are rounded up to half-precision for forward &amp; backward passes. The motivation is that each gradient update (i.e. gradient times the learning rate) might be too small to be fully contained within the FP16 range (i.e. $2^{-24}$ becomes zero in FP16).</li>
+<li><em>Loss scaling</em>. Scale up the loss to better handle gradients with small magnitudes (See Fig. 16). Scaling up the gradients helps shift them to occupy a larger section towards the right section (containing larger values) of the representable range, preserving values that are otherwise lost.</li>
+<li><em>Arithmetic precision</em>. For common network arithmetic (e.g. vector dot-product, reduction by summing up vector elements), we can accumulate the partial results in FP32 and then save the final output as FP16 before saving into memory. Point-wise operations can be executed in either FP16 or FP32.</li>
+</ul>
+<figure>
+	<img src="gradient-histogram.png" style="width: 60%;"  />
+	<figcaption>The histogram of gradients in full precision. The left part up to $2^{-24}$ will be zero-ed off once the model switches to FP16. (Image source: <a href="https://arxiv.org/abs/1710.03740" target="_blank">Narang & Micikevicius, et al. 2018</a>)</figcaption>
+</figure>
+<p>In their experiments, loss scaling is not needed for some networks (e.g. image classification, Faster R-CNN), but necessary for others (e.g. Multibox SSD, big LSTM language model).</p>
+<h2 id="compression">Compression<a hidden class="anchor" aria-hidden="true" href="#compression">#</a></h2>
+<p>Intermediate results often consume a lot of memory, although they are only needed in one forward pass and one backward pass. There is a noticeable temporal gap between these two uses. Thus <a href="https://www.microsoft.com/en-us/research/uploads/prod/2018/04/fiddle-gist-isca18.pdf">Jain et al. (2018)</a> proposed a data encoding strategy to compress the intermediate results after the first use in the first pass and then decode it back for back-propagation later.</p>
+<p>Their system <em>Gist</em> incorporates two encoding schemes:
+<em>Layer-specific lossless encoding</em>; focus on ReLU-Pool (“Binarize”) and ReLU-Conv (“Sparse storage and dense computation”) patterns.
+<em>Aggressive lossy encoding</em>; use delayed precision reduction (DPR). They observed that the first immediate use of feature maps should be kept at high precision but the second use can tolerate lower precision.</p>
+<p>The experiments showed that Gist can reduce the memory cost by 2x across 5 SOTA image classification DNNs, with an average of 1.8x with only 4% performance overhead.</p>
+<h2 id="memory-efficient-optimizer">Memory Efficient Optimizer<a hidden class="anchor" aria-hidden="true" href="#memory-efficient-optimizer">#</a></h2>
+<p>Optimizers are eager for memory consumption. Take the popular Adam optimizer as an example, it internally needs to maintain momentums and variances, both at the same scale as gradients and model parameters. All out of a sudden, we need to save 4x the memory of model weights.</p>
+<p>Several optimizers have been proposed to reduce the memory footprint.
+For example, instead of storing the full momentums and variations as in Adam, <em>Adafactor</em> (<a href="https://arxiv.org/abs/1804.04235">Shazeer et al. 2018</a>) only tracks the per-row and per-column sums of the moving averages and then estimates the second moments based on these sums. <em>SM3</em> (<a href="https://arxiv.org/abs/1901.11150">Anil et al. 2019</a>) describes a different adaptive optimization method, leading to largely reduced memory as well.</p>
+<p><em>ZeRO</em> (<em>Zero Redundancy Optimizer</em>; <a href="https://arxiv.org/abs/1910.02054">Rajbhandari et al. 2019</a>) optimizes the memory used for training large models based on the observation about two major memory consumption of large model training:</p>
+<ol>
+<li>The majority is occupied by <em>model states</em>, including optimizer states (e.g. Adam momentums and variances), gradients and parameters. Mixed-precision training demands a lot of memory since the optimizer needs to keep a copy of FP32 parameters and other optimizer states, besides the FP16 version.</li>
+<li>The remaining is consumed by activations, temporary buffers and unusable fragmented memory (named <em>residual states</em> in the paper).</li>
+</ol>
+<p>ZeRO combines two approaches, <em>ZeRO-DP</em> and <em>ZeRO-R</em>.
+ZeRO-DP is an enhanced data parallelism to avoid simple redundancy over model states. It partitions optimizer state, gradients and parameters across multiple data parallel processes via a dynamic communication schedule to minimize the communication volume.
+ZeRO-R optimizes the memory consumption of residual states, using partitioned activation recomputation, constant buffer size and on-the-fly memory defragmentation.</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Sep 2021). How to train really large models on many GPUs? Lil&rsquo;Log. https://lilianweng.github.io/posts/2021-09-25-train-large/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2021large,
+  title   = &#34;How to Train Really Large Models on Many GPUs?&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2021&#34;,
+  month   = &#34;Sep&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2021-09-25-train-large/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Li et al. <a href="https://arxiv.org/abs/2006.15704">“PyTorch Distributed: Experiences on Accelerating Data Parallel Training”</a> VLDB 2020.</p>
+<p>[2] Cui et al. <a href="https://www.pdl.cmu.edu/PDL-FTP/CloudComputing/GeePS-cui-eurosys16.pdf">“GeePS: Scalable deep learning on distributed GPUs with a GPU-specialized parameter server”</a> EuroSys 2016</p>
+<p>[3] Shoeybi et al. <a href="https://arxiv.org/abs/1909.08053">“Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism.”</a> arXiv preprint arXiv:1909.08053 (2019).</p>
+<p>[4] Narayanan et al. <a href="https://arxiv.org/abs/2104.04473">“Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM.”</a> arXiv preprint arXiv:2104.04473 (2021).</p>
+<p>[5] Huang et al. <a href="https://arxiv.org/abs/1811.06965">“GPipe: Efficient Training of Giant Neural Networks using Pipeline Parallelism.”</a> arXiv preprint arXiv:1811.06965 (2018).</p>
+<p>[6] Narayanan et al. <a href="https://cs.stanford.edu/~matei/papers/2019/sosp_pipedream.pdf">&ldquo;PipeDream: Generalized Pipeline Parallelism for DNN Training.&rdquo;</a> SOSP 2019.</p>
+<p>[7] Narayanan et al.  <a href="https://arxiv.org/abs/2006.09503">“Memory-Efficient Pipeline-Parallel DNN Training.”</a> ICML 2021.</p>
+<p>[8] Shazeer et al. <a href="https://arxiv.org/abs/1701.06538">“The Sparsely-Gated Mixture-of-Experts Layer Noam.”</a> arXiv preprint arXiv:1701.06538 (2017).</p>
+<p>[9] Lepikhin et al. <a href="https://arxiv.org/abs/2006.16668">“GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding.”</a> arXiv preprint arXiv:2006.16668 (2020).</p>
+<p>[10] Fedus et al. <a href="https://arxiv.org/abs/2101.03961">“Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity.”</a> arXiv preprint arXiv:2101.03961 (2021).</p>
+<p>[11] Narang &amp; Micikevicius, et al.  <a href="https://arxiv.org/abs/1710.03740">“Mixed precision training.”</a> ICLR 2018.</p>
+<p>[12] Chen et al. 2016 <a href="https://arxiv.org/abs/1604.06174">“Training Deep Nets with Sublinear Memory Cost.”</a> arXiv preprint arXiv:1604.06174 (2016).</p>
+<p>[13] Jain et al. <a href="https://www.microsoft.com/en-us/research/uploads/prod/2018/04/fiddle-gist-isca18.pdf">“Gist: Efficient data encoding for deep neural network training.”</a> ISCA 2018.</p>
+<p>[14] Shazeer &amp; Stern. <a href="https://arxiv.org/abs/1804.04235">“Adafactor: Adaptive learning rates with sublinear memory cost.”</a> arXiv preprint arXiv:1804.04235 (2018).</p>
+<p>[15] Anil et al. <a href="https://arxiv.org/abs/1901.11150">“Memory-Efficient Adaptive Optimization.”</a> arXiv preprint arXiv:1901.11150 (2019).</p>
+<p>[16] Rajbhandari et al. <a href="https://arxiv.org/abs/1910.02054">“ZeRO: Memory Optimization Towards Training A Trillion Parameter Models Samyam.”</a> arXiv preprint arXiv:1910.02054 (2019).</p>
+<p>[17] Zhou et al. <a href="https://arxiv.org/abs/2202.09368">“Mixture-of-Experts with Expert Choice Routing”</a> arXiv preprint arXiv:2202.09368 (2022).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/">
+    <span class="title">« </span>
+    <br>
+    <span>Learning with not Enough Data Part 1: Semi-Supervised Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/">
+    <span class="title"> »</span>
+    <br>
+    <span>What are Diffusion Models?</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on twitter"
+        href="https://twitter.com/intent/tweet/?text=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f&amp;hashtags=architecture%2ctransformer%2cfoundation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f&amp;title=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f&amp;summary=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f&title=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on whatsapp"
+        href="https://api.whatsapp.com/send?text=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share How to Train Really Large Models on Many GPUs? on telegram"
+        href="https://telegram.me/share/url?text=How%20to%20Train%20Really%20Large%20Models%20on%20Many%20GPUs%3f&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-09-25-train-large%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Learning with not Enough Data Part 2: Active Learning | Lil&#39;Log</title>
+<meta name="keywords" content="data, active-learning" />
+<meta name="description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Learning with not Enough Data Part 2: Active Learning" />
+<meta property="og:description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2022-02-20-active-learning/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-02-20T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2022-02-20T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Learning with not Enough Data Part 2: Active Learning"/>
+<meta name="twitter:description" content="
+This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Learning with not Enough Data Part 2: Active Learning",
+      "item": "https://lilianweng.github.io/posts/2022-02-20-active-learning/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Learning with not Enough Data Part 2: Active Learning",
+  "name": "Learning with not Enough Data Part 2: Active Learning",
+  "description": " This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.\n",
+  "keywords": [
+    "data", "active-learning"
+  ],
+  "articleBody": " This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.\nNotations Symbol Meaning $K$ Number of unique class labels. $(\\mathbf{x}^l, y) \\sim \\mathcal{X}, y \\in \\{0, 1\\}^K$ Labeled dataset. $y$ is a one-hot representation of the true label. $\\mathbf{u} \\sim \\mathcal{U}$ Unlabeled dataset. $\\mathcal{D} = \\mathcal{X} \\cup \\mathcal{U}$ The entire dataset, including both labeled and unlabeled examples. $\\mathbf{x}$ Any sample which can be either labeled or unlabeled. $\\mathbf{x}_i$ The $i$-th sample. $U(\\mathbf{x})$ Scoring function for active learning selection. $P_\\theta(y \\vert \\mathbf{x})$ A softmax classifier parameterized by $\\theta$. $\\hat{y} = \\arg\\max_{y \\in \\mathcal{Y}} P_\\theta(y \\vert \\mathbf{x})$ The most confident prediction by the classifier. $B$ Labeling budget (the maximum number of samples to label). $b$ Batch size. What is Active Learning? Given an unlabeled dataset $\\mathcal{U}$ and a fixed amount of labeling cost $B$, active learning aims to select a subset of $B$ examples from $\\mathcal{U}$ to be labeled such that they can result in maximized improvement in model performance. This is an effective way of learning especially when data labeling is difficult and costly, e.g. medical images. This classical survey paper in 2010 lists many key concepts. While some conventional approaches may not apply to deep learning, discussion in this post mainly focuses on deep neural models and training in batch mode.\nIllustration of a cyclic workflow of active learning, producing better models more efficiently by smartly choosing which samples to label. To simplify the discussion, we assume that the task is a $K$-class classification problem in all the following sections. The model with parameters $\\theta$ outputs a probability distribution over the label candidates, which may or may not be calibrated, $P_\\theta(y \\vert \\mathbf{x})$ and the most likely prediction is $\\hat{y} = \\arg\\max_{y \\in \\mathcal{Y}} P_\\theta(y \\vert \\mathbf{x})$.\nAcquisition Function The process of identifying the most valuable examples to label next is referred to as “sampling strategy” or “query strategy”. The scoring function in the sampling process is named “acquisition function”, denoted as $U(\\mathbf{x})$. Data points with higher scores are expected to produce higher value for model training if they get labeled.\nHere is a list of basic sampling strategies.\nUncertainty Sampling Uncertainty sampling selects examples for which the model produces most uncertain predictions. Given a single model, uncertainty can be estimated by the predicted probabilities, although one common complaint is that deep learning model predictions are often not calibrated and not correlated with true uncertainty well. In fact, deep learning models are often overconfident.\nLeast confident score, also known as variation ratio: $U(\\mathbf{x}) = 1 - P_\\theta(\\hat{y} \\vert \\mathbf{x})$. Margin score: $U(\\mathbf{x}) = P_\\theta(\\hat{y}_1 \\vert \\mathbf{x}) - P_\\theta(\\hat{y}_2 \\vert \\mathbf{x})$, where $\\hat{y}_1$ and $\\hat{y}_2$ are the most likely and the second likely predicted labels. Entropy: $U(\\mathbf{x}) = \\mathcal{H}(P_\\theta(y \\vert \\mathbf{x})) = - \\sum_{y \\in \\mathcal{Y}} P_\\theta(y \\vert \\mathbf{x}) \\log P_\\theta(y \\vert \\mathbf{x})$. Another way to quantify uncertainty is to rely on a committee of expert models, known as Query-By-Committee (QBC). QBC measures uncertainty based on a pool of opinions and thus it is critical to keep a level of disagreement among committee members. Given $C$ models in the committee pool, each parameterized by $\\theta_1, \\dots, \\theta_C$.\nVoter entropy: $U(\\mathbf{x}) = \\mathcal{H}(\\frac{V(y)}{C})$, where $V(y)$ counts the number of votes from the committee on the label $y$. Consensus entropy: $U(\\mathbf{x}) = \\mathcal{H}(P_\\mathcal{C})$, where $P_\\mathcal{C}$ is the prediction averaging across the committee. KL divergence: $U(\\mathbf{x}) = \\frac{1}{C} \\sum_{c=1}^C D_\\text{KL} (P_{\\theta_c} | P_\\mathcal{C})$ Diversity Sampling Diversity sampling intend to find a collection of samples that can well represent the entire data distribution. Diversity is important because the model is expected to work well on any data in the wild, just not on a narrow subset. Selected samples should be representative of the underlying distribution. Common approaches often rely on quantifying the similarity between samples.\nExpected Model Change Expected model change refers to the impact that a sample brings onto the model training. The impact can be the influence on the model weights or the improvement over the training loss. A later section reviews several works on how to measure model impact triggered by selected data samples.\nHybrid Strategy Many methods above are not mutually exclusive. A hybrid sampling strategy values different attributes of data points, combining different sampling preferences into one. Often we want to select uncertain but also highly representative samples.\nDeep Acquisition Function Measuring Uncertainty The model uncertainty is commonly categorized into two buckets (Der Kiureghian \u0026 Ditlevsen 2009, Kendall \u0026 Gal 2017):\nAleatoric uncertainty is introduced by noise in the data (e.g. sensor data, noise in the measurement process) and it can be input-dependent or input-independent. It is generally considered as irreducible since there is missing information about the ground truth. Epistemic uncertainty refers to the uncertainty within the model parameters and therefore we do not know whether the model can best explain the data. This type of uncertainty is theoretically reducible given more data Ensemble and Approximated Ensemble There is a long tradition in machine learning of using ensembles to improve model performance. When there is a significant diversity among models, ensembles are expected to yield better results. This ensemble theory is proved to be correct by many ML algorithms; for example, AdaBoost aggregates many weak learners to perform similar or even better than a single strong learner. Bootstrapping ensembles multiple trials of resampling to achieve more accurate estimation of metrics. Random forests or GBM is also a good example for the effectiveness of ensembling.\nTo get better uncertainty estimation, it is intuitive to aggregate a collection of independently trained models. However, it is expensive to train a single deep neural network model, let alone many of them. In reinforcement learning, Bootstrapped DQN (Osband, et al. 2016) is equipped with multiple value heads and relies on the uncertainty among an ensemble of Q value approximation to guide exploration in RL.\nIn active learning, a commoner approach is to use dropout to “simulate” a probabilistic Gaussian process (Gal \u0026 Ghahramani 2016). We thus ensemble multiple samples collected from the same model but with different dropout masks applied during the forward pass to estimate the model uncertainty (epistemic uncertainty). The process is named MC dropout (Monte Carlo dropout), where dropout is applied before every weight layer, is approved to be mathematically equivalent to an approximation to the probabilistic deep Gaussian process (Gal \u0026 Ghahramani 2016). This simple idea has been shown to be effective for classification with small datasets and widely adopted in scenarios when efficient model uncertainty estimation is needed.\nDBAL (Deep Bayesian active learning; Gal et al. 2017) approximates Bayesian neural networks with MC dropout such that it learns a distribution over model weights. In their experiment, MC dropout performed better than random baseline and mean standard deviation (Mean STD), similarly to variation ratios and entropy measurement.\nActive learning results of DBAL on MNIST. (Image source: Gal et al. 2017). Beluch et al. (2018) compared ensemble-based models with MC dropout and found that the combination of naive ensemble (i.e. train multiple models separately and independently) and variation ratio yields better calibrated predictions than others. However, naive ensembles are very expensive, so they explored a few alternative cheaper options:\nSnapshot ensemble: Use a cyclic learning rate schedule to train an implicit ensemble such that it converges to different local minima. Diversity encouraging ensemble (DEE): Use a base network trained for a small number of epochs as initialization for $n$ different networks, each trained with dropout to encourage diversity. Split head approach: One base model has multiple heads, each corresponding to one classifier. Unfortunately all the cheap implicit ensemble options above perform worse than naive ensembles. Considering the limit on computational resources, MC dropout is still a pretty good and economical choice. Naturally, people also try to combine ensemble and MC dropout (Pop \u0026 Fulop 2018) to get a bit of additional performance gain by stochastic ensemble.\nUncertainty in Parameter Space Bayes-by-backprop (Blundell et al. 2015) measures weight uncertainty in neural networks directly. The method maintains a probability distribution over the weights $\\mathbf{w}$, which is modeled as a variational distribution $q(\\mathbf{w} \\vert \\theta)$ since the true posterior $p(\\mathbf{w} \\vert \\mathcal{D})$ is not tractable directly. The loss is to minimize the KL divergence between $q(\\mathbf{w} \\vert \\theta)$ and $p(\\mathbf{w} \\vert \\mathcal{D})$,\n$$ \\begin{aligned} \\mathcal{L}(\\theta) \u0026= \\text{KL}[q(\\mathbf{w}\\vert\\theta) \\| p(\\mathbf{w} \\vert \\mathcal{D})] \\\\ \u0026= \\int q(\\mathbf{w}\\vert\\theta) \\log \\frac{q(\\mathbf{w}\\vert\\theta)}{p(\\mathbf{w}) p(\\mathcal{D}\\vert \\mathbf{w})} d\\mathbf{w} \\\\ \u0026= \\text{KL}[q(\\mathbf{w}\\vert\\theta) \\| p(w)] - \\mathbb{E}_{q(\\mathbf{w}\\vert\\theta)} [\\log p(\\mathcal{D} \\vert \\mathbf{w})] \\\\ \u0026\\approx \\log q(\\mathbf{w} \\vert \\theta) - \\log p(\\mathbf{w}) p(\\mathcal{D}\\vert \\mathbf{w}) \u0026 \\text{; monte carlo sampling; }q(\\mathbf{w} \\vert \\theta)\\text{ \u0026 }p(\\mathbf{w})\\text{ are close.} \\end{aligned} $$ The variational distribution $q$ is typically a Gaussian with diagonal covariance and each weight is sampled from $\\mathcal{N}(\\mu_i, \\sigma_i^2)$. To ensure non-negativity of $\\sigma_i$, it is further parameterized via softplus, $\\sigma_i = \\log(1 + \\exp(\\rho_i))$ where the variational parameters are $\\theta = \\{\\mu_i , \\rho_i\\}^d_{i=1}$.\nThe process of Bayes-by-backprop can be summarized as:\nSample $\\epsilon \\sim \\mathcal{N}(0, I)$ Let $\\mathbf{w} = \\mu + \\log(1+ \\exp(\\rho)) \\circ \\epsilon$ Let $\\theta = (\\mu, \\rho)$ Let $f(\\mathbf{w}, \\theta) = \\log q(\\mathbf{w} \\vert \\theta) - \\log p(\\mathbf{w})p(\\mathcal{D}\\vert \\mathbf{w})$ Calculate the gradient of $f(\\mathbf{w}, \\theta)$ w.r.t. to $\\mu$ and $\\rho$ and then update $\\theta$. Uncertainty is measured by sampling different model weights during inference. Loss Prediction The loss objective guides model training. A low loss value indicates that a model can make good and accurate predictions. Yoo \u0026 Kweon (2019) designed a loss prediction module to predict the loss value for unlabeled inputs, as an estimation of how good a model prediction is on the given data. Data samples are selected if the loss prediction module makes uncertain predictions (high loss value) for them. The loss prediction module is a simple MLP with dropout, that takes several intermediate layer features as inputs and concatenates them after a global average pooling.\nUse the model with a loss prediction module to do active learning selection. (Image source: Yoo \u0026 Kweon 2019) Let $\\hat{l}$ be the output of the loss prediction module and $l$ be the true loss. When training the loss prediction module, a simple MSE loss $=(l - \\hat{l})^2$ is not a good choice, because the loss decreases in time as the model learns to behave better. A good learning objective should be independent of the scale changes of the target loss. They instead rely on the comparison of sample pairs. Within each batch of size $b$, there are $b/2$ pairs of samples $(\\mathbf{x}_i, \\mathbf{x}_j)$ and the loss prediction model is expected to correctly predict which sample has a larger loss.\n$$ \\begin{aligned} \\mathcal{L}_\\text{loss}(\\mathbf{x}_i, \\mathbf{x}_j) \u0026= \\max\\big( 0, -\\mathbb{1}(l(\\mathbf{x}_i), l(\\mathbf{x}_j)) \\cdot (\\hat{l}(\\mathbf{x}_i) - \\hat{l}(\\mathbf{x}_j)) + \\epsilon \\big) \\\\ \\text{where } \\mathbb{1}(l_i, l_j) \u0026= \\begin{cases} +1 \u0026 \\text{if }l_i \u003e l_j \\\\ -1 \u0026 \\text{otherwise} \\end{cases} \\end{aligned} $$ where $\\epsilon$ is a predefined positive margin constant.\nIn experiments on three vision tasks, active learning selection based on the loss prediction performs better than random baseline, entropy based acquisition and core-set.\nActive learning results of loss prediction module based selection, in comparison with other approaches. (Image source: Yoo \u0026 Kweon 2019) Adversarial Setup Sinha et al. (2019) proposed a GAN-like setup, named VAAL (Variational Adversarial Active Learning), where a discriminator is trained to distinguish unlabeled data from labeled data. Interestingly, active learning acquisition criteria does not depend on the task performance in VAAL.\nIllustration of VAAL (Variational adversarial active learning). (Image source: Sinha et al. 2019) The $\\beta$-VAE learns a latent feature space $\\mathbf{z}^l \\cup \\mathbf{z}^u$, for labeled and unlabeled data respectively, aiming to trick the discriminator $D(.)$ that all the data points are from the labeled pool; The discriminator $D(.)$ predicts whether a sample is labeled (1) or not (0) based on a latent representation $\\mathbf{z}$. VAAL selects unlabeled samples with low discriminator scores, which indicates that those samples are sufficiently different from previously labeled ones. The loss for VAE representation learning in VAAL contains both a reconstruction part (minimizing the ELBO of given samples) and an adversarial part (labeled and unlabeled data is drawn from the same probability distribution $q_\\phi$):\n$$ \\begin{aligned} \\mathcal{L}_\\text{VAE} \u0026= \\lambda_1 \\mathcal{L}^\\text{rec}_\\text{VAE} + \\lambda_2 \\mathcal{L}^\\text{adv}_\\text{VAE} \\\\ \\mathcal{L}^\\text{rec}_\\text{VAE} \u0026= \\mathbb{E}[\\log p_\\theta(\\mathbf{x}^l \\vert \\mathbf{z}^l)] - \\beta \\text{KL}(q_\\phi(\\mathbf{z}^l \\vert \\mathbf{x}^l) \\| p(\\mathbf{\\tilde{z}})) + \\mathbb{E}[\\log p_\\theta(\\mathbf{u} \\vert \\mathbf{z}^u)] - \\beta \\text{KL}(q_\\phi(\\mathbf{z}^u \\vert \\mathbf{u}) \\| p(\\mathbf{\\tilde{z}})) \\\\ \\mathcal{L}^\\text{adv}_\\text{VAE} \u0026= - \\mathbb{E}[\\log D(q_\\phi (\\mathbf{z}^l \\vert \\mathbf{x}^l))] - \\mathbb{E}[\\log D(q_\\phi(\\mathbf{z}^u \\vert \\mathbf{u}))] \\end{aligned} $$ where $p(\\mathbf{\\tilde{z}})$ is a unit Gaussian as a predefined prior and $\\beta$ is the Lagrangian parameter.\nThe discriminator loss is:\n$$ \\mathcal{L}_D = -\\mathbb{E}[\\log D(q_\\phi (\\mathbf{z}^l \\vert \\mathbf{x}^l))] - \\mathbb{E}[\\log (1 - D(q_\\phi (\\mathbf{z}^u \\vert \\mathbf{u})))] $$ Experiment results of VAAL (variational adversarial active learning) on several image classification tasks. (Image source: Sinha et al. 2019 Ablation studies showed that jointly training VAE and discriminator is critical. Their results are robust to the biased initial labeled pool, different labeling budgets and noisy oracle.\nMAL (Minimax Active Learning; Ebrahimiet al. 2021) is an extension of VAAL. The MAL framework consists of an entropy minimizing feature encoding network $F$ followed by an entropy maximizing classifier $C$. This minimax setup reduces the distribution gap between labeled and unlabeled data.\nIllustration of the MAL (minimax active learning) framework. (Image source: Ebrahimiet al. 2021) A feature encoder $F$ encodes a sample into a $\\ell_2$-normalized $d$-dimensional latent vector. Assuming there are $K$ classes, a classifier $C$ is parameterized by $\\mathbf{W} \\in \\mathbb{R}^{d \\times K}$.\n(1) First $F$ and $C$ are trained on labeled samples by a simple cross entropy loss to achieve good classification results,\n$$ \\mathcal{L}_\\text{CE} = -\\mathbb{E}_{(\\mathbf{x}^l, y) \\sim \\mathcal{X}} \\sum_{k=1}^K \\mathbb{1}[k=y] \\log\\Big( \\sigma(\\frac{1}{T} \\frac{\\mathbf{W}^\\top F\\big(\\mathbf{x}^l)}{\\|F(\\mathbf{x}^l)\\|}\\big) \\Big) $$ (2) When training on the unlabeled examples, MAL relies on a minimax game setup\n$$ \\begin{aligned} \\mathcal{L}_\\text{Ent} \u0026= -\\sum^K_{k=1} p(y=k \\vert \\mathbf{u}) \\log p(y=k\\vert \\mathbf{u}) \\\\ \\theta^*_F, \\theta^*_C \u0026= \\min_F\\max_C \\mathcal{L}_\\text{Ent} \\\\ \\theta_F \u0026\\gets \\theta_F - \\alpha_1 \\nabla \\mathcal{L}_\\text{Ent} \\\\ \\theta_C \u0026\\gets \\theta_C + \\alpha_2 \\nabla \\mathcal{L}_\\text{Ent} \\end{aligned} $$ where,\nFirst, minimizing the entropy in $F$ encourages unlabeled samples associated with similar predicted labels to have similar features. Maximizing the entropy in $C$ adversarially makes the prediction to follow a more uniform class distribution. (My understanding here is that because the true label of an unlabeled sample is unknown, we should not optimize the classifier to maximize the predicted labels just yet.) The discriminator is trained in the same way as in VAAL.\nSampling strategy in MAL considers both diversity and uncertainty:\nDiversity: the score of $D$ indicates how similar a sample is to previously seen examples. A score closer to 0 is better to select unfamiliar data points. Uncertainty: use the entropy obtained by $C$. A higher entropy score indicates that the model cannot make a confident prediction yet. The experiments compared MAL to random, entropy, core-set, BALD and VAAL baselines, on image classification and segmentation tasks. The results look pretty strong.\nPerformance of MAL on ImageNet. (Table source: Ebrahimiet al. 2021) CAL (Contrastive Active Learning; Margatina et al. 2021) intends to select contrastive examples. If two data points with different labels share similar network representations $\\Phi(.)$, they are considered as contrastive examples in CAL. Given a pair of contrastive examples $(\\mathbf{x}_i, \\mathbf{x}_j)$, they should\n$$ d(\\Phi(\\mathbf{x}_i), \\Phi(\\mathbf{x}_j)) \u003c \\epsilon \\quad\\text{and}\\quad \\text{KL}(p(y\\vert \\mathbf{x}_i) \\| p(y\\vert \\mathbf{x}_j)) \\rightarrow \\infty $$ Given an unlabeled sample $\\mathbf{x}$, CAL runs the following process:\nSelect the top $k$ nearest neighbors in the model feature space among the labeled samples, $\\{(\\mathbf{x}^l_i, y_i\\}_{i=1}^M \\subset \\mathcal{X}$. Compute the KL divergence between the model output probabilities of $\\mathbf{x}$ and each in $\\{\\mathbf{x}^l\\}$. The contrastive score of $\\mathbf{x}$ is the average of these KL divergence values: $s(\\mathbf{x}) = \\frac{1}{M} \\sum_{i=1}^M \\text{KL}(p(y \\vert \\mathbf{x}^l_i | p(y \\vert \\mathbf{x}))$. Samples with high contrastive scores are selected for active learning. On a variety of classification tasks, the experiment results of CAL look similar to the entropy baseline.\nMeasuring Representativeness Core-sets Approach A core-set is a concept in computational geometry, referring to a small set of points that approximates the shape of a larger point set. Approximation can be captured by some geometric measure. In the active learning, we expect a model that is trained over the core-set to behave comparably with the model on the entire data points.\nSener \u0026 Savarese (2018) treats active learning as a core-set selection problem. Let’s say, there are $N$ samples in total accessible during training. During active learning, a small set of data points get labeled at every time step $t$, denoted as $\\mathcal{S}^{(t)}$. The upper bound of the learning objective can be written as follows, where the core-set loss is defined as the difference between average empirical loss over the labeled samples and the loss over the entire dataset including unlabelled ones.\n$$ \\begin{aligned} \\mathbb{E}_{(\\mathbf{x}, y) \\sim p} [\\mathcal{L}(\\mathbf{x}, y)] \\leq\u0026 \\bigg\\vert \\mathbb{E}_{(\\mathbf{x}, y) \\sim p} [\\mathcal{L}(\\mathbf{x}, y)] - \\frac{1}{N} \\sum_{i=1}^N \\mathcal{L}(\\mathbf{x}_i, y_i) \\bigg\\vert \u0026 \\text{; Generalization error}\\\\ +\u0026 \\frac{1}{\\vert \\mathcal{S}^{(t)} \\vert} \\sum_{j=1}^{\\vert \\mathcal{S}^{(t)} \\vert} \\mathcal{L}(\\mathbf{x}^l_j, y_j) \u0026 \\text{; Training error}\\\\ +\u0026 \\bigg\\vert \\frac{1}{N} \\sum_{i=1}^N \\mathcal{L}(\\mathbf{x}_i, y_i) - \\frac{1}{\\vert \\mathcal{S}^{(t)} \\vert} \\sum_{j=1}^{\\vert \\mathcal{S}^{(t)} \\vert} \\mathcal{L}(\\mathbf{x}^l_j, y_j) \\bigg\\vert \u0026 \\text{; Core-set error} \\end{aligned} $$ Then the active learning problem can be redefined as:\n$$ \\min_{\\mathcal{S}^{(t+1)} : \\vert \\mathcal{S}^{(t+1)} \\vert \\leq b} \\bigg\\vert \\frac{1}{N}\\sum_{i=1}^N \\mathcal{L}(\\mathbf{x}_i, y_i) - \\frac{1}{\\vert \\mathcal{S}^{(t)} \\cup \\mathcal{S}^{(t+1)} \\vert} \\sum_{j=1}^{\\vert \\mathcal{S}^{(t)} \\cup \\mathcal{S}^{(t+1)} \\vert} \\mathcal{L}(\\mathbf{x}^l_j, y_j) \\bigg\\vert $$ It is equivalent to the $k$-Center problem: choose $b$ center points such that the largest distance between a data point and its nearest center is minimized. This problem is NP-hard. An approximate solution depends on the greedy algorithm.\nActive learning results of core-sets algorithm in comparison with several common baselines on CIFAR-10, CIFAR-100, SVHN. (Image source: Sener \u0026 Savarese 2018) It works well on image classification tasks when there is a small number of classes. When the number of classes grows to be large or the data dimensionality increases (“curse of dimensionality”), the core-set method becomes less effective (Sinha et al. 2019).\nBecause the core-set selection is expensive, Coleman et al. (2020) experimented with a weaker model (e.g. smaller, weaker architecture, not fully trained) and found that empirically using a weaker model as a proxy can significantly shorten each repeated data selection cycle of training models and selecting samples, without hurting the final error much. Their method is referred to as SVP (Selection via Proxy).\nDiverse Gradient Embedding BADGE (Batch Active learning by Diverse Gradient Embeddings; Ash et al. 2020) tracks both model uncertainty and data diversity in the gradient space. Uncertainty is measured by the gradient magnitude w.r.t. the final layer of the network and diversity is captured by a diverse set of samples that span in the gradient space.\nUncertainty. Given an unlabeled sample $\\mathbf{x}$, BADGE first computes the prediction $\\hat{y}$ and the gradient $g_\\mathbf{x}$ of the loss on $(\\mathbf{x}, \\hat{y})$ w.r.t. the last layer’s parameters. They observed that the norm of $g_\\mathbf{x}$ conservatively estimates the example’s influence on the model learning and high-confidence samples tend to have gradient embeddings of small magnitude. Diversity. Given many gradient embeddings of many samples, $g_\\mathbf{x}$, BADGE runs $k$-means++ to sample data points accordingly. Algorithm of BADGE (batch active learning by diverse gradient embeddings). (Image source: Ash et al. 2020) Measuring Training Effects Quantify Model Changes Settles et al. (2008) introduced an active learning query strategy, named EGL (Expected Gradient Length). The motivation is to find samples that can trigger the greatest update on the model if their labels are known.\nLet $\\nabla \\mathcal{L}(\\theta)$ be the gradient of the loss function with respect to the model parameters. Specifically, given an unlabeled sample $\\mathbf{x}_i$, we need to calculate the gradient assuming the label is $y \\in \\mathcal{Y}$, $\\nabla \\mathcal{L}^{(y)}(\\theta)$. Because the true label $y_i$ is unknown, EGL relies on the current model belief to compute the expected gradient change:\n$$ \\text{EGL}(\\mathbf{x}_i) = \\sum_{y_i \\in \\mathcal{Y}} p(y=y_i \\vert \\mathbf{x}) \\|\\nabla \\mathcal{L}^{(y_i)}(\\theta)\\| $$ BALD (Bayesian Active Learning by Disagreement; Houlsby et al. 2011) aims to identify samples to maximize the information gain about the model weights, that is equivalent to maximize the decrease in expected posterior entropy.\n$$ \\begin{aligned} I[\\boldsymbol{\\theta}, y \\vert x,\\mathcal{D}] \u0026= H(\\boldsymbol{\\theta} \\vert \\mathcal{D}) - \\mathbb{E}_{y \\sim p(y \\vert \\boldsymbol{x}, \\mathcal{D})} \\big[ H(\\boldsymbol{\\theta} \\vert y, \\boldsymbol{x}, \\mathcal{D}) \\big] \u0026 \\text{; Decrease in expected posterior entropy}\\\\ \u0026= H(y \\vert \\boldsymbol{x}, \\mathcal{D}) - \\mathbb{E}_{\\boldsymbol{\\theta} \\sim p(\\boldsymbol{\\theta} \\vert \\mathcal{D})} \\big[ H(y \\vert \\boldsymbol{x}, \\mathcal{\\theta}) \\big] \\end{aligned} $$ The underlying interpretation is to “seek $\\mathbf{x}$ for which the model is marginally most uncertain about $y$ (high $H(y \\vert \\mathbf{x}, \\mathcal{D})$), but for which individual settings of the parameters are confident (low $H(y \\vert \\mathbf{x}, \\boldsymbol{\\theta})$).” In other words, each individual posterior draw is confident but a collection of draws carry diverse opinions.\nBALD was originally proposed for an individual sample and Kirsch et al. (2019) extended it to work in batch mode.\nForgetting Events To investigate whether neural networks have a tendency to forget previously learned information, Mariya Toneva et al. (2019) designed an experiment: They track the model prediction for each sample during the training process and count the transitions for each sample from being classified correctly to incorrectly or vice-versa. Then samples can be categorized accordingly,\nForgettable (redundant) samples: If the class label changes across training epochs. Unforgettable samples: If the class label assignment is consistent across training epochs. Those samples are never forgotten once learned. They found that there are a large number of unforgettable examples that are never forgotten once learnt. Examples with noisy labels or images with “uncommon” features (visually complicated to classify) are among the most forgotten examples. The experiments empirically validated that unforgettable examples can be safely removed without compromising model performance.\nIn the implementation, the forgetting event is only counted when a sample is included in the current training batch; that is, they compute forgetting across presentations of the same example in subsequent mini-batches. The number of forgetting events per sample is quite stable across different seeds and forgettable examples have a small tendency to be first-time learned later in the training. The forgetting events are also found to be transferable throughout the training period and between architectures.\nForgetting events can be used as a signal for active learning acquisition if we hypothesize a model changing predictions during training is an indicator of model uncertainty. However, ground truth is unknown for unlabeled samples. Bengar et al. (2021) proposed a new metric called label dispersion for such a purpose. Let’s see across the training time, $c^*$ is the most commonly predicted label for the input $\\mathbf{x}$ and the label dispersion measures the fraction of training steps when the model does not assign $c^**$ to this sample:\n$$ \\text{Dispersion}(\\mathbf{x}) = 1 - \\frac{f_\\mathbf{x}}{T} \\text{ where } f_\\mathbf{x} = \\sum_{t=1}^T \\mathbb{1}[\\hat{y}_t = c^*], c^* = \\arg\\max_{c=1,\\dots,C}\\sum_{t=1}^T \\mathbb{1}[\\hat{y}_t = c] $$ In their implementation, dispersion is computed at every epoch. Label dispersion is low if the model consistently assigns the same label to the same sample but high if the prediction changes often. Label dispersion is correlated with network uncertainty, as shown in Label dispersion is correlated with network uncertainty. On the x-axis, data points are sorted by label dispersion scores. The y-axis is the model prediction accuracy when the model trys to infer the labels for those samples. (Image source: Bengar et al. 2021)\nHybrid When running active learning in batch mode, it is important to control diversity within a batch. Suggestive Annotation (SA; Yang et al. 2017) is a two-step hybrid strategy, aiming to select both high uncertainty \u0026 highly representative labeled samples. It uses uncertainty obtained from an ensemble of models trained on the labeled data and core-sets for choosing representative data samples.\nFirst, SA selects top $K$ images with high uncertainty scores to form a candidate pool $\\mathcal{S}_c \\subseteq \\mathcal{S}_U$. The uncertainty is measured as disagreement between multiple models training with bootstrapping. The next step is to find a subset $\\mathcal{S}_a \\subseteq \\mathcal{S}_c$ with highest representativeness. The cosine similarity between feature vectors of two inputs approximates how similar they are. The representativeness of $\\mathcal{S}_a$ for $\\mathcal{S}_U$ reflects how well $\\mathcal{S}_a$ can represent all the samples in $\\mathcal{S}_u$, defined as: $$ F(\\mathcal{S}_a, \\mathcal{S}_u) = \\sum_{\\mathbf{x}_j \\in \\mathcal{S}_u} f(\\mathcal{S}_a, \\mathbf{x}_j) = \\sum_{\\mathbf{x}_j \\in \\mathcal{S}_u} \\max_{\\mathbf{x}_i \\in \\mathcal{S}_a} \\text{sim}(\\mathbf{x}_i, \\mathbf{x}_j) $$ Formulating $\\mathcal{S}_a \\subseteq \\mathcal{S}_c$ with $k$ data points that maximizes $F(\\mathcal{S}_a, \\mathcal{S}_u)$ is a generalized version of the maximum set cover problem. It is NP-hard and its best possible polynomial time approximation algorithm is a simple greedy method.\nInitially, $\\mathcal{S}_a = \\emptyset$ and $F(\\mathcal{S}_a, \\mathcal{S}_u) = 0$. Then, iteratively add $\\mathbf{x}_i \\in \\mathcal{S}_c$ that maximizes $F(\\mathcal{S}_a \\cup I_i, \\mathcal{S}_u)$ over $\\mathcal{S}_a$, until $\\mathcal{S}_s$ contains $k$ images. Zhdanov (2019) runs a similar process as SA, but at step 2, it relies on $k$-means instead of core-set, where the size of the candidate pool is configured relative to the batch size. Given batch size $b$ and a constant $beta$ (between 10 and 50), it follows these steps:\nTrain a classifier on the labeled data; Measure informativeness of every unlabeled example (e.g. using uncertainty metrics); Prefilter top $\\beta b \\geq b$ most informative examples; Cluster $\\beta b$ examples into $B$ clusters; Select $b$ different examples closest to the cluster centers for this round of active learning. Active learning can be further combined with semi-supervised learning to save the budget. CEAL (Cost-Effective Active Learning; Yang et al. 2017) runs two things in parallel:\nSelect uncertain samples via active learning and get them labeled; Select samples with the most confident prediction and assign them pseudo labels. The confidence prediction is judged by whether the prediction entropy is below a threshold $\\delta$. As the model is getting better in time, the threshold $\\delta$ decays in time as well. Illustration of CEAL (cost-effective active learning). (Image source: Yang et al. 2017) Citation Cited as:\nWeng, Lilian. (Feb 2022). Learning with not enough data part 2: active learning. Lil’Log. https://lilianweng.github.io/posts/2022-02-20-active-learning/.\nOr\n@article{weng2022active, title = \"Learning with not Enough Data Part 2: Active Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2022\", month = \"Feb\", url = \"https://lilianweng.github.io/posts/2022-02-20-active-learning/\" } References [1] Burr Settles. Active learning literature survey. University of Wisconsin, Madison, 52(55-66):11, 2010.\n[2] https://jacobgil.github.io/deeplearning/activelearning\n[3] Yang et al. “Cost-effective active learning for deep image classification” TCSVT 2016.\n[4] Yarin Gal et al. “Dropout as a Bayesian Approximation: representing model uncertainty in deep learning.” ICML 2016.\n[5] Blundell et al. “Weight uncertainty in neural networks (Bayes-by-Backprop)” ICML 2015.\n[6] Settles et al. “Multiple-Instance Active Learning.” NIPS 2007.\n[7] Houlsby et al. Bayesian Active Learning for Classification and Preference Learning.\" arXiv preprint arXiv:1112.5745 (2020).\n[8] Kirsch et al. “BatchBALD: Efficient and Diverse Batch Acquisition for Deep Bayesian Active Learning.” NeurIPS 2019.\n[9] Beluch et al. “The power of ensembles for active learning in image classification.” CVPR 2018.\n[10] Sener \u0026 Savarese. “Active learning for convolutional neural networks: A core-set approach.” ICLR 2018.\n[11] Donggeun Yoo \u0026 In So Kweon. “Learning Loss for Active Learning.” CVPR 2019.\n[12] Margatina et al. “Active Learning by Acquiring Contrastive Examples.” EMNLP 2021.\n[13] Sinha et al. “Variational Adversarial Active Learning” ICCV 2019\n[14] Ebrahimiet al. “Minmax Active Learning” arXiv preprint arXiv:2012.10467 (2021).\n[15] Mariya Toneva et al. “An empirical study of example forgetting during deep neural network learning.” ICLR 2019.\n[16] Javad Zolfaghari Bengar et al. “When Deep Learners Change Their Mind: Learning Dynamics for Active Learning.” CAIP 2021.\n[17] Yang et al. “Suggestive annotation: A deep active learning framework for biomedical image segmentation.” MICCAI 2017.\n[18] Fedor Zhdanov. “Diverse mini-batch Active Learning” arXiv preprint arXiv:1901.05954 (2019).\n",
+  "wordCount" : "4570",
+  "inLanguage": "en",
+  "datePublished": "2022-02-20T00:00:00Z",
+  "dateModified": "2022-02-20T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2022-02-20-active-learning/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Learning with not Enough Data Part 2: Active Learning
+    </h1>
+    <div class="post-meta">Date: February 20, 2022  |  Estimated Reading Time: 22 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#notations" aria-label="Notations">Notations</a></li>
+                <li>
+                    <a href="#what-is-active-learning" aria-label="What is Active Learning?">What is Active Learning?</a></li>
+                <li>
+                    <a href="#acquisition-function" aria-label="Acquisition Function">Acquisition Function</a><ul>
+                        
+                <li>
+                    <a href="#uncertainty-sampling" aria-label="Uncertainty Sampling">Uncertainty Sampling</a></li>
+                <li>
+                    <a href="#diversity-sampling" aria-label="Diversity Sampling">Diversity Sampling</a></li>
+                <li>
+                    <a href="#expected-model-change" aria-label="Expected Model Change">Expected Model Change</a></li>
+                <li>
+                    <a href="#hybrid-strategy" aria-label="Hybrid Strategy">Hybrid Strategy</a></li></ul>
+                </li>
+                <li>
+                    <a href="#deep-acquisition-function" aria-label="Deep Acquisition Function">Deep Acquisition Function</a><ul>
+                        
+                <li>
+                    <a href="#measuring-uncertainty" aria-label="Measuring Uncertainty">Measuring Uncertainty</a><ul>
+                        
+                <li>
+                    <a href="#ensemble-and-approximated-ensemble" aria-label="Ensemble and Approximated Ensemble">Ensemble and Approximated Ensemble</a></li>
+                <li>
+                    <a href="#uncertainty-in-parameter-space" aria-label="Uncertainty in Parameter Space">Uncertainty in Parameter Space</a></li>
+                <li>
+                    <a href="#loss-prediction" aria-label="Loss Prediction">Loss Prediction</a></li>
+                <li>
+                    <a href="#adversarial-setup" aria-label="Adversarial Setup">Adversarial Setup</a></li></ul>
+                </li>
+                <li>
+                    <a href="#measuring-representativeness" aria-label="Measuring Representativeness">Measuring Representativeness</a><ul>
+                        
+                <li>
+                    <a href="#core-sets-approach" aria-label="Core-sets Approach">Core-sets Approach</a></li>
+                <li>
+                    <a href="#diverse-gradient-embedding" aria-label="Diverse Gradient Embedding">Diverse Gradient Embedding</a></li></ul>
+                </li>
+                <li>
+                    <a href="#measuring-training-effects" aria-label="Measuring Training Effects">Measuring Training Effects</a><ul>
+                        
+                <li>
+                    <a href="#quantify-model-changes" aria-label="Quantify Model Changes">Quantify Model Changes</a></li>
+                <li>
+                    <a href="#forgetting-events" aria-label="Forgetting Events">Forgetting Events</a></li></ul>
+                </li>
+                <li>
+                    <a href="#hybrid" aria-label="Hybrid">Hybrid</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- The performance of supervised learning tasks improves with more high-quality labels available. However, it is expensive to collect a large number of labeled samples. Active learning is one paradigm to deal with not enough labeled data, when there are resources for labeling more data samples but under a limited budget. -->
+<p>This is part 2 of what to do when facing a limited amount of labeled data for supervised learning tasks. This time we will get some amount of human labeling work involved, but within a budget limit, and therefore we need to be smart when selecting which samples to label.</p>
+<h1 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$K$</td>
+          <td>Number of unique class labels.</td>
+      </tr>
+      <tr>
+          <td>$(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^K$</td>
+          <td>Labeled dataset. $y$ is a one-hot representation of the true label.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{u} \sim \mathcal{U}$</td>
+          <td>Unlabeled dataset.</td>
+      </tr>
+      <tr>
+          <td>$\mathcal{D} = \mathcal{X} \cup \mathcal{U}$</td>
+          <td>The entire dataset, including both labeled and unlabeled examples.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}$</td>
+          <td>Any sample which can be either labeled or unlabeled.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}_i$</td>
+          <td>The $i$-th sample.</td>
+      </tr>
+      <tr>
+          <td>$U(\mathbf{x})$</td>
+          <td>Scoring function for active learning selection.</td>
+      </tr>
+      <tr>
+          <td>$P_\theta(y \vert \mathbf{x})$</td>
+          <td>A softmax classifier parameterized by $\theta$.</td>
+      </tr>
+      <tr>
+          <td>$\hat{y} = \arg\max_{y \in \mathcal{Y}} P_\theta(y \vert \mathbf{x})$</td>
+          <td>The most confident prediction by the classifier.</td>
+      </tr>
+      <tr>
+          <td>$B$</td>
+          <td>Labeling budget (the maximum number of samples to label).</td>
+      </tr>
+      <tr>
+          <td>$b$</td>
+          <td>Batch size.</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="what-is-active-learning">What is Active Learning?<a hidden class="anchor" aria-hidden="true" href="#what-is-active-learning">#</a></h1>
+<p>Given an unlabeled dataset $\mathcal{U}$ and a fixed amount of labeling cost $B$, active learning aims to select a subset of $B$ examples from $\mathcal{U}$ to be labeled such that they can result in maximized improvement in model performance. This is an effective way of learning especially when data labeling is difficult and costly, e.g. medical images. This classical <a href="https://burrsettles.com/pub/settles.activelearning.pdf">survey paper</a> in 2010 lists many key concepts. While some conventional approaches may not apply to deep learning, discussion in this post mainly focuses on deep neural models and training in batch mode.</p>
+<figure>
+	<img src="active-learning-workflow.png" style="width: 60%;"  />
+	<figcaption>Illustration of a cyclic workflow of active learning, producing better models more efficiently by smartly choosing which samples to label.</figcaption>
+</figure>
+<p>To simplify the discussion, we assume that the task is a $K$-class classification problem in all the following sections. The model with parameters $\theta$ outputs a probability distribution over the label candidates, which may or may not be calibrated, $P_\theta(y \vert \mathbf{x})$ and the most likely prediction is $\hat{y} = \arg\max_{y \in \mathcal{Y}} P_\theta(y \vert \mathbf{x})$.</p>
+<h1 id="acquisition-function">Acquisition Function<a hidden class="anchor" aria-hidden="true" href="#acquisition-function">#</a></h1>
+<p>The process of identifying the most valuable examples to label next is referred to as &ldquo;sampling strategy&rdquo; or &ldquo;query strategy&rdquo;. The scoring function in the sampling process is named &ldquo;acquisition function&rdquo;, denoted as $U(\mathbf{x})$. Data points with higher scores are expected to produce higher value for model training if they get labeled.</p>
+<p>Here is a list of basic sampling strategies.</p>
+<h2 id="uncertainty-sampling">Uncertainty Sampling<a hidden class="anchor" aria-hidden="true" href="#uncertainty-sampling">#</a></h2>
+<p><strong>Uncertainty sampling</strong> selects examples for which the model produces most uncertain predictions. Given a single model, uncertainty can be estimated by the predicted probabilities, although one common complaint is that deep learning model predictions are often not calibrated and not correlated with true uncertainty well. In fact, deep learning models are often overconfident.</p>
+<ul>
+<li><em>Least confident score</em>, also known as <em>variation ratio</em>: $U(\mathbf{x}) = 1 - P_\theta(\hat{y} \vert \mathbf{x})$.</li>
+<li><em>Margin score</em>: $U(\mathbf{x}) = P_\theta(\hat{y}_1 \vert \mathbf{x}) - P_\theta(\hat{y}_2 \vert \mathbf{x})$, where $\hat{y}_1$ and $\hat{y}_2$ are the most likely and the second likely predicted labels.</li>
+<li><em>Entropy</em>: $U(\mathbf{x}) = \mathcal{H}(P_\theta(y \vert \mathbf{x})) = - \sum_{y \in \mathcal{Y}} P_\theta(y \vert \mathbf{x}) \log P_\theta(y \vert \mathbf{x})$.</li>
+</ul>
+<p>Another way to quantify uncertainty is to rely on a committee of expert models, known as Query-By-Committee (QBC). QBC measures uncertainty based on a pool of opinions and thus it is critical to keep a level of disagreement among committee members. Given $C$ models in the committee pool, each parameterized by $\theta_1, \dots, \theta_C$.</p>
+<ul>
+<li><em>Voter entropy</em>: $U(\mathbf{x}) = \mathcal{H}(\frac{V(y)}{C})$, where $V(y)$ counts the number of votes from the committee on the label $y$.</li>
+<li><em>Consensus entropy</em>: $U(\mathbf{x}) = \mathcal{H}(P_\mathcal{C})$, where $P_\mathcal{C}$ is the prediction averaging across the committee.</li>
+<li><em>KL divergence</em>: $U(\mathbf{x}) = \frac{1}{C} \sum_{c=1}^C D_\text{KL} (P_{\theta_c} | P_\mathcal{C})$</li>
+</ul>
+<h2 id="diversity-sampling">Diversity Sampling<a hidden class="anchor" aria-hidden="true" href="#diversity-sampling">#</a></h2>
+<p><strong>Diversity sampling</strong> intend to find a collection of samples that can well represent the entire data distribution. Diversity is important because the model is expected to work well on any data in the wild, just not on a narrow subset. Selected samples should be representative of the underlying distribution. Common approaches often rely on quantifying the similarity between samples.</p>
+<h2 id="expected-model-change">Expected Model Change<a hidden class="anchor" aria-hidden="true" href="#expected-model-change">#</a></h2>
+<p><strong>Expected model change</strong> refers to the impact that a sample brings onto the model training. The impact can be the influence on the model weights or the improvement over the training loss. A <a href="#measuring-training-effects">later section</a> reviews several works on how to measure model impact triggered by selected data samples.</p>
+<h2 id="hybrid-strategy">Hybrid Strategy<a hidden class="anchor" aria-hidden="true" href="#hybrid-strategy">#</a></h2>
+<p>Many methods above are not mutually exclusive. A <strong>hybrid</strong> sampling strategy values different attributes of data points, combining different sampling preferences into one. Often we want to select <mark>uncertain but also highly representative</mark> samples.</p>
+<h1 id="deep-acquisition-function">Deep Acquisition Function<a hidden class="anchor" aria-hidden="true" href="#deep-acquisition-function">#</a></h1>
+<h2 id="measuring-uncertainty">Measuring Uncertainty<a hidden class="anchor" aria-hidden="true" href="#measuring-uncertainty">#</a></h2>
+<p>The model uncertainty is commonly categorized into two buckets (<a href="https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.455.9057&amp;rep=rep1&amp;type=pdf">Der Kiureghian &amp; Ditlevsen 2009</a>, <a href="https://arxiv.org/abs/1703.04977">Kendall &amp; Gal 2017</a>):</p>
+<ul>
+<li><em>Aleatoric uncertainty</em> is introduced by noise in the data (e.g. sensor data, noise in the measurement process) and it can be input-dependent or input-independent. It is generally considered as irreducible since there is missing information about the ground truth.</li>
+<li><em>Epistemic uncertainty</em> refers to the uncertainty within the model parameters and therefore we do not know whether the model can best explain the data. This type of uncertainty is theoretically reducible given more data</li>
+</ul>
+<h3 id="ensemble-and-approximated-ensemble">Ensemble and Approximated Ensemble<a hidden class="anchor" aria-hidden="true" href="#ensemble-and-approximated-ensemble">#</a></h3>
+<p>There is a long tradition in machine learning of using ensembles to improve model performance. When there is a significant diversity among models, ensembles are expected to yield better results. This ensemble theory is proved to be correct by many ML algorithms; for example, <a href="https://en.wikipedia.org/wiki/AdaBoost">AdaBoost</a> aggregates many weak learners to perform similar or even better than a single strong learner. <a href="https://en.wikipedia.org/wiki/Bootstrapping_(statistics)">Bootstrapping</a> ensembles multiple trials of resampling to achieve more accurate estimation of metrics. Random forests or <a href="https://en.wikipedia.org/wiki/Gradient_boosting">GBM</a> is also a good example for the effectiveness of ensembling.</p>
+<p>To get better uncertainty estimation, it is intuitive to aggregate a collection of independently trained models. However, it is expensive to train a single deep neural network model, let alone many of them. In reinforcement learning, Bootstrapped DQN  (<a href="https://arxiv.org/abs/1602.04621">Osband, et al. 2016</a>) is equipped with multiple value heads and relies on the uncertainty among an ensemble of Q value approximation to guide <a href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/#q-value-exploration">exploration</a> in RL.</p>
+<p>In active learning, a commoner approach is to use <em>dropout</em> to &ldquo;simulate&rdquo; a probabilistic Gaussian process (<a href="https://arxiv.org/abs/1506.02142">Gal &amp; Ghahramani 2016</a>). We thus ensemble multiple samples collected from the same model but with different dropout masks applied during the forward pass to estimate the model uncertainty (epistemic uncertainty). The process is named <strong>MC dropout</strong> (Monte Carlo dropout), where dropout is applied before every weight layer, is approved to be mathematically equivalent to an approximation to the probabilistic deep Gaussian process (<a href="https://arxiv.org/abs/1506.02157">Gal &amp; Ghahramani 2016</a>). This simple idea has been shown to be effective for classification with small datasets and widely adopted in scenarios when efficient model uncertainty estimation is needed.</p>
+<p><strong>DBAL</strong> (Deep Bayesian active learning; <a href="https://arxiv.org/abs/1703.02910">Gal et al. 2017</a>) approximates Bayesian neural networks with MC dropout such that it learns a distribution over model weights. In their experiment, MC dropout performed better than random baseline and mean standard deviation (Mean STD), similarly to variation ratios and entropy measurement.</p>
+<figure>
+	<img src="DBAL-exp.png" style="width: 60%;"  />
+	<figcaption>Active learning results of DBAL on MNIST. (Image source: <a href="https://arxiv.org/abs/1703.02910" target="_blank">Gal et al. 2017</a>).</figcaption>
+</figure>
+<p><a href="https://openaccess.thecvf.com/content_cvpr_2018/papers/Beluch_The_Power_of_CVPR_2018_paper.pdf">Beluch et al. (2018)</a> compared ensemble-based models with MC dropout and found that the combination of naive ensemble (i.e. train multiple models separately and independently) and variation ratio yields better calibrated predictions than others. However, naive ensembles are <em>very</em> expensive, so they explored a few alternative cheaper options:</p>
+<ul>
+<li>Snapshot ensemble: Use a cyclic learning rate schedule to train an implicit ensemble such that it converges to different local minima.</li>
+<li>Diversity encouraging ensemble (DEE): Use a base network trained for a small number of epochs as initialization for $n$ different networks, each trained with dropout to encourage diversity.</li>
+<li>Split head approach: One base model has multiple heads, each corresponding to one classifier.</li>
+</ul>
+<p>Unfortunately all the cheap implicit ensemble options above perform worse than naive ensembles. Considering the limit on computational resources, MC dropout is still a pretty good and economical choice. Naturally, people also try to combine ensemble and MC dropout (<a href="https://arxiv.org/abs/1811.03897">Pop &amp; Fulop 2018</a>) to get a bit of additional performance gain by stochastic ensemble.</p>
+<h3 id="uncertainty-in-parameter-space">Uncertainty in Parameter Space<a hidden class="anchor" aria-hidden="true" href="#uncertainty-in-parameter-space">#</a></h3>
+<p><strong>Bayes-by-backprop</strong> (<a href="https://arxiv.org/abs/1505.05424">Blundell et al. 2015</a>) measures weight uncertainty in neural networks directly. The method maintains a probability distribution over the weights $\mathbf{w}$, which is modeled as a variational distribution $q(\mathbf{w} \vert \theta)$ since the true posterior $p(\mathbf{w} \vert \mathcal{D})$ is not tractable directly. The loss is to minimize the KL divergence between $q(\mathbf{w} \vert \theta)$ and $p(\mathbf{w} \vert \mathcal{D})$,</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}(\theta)
+&= \text{KL}[q(\mathbf{w}\vert\theta) \| p(\mathbf{w} \vert \mathcal{D})] \\ 
+&= \int q(\mathbf{w}\vert\theta) \log \frac{q(\mathbf{w}\vert\theta)}{p(\mathbf{w}) p(\mathcal{D}\vert \mathbf{w})} d\mathbf{w} \\ 
+&= \text{KL}[q(\mathbf{w}\vert\theta) \| p(w)] - \mathbb{E}_{q(\mathbf{w}\vert\theta)} [\log p(\mathcal{D} \vert \mathbf{w})] \\
+&\approx \log q(\mathbf{w} \vert \theta) - \log p(\mathbf{w}) p(\mathcal{D}\vert \mathbf{w}) & \text{; monte carlo sampling; }q(\mathbf{w} \vert \theta)\text{ & }p(\mathbf{w})\text{ are close.}
+\end{aligned}
+$$
+</div>
+<p>The variational distribution $q$ is typically a Gaussian with diagonal covariance and each weight is sampled from $\mathcal{N}(\mu_i, \sigma_i^2)$. To ensure non-negativity of $\sigma_i$, it is further parameterized via softplus, $\sigma_i = \log(1 + \exp(\rho_i))$ where the variational parameters are $\theta = \{\mu_i , \rho_i\}^d_{i=1}$.</p>
+<p>The process of Bayes-by-backprop can be summarized as:</p>
+<ol>
+<li>Sample $\epsilon \sim \mathcal{N}(0, I)$</li>
+<li>Let $\mathbf{w} = \mu + \log(1+ \exp(\rho)) \circ \epsilon$</li>
+<li>Let $\theta = (\mu, \rho)$</li>
+<li>Let $f(\mathbf{w}, \theta) = \log q(\mathbf{w} \vert \theta) - \log p(\mathbf{w})p(\mathcal{D}\vert \mathbf{w})$</li>
+<li>Calculate the gradient of $f(\mathbf{w}, \theta)$ w.r.t. to $\mu$ and $\rho$ and then update $\theta$.</li>
+<li>Uncertainty is measured by sampling different model weights during inference.</li>
+</ol>
+<h3 id="loss-prediction">Loss Prediction<a hidden class="anchor" aria-hidden="true" href="#loss-prediction">#</a></h3>
+<p>The loss objective guides model training. A low loss value indicates that a model can make good and accurate predictions. <a href="https://arxiv.org/abs/1905.03677">Yoo &amp; Kweon (2019)</a> designed a <strong>loss prediction module</strong> to predict the loss value for unlabeled inputs, as an estimation of how good a model prediction is on the given data. Data samples are selected if the loss prediction module makes uncertain predictions (high loss value) for them. The loss prediction module is a simple MLP with dropout, that takes several intermediate layer features as inputs and concatenates them after a global average pooling.</p>
+<figure>
+	<img src="active-learning-loss-prediction.png" style="width: 60%;"  />
+	<figcaption>Use the model with a loss prediction module to do active learning selection. (Image source: <a href="https://arxiv.org/abs/1905.03677" target="_blank">Yoo & Kweon 2019</a>)</figcaption>
+</figure>
+<p>Let $\hat{l}$ be the output of the loss prediction module and $l$ be the true loss. When training the loss prediction module, a simple MSE loss $=(l - \hat{l})^2$ is not a good choice, because the loss decreases in time as the model learns to behave better. A good learning objective should be independent of the scale changes of the target loss. They instead rely on the comparison of sample pairs. Within each batch of size $b$, there are $b/2$ pairs of samples $(\mathbf{x}_i, \mathbf{x}_j)$ and the loss prediction model is expected to correctly predict which sample has a larger loss.</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{loss}(\mathbf{x}_i, \mathbf{x}_j) &= \max\big( 0, -\mathbb{1}(l(\mathbf{x}_i), l(\mathbf{x}_j)) \cdot (\hat{l}(\mathbf{x}_i) - \hat{l}(\mathbf{x}_j)) + \epsilon \big) \\ 
+\text{where } \mathbb{1}(l_i, l_j) &= \begin{cases} +1 & \text{if }l_i > l_j \\ -1 & \text{otherwise} \end{cases} 
+\end{aligned}
+$$
+</div>
+<p>where $\epsilon$ is a predefined positive margin constant.</p>
+<p>In experiments on three vision tasks, active learning selection based on the loss prediction performs better than random baseline, entropy based acquisition and <a href="#core-sets-approach">core-set</a>.</p>
+<figure>
+	<img src="active-learning-loss-prediction-exp.png" style="width: 100%;"  />
+	<figcaption>Active learning results of loss prediction module based selection, in comparison with other approaches. (Image source: <a href="https://arxiv.org/abs/1905.03677" target="_blank">Yoo & Kweon 2019</a>)</figcaption>
+</figure>
+<h3 id="adversarial-setup">Adversarial Setup<a hidden class="anchor" aria-hidden="true" href="#adversarial-setup">#</a></h3>
+<p><a href="https://arxiv.org/abs/1904.00370">Sinha et al. (2019)</a> proposed a GAN-like setup, named <strong>VAAL</strong> (Variational Adversarial Active Learning), where a discriminator is trained to distinguish unlabeled data from labeled data. Interestingly, active learning acquisition criteria does not depend on the task performance in VAAL.</p>
+<figure>
+	<img src="VAAL.png" style="width: 80%;"  />
+	<figcaption>Illustration of VAAL (Variational adversarial active learning). (Image source: <a href="https://arxiv.org/abs/1904.00370" target="_blank">Sinha et al. 2019</a>)</figcaption>
+</figure>
+<ul>
+<li>The $\beta$-VAE learns a latent feature space $\mathbf{z}^l \cup \mathbf{z}^u$, for labeled and unlabeled data respectively, aiming to <em>trick</em> the discriminator $D(.)$ that all the data points are from the labeled pool;</li>
+<li>The discriminator $D(.)$ predicts whether a sample is labeled (1) or not (0) based on a latent representation $\mathbf{z}$. VAAL selects unlabeled samples with low discriminator scores, which indicates that those samples are sufficiently different from previously labeled ones.</li>
+</ul>
+<p>The loss for VAE representation learning in VAAL contains both a reconstruction part (minimizing the ELBO of given samples) and an adversarial part (labeled and unlabeled data is drawn from the same probability distribution $q_\phi$):</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{VAE} &= \lambda_1 \mathcal{L}^\text{rec}_\text{VAE} + \lambda_2 \mathcal{L}^\text{adv}_\text{VAE} \\
+\mathcal{L}^\text{rec}_\text{VAE} &= \mathbb{E}[\log p_\theta(\mathbf{x}^l \vert \mathbf{z}^l)] - \beta \text{KL}(q_\phi(\mathbf{z}^l \vert \mathbf{x}^l) \| p(\mathbf{\tilde{z}})) + \mathbb{E}[\log p_\theta(\mathbf{u} \vert \mathbf{z}^u)] - \beta \text{KL}(q_\phi(\mathbf{z}^u \vert \mathbf{u}) \| p(\mathbf{\tilde{z}})) \\
+\mathcal{L}^\text{adv}_\text{VAE} &= - \mathbb{E}[\log D(q_\phi (\mathbf{z}^l \vert \mathbf{x}^l))] - \mathbb{E}[\log D(q_\phi(\mathbf{z}^u \vert \mathbf{u}))]
+\end{aligned}
+$$
+</div>
+<p>where $p(\mathbf{\tilde{z}})$ is a unit Gaussian as a predefined prior and $\beta$ is the Lagrangian parameter.</p>
+<p>The discriminator loss is:</p>
+<div>
+$$
+\mathcal{L}_D = -\mathbb{E}[\log D(q_\phi (\mathbf{z}^l \vert \mathbf{x}^l))] - \mathbb{E}[\log (1 - D(q_\phi (\mathbf{z}^u \vert \mathbf{u})))]
+$$
+</div>
+<figure>
+	<img src="VAAL-exp.png" style="width: 100%;"  />
+	<figcaption>Experiment results of VAAL (variational adversarial active learning) on several image classification tasks. (Image source: <a href="https://arxiv.org/abs/1904.00370" target="_blank">Sinha et al. 2019</a> </figcaption>
+</figure>
+<p>Ablation studies showed that jointly training VAE and discriminator is critical. Their results are robust to the biased initial labeled pool, different labeling budgets and noisy oracle.</p>
+<p><strong>MAL</strong> (Minimax Active Learning; <a href="https://arxiv.org/abs/2012.10467">Ebrahimiet al. 2021</a>) is an extension of VAAL. The MAL framework consists of an entropy minimizing feature encoding network $F$ followed by an entropy maximizing classifier $C$. This minimax setup reduces the distribution gap between labeled and unlabeled data.</p>
+<figure>
+	<img src="MAL.png" style="width: 100%;"  />
+	<figcaption>Illustration of the MAL (minimax active learning) framework. (Image source: <a href="https://arxiv.org/abs/2012.10467" target="_blank">Ebrahimiet al. 2021</a>)</figcaption>
+</figure>
+<p>A feature encoder $F$ encodes a sample into a $\ell_2$-normalized $d$-dimensional latent vector. Assuming there are $K$ classes, a classifier $C$ is parameterized by $\mathbf{W} \in \mathbb{R}^{d \times K}$.</p>
+<p>(1) First $F$ and $C$ are trained on labeled samples by a simple cross entropy loss to achieve good classification results,</p>
+<div>
+$$
+\mathcal{L}_\text{CE} = -\mathbb{E}_{(\mathbf{x}^l, y) \sim \mathcal{X}} \sum_{k=1}^K \mathbb{1}[k=y] \log\Big( \sigma(\frac{1}{T} \frac{\mathbf{W}^\top F\big(\mathbf{x}^l)}{\|F(\mathbf{x}^l)\|}\big) \Big)
+$$
+</div>
+<p>(2) When training on the unlabeled examples, MAL relies on a <em>minimax</em> game setup</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{Ent} &= -\sum^K_{k=1} p(y=k \vert \mathbf{u}) \log p(y=k\vert \mathbf{u}) \\
+\theta^*_F, \theta^*_C &= \min_F\max_C \mathcal{L}_\text{Ent} \\
+\theta_F &\gets \theta_F - \alpha_1 \nabla \mathcal{L}_\text{Ent} \\
+\theta_C &\gets \theta_C + \alpha_2 \nabla \mathcal{L}_\text{Ent}
+\end{aligned}
+$$
+</div>
+<p>where,</p>
+<ul>
+<li>First, minimizing the entropy in $F$ encourages unlabeled samples associated with similar predicted labels to have similar features.</li>
+<li>Maximizing the entropy in $C$ adversarially makes the prediction to follow a more uniform class distribution. <span style="color: #888;">(My understanding here is that because the true label of an unlabeled sample is unknown, we should not optimize the classifier to maximize the predicted labels just yet.)</span></li>
+</ul>
+<p>The discriminator is trained in the same way as in VAAL.</p>
+<p>Sampling strategy in MAL considers both diversity and uncertainty:</p>
+<ul>
+<li>Diversity: the score of $D$ indicates how similar a sample is to previously seen examples. A score closer to 0 is better to select unfamiliar data points.</li>
+<li>Uncertainty: use the entropy obtained by $C$. A higher entropy score indicates that the model cannot make a confident prediction yet.</li>
+</ul>
+<p>The experiments compared MAL to random, entropy, core-set, BALD and VAAL baselines, on image classification and segmentation tasks. The results look pretty strong.</p>
+<figure>
+	<img src="MAL-exp.png" style="width: 100%;"  />
+	<figcaption>Performance of MAL on ImageNet. (Table source: <a href="https://arxiv.org/abs/2012.10467" target="_blank">Ebrahimiet al. 2021</a>)</figcaption>
+</figure>
+<p><strong>CAL</strong> (Contrastive Active Learning; <a href="https://arxiv.org/abs/2109.03764">Margatina et al. 2021</a>) intends to select <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/">contrastive</a> examples. If two data points with different labels share similar network representations $\Phi(.)$, they are considered as contrastive examples in CAL. Given a pair of contrastive examples $(\mathbf{x}_i, \mathbf{x}_j)$, they should</p>
+<div>
+$$
+d(\Phi(\mathbf{x}_i), \Phi(\mathbf{x}_j)) < \epsilon \quad\text{and}\quad \text{KL}(p(y\vert \mathbf{x}_i) \| p(y\vert \mathbf{x}_j)) \rightarrow \infty
+$$
+</div>
+<p>Given an unlabeled sample $\mathbf{x}$, CAL runs the following process:</p>
+<ol>
+<li>Select the top $k$ nearest neighbors in the model feature space among the labeled samples, $\{(\mathbf{x}^l_i, y_i\}_{i=1}^M \subset \mathcal{X}$.</li>
+<li>Compute the KL divergence between the model output probabilities of $\mathbf{x}$ and each in $\{\mathbf{x}^l\}$. The contrastive score of $\mathbf{x}$ is the average of these KL divergence values: $s(\mathbf{x}) = \frac{1}{M} \sum_{i=1}^M \text{KL}(p(y \vert \mathbf{x}^l_i | p(y \vert \mathbf{x}))$.</li>
+<li>Samples with <em>high contrastive scores</em> are selected for active learning.</li>
+</ol>
+<p>On a variety of classification tasks, the experiment results of CAL look similar to the entropy baseline.</p>
+<h2 id="measuring-representativeness">Measuring Representativeness<a hidden class="anchor" aria-hidden="true" href="#measuring-representativeness">#</a></h2>
+<h3 id="core-sets-approach">Core-sets Approach<a hidden class="anchor" aria-hidden="true" href="#core-sets-approach">#</a></h3>
+<p>A <strong>core-set</strong> is a concept in computational geometry, referring to a small set of points that approximates the shape of a larger point set. Approximation can be captured by some geometric measure. In the active learning, we expect a model that is trained over the core-set to behave comparably with the model on the entire data points.</p>
+<p><a href="https://arxiv.org/abs/1708.00489">Sener &amp; Savarese (2018)</a> treats active learning as a core-set selection problem. Let’s say, there are $N$ samples in total accessible during training. During active learning, a small set of data points get labeled at every time step $t$, denoted as $\mathcal{S}^{(t)}$. The upper bound of the learning objective can be written as follows, where the <em>core-set loss</em> is defined as the difference between average empirical loss over the labeled samples and the loss over the entire dataset including unlabelled ones.</p>
+<div>
+$$
+\begin{aligned}
+\mathbb{E}_{(\mathbf{x}, y) \sim p} [\mathcal{L}(\mathbf{x}, y)]
+\leq& \bigg\vert \mathbb{E}_{(\mathbf{x}, y) \sim p} [\mathcal{L}(\mathbf{x}, y)] - \frac{1}{N} \sum_{i=1}^N \mathcal{L}(\mathbf{x}_i, y_i) \bigg\vert & \text{; Generalization error}\\
++& \frac{1}{\vert \mathcal{S}^{(t)} \vert} \sum_{j=1}^{\vert \mathcal{S}^{(t)} \vert} \mathcal{L}(\mathbf{x}^l_j, y_j) & \text{; Training error}\\
++& \bigg\vert \frac{1}{N} \sum_{i=1}^N \mathcal{L}(\mathbf{x}_i, y_i) - \frac{1}{\vert \mathcal{S}^{(t)} \vert} \sum_{j=1}^{\vert \mathcal{S}^{(t)} \vert} \mathcal{L}(\mathbf{x}^l_j, y_j) \bigg\vert & \text{; Core-set error}
+\end{aligned}
+$$
+</div>
+<p>Then the active learning problem can be redefined as:</p>
+<div>
+$$
+\min_{\mathcal{S}^{(t+1)} : \vert \mathcal{S}^{(t+1)} \vert \leq b} \bigg\vert \frac{1}{N}\sum_{i=1}^N \mathcal{L}(\mathbf{x}_i, y_i) - \frac{1}{\vert \mathcal{S}^{(t)} \cup \mathcal{S}^{(t+1)} \vert} \sum_{j=1}^{\vert \mathcal{S}^{(t)} \cup \mathcal{S}^{(t+1)} \vert} \mathcal{L}(\mathbf{x}^l_j, y_j) \bigg\vert
+$$
+</div>
+<p>It is equivalent to <a href="https://en.wikipedia.org/wiki/Metric_k-center">the $k$-Center problem</a>: choose $b$ center points such that the largest distance between a data point and its nearest center is minimized. This problem is NP-hard. An approximate solution depends on the greedy algorithm.</p>
+<figure>
+	<img src="core-sets-exp.png" style="width: 100%;"  />
+	<figcaption>Active learning results of core-sets algorithm in comparison with several common baselines on CIFAR-10, CIFAR-100, SVHN. (Image source: <a href="https://arxiv.org/abs/1708.00489" target="_blank">Sener & Savarese 2018</a>)</figcaption>
+</figure>
+<p>It works well on image classification tasks when there is a small number of classes. When the number of classes grows to be large or the data dimensionality increases (&ldquo;curse of dimensionality&rdquo;), the core-set method becomes less effective (<a href="https://arxiv.org/abs/1904.00370">Sinha et al. 2019</a>).</p>
+<p>Because the core-set selection is expensive, <a href="https://arxiv.org/abs/1906.11829">Coleman et al. (2020)</a> experimented with a weaker model (e.g. smaller, weaker architecture, not fully trained) and found that empirically using a weaker model as a proxy can significantly shorten each repeated data selection cycle of training models and selecting samples, without hurting the final error much. Their method is referred to as <strong>SVP</strong> (Selection via Proxy).</p>
+<h3 id="diverse-gradient-embedding">Diverse Gradient Embedding<a hidden class="anchor" aria-hidden="true" href="#diverse-gradient-embedding">#</a></h3>
+<p><strong>BADGE</strong> (Batch Active learning by Diverse Gradient Embeddings; <a href="https://arxiv.org/abs/1906.03671">Ash et al. 2020</a>) tracks both model uncertainty and data diversity in the gradient space. Uncertainty is measured by the gradient magnitude w.r.t. the final layer of the network and diversity is captured by a diverse set of samples that span in the gradient space.</p>
+<ul>
+<li>Uncertainty. Given an unlabeled sample $\mathbf{x}$, BADGE first computes the prediction $\hat{y}$ and the gradient $g_\mathbf{x}$ of the loss on $(\mathbf{x}, \hat{y})$ w.r.t. the last layer’s parameters. They observed that the norm of $g_\mathbf{x}$ conservatively estimates the example&rsquo;s influence on the model learning and high-confidence samples tend to have gradient embeddings of small magnitude.</li>
+<li>Diversity. Given many gradient embeddings of many samples, $g_\mathbf{x}$, BADGE runs <a href="https://en.wikipedia.org/wiki/K-means%2B%2B">$k$-means++</a> to sample data points accordingly.</li>
+</ul>
+<figure>
+	<img src="BADGE-algo.png" style="width: 100%;"  />
+	<figcaption>Algorithm of BADGE (batch active learning by diverse gradient embeddings). (Image source: <a href="https://arxiv.org/abs/1906.03671" target="_blank">Ash et al. 2020</a>)</figcaption>
+</figure>
+<h2 id="measuring-training-effects">Measuring Training Effects<a hidden class="anchor" aria-hidden="true" href="#measuring-training-effects">#</a></h2>
+<h3 id="quantify-model-changes">Quantify Model Changes<a hidden class="anchor" aria-hidden="true" href="#quantify-model-changes">#</a></h3>
+<p><a href="https://papers.nips.cc/paper/2007/hash/a1519de5b5d44b31a01de013b9b51a80-Abstract.html">Settles et al. (2008)</a> introduced an active learning query strategy, named <strong>EGL</strong> (Expected Gradient Length). The motivation is to find samples that can trigger the greatest update on the model if their labels are known.</p>
+<p>Let $\nabla \mathcal{L}(\theta)$ be the gradient of the loss function with respect to the model parameters. Specifically, given an unlabeled sample $\mathbf{x}_i$, we need to calculate the gradient assuming the label is $y \in \mathcal{Y}$, $\nabla \mathcal{L}^{(y)}(\theta)$. Because the true label $y_i$ is unknown, EGL relies on the current model belief to compute the expected gradient change:</p>
+<div>
+$$
+\text{EGL}(\mathbf{x}_i) = \sum_{y_i \in \mathcal{Y}} p(y=y_i \vert \mathbf{x}) \|\nabla \mathcal{L}^{(y_i)}(\theta)\|
+$$
+</div>
+<p><strong>BALD</strong> (Bayesian Active Learning by Disagreement; <a href="https://arxiv.org/abs/1112.5745">Houlsby et al. 2011</a>) aims to identify samples to maximize the information gain about the model weights, that is equivalent to maximize the decrease in expected posterior entropy.</p>
+<div>
+$$
+\begin{aligned}
+I[\boldsymbol{\theta}, y \vert x,\mathcal{D}] 
+&= H(\boldsymbol{\theta} \vert \mathcal{D}) - \mathbb{E}_{y \sim p(y \vert \boldsymbol{x}, \mathcal{D})} \big[ H(\boldsymbol{\theta} \vert y, \boldsymbol{x}, \mathcal{D}) \big] & \text{; Decrease in expected posterior entropy}\\ 
+&= H(y \vert \boldsymbol{x}, \mathcal{D}) - \mathbb{E}_{\boldsymbol{\theta} \sim p(\boldsymbol{\theta} \vert \mathcal{D})} \big[ H(y \vert \boldsymbol{x}, \mathcal{\theta}) \big]
+\end{aligned}
+$$
+</div>
+<p>The underlying interpretation is to &ldquo;seek $\mathbf{x}$ for which the model is marginally most uncertain about $y$ (high $H(y \vert \mathbf{x}, \mathcal{D})$), but for which individual settings of the parameters are confident (low $H(y \vert \mathbf{x}, \boldsymbol{\theta})$).&rdquo; In other words, each individual posterior draw is confident but a collection of draws carry diverse opinions.</p>
+<p>BALD was originally proposed for an individual sample and <a href="https://arxiv.org/abs/1906.08158">Kirsch et al. (2019)</a> extended it to work in batch mode.</p>
+<h3 id="forgetting-events">Forgetting Events<a hidden class="anchor" aria-hidden="true" href="#forgetting-events">#</a></h3>
+<p>To investigate whether neural networks have a tendency to <strong>forget</strong> previously learned information, <a href="https://arxiv.org/abs/1812.05159">Mariya Toneva et al. (2019)</a> designed an experiment: They track the model prediction for each sample during the training process and count the transitions for each sample from being classified correctly to incorrectly or vice-versa. Then samples can be categorized accordingly,</p>
+<ul>
+<li><em>Forgettable</em> (redundant) samples: If the class label changes across training epochs.</li>
+<li><em>Unforgettable</em> samples: If the class label assignment is consistent across training epochs. Those samples are never forgotten once learned.</li>
+</ul>
+<p>They found that there are a large number of unforgettable examples that are never forgotten once learnt. Examples with noisy labels or images with &ldquo;uncommon&rdquo; features (visually complicated to classify) are among the most forgotten examples. The experiments empirically validated that unforgettable examples can be safely removed without compromising model performance.</p>
+<p>In the implementation, the forgetting event is only counted when a sample is included in the current training batch; that is, they compute forgetting across presentations of the same example in subsequent mini-batches. The number of forgetting events per sample is quite stable across different seeds and forgettable examples have a small tendency to be first-time learned later in the training. The forgetting events are also found to be transferable throughout the training period and between architectures.</p>
+<p>Forgetting events can be used as a signal for active learning acquisition if we hypothesize a model changing predictions during training is an indicator of model uncertainty. However, ground truth is unknown for unlabeled samples. <a href="https://arxiv.org/abs/2107.14707">Bengar et al. (2021)</a> proposed a new metric called <strong>label dispersion</strong> for such a purpose. Let’s see across the training time, $c^*$ is the most commonly predicted label for the input $\mathbf{x}$ and the label dispersion measures the fraction of training steps when the model does not assign $c^**$ to this sample:</p>
+<div>
+$$
+\text{Dispersion}(\mathbf{x}) = 1 - \frac{f_\mathbf{x}}{T} \text{ where }
+f_\mathbf{x} = \sum_{t=1}^T \mathbb{1}[\hat{y}_t = c^*], c^* = \arg\max_{c=1,\dots,C}\sum_{t=1}^T \mathbb{1}[\hat{y}_t = c]
+$$
+</div>
+<p>In their implementation, dispersion is computed at every epoch. Label dispersion is low if the model consistently assigns the same label to the same sample but high if the prediction changes often. Label dispersion is correlated with network uncertainty, as shown in <figure>
+<img src="label-dispersion-vs-uncertainty.png" style="width: 100%;"  />
+<figcaption>Label dispersion is correlated with network uncertainty. On the x-axis, data points are sorted by label dispersion scores. The y-axis is the model prediction accuracy when the model trys to infer the labels for those samples. (Image source: <a href="https://arxiv.org/abs/2107.14707" target="_blank">Bengar et al. 2021</a>)</figcaption></p>
+</figure>
+<h2 id="hybrid">Hybrid<a hidden class="anchor" aria-hidden="true" href="#hybrid">#</a></h2>
+<p>When running active learning in batch mode, it is important to control diversity within a batch. <strong>Suggestive Annotation</strong> (<strong>SA</strong>; <a href="https://arxiv.org/abs/1706.04737">Yang et al. 2017</a>) is a two-step hybrid strategy, aiming to select both high uncertainty &amp; highly representative labeled samples. It uses uncertainty obtained from an ensemble of models trained on the labeled data and core-sets for choosing representative data samples.</p>
+<ol>
+<li>First, SA selects top $K$ images with high uncertainty scores to form a candidate pool $\mathcal{S}_c \subseteq \mathcal{S}_U$. The uncertainty is measured as disagreement between multiple models training with bootstrapping.</li>
+<li>The next step is to find a subset $\mathcal{S}_a \subseteq \mathcal{S}_c$ with highest representativeness. The cosine similarity between feature vectors of two inputs approximates how similar they are. The representativeness of $\mathcal{S}_a$ for $\mathcal{S}_U$ reflects how well $\mathcal{S}_a$ can represent all the samples in $\mathcal{S}_u$, defined as:</li>
+</ol>
+<div>
+ $$
+F(\mathcal{S}_a, \mathcal{S}_u) = \sum_{\mathbf{x}_j \in \mathcal{S}_u} f(\mathcal{S}_a, \mathbf{x}_j) = \sum_{\mathbf{x}_j \in \mathcal{S}_u} \max_{\mathbf{x}_i \in \mathcal{S}_a} \text{sim}(\mathbf{x}_i, \mathbf{x}_j)
+$$
+</div>
+<p>Formulating $\mathcal{S}_a \subseteq \mathcal{S}_c$ with $k$ data points that maximizes $F(\mathcal{S}_a, \mathcal{S}_u)$ is a generalized version of the maximum set cover problem. It is NP-hard and its best possible polynomial time approximation algorithm is a simple greedy method.</p>
+<ol>
+<li>Initially, $\mathcal{S}_a = \emptyset$ and $F(\mathcal{S}_a, \mathcal{S}_u) = 0$.</li>
+<li>Then,  iteratively add $\mathbf{x}_i \in \mathcal{S}_c$ that maximizes $F(\mathcal{S}_a \cup I_i, \mathcal{S}_u)$ over $\mathcal{S}_a$, until $\mathcal{S}_s$ contains $k$ images.</li>
+</ol>
+<p><a href="https://arxiv.org/abs/1901.05954">Zhdanov (2019)</a> runs a similar process as SA, but at step 2, it relies on $k$-means instead of core-set, where the size of the candidate pool is configured relative to the batch size. Given batch size $b$ and a constant $beta$ (between 10 and 50), it follows these steps:</p>
+<ol>
+<li>Train a classifier on the labeled data;</li>
+<li>Measure informativeness of every unlabeled example (e.g. using uncertainty metrics);</li>
+<li>Prefilter top $\beta b \geq b$ most informative examples;</li>
+<li>Cluster $\beta b$ examples into $B$ clusters;</li>
+<li>Select $b$ different examples closest to the cluster centers for this round of active learning.</li>
+</ol>
+<p>Active learning can be further combined with <a href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/">semi-supervised learning</a> to save the budget. <strong>CEAL</strong> (Cost-Effective Active Learning; <a href="https://arxiv.org/abs/1701.03551">Yang et al. 2017</a>) runs two things in parallel:</p>
+<ol>
+<li>Select uncertain samples via active learning and get them labeled;</li>
+<li>Select samples with the most confident prediction and assign them <a href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/#pseudo-labeling">pseudo labels</a>. The confidence prediction is judged by whether the prediction entropy is below a threshold $\delta$. As the model is getting better in time, the threshold $\delta$ decays in time as well.</li>
+</ol>
+<figure>
+	<img src="CEAL.png" style="width: 100%;"  />
+	<figcaption>Illustration of CEAL (cost-effective active learning). (Image source: <a href="https://arxiv.org/abs/1701.03551" target="_blank">Yang et al. 2017</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Feb 2022). Learning with not enough data part 2: active learning. Lil&rsquo;Log. https://lilianweng.github.io/posts/2022-02-20-active-learning/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2022active,
+  title   = &#34;Learning with not Enough Data Part 2: Active Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2022&#34;,
+  month   = &#34;Feb&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2022-02-20-active-learning/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Burr Settles. <a href="https://burrsettles.com/pub/settles.activelearning.pdf">Active learning literature survey.</a> University of Wisconsin, Madison, 52(55-66):11, 2010.</p>
+<p>[2] <a href="https://jacobgil.github.io/deeplearning/activelearning">https://jacobgil.github.io/deeplearning/activelearning</a></p>
+<p>[3] Yang et al. <a href="https://arxiv.org/abs/1701.03551">&ldquo;Cost-effective active learning for deep image classification&rdquo;</a> TCSVT 2016.</p>
+<p>[4] Yarin Gal et al. <a href="https://arxiv.org/abs/1506.02142">&ldquo;Dropout as a Bayesian Approximation: representing model uncertainty in deep learning.&rdquo;</a> ICML 2016.</p>
+<p>[5] Blundell et al. <a href="https://arxiv.org/abs/1505.05424">&ldquo;Weight uncertainty in neural networks (Bayes-by-Backprop)&rdquo;</a> ICML 2015.</p>
+<p>[6] Settles et al. <a href="https://papers.nips.cc/paper/2007/hash/a1519de5b5d44b31a01de013b9b51a80-Abstract.html">&ldquo;Multiple-Instance Active Learning.&rdquo;</a> NIPS 2007.</p>
+<p>[7] Houlsby et al. <a href="https://arxiv.org/abs/1112.5745">Bayesian Active Learning for Classification and Preference Learning.&quot;</a> arXiv preprint arXiv:1112.5745 (2020).</p>
+<p>[8] Kirsch et al. <a href="https://arxiv.org/abs/1906.08158">&ldquo;BatchBALD: Efficient and Diverse Batch Acquisition for Deep Bayesian Active Learning.&rdquo;</a> NeurIPS 2019.</p>
+<p>[9] Beluch et al. <a href="https://openaccess.thecvf.com/content_cvpr_2018/papers/Beluch_The_Power_of_CVPR_2018_paper.pdf">&ldquo;The power of ensembles for active learning in image classification.&rdquo;</a> CVPR 2018.</p>
+<p>[10] Sener &amp; Savarese. <a href="https://arxiv.org/abs/1708.00489">&ldquo;Active learning for convolutional neural networks: A core-set approach.&rdquo;</a> ICLR 2018.</p>
+<p>[11] Donggeun Yoo &amp; In So Kweon. <a href="https://arxiv.org/abs/1905.03677">&ldquo;Learning Loss for Active Learning.&rdquo;</a> CVPR 2019.</p>
+<p>[12] Margatina et al. <a href="https://arxiv.org/abs/2109.03764">&ldquo;Active Learning by Acquiring Contrastive Examples.&rdquo;</a> EMNLP 2021.</p>
+<p>[13] Sinha et al. <a href="https://arxiv.org/abs/1904.00370">&ldquo;Variational Adversarial Active Learning&rdquo;</a> ICCV 2019</p>
+<p>[14] Ebrahimiet al. <a href="https://arxiv.org/abs/2012.10467">&ldquo;Minmax Active Learning&rdquo;</a> arXiv preprint arXiv:2012.10467 (2021).</p>
+<p>[15] Mariya Toneva et al. <a href="https://arxiv.org/abs/1812.05159">&ldquo;An empirical study of example forgetting during deep neural network learning.&rdquo;</a> ICLR 2019.</p>
+<p>[16] Javad Zolfaghari Bengar et al. <a href="https://arxiv.org/abs/2107.14707">&ldquo;When Deep Learners Change Their Mind: Learning Dynamics for Active Learning.&rdquo;</a> CAIP 2021.</p>
+<p>[17] Yang et al. <a href="https://arxiv.org/abs/1706.04737">&ldquo;Suggestive annotation: A deep active learning framework for biomedical image segmentation.&rdquo;</a> MICCAI 2017.</p>
+<p>[18] Fedor Zhdanov. <a href="https://arxiv.org/abs/1901.05954">&ldquo;Diverse mini-batch Active Learning&rdquo;</a> arXiv preprint arXiv:1901.05954 (2019).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/data/">Data</a></li>
+      <li><a href="https://lilianweng.github.io/tags/active-learning/">Active-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2022-04-15-data-gen/">
+    <span class="title">« </span>
+    <br>
+    <span>Learning with not Enough Data Part 3: Data Generation</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/">
+    <span class="title"> »</span>
+    <br>
+    <span>Learning with not Enough Data Part 1: Semi-Supervised Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f&amp;hashtags=data%2cactive-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f&amp;title=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning&amp;summary=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f&title=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 2: Active Learning on telegram"
+        href="https://telegram.me/share/url?text=Learning%20with%20not%20Enough%20Data%20Part%202%3a%20Active%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-02-20-active-learning%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

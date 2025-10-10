@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Prompt Engineering | Lil&#39;Log</title>
+<meta name="keywords" content="nlp, language-model, alignment, steerability, prompting" />
+<meta name="description" content="Prompt Engineering, also known as In-Context Prompting, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes without updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.
+This post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my previous post on controllable text generation.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Prompt Engineering" />
+<meta property="og:description" content="Prompt Engineering, also known as In-Context Prompting, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes without updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.
+This post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my previous post on controllable text generation." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-03-15T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2023-03-15T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Prompt Engineering"/>
+<meta name="twitter:description" content="Prompt Engineering, also known as In-Context Prompting, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes without updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.
+This post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my previous post on controllable text generation."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Prompt Engineering",
+      "item": "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Prompt Engineering",
+  "name": "Prompt Engineering",
+  "description": "Prompt Engineering, also known as In-Context Prompting, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes without updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.\nThis post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my previous post on controllable text generation.\n",
+  "keywords": [
+    "nlp", "language-model", "alignment", "steerability", "prompting"
+  ],
+  "articleBody": "Prompt Engineering, also known as In-Context Prompting, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes without updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.\nThis post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my previous post on controllable text generation.\n[My personal spicy take] In my opinion, some prompt engineering papers are not worthy 8 pages long, since those tricks can be explained in one or a few sentences and the rest is all about benchmarking. An easy-to-use and shared benchmark infrastructure should be more beneficial to the community. Iterative prompting or external tool use would not be trivial to set up. Also non-trivial to align the whole research community to adopt it.\nBasic Prompting Zero-shot and few-shot learning are two most basic approaches for prompting the model, pioneered by many LLM papers and commonly used for benchmarking LLM performance.\nZero-Shot Zero-shot learning is to simply feed the task text to the model and ask for results.\n(All the sentiment analysis examples are from SST-2)\nText: i'll bet the video game is a lot more fun than the film. Sentiment: Few-shot Few-shot learning presents a set of high-quality demonstrations, each consisting of both input and desired output, on the target task. As the model first sees good examples, it can better understand human intention and criteria for what kinds of answers are wanted. Therefore, few-shot learning often leads to better performance than zero-shot. However, it comes at the cost of more token consumption and may hit the context length limit when input and output text are long.\nText: (lawrence bounces) all over the stage, dancing, running, sweating, mopping his face and generally displaying the wacky talent that brought him fame in the first place. Sentiment: positive Text: despite all evidence to the contrary, this clunker has somehow managed to pose as an actual feature movie, the kind that charges full admission and gets hyped on tv and purports to amuse small children and ostensible adults. Sentiment: negative Text: for the first time in years, de niro digs deep emotionally, perhaps because he's been stirred by the powerful work of his co-stars. Sentiment: positive Text: i'll bet the video game is a lot more fun than the film. Sentiment: Many studies looked into how to construct in-context examples to maximize the performance and observed that choice of prompt format, training examples, and the order of the examples can lead to dramatically different performance, from near random guess to near SoTA.\nZhao et al. (2021) investigated the case of few-shot classification and proposed that several biases with LLM (they use GPT-3 in the experiments) contribute to such high variance: (1) Majority label bias exists if distribution of labels among the examples is unbalanced; (2) Recency bias refers to the tendency where the model may repeat the label at the end; (3) Common token bias indicates that LLM tends to produce common tokens more often than rare tokens. To conquer such bias, they proposed a method to calibrate the label probabilities output by the model to be uniform when the input string is N/A.\nTips for Example Selection Choose examples that are semantically similar to the test example using $k$-NN clustering in the embedding space (Liu et al., 2021)\nTo select a diverse and representative set of examples, Su et al. (2022) proposed to use a graph-based approach: (1) First, construct a directed graph $G=(V, E)$ based on the embedding (e.g. by SBERT or other embedding models) cosine similarity between samples, where each node points to its $k$ nearest neighbors; (2) Start with a set of selected samples $\\mathcal{L}=\\emptyset$ and a set of remaining samples $\\mathcal{U}$. Each sample $u \\in \\mathcal{U}$ is scored by $$ \\text{score}(u) = \\sum_{v \\in \\{v \\mid (u, v) \\in E, v\\in \\mathcal{U}\\}} s(v)\\quad\\text{where }s(v)=\\rho^{- \\vert \\{\\ell \\in \\mathcal{L} \\vert (v, \\ell)\\in E \\}\\vert},\\quad\\rho \u003e 1 $$ such that $s(v)$ is low if many of $v$’s neighbors are selected and thus the scoring encourages to pick diverse samples.\nRubin et al. (2022) proposed to train embeddings via contrastive learning specific to one training dataset for in-context learning sample selection. Given each training pair $(x, y)$, the quality of one example $e_i$ (formatted input-output pair) can be measured by a conditioned probability assigned by LM: $\\text{score}(e_i) = P_\\text{LM}(y \\mid e_i, x)$. We can identify other examples with top-$k$ and bottom-$k$ scores as positive and negative sets of candidates for every training pair and use that for contrastive learning.\nSome researchers tried Q-Learning to do sample selection. (Zhang et al. 2022)\nMotivated by uncertainty-based active learning, Diao et al. (2023) suggested to identify examples with high disagreement or entropy among multiple sampling trials. Then annotate these examples to be used in few-shot prompts.\nTips for Example Ordering A general suggestion is to keep the selection of examples diverse, relevant to the test sample and in random order to avoid majority label bias and recency bias. Increasing model sizes or including more training examples does not reduce variance among different permutations of in-context examples. Same order may work well for one model but badly for another. When the validation set is limited, consider choosing the order such that the model does not produce extremely unbalanced predictions or being overconfident about its predictions. (Lu et al. 2022) Instruction Prompting The purpose of presenting few-shot examples in the prompt is to explain our intent to the model; in other words, describe the task instruction to the model in the form of demonstrations. However, few-shot can be expensive in terms of token usage and restricts the input length due to limited context length. So, why not just give the instruction directly?\nInstructed LM (e.g. InstructGPT, natural instruction) finetunes a pretrained model with high-quality tuples of (task instruction, input, ground truth output) to make LM better understand user intention and follow instruction. RLHF (Reinforcement Learning from Human Feedback) is a common method to do so. The benefit of instruction following style fine-tuning improves the model to be more aligned with human intention and greatly reduces the cost of communication.\nWhen interacting with instruction models, we should describe the task requirement in details, trying to be specific and precise and avoiding say “not do something” but rather specify what to do.\nPlease label the sentiment towards the movie of the given movie review. The sentiment label should be \"positive\" or \"negative\". Text: i'll bet the video game is a lot more fun than the film. Sentiment: Explaining the desired audience is another smart way to give instructions\nFor example to produce education materials for kids, Describe what is quantum physics to a 6-year-old. And safe content, ... in language that is safe for work. In-context instruction learning (Ye et al. 2023) combines few-shot learning with instruction prompting. It incorporates multiple demonstration examples across different tasks in the prompt, each demonstration consisting of instruction, task input and output. Note that their experiments were only on classification tasks and the instruction prompt contains all label options.\nDefinition: Determine the speaker of the dialogue, \"agent\" or \"customer\". Input: I have successfully booked your tickets. Ouput: agent Definition: Determine which category the question asks for, \"Quantity\" or \"Location\". Input: What's the oldest building in US? Ouput: Location Definition: Classify the sentiment of the given movie review, \"positive\" or \"negative\". Input: i'll bet the video game is a lot more fun than the film. Output: Self-Consistency Sampling Self-consistency sampling (Wang et al. 2022a) is to sample multiple outputs with temperature \u003e 0 and then selecting the best one out of these candidates. The criteria for selecting the best candidate can vary from task to task. A general solution is to pick majority vote. For tasks that are easy to validate such as a programming question with unit tests, we can simply run through the interpreter and verify the correctness with unit tests.\nChain-of-Thought (CoT) Chain-of-thought (CoT) prompting (Wei et al. 2022) generates a sequence of short sentences to describe reasoning logics step by step, known as reasoning chains or rationales, to eventually lead to the final answer. The benefit of CoT is more pronounced for complicated reasoning tasks, while using large models (e.g. with more than 50B parameters). Simple tasks only benefit slightly from CoT prompting.\nTypes of CoT prompts Two main types of CoT prompting:\nFew-shot CoT. It is to prompt the model with a few demonstrations, each containing manually written (or model-generated) high-quality reasoning chains. (All the math reasoning examples are from GSM8k)\nQuestion: Tom and Elizabeth have a competition to climb a hill. Elizabeth takes 30 minutes to climb the hill. Tom takes four times as long as Elizabeth does to climb the hill. How many hours does it take Tom to climb up the hill? Answer: It takes Tom 30*4 = \u003c\u003c30*4=120\u003e\u003e120 minutes to climb the hill. It takes Tom 120/60 = \u003c\u003c120/60=2\u003e\u003e2 hours to climb the hill. So the answer is 2. === Question: Jack is a soccer player. He needs to buy two pairs of socks and a pair of soccer shoes. Each pair of socks cost $9.50, and the shoes cost $92. Jack has $40. How much more money does Jack need? Answer: The total cost of two pairs of socks is $9.50 x 2 = $\u003c\u003c9.5*2=19\u003e\u003e19. The total cost of the socks and the shoes is $19 + $92 = $\u003c\u003c19+92=111\u003e\u003e111. Jack need $111 - $40 = $\u003c\u003c111-40=71\u003e\u003e71 more. So the answer is 71. === Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be? Answer: Zero-shot CoT. Use natural language statement like Let's think step by step to explicitly encourage the model to first generate reasoning chains and then to prompt with Therefore, the answer is to produce answers (Kojima et al. 2022 ). Or a similar statement Let's work this out it a step by step to be sure we have the right answer (Zhou et al. 2022). Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be? Answer: Let's think step by step. Tips and Extensions Self-consistency sampling can improve reasoning accuracy by sampling a number of diverse answers and then taking the majority vote. (Wang et al. 2022a)\nAnother approach for ensemble learning is to alter the example order or use model generated rationales to replace human-written ones to introduce randomness during multiple sample trials. Then aggregate model outputs with a majority vote to get final answer. (Wang et al. 2022b)\nIf training examples are only associated with true answers (easy to verify!) but no rationales, we can follow the STaR (Self-Taught Reasoner; Zelikman et al. 2022) method : (1) Ask LLM to generate reasoning chains and only keep those leading to correct answers; (2) Then fine-tune the model with generated rationales and repeat the process until convergence. Note that higher temperature is more likely to generate incorrect rationales with correct answers. If training examples do not have ground truth answers, maybe consider using majority votes as the “correct” answers.\nPrompts with demonstrations of higher reasoning complexity can achieve better performance, where complexity is measured by the number of reasoning steps in the chains. When separating reasoning steps, newline \\n symbol works better than step i, period . or semicolon ;. (Fu et al. 2023)\nComplexity-based consistency is to explicitly prefer complex chains among all the generations by taking majority vote among only top $k$ complex chains. (Fu et al. 2023)\nLater, Shum et al. (2023) found that in their experiments CoT prompts with only complex examples can improve the accuracy of complex questions, but perform poorly in simple questions; evidence shown on GSM8k.\nChanging Q: to Question: is found to be helpful. (Fu et al. 2023)\nYe \u0026 Durrett (2022) found that the benefit of including explanations in the prompt is small to moderate for NLP tasks that involve reasoning over text (i.e. QA and NLI) and the effects vary by models. They observed that explanations are more likely to be nonfactual than be inconsistent (i.e. whether explanation entails prediction). Nonfactual explanations most likely lead to incorrect predictions.\nSelf-Ask (Press et al. 2022) is a method to repeatedly prompt the model to ask following-up questions to construct the thought process iteratively. Follow-up questions can be answered by search engine results. Similarly, IRCoT (Interleaving Retrieval CoT; Trivedi et al. 2022) and ReAct (Reason + Act; Yao et al. 2023) combines iterative CoT prompting with queries to Wikipedia APIs to search for relevant entities and content and then add it back into the context.\nHow Self-Ask works with external search queries.(Image source: Press et al. 2022). Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, essentially creating a tree structure. The search process can be BFS or DFS while each state is evaluated by a classifier (via a prompt) or majority vote. How Self-Ask works with external search queries.(Image source: Yao et al. 2022). Automatic Prompt Design Prompt is a sequence of prefix tokens that increase the probability of getting desired output given input. Therefore we can treat them as trainable parameters and optimize them directly on the embedding space via gradient descent, such as AutoPrompt (Shin et al., 2020, Prefix-Tuning (Li \u0026 Liang (2021)), P-tuning (Liu et al. 2021) and Prompt-Tuning (Lester et al. 2021). This section in my “Controllable Neural Text Generation” post has a good coverage of them. The trend from AutoPrompt to Prompt-Tuning is that the setup gets gradually simplified.\nAPE (Automatic Prompt Engineer; Zhou et al. 2022) is a method to search over a pool of model-generated instruction candidates and then filters the candidate set according to a chosen score function to ultimately choose the best candidate with highest score.\nPrompt LLM to generate instruction candidates based on a small set of demonstrations in the form of input-output pairs. E.g. {{Given desired input-output pairs}}\\n\\nThe instruction is.\nGiven a dataset of $\\mathcal{D}_\\text{train} = \\{(x, y)\\}$, we would like to find an instruction $\\rho$ such that $\\rho^* = \\arg\\max_\\rho \\mathbb{E}_{(x, y) \\in \\mathcal{D}_\\text{train}} [f(\\rho, x, y)]$, where $f(.)$ is a per-sample score function, such as execution accuracy $\\mathbb{1}[\\text{LM}(.\\vert \\rho, x)=y]$ or log probability: $p_\\text{LM}(y \\mid \\rho, x)$.\nUse an iterative Monte Carlo search method to improve the best candidates by proposing semantically similar variants via prompts like Generate a variation of the following instruction while keeping the semantic meaning.\\n\\nInput: ...\\n\\nOutput:...\nTo construct chain-of-thought prompts automatically, Shum et al. (2023) suggested augment-prune-select, a three-step process:\nAugment: Generate multiple pseudo-chains of thought given question using few-shot or zero-shot CoT prompts; Prune: Prune pseudo chains based on whether generated answers match ground truths. Select: Apply a variance-reduced policy gradient strategy to learn the probability distribution over selected examples, while considering the probability distribution over examples as policy and the validation set accuracy as reward. Zhang et al. (2023) instead adopted clustering techniques to sample questions and then generates chains. They observed that LLMs tend to make certain types of mistakes. One type of errors can be similar in the emebedding space and thus get grouped together. By only sampling one or a few from frequent-error clusters, we can prevent too many wrong demonstrations of one error type and collect a diverse set of examples.\nQuestion clustering: Embed questions and run $k$-means for clustering. Demonstration selection: Select a set of representative questions from each cluster; i.e. one demonstration from one cluster. Samples in each cluster are sorted by distance to the cluster centroid and those closer to the centroid are selected first. Rationale generation: Use zero-shot CoT to generate reasoning chains for selected questions and construct few-shot prompt to run inference. Augmented Language Models A survey on augmented language models by Mialon et al. (2023) has great coverage over multiple categories of language models augmented with reasoning skills and the ability of using external tools. Recommend it.\nRetrieval Often we need to complete tasks that require latest knowledge after the model pretraining time cutoff or internal/private knowledge base. In that case, the model would not know the context if we don’t explicitly provide it in the prompt. Many methods for Open Domain Question Answering depend on first doing retrieval over a knowledge base and then incorporating the retrieved content as part of the prompt. The accuracy of such a process depends on the quality of both retrieval and generation steps.\nLazaridou et al. (2022) studied how to use Google Search for document retrieval to augment LLMs. Given a question $q$, clean text is extracted out of 20 URLs returned by Google, resulting in a set of documents. Because these documents are long, each document is split into paragraphs of 6 sentences, $\\{p\\}$. Paragraphs are ranked by TF-IDF based cosine similarity between evidence paragraphs and the query. Only the most relevant paragraph is used in the prompt to produce an answer $a$.\nFor closed-book QA, each demonstration is formatted as follows to construct few-shot prompts. Swapping the question with the evidence (longer distance between questions and answers) is found to consistently yield lower results across all datasets.\nEvidence: ... Question: ... Answer: ... The answer probability is computed in three ways:\nRAG style, $p(a_i \\mid q) = \\sum_{i=1}^n p_\\text{tf-idf} (p_i \\mid q) \\cdot p_\\text{LM}(a_i \\mid q, p_i)$, where $p_\\text{tf-idf} (p_i \\mid q)$ is the normalized cosine similarities between the TF-IDF passage and question representations. Noisy channel inference, $p(a_i\\mid q) = \\frac{p_\\text{LM}(q \\mid a_i, p_i) \\cdot p_\\text{LM}(a_i \\mid p_i)}{p_\\text{LM}(q \\mid p_i)}$ Product-of-Experts (PoE), combines all probabilities used above in addition to $p_\\text{LM}(p_i \\mid q)$. According to their experiments on generation and classification tasks, among three answer reranking scores - PoE \u003e Noisy channel \u003e RAG. Among individual probabilities, $p_\\text{LM}(a \\mid q, p_i)$ and $p_\\text{LM}(q \\mid p_i, a)$ are found to be most informative. $p_\\text{LM}(q \\mid p_i, a)$ captures how well the question can be explained by LM given evidence paragraph and answer and can reliably be used for reranking answer candidates.\nOne observation with SituatedQA dataset for questions grounded in different dates is that despite LM (pretraining cutoff is year 2020) has access to latest information via Google Search, its performance on post-2020 questions are still a lot worse than on pre-2020 questions. This suggests the existence of some discrepencies or conflicting parametric between contextual information and model internal knowledge.\nInterestingly it is found to be beneficial even with only “internal retrieval”, that is, to generate knowledge about a topic before answering the question (Liu et al. 2022). First we can use the following template to extract knowledge:\nGenerate some knowledge about the input. Examples: Input: What type of water formation is formed by clouds? Knowledge: Clouds are made of water vapor. Input: {question} Knowledge: And then with model-generated knowledge, prompt the LM further to get the answer.\nProgramming Language Both PAL (Program-aided language models); Gao et al. 2022) and PoT (Program of Thoughts prompting; Chen et al. 2022) ask LLM to generate programming language statements to resolve natural language reasoning problems, hence offloading the solution step to a runtime such as a Python interpreter. Such setup decouples complex computation and reasoning. It relies on a LM with good enough coding skills.\nComparing CoT and PoT. (Image source: Chen et al. 2022). External APIs TALM (Tool Augmented Language Models; Parisi et al. 2022) is a language model augmented with text-to-text API calls. LM is guided to generate |tool-call and tool input text conditioned on task input text to construct API call requests. When |result shows up, the specified tool API is called and the returned result gets appended to the text sequence. The final output is generated following |output token.\nThe format of API calls in TALM. (Image source: Parisi et al. 2022). TALM adopts a self-play approach to iteratively bootstrap the dataset of tool use examples and finetune LM with it. This self-play, defined as a model interacting with a tool API, iteratively expands the dataset based on whether a newly added tool API can improve the model outputs. Same idea is adopted in Toolformer too, described in more details below. The pipeline loosely mimics a RL process where LM is the policy network and it is trained by policy gradient with a binary reward signal.\nSelf-play iterations help boost the model performance.(Image source: Parisi et al. 2022). Toolformer (Schick et al. 2023) is a LM that can use external tools via simple APIs, which is built in a self-supervised manner and only requires a handful of demonstrations for each API. The toolbox of Toolformer includes:\nCalculator to help LM with the lack of precise math skills; Q\u0026A system to help with unfaithful content and hallucination; Search engine to provide up-to-date information after pretraining cut off time; Translation system to improve performance on low resource language; Calendar to make LM be aware of time progression. Illustration of how to build Toolformer.(Image source: Schick et al. 2023). Toolformer is trained as follows:\nPrompting to annotate potential API calls. Ask a pre-trained LM to annotate a dataset via few-shot learning with API call usage examples. Formatting example:\nHow dataset is annotated to do API calls.(Image source: Schick et al. 2023). - Each API call is represented as a tuple of (API name, corresponding input), $c=(a_c, i_c)$ and its corresponding result is denoted as $r$. The API call sequences with and without results are labeled as follows, respectively: $$ \\begin{aligned} e(c) \u0026= \\langle\\texttt{API}\\rangle a_c(i_c) \\langle\\texttt{/API}\\rangle \\\\ e(c, r) \u0026= \\langle\\texttt{API}\\rangle a_c(i_c) \\to r \\langle\\texttt{/API}\\rangle \\end{aligned} $$ - Sample API calls based on the probabilities $p_\\text{LM}(\\langle\\texttt{API}\\rangle \\mid \\text{prompt}(\\mathbf{x}), \\mathbf{x}_{1:i})$ and select top $k$ candidate positions for doing API calls at position $i$ if the probability is larger than a threshold. - Then we sample potential API calls from the LM given the sequence $[\\text{prompt}(\\mathbf{x}), x_1, \\dots, x_{i-1}, \\langle\\texttt{API}\\rangle]$ as prefix and $\\langle\\texttt{/API}\\rangle$ as suffix. Filter annotations based on whether API calls help model predict future tokens. Use a self-supervised loss to decide which API calls are actually helpful.\nExecute each API call $c_i$ to get corresponding result $r_i$.\nCompute weighted cross entropy loss for the LM over tokens $x_i, \\dots, x_n$ when the model is prefixed with the prompt. Two versions are computed, one with API result and the other with empty sequence $\\varepsilon$.\n$$ \\begin{aligned} L^+_i \u0026= L_i(e(c_i, r_i)) \\\\ L^-_i \u0026= \\min(L_i(\\varepsilon), L_i(e(c_i, \\varepsilon))) \\\\ \\end{aligned} $$ Only API calls with $L^-_i - L^+_i$ larger than a threshold are kept, meaning that adding this API call and its results help the model predict future tokens.\nFine-tune LM on this annotated dataset. The new training sequences are constructed as $\\mathbf{x}^* = x_{1:i-1}, e(c_i, r_i), x_{i:n}$ . The training data is a combination of the original dataset (e.g. a subset of CCNet, as in the paper) and its augmented version.\nAt inference time, decoding runs until the model produces “$\\to$ \" token, indicating that it is expecting response from an API call next.\nToolformer currently does not support tool use in a chain (i.e. using the output of one tool as an input for another tool) or in an interactive way (i.e. adopt API response after human selection). Both are interesting future directions to expand the model for.\nCitation Cited as:\nWeng, Lilian. (Mar 2023). Prompt Engineering. Lil’Log. https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/.\nOr\n@article{weng2023prompt, title = \"Prompt Engineering\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2023\", month = \"Mar\", url = \"https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/\" } Useful Resources OpenAI Cookbook has many in-depth examples for how to utilize LLM efficiently. LangChain, a library for combining language models with other components to build applications. Prompt Engineering Guide repo contains a pretty comprehensive collection of education materials on prompt engineering. learnprompting.org PromptPerfect Semantic Kernel References [1] Zhao et al. “Calibrate Before Use: Improving Few-shot Performance of Language Models.” ICML 2021\n[2] Liu et al. “What Makes Good In-Context Examples for GPT-3?” arXiv preprint arXiv:2101.06804 (2021).\n[3] Lu et al. “Fantastically Ordered Prompts and Where to Find Them: Overcoming Few-Shot Prompt Order Sensitivity.” ACL 2022\n[4] Ye et al. “In-Context Instruction Learning.” arXiv preprint arXiv:2302.14691 (2023).\n[5] Su et al. “Selective annotation makes language models better few-shot learners.” arXiv preprint arXiv:2209.01975 (2022).\n[6] Rubin et al. “Learning to retrieve prompts for in-context learning.” NAACL-HLT 2022\n[7] Wei et al. “Chain of thought prompting elicits reasoning in large language models.” NeurIPS 2022\n[8] Wang et al. “Self-Consistency Improves Chain of Thought Reasoning in Language Models.” ICLR 2023.\n[9] Diao et al. “Active Prompting with Chain-of-Thought for Large Language Models.” arXiv preprint arXiv:2302.12246 (2023).\n[10] Zelikman et al. “STaR: Bootstrapping Reasoning With Reasoning.” arXiv preprint arXiv:2203.14465 (2022).\n[11] Ye \u0026 Durrett. “The unreliability of explanations in few-shot in-context learning.” arXiv preprint arXiv:2205.03401 (2022).\n[12] Trivedi et al. “Interleaving retrieval with chain-of-thought reasoning for knowledge-intensive multi-step questions.” arXiv preprint arXiv:2212.10509 (2022).\n[13] Press et al. “Measuring and narrowing the compositionality gap in language models.” arXiv preprint arXiv:2210.03350 (2022).\n[14] Yao et al. “ReAct: Synergizing reasoning and acting in language models.” ICLR 2023.\n[15] Fu et al. “Complexity-based prompting for multi-step reasoning.” arXiv preprint arXiv:2210.00720 (2022).\n[16] Wang et al. “Rationale-augmented ensembles in language models.” arXiv preprint arXiv:2207.00747 (2022).\n[17] Zhang et al. “Automatic chain of thought prompting in large language models.” arXiv preprint arXiv:2210.03493 (2022).\n[18] Shum et al. “Automatic Prompt Augmentation and Selection with Chain-of-Thought from Labeled Data.” arXiv preprint arXiv:2302.12822 (2023).\n[19] Zhou et al. “Large Language Models Are Human-Level Prompt Engineers.” ICLR 2023.\n[20] Lazaridou et al. “Internet augmented language models through few-shot prompting for open-domain question answering.” arXiv preprint arXiv:2203.05115 (2022).\n[21] Chen et al. “Program of Thoughts Prompting: Disentangling Computation from Reasoning for Numerical Reasoning Tasks.” arXiv preprint arXiv:2211.12588 (2022).\n[22] Gao et al. “PAL: Program-aided language models.” arXiv preprint arXiv:2211.10435 (2022).\n[23] Parisi et al. “TALM: Tool Augmented Language Models” arXiv preprint arXiv:2205.12255 (2022).\n[24] Schick et al. “Toolformer: Language Models Can Teach Themselves to Use Tools.” arXiv preprint arXiv:2302.04761 (2023).\n[25] Mialon et al. “Augmented Language Models: a Survey” arXiv preprint arXiv:2302.07842 (2023).\n[26] Yao et al. “Tree of Thoughts: Deliberate Problem Solving with Large Language Models.” arXiv preprint arXiv:2305.10601 (2023).\n",
+  "wordCount" : "4419",
+  "inLanguage": "en",
+  "datePublished": "2023-03-15T00:00:00Z",
+  "dateModified": "2023-03-15T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Prompt Engineering
+    </h1>
+    <div class="post-meta">Date: March 15, 2023  |  Estimated Reading Time: 21 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#basic-prompting" aria-label="Basic Prompting">Basic Prompting</a><ul>
+                        
+                <li>
+                    <a href="#zero-shot" aria-label="Zero-Shot">Zero-Shot</a></li>
+                <li>
+                    <a href="#few-shot" aria-label="Few-shot">Few-shot</a><ul>
+                        
+                <li>
+                    <a href="#tips-for-example-selection" aria-label="Tips for Example Selection">Tips for Example Selection</a></li>
+                <li>
+                    <a href="#tips-for-example-ordering" aria-label="Tips for Example Ordering">Tips for Example Ordering</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#instruction-prompting" aria-label="Instruction Prompting">Instruction Prompting</a></li>
+                <li>
+                    <a href="#self-consistency-sampling" aria-label="Self-Consistency Sampling">Self-Consistency Sampling</a></li>
+                <li>
+                    <a href="#chain-of-thought-cot" aria-label="Chain-of-Thought (CoT)">Chain-of-Thought (CoT)</a><ul>
+                        
+                <li>
+                    <a href="#types-of-cot-prompts" aria-label="Types of CoT prompts">Types of CoT prompts</a></li>
+                <li>
+                    <a href="#tips-and-extensions" aria-label="Tips and Extensions">Tips and Extensions</a></li></ul>
+                </li>
+                <li>
+                    <a href="#automatic-prompt-design" aria-label="Automatic Prompt Design">Automatic Prompt Design</a></li>
+                <li>
+                    <a href="#augmented-language-models" aria-label="Augmented Language Models">Augmented Language Models</a><ul>
+                        
+                <li>
+                    <a href="#retrieval" aria-label="Retrieval">Retrieval</a></li>
+                <li>
+                    <a href="#programming-language" aria-label="Programming Language">Programming Language</a></li>
+                <li>
+                    <a href="#external-apis" aria-label="External APIs">External APIs</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#useful-resources" aria-label="Useful Resources">Useful Resources</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><strong>Prompt Engineering</strong>, also known as <strong>In-Context Prompting</strong>, refers to methods for how to communicate with LLM to steer its behavior for desired outcomes <em>without</em> updating the model weights. It is an empirical science and the effect of prompt engineering methods can vary a lot among models, thus requiring heavy experimentation and heuristics.</p>
+<p>This post only focuses on prompt engineering for autoregressive language models, so nothing with Cloze tests, image generation or multimodality models. At its core, the goal of prompt engineering is about alignment and model steerability. Check my <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/">previous post</a> on controllable text generation.</p>
+<p><span style="color: #bd2c22;">[My personal spicy take]</span> In my opinion, some prompt engineering papers are not worthy 8 pages long, since those tricks can be explained in one or a few sentences and the rest is all about benchmarking. An easy-to-use and shared benchmark infrastructure should be more beneficial to the community. Iterative prompting or external tool use would not be trivial to set up. Also non-trivial to align the whole research community to adopt it.</p>
+<h1 id="basic-prompting">Basic Prompting<a hidden class="anchor" aria-hidden="true" href="#basic-prompting">#</a></h1>
+<p>Zero-shot and few-shot learning are two most basic approaches for prompting the model, pioneered by many LLM papers and commonly used for benchmarking LLM performance.</p>
+<h2 id="zero-shot">Zero-Shot<a hidden class="anchor" aria-hidden="true" href="#zero-shot">#</a></h2>
+<p><strong>Zero-shot learning</strong> is to simply feed the task text to the model and ask for results.</p>
+<p>(All the sentiment analysis examples are from SST-2)</p>
+<pre tabindex="0"><code>Text: i&#39;ll bet the video game is a lot more fun than the film.
+Sentiment:
+</code></pre><h2 id="few-shot">Few-shot<a hidden class="anchor" aria-hidden="true" href="#few-shot">#</a></h2>
+<p><strong>Few-shot learning</strong> presents a set of high-quality demonstrations, each consisting of both input and desired output, on the target task. As the model first sees good examples, it can better understand human intention and criteria for what kinds of answers are wanted. Therefore, few-shot learning often leads to better performance than zero-shot. However, it comes at the cost of more token consumption and may hit the context length limit when input and output text are long.</p>
+<pre tabindex="0"><code>Text: (lawrence bounces) all over the stage, dancing, running, sweating, mopping his face and generally displaying the wacky talent that brought him fame in the first place.
+Sentiment: positive
+
+Text: despite all evidence to the contrary, this clunker has somehow managed to pose as an actual feature movie, the kind that charges full admission and gets hyped on tv and purports to amuse small children and ostensible adults.
+Sentiment: negative
+
+Text: for the first time in years, de niro digs deep emotionally, perhaps because he&#39;s been stirred by the powerful work of his co-stars.
+Sentiment: positive
+
+Text: i&#39;ll bet the video game is a lot more fun than the film.
+Sentiment:
+</code></pre><p>Many studies looked into how to construct in-context examples to maximize the performance and observed that <strong>choice of prompt format, training examples, and the order of the examples can lead to dramatically different performance</strong>, from near random guess to near SoTA.</p>
+<p><a href="https://arxiv.org/abs/2102.09690">Zhao et al. (2021)</a> investigated the case of few-shot classification and proposed that several biases with LLM (they use GPT-3 in the experiments) contribute to such high variance: (1) <em>Majority label bias</em> exists if distribution of labels among the examples is unbalanced; (2) <em>Recency bias</em> refers to the tendency where the model may repeat the label at the end; (3) <em>Common token bias</em> indicates that LLM tends to produce common tokens more often than rare tokens. To conquer such bias, they proposed a method to calibrate the label probabilities output by the model to be uniform when the input string is <code>N/A</code>.</p>
+<h3 id="tips-for-example-selection">Tips for Example Selection<a hidden class="anchor" aria-hidden="true" href="#tips-for-example-selection">#</a></h3>
+<ul>
+<li>
+<p>Choose examples that are semantically similar to the test example using $k$-NN clustering in the embedding space (<a href="https://arxiv.org/abs/2101.06804">Liu et al., 2021</a>)</p>
+</li>
+<li>
+<p>To select a diverse and representative set of examples, <a href="https://arxiv.org/abs/2209.01975">Su et al. (2022)</a> proposed to use a graph-based approach: (1) First, construct a directed graph $G=(V, E)$ based on the embedding (e.g. by <a href="https://arxiv.org/abs/1908.10084">SBERT</a> or <a href="https://arxiv.org/abs/2201.10005">other</a> <a href="https://platform.openai.com/docs/guides/embeddings">embedding</a> <a href="https://openai.com/blog/new-and-improved-embedding-model">models</a>) cosine similarity between samples, where each node points to its $k$ nearest neighbors; (2) Start with a set of selected samples $\mathcal{L}=\emptyset$ and a set of remaining samples $\mathcal{U}$. Each sample $u \in \mathcal{U}$ is scored by $$
+\text{score}(u) = \sum_{v \in \{v \mid (u, v) \in E, v\in \mathcal{U}\}} s(v)\quad\text{where }s(v)=\rho^{- \vert \{\ell \in \mathcal{L} \vert (v, \ell)\in E \}\vert},\quad\rho &gt; 1
+$$ such that $s(v)$ is low if many of $v$&rsquo;s neighbors are selected and thus the scoring encourages to pick diverse samples.</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2112.08633">Rubin et al. (2022)</a> proposed to train embeddings via <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/">contrastive learning</a> specific to one training dataset for in-context learning sample selection.  Given each training pair $(x, y)$, the quality of one example $e_i$ (formatted input-output pair) can be measured by a conditioned probability assigned by LM: $\text{score}(e_i) = P_\text{LM}(y \mid e_i, x)$. We can identify other examples with top-$k$ and bottom-$k$ scores as positive and negative sets of candidates for every training pair and use that for contrastive learning.</p>
+</li>
+<li>
+<p>Some researchers tried <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#q-learning-off-policy-td-control">Q-Learning</a> to do sample selection. (<a href="https://arxiv.org/abs/2211.04486">Zhang et al. 2022</a>)</p>
+</li>
+<li>
+<p>Motivated by uncertainty-based <a href="https://lilianweng.github.io/posts/2022-02-20-active-learning/">active learning</a>, <a href="https://arxiv.org/abs/2302.12246">Diao et al. (2023)</a> suggested to identify examples with high disagreement or entropy among multiple sampling trials. Then annotate these examples to be used in few-shot prompts.</p>
+</li>
+</ul>
+<h3 id="tips-for-example-ordering">Tips for Example Ordering<a hidden class="anchor" aria-hidden="true" href="#tips-for-example-ordering">#</a></h3>
+<ul>
+<li>A general suggestion is to keep the selection of examples diverse, relevant to the test sample and in random order to avoid majority label bias and recency bias.</li>
+<li>Increasing model sizes or including more training examples does not reduce variance among different permutations of in-context examples. Same order may work well for one model but badly for another. When the validation set is limited, consider choosing the order such that the model does not produce extremely unbalanced predictions or being overconfident about its predictions. (<a href="https://arxiv.org/abs/2104.08786">Lu et al. 2022</a>)</li>
+</ul>
+<h1 id="instruction-prompting">Instruction Prompting<a hidden class="anchor" aria-hidden="true" href="#instruction-prompting">#</a></h1>
+<p>The purpose of presenting few-shot examples in the prompt is to explain our intent to the model; in other words, describe the task instruction to the model in the form of demonstrations. However, few-shot can be expensive in terms of token usage and restricts the input length due to limited context length. So, why not just give the instruction directly?</p>
+<p><em>Instructed LM</em> (e.g. <a href="https://openai.com/research/instruction-following">InstructGPT</a>, <a href="https://github.com/allenai/natural-instructions">natural instruction</a>) finetunes a pretrained model with high-quality tuples of (task instruction, input, ground truth output) to make LM better understand user intention and follow instruction. <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#rl-fine-tuning-with-human-preferences">RLHF</a> (Reinforcement Learning from Human Feedback) is a common method to do so. The benefit of instruction following style fine-tuning improves the model to be more aligned with human intention and greatly reduces the cost of communication.</p>
+<p>When interacting with instruction models, we should describe the task requirement in details, trying to be <em>specific</em> and <em>precise</em> and avoiding say &ldquo;not do something&rdquo; but rather specify what to do.</p>
+<pre tabindex="0"><code>Please label the sentiment towards the movie of the given movie review. The sentiment label should be &#34;positive&#34; or &#34;negative&#34;. 
+Text: i&#39;ll bet the video game is a lot more fun than the film. 
+Sentiment:
+</code></pre><p>Explaining the desired audience is another smart way to give instructions</p>
+<ul>
+<li>For example to produce education materials for kids,</li>
+</ul>
+<pre tabindex="0"><code>Describe what is quantum physics to a 6-year-old.
+</code></pre><ul>
+<li>And safe content,</li>
+</ul>
+<pre tabindex="0"><code>... in language that is safe for work.
+</code></pre><p><em>In-context instruction learning</em> (<a href="https://arxiv.org/abs/2302.14691">Ye et al. 2023</a>) combines few-shot learning with instruction prompting. It incorporates multiple demonstration examples across different tasks in the prompt, each demonstration consisting of instruction, task input and output. Note that their experiments were only on classification tasks and the instruction prompt contains all label options.</p>
+<pre tabindex="0"><code>Definition: Determine the speaker of the dialogue, &#34;agent&#34; or &#34;customer&#34;.
+Input: I have successfully booked your tickets.
+Ouput: agent
+
+Definition: Determine which category the question asks for, &#34;Quantity&#34; or &#34;Location&#34;.
+Input: What&#39;s the oldest building in US?
+Ouput: Location
+
+Definition: Classify the sentiment of the given movie review, &#34;positive&#34; or &#34;negative&#34;.
+Input: i&#39;ll bet the video game is a lot more fun than the film.
+Output:
+</code></pre><h1 id="self-consistency-sampling">Self-Consistency Sampling<a hidden class="anchor" aria-hidden="true" href="#self-consistency-sampling">#</a></h1>
+<p><strong>Self-consistency sampling</strong> (<a href="https://arxiv.org/abs/2203.11171">Wang et al. 2022a</a>) is to sample multiple outputs with temperature &gt; 0 and then selecting the best one out of these candidates.
+The criteria for selecting the best candidate can vary from task to task. A general solution is to pick <strong>majority vote</strong>. For tasks that are easy to validate such as a programming question with unit tests, we can simply run through the interpreter and verify the correctness with unit tests.</p>
+<h1 id="chain-of-thought-cot">Chain-of-Thought (CoT)<a hidden class="anchor" aria-hidden="true" href="#chain-of-thought-cot">#</a></h1>
+<p><strong>Chain-of-thought (CoT) prompting</strong> (<a href="https://arxiv.org/abs/2201.11903">Wei et al. 2022</a>) generates a sequence of short sentences to describe reasoning logics step by step, known as <em>reasoning chains</em> or <em>rationales</em>, to eventually lead to the final answer. The benefit of CoT is more pronounced for <strong>complicated reasoning tasks</strong>, while using <strong>large models</strong> (e.g. with more than 50B parameters). Simple tasks only benefit slightly from CoT prompting.</p>
+<h2 id="types-of-cot-prompts">Types of CoT prompts<a hidden class="anchor" aria-hidden="true" href="#types-of-cot-prompts">#</a></h2>
+<p>Two main types of CoT prompting:</p>
+<ul>
+<li><strong>Few-shot CoT</strong>. It is to prompt the model with a few demonstrations, each containing manually written (or model-generated) high-quality reasoning chains.</li>
+</ul>
+<p>(All the math reasoning examples are from <a href="https://github.com/openai/grade-school-math">GSM8k</a>)</p>
+<pre tabindex="0"><code>Question: Tom and Elizabeth have a competition to climb a hill. Elizabeth takes 30 minutes to climb the hill. Tom takes four times as long as Elizabeth does to climb the hill. How many hours does it take Tom to climb up the hill?
+Answer: It takes Tom 30*4 = &lt;&lt;30*4=120&gt;&gt;120 minutes to climb the hill.
+It takes Tom 120/60 = &lt;&lt;120/60=2&gt;&gt;2 hours to climb the hill.
+So the answer is 2.
+===
+Question: Jack is a soccer player. He needs to buy two pairs of socks and a pair of soccer shoes. Each pair of socks cost $9.50, and the shoes cost $92. Jack has $40. How much more money does Jack need?
+Answer: The total cost of two pairs of socks is $9.50 x 2 = $&lt;&lt;9.5*2=19&gt;&gt;19.
+The total cost of the socks and the shoes is $19 + $92 = $&lt;&lt;19+92=111&gt;&gt;111.
+Jack need $111 - $40 = $&lt;&lt;111-40=71&gt;&gt;71 more.
+So the answer is 71.
+===
+Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be?
+Answer:
+</code></pre><ul>
+<li><strong>Zero-shot CoT</strong>. Use natural language statement like <code>Let's think step by step</code> to explicitly encourage the model to first generate reasoning chains and then to prompt with <code>Therefore, the answer is</code> to produce answers (<a href="https://arxiv.org/abs/2205.11916">Kojima et al. 2022</a> ). Or a similar statement <code>Let's work this out it a step by step to be sure we have the right answer</code> (<a href="https://arxiv.org/abs/2211.01910">Zhou et al. 2022</a>).</li>
+</ul>
+<pre tabindex="0"><code>Question: Marty has 100 centimeters of ribbon that he must cut into 4 equal parts. Each of the cut parts must be divided into 5 equal parts. How long will each final cut be?
+Answer: Let&#39;s think step by step.
+</code></pre><h2 id="tips-and-extensions">Tips and Extensions<a hidden class="anchor" aria-hidden="true" href="#tips-and-extensions">#</a></h2>
+<ul>
+<li>
+<p><a href="#self-consistency-sampling">Self-consistency sampling</a> can improve reasoning accuracy by sampling a number of diverse answers and then taking the majority vote. (<a href="https://arxiv.org/abs/2203.11171">Wang et al. 2022a</a>)</p>
+</li>
+<li>
+<p>Another approach for ensemble learning is to alter the example order or use model generated rationales to replace human-written ones to introduce randomness during multiple sample trials. Then aggregate model outputs with a majority vote to get final answer. (<a href="https://arxiv.org/abs/2207.00747">Wang et al. 2022b</a>)</p>
+</li>
+<li>
+<p>If training examples are only associated with true answers (easy to verify!) but no rationales, we can follow the <em>STaR</em> (Self-Taught Reasoner; <a href="https://arxiv.org/abs/2203.14465">Zelikman et al. 2022</a>) method : (1) Ask LLM to generate reasoning chains and only keep those leading to correct answers; (2) Then fine-tune the model with generated rationales and repeat the process until convergence. Note that higher temperature is more likely to generate incorrect rationales with correct answers. If training examples do not have ground truth answers, maybe consider using majority votes as the &ldquo;correct&rdquo; answers.</p>
+</li>
+<li>
+<p>Prompts with demonstrations of higher reasoning complexity can achieve better performance, where complexity is measured by the number of reasoning steps in the chains. When separating reasoning steps, newline <code>\n</code> symbol works better than <code>step i</code>, period <code>.</code> or semicolon <code>;</code>. (<a href="https://arxiv.org/abs/2210.00720">Fu et al. 2023</a>)</p>
+</li>
+<li>
+<p><em>Complexity-based consistency</em> is to explicitly prefer complex chains among all the generations by taking majority vote among only top $k$ complex chains. (<a href="https://arxiv.org/abs/2210.00720">Fu et al. 2023</a>)</p>
+</li>
+<li>
+<p>Later, <a href="https://arxiv.org/abs/2302.12822">Shum et al. (2023)</a> found that in their experiments CoT prompts with only complex examples can improve the accuracy of complex questions, but perform poorly in simple questions; evidence shown on GSM8k.</p>
+</li>
+<li>
+<p>Changing <code>Q:</code> to <code>Question:</code> is found to be helpful. (<a href="https://arxiv.org/abs/2210.00720">Fu et al. 2023</a>)</p>
+</li>
+<li>
+<p><a href="https://arxiv.org/abs/2205.03401">Ye &amp; Durrett (2022)</a> found that the benefit of including explanations in the prompt is small to moderate for NLP tasks that involve reasoning over text (i.e. QA and NLI) and the effects vary by models. They observed that explanations are more likely to be nonfactual than be inconsistent (i.e. whether explanation entails prediction). Nonfactual explanations most likely lead to incorrect predictions.</p>
+</li>
+<li>
+<p><em>Self-Ask</em> (<a href="https://arxiv.org/abs/2210.03350">Press et al. 2022</a>) is a method to repeatedly prompt the model to <em>ask following-up questions</em> to construct the thought process iteratively. Follow-up questions can be answered by search engine results. Similarly, <em>IRCoT</em> (Interleaving Retrieval CoT; <a href="https://arxiv.org/abs/2212.10509">Trivedi et al. 2022</a>) and <em>ReAct</em> (Reason + Act; <a href="https://arxiv.org/abs/2210.03629">Yao et al. 2023</a>) combines iterative CoT prompting with queries to Wikipedia APIs to search for relevant entities and content and then add it back into the context.</p>
+</li>
+</ul>
+<figure>
+	<img src="SelfAsk-search.png" style="width: 60%;"  />
+	<figcaption>How Self-Ask works with external search queries.<br/>(Image source: <a href="https://arxiv.org/abs/2210.03350" target="_blank">Press et al. 2022</a>).</figcaption>
+</figure>
+<ul>
+<li><em>Tree of Thoughts</em> (<a href="https://arxiv.org/abs/2305.10601">Yao et al. 2023</a>) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, essentially creating a tree structure. The search process can be BFS or DFS while each state is evaluated by a classifier (via a prompt) or majority vote.</li>
+</ul>
+<figure>
+	<img src="tree-of-thoughts.png" style="width: 45%;"  />
+	<figcaption>How Self-Ask works with external search queries.<br/>(Image source: <a href="https://arxiv.org/abs/2305.10601" target="_blank">Yao et al. 2022</a>).</figcaption>
+</figure>
+<h1 id="automatic-prompt-design">Automatic Prompt Design<a hidden class="anchor" aria-hidden="true" href="#automatic-prompt-design">#</a></h1>
+<p>Prompt is a sequence of prefix tokens that increase the probability of getting  desired output given input. Therefore we can treat them as trainable parameters and <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#smart-prompt-design">optimize them directly</a> on the embedding space via gradient descent, such as <strong>AutoPrompt</strong> (<a href="https://arxiv.org/abs/2010.15980">Shin et al., 2020</a>, <strong>Prefix-Tuning</strong> (<a href="https://arxiv.org/abs/2101.00190">Li &amp; Liang (2021)</a>), <strong>P-tuning</strong> (<a href="https://arxiv.org/abs/2103.10385">Liu et al. 2021</a>) and <strong>Prompt-Tuning</strong> (<a href="https://arxiv.org/abs/2104.08691">Lester et al. 2021</a>). <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#smart-prompt-design">This section in my &ldquo;Controllable Neural Text Generation&rdquo; post</a> has a good coverage of them. The trend from AutoPrompt to Prompt-Tuning is that the setup gets gradually simplified.</p>
+<p><strong>APE</strong> (Automatic Prompt Engineer; <a href="https://arxiv.org/abs/2211.01910">Zhou et al. 2022</a>) is a method to search over a pool of model-generated instruction candidates and then filters the candidate set according to a chosen score function to ultimately choose the best candidate with highest score.</p>
+<ol>
+<li>
+<p>Prompt LLM to generate instruction candidates based on a small set of demonstrations in the form of input-output pairs. E.g. <code>{{Given desired input-output pairs}}\n\nThe instruction is</code>.</p>
+</li>
+<li>
+<p>Given a dataset of $\mathcal{D}_\text{train} = \{(x, y)\}$, we would like to find an instruction $\rho$ such that $\rho^* = \arg\max_\rho \mathbb{E}_{(x, y) \in \mathcal{D}_\text{train}} [f(\rho, x, y)]$, where $f(.)$ is a per-sample score function, such as execution accuracy $\mathbb{1}[\text{LM}(.\vert \rho, x)=y]$ or log probability: $p_\text{LM}(y \mid \rho, x)$.</p>
+</li>
+<li>
+<p>Use an iterative Monte Carlo search method to improve the best candidates by proposing semantically similar variants via prompts like <code>Generate a variation of the following instruction while keeping the semantic meaning.\n\nInput: ...\n\nOutput:...</code></p>
+</li>
+</ol>
+<p>To construct chain-of-thought prompts automatically, <a href="https://arxiv.org/abs/2302.12822">Shum et al. (2023)</a> suggested augment-prune-select, a three-step process:</p>
+<ol>
+<li><em>Augment</em>: Generate multiple pseudo-chains of thought given question using few-shot or zero-shot CoT prompts;</li>
+<li><em>Prune</em>: Prune pseudo chains based on whether generated answers match ground truths.</li>
+<li><em>Select</em>: Apply a variance-reduced policy gradient strategy to learn the probability distribution over selected examples, while considering the probability distribution over examples as policy and the validation set accuracy as reward.</li>
+</ol>
+<p><a href="https://arxiv.org/abs/2210.03493">Zhang et al. (2023)</a> instead adopted <em>clustering</em> techniques to sample questions and then generates chains. They observed that LLMs tend to make certain types of mistakes. One type of errors can be similar in the emebedding space and thus get grouped together. By only sampling one or a few from frequent-error clusters, we can prevent too many wrong demonstrations of one error type and collect a diverse set of examples.</p>
+<ol>
+<li><em>Question clustering</em>: Embed questions and run $k$-means for clustering.</li>
+<li><em>Demonstration selection</em>: Select a set of representative questions from each cluster; i.e. one demonstration from one cluster. Samples in each cluster are sorted by distance to the cluster centroid and those closer to the centroid are selected first.</li>
+<li><em>Rationale generation</em>: Use zero-shot CoT to generate reasoning chains for selected questions and construct few-shot prompt to run inference.</li>
+</ol>
+<h1 id="augmented-language-models">Augmented Language Models<a hidden class="anchor" aria-hidden="true" href="#augmented-language-models">#</a></h1>
+<p>A survey on augmented language models by <a href="https://arxiv.org/abs/2302.07842">Mialon et al. (2023)</a> has great coverage over multiple categories of language models augmented with reasoning skills and the ability of using external tools. Recommend it.</p>
+<h2 id="retrieval">Retrieval<a hidden class="anchor" aria-hidden="true" href="#retrieval">#</a></h2>
+<p>Often we need to complete tasks that require latest knowledge after the model pretraining time cutoff or internal/private knowledge base. In that case, the model would not know the context if we don’t explicitly provide it in the prompt. Many methods for <a href="https://lilianweng.github.io/posts/2020-10-29-odqa/">Open Domain Question Answering</a> depend on first doing retrieval over a knowledge base and then incorporating the retrieved content as part of the prompt. The accuracy of such a process depends on the quality of both retrieval and generation steps.</p>
+<p><a href="https://arxiv.org/abs/2203.05115">Lazaridou et al. (2022)</a> studied how to use Google Search for document retrieval to augment LLMs. Given a question $q$, clean text is extracted out of 20 URLs returned by Google, resulting in a set of documents. Because these documents are long, each document is split into paragraphs of 6 sentences, $\{p\}$. Paragraphs are ranked by TF-IDF based cosine similarity between evidence paragraphs and the query. Only the most relevant paragraph is used in the prompt to produce an answer $a$.</p>
+<p>For closed-book QA, each demonstration is formatted as follows to construct few-shot prompts. Swapping the question with the evidence (longer distance between questions and answers) is found to consistently yield lower results across all datasets.</p>
+<pre tabindex="0"><code>Evidence: ...
+Question: ...
+Answer: ...
+</code></pre><p>The answer probability is computed in three ways:</p>
+<ol>
+<li><a href="https://lilianweng.github.io/posts/2020-10-29-odqa/#RAG">RAG</a> style, $p(a_i \mid q) = \sum_{i=1}^n p_\text{tf-idf} (p_i \mid q) \cdot p_\text{LM}(a_i \mid q, p_i)$, where $p_\text{tf-idf} (p_i \mid q)$ is the normalized cosine similarities between the TF-IDF passage and question representations.</li>
+<li>Noisy channel inference, $p(a_i\mid q) = \frac{p_\text{LM}(q \mid a_i, p_i) \cdot p_\text{LM}(a_i \mid p_i)}{p_\text{LM}(q \mid p_i)}$</li>
+<li>Product-of-Experts (PoE), combines all probabilities used above in addition to $p_\text{LM}(p_i \mid q)$.</li>
+</ol>
+<p>According to their experiments on generation and classification tasks, among three answer reranking scores - PoE &gt; Noisy channel &gt; RAG. Among individual probabilities, $p_\text{LM}(a \mid q, p_i)$ and $p_\text{LM}(q \mid p_i, a)$ are found to be most informative. $p_\text{LM}(q \mid p_i, a)$ captures how well the question can be explained by LM given evidence paragraph and answer and can reliably be used for reranking answer candidates.</p>
+<p>One observation with <a href="https://situatedqa.github.io/">SituatedQA</a> dataset for questions grounded in different dates is that despite LM (pretraining cutoff is year 2020) has access to latest information via Google Search, its performance on post-2020 questions are still a lot <em>worse</em> than on pre-2020 questions. This suggests the existence of some discrepencies or conflicting parametric between contextual information and model internal knowledge.</p>
+<p>Interestingly it is found to be beneficial even with only &ldquo;internal retrieval&rdquo;, that is, to generate knowledge about a topic before answering the question (<a href="https://arxiv.org/abs/2110.08387">Liu et al. 2022</a>). First we can use  the following template to extract knowledge:</p>
+<pre tabindex="0"><code>Generate some knowledge about the input. Examples:
+
+Input: What type of water formation is formed by clouds?
+Knowledge: Clouds are made of water vapor.
+
+Input: {question}
+Knowledge:
+</code></pre><p>And then with model-generated knowledge, prompt the LM further to get the answer.</p>
+<h2 id="programming-language">Programming Language<a hidden class="anchor" aria-hidden="true" href="#programming-language">#</a></h2>
+<p>Both <strong>PAL</strong> (Program-aided language models); <a href="https://arxiv.org/abs/2211.10435">Gao et al. 2022</a>) and <strong>PoT</strong> (Program of Thoughts prompting; <a href="https://arxiv.org/abs/2211.12588">Chen et al. 2022</a>) ask LLM to generate programming language statements to resolve natural language reasoning problems, hence offloading the solution step to a runtime such as a Python interpreter. Such setup decouples complex computation and reasoning. It relies on a LM with good enough coding skills.</p>
+<figure>
+	<img src="PoT.png" style="width: 100%;"  />
+	<figcaption>Comparing CoT and PoT. (Image source: <a href="https://arxiv.org/abs/2211.12588" target="_blank">Chen et al. 2022</a>).</figcaption>
+</figure>
+<h2 id="external-apis">External APIs<a hidden class="anchor" aria-hidden="true" href="#external-apis">#</a></h2>
+<p><strong>TALM</strong> (Tool Augmented Language Models; <a href="https://arxiv.org/abs/2205.12255">Parisi et al. 2022</a>) is a language model augmented with text-to-text API calls. LM is guided to generate <code>|tool-call</code> and <code>tool input text</code> conditioned on task input text to construct API call requests. When <code>|result</code> shows up, the specified tool API is called and the returned result gets appended to the text sequence. The final output is generated following <code>|output</code> token.</p>
+<figure>
+	<img src="TALM.png" style="width: 60%;"  />
+	<figcaption>The format of API calls in TALM. (Image source: <a href="https://arxiv.org/abs/2205.12255" target="_blank">Parisi et al. 2022</a>).</figcaption>
+</figure>
+<p>TALM adopts a self-play approach to iteratively bootstrap the dataset of tool use examples and finetune LM with it. This self-play, defined as a model interacting with a tool API, iteratively expands the dataset based on whether a newly added tool API can improve the model outputs. Same idea is adopted in Toolformer too, described in more details below. The pipeline loosely mimics a RL process where LM is the policy network and it is trained by policy gradient with a binary reward signal.</p>
+<figure>
+	<img src="TALM-iteration.png" style="width: 60%;"  />
+	<figcaption>Self-play iterations help boost the model performance.<br/>(Image source: <a href="https://arxiv.org/abs/2205.12255" target="_blank">Parisi et al. 2022</a>).</figcaption>
+</figure>
+<p><strong>Toolformer</strong> (<a href="https://arxiv.org/abs/2302.04761">Schick et al. 2023</a>) is a LM that can use external tools via simple APIs, which is built in a self-supervised manner and only requires a handful of demonstrations for each API. The toolbox of Toolformer includes:</p>
+<ul>
+<li><em>Calculator</em> to help LM with the lack of precise math skills;</li>
+<li><em>Q&amp;A system</em> to help with unfaithful content and hallucination;</li>
+<li><em>Search engine</em> to provide up-to-date information after pretraining cut off time;</li>
+<li><em>Translation system</em> to improve performance on low resource language;</li>
+<li><em>Calendar</em> to make LM be aware of time progression.</li>
+</ul>
+<figure>
+	<img src="toolformer.png" style="width: 100%;"  />
+	<figcaption>Illustration of how to build Toolformer.<br/>(Image source: <a href="https://arxiv.org/abs/2302.04761" target="_blank">Schick et al. 2023</a>).</figcaption>
+</figure>
+<p>Toolformer is trained as follows:</p>
+<ol>
+<li>
+<p><em>Prompting to annotate potential API calls</em>. Ask a pre-trained LM to annotate a dataset via few-shot learning with API call usage examples. Formatting example:</p>
+ <figure>
+ <img src="toolformer-annotation.png" style="width: 60%;"  />
+ 	<figcaption>How dataset is annotated to do API calls.<br/>(Image source: <a href="https://arxiv.org/abs/2302.04761" target="_blank">Schick et al. 2023</a>).</figcaption>
+</li>
+</ol>
+</figure>
+<pre><code>- Each API call is represented as a tuple of (API name, corresponding input), $c=(a_c, i_c)$ and its corresponding result is denoted as $r$. The API call sequences with and without results are labeled as follows, respectively:
+
+    &lt;div&gt;
+    $$
+    \begin{aligned}
+    e(c) &amp;= \langle\texttt{API}\rangle a_c(i_c) \langle\texttt{/API}\rangle \\
+    e(c, r) &amp;= \langle\texttt{API}\rangle a_c(i_c) \to r \langle\texttt{/API}\rangle
+    \end{aligned}
+    $$
+    &lt;/div&gt;
+
+- Sample API calls based on the probabilities $p_\text{LM}(\langle\texttt{API}\rangle \mid \text{prompt}(\mathbf{x}), \mathbf{x}_{1:i})$ and select top $k$ candidate positions for doing API calls at position $i$ if the probability is larger than a threshold.
+
+- Then we sample potential API calls from the LM given the sequence $[\text{prompt}(\mathbf{x}), x_1, \dots, x_{i-1}, \langle\texttt{API}\rangle]$ as prefix and $\langle\texttt{/API}\rangle$ as suffix.
+</code></pre>
+<ol start="2">
+<li>
+<p><em>Filter annotations based on whether API calls help model predict future tokens.</em> Use a self-supervised loss to decide which API calls are actually helpful.</p>
+<ul>
+<li>
+<p>Execute each API call $c_i$ to get corresponding result $r_i$.</p>
+</li>
+<li>
+<p>Compute weighted cross entropy loss for the LM over tokens $x_i, \dots, x_n$ when the model is prefixed with the prompt. Two versions are computed, one with API result and the other with empty sequence $\varepsilon$.</p>
+  <div>
+  $$
+  \begin{aligned}
+  L^+_i &= L_i(e(c_i, r_i)) \\
+  L^-_i &= \min(L_i(\varepsilon), L_i(e(c_i, \varepsilon))) \\
+  \end{aligned}
+  $$
+  </div>
+<p>Only API calls with $L^-_i - L^+_i$ larger than a threshold are kept, meaning that adding this API call and its results help the model predict future tokens.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><em>Fine-tune LM on this annotated dataset.</em> The new training sequences are constructed as $\mathbf{x}^* = x_{1:i-1}, e(c_i, r_i), x_{i:n}$ . The training data is a combination of the original dataset (e.g. a subset of CCNet, as in the paper) and its augmented version.</p>
+</li>
+</ol>
+<p>At inference time, decoding runs until the model produces &ldquo;$\to$ &quot; token, indicating that it is expecting response from an API call next.</p>
+<p>Toolformer currently does not support tool use in a chain (i.e. using the output of one tool as an input for another tool) or in an interactive way (i.e. adopt API response after human selection). Both are interesting future directions to expand the model for.</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Mar 2023). Prompt Engineering. Lil&rsquo;Log. https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2023prompt,
+  title   = &#34;Prompt Engineering&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2023&#34;,
+  month   = &#34;Mar&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/&#34;
+}
+</code></pre><h1 id="useful-resources">Useful Resources<a hidden class="anchor" aria-hidden="true" href="#useful-resources">#</a></h1>
+<ul>
+<li><a href="https://github.com/openai/openai-cookbook">OpenAI Cookbook</a> has many in-depth examples for how to utilize LLM efficiently.</li>
+<li><a href="https://langchain.readthedocs.io/en/latest/">LangChain</a>, a library for combining language models with other components to build applications.</li>
+<li><a href="https://github.com/dair-ai/Prompt-Engineering-Guide">Prompt Engineering Guide</a> repo contains a pretty comprehensive collection of education materials on prompt engineering.</li>
+<li><a href="https://learnprompting.org/docs/intro">learnprompting.org</a></li>
+<li><a href="https://promptperfect.jina.ai">PromptPerfect</a></li>
+<li><a href="https://github.com/microsoft/semantic-kernel">Semantic Kernel</a></li>
+</ul>
+<h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Zhao et al. <a href="https://arxiv.org/abs/2102.09690">&ldquo;Calibrate Before Use: Improving Few-shot Performance of Language Models.&rdquo;</a> ICML 2021</p>
+<p>[2] Liu et al. <a href="https://arxiv.org/abs/2101.06804">&ldquo;What Makes Good In-Context Examples for GPT-3?&rdquo;</a> arXiv preprint arXiv:2101.06804 (2021).</p>
+<p>[3] Lu et al. <a href="https://arxiv.org/abs/2104.08786">&ldquo;Fantastically Ordered Prompts and Where to Find Them: Overcoming Few-Shot Prompt Order Sensitivity.&rdquo;</a> ACL 2022</p>
+<p>[4] Ye et al. <a href="https://arxiv.org/abs/2302.14691">&ldquo;In-Context Instruction Learning.&rdquo;</a> arXiv preprint arXiv:2302.14691 (2023).</p>
+<p>[5] Su et al. <a href="https://arxiv.org/abs/2209.01975">&ldquo;Selective annotation makes language models better few-shot learners.&rdquo;</a> arXiv preprint arXiv:2209.01975 (2022).</p>
+<p>[6] Rubin et al. <a href="https://arxiv.org/abs/2112.08633">&ldquo;Learning to retrieve prompts for in-context learning.&rdquo;</a> NAACL-HLT 2022</p>
+<p>[7] Wei et al. <a href="https://arxiv.org/abs/2201.11903">&ldquo;Chain of thought prompting elicits reasoning in large language models.&rdquo;</a> NeurIPS 2022</p>
+<p>[8] Wang et al. <a href="https://arxiv.org/abs/2203.11171">&ldquo;Self-Consistency Improves Chain of Thought Reasoning in Language Models.&rdquo;</a> ICLR 2023.</p>
+<p>[9] Diao et al. <a href="https://arxiv.org/abs/2302.12246">&ldquo;Active Prompting with Chain-of-Thought for Large Language Models.&rdquo;</a> arXiv preprint arXiv:2302.12246 (2023).</p>
+<p>[10] Zelikman et al. <a href="https://arxiv.org/abs/2203.14465">&ldquo;STaR: Bootstrapping Reasoning With Reasoning.&rdquo;</a> arXiv preprint arXiv:2203.14465 (2022).</p>
+<p>[11] Ye &amp; Durrett. <a href="https://arxiv.org/abs/2205.03401">&ldquo;The unreliability of explanations in few-shot in-context learning.&rdquo;</a> arXiv preprint arXiv:2205.03401 (2022).</p>
+<p>[12] Trivedi et al. <a href="https://arxiv.org/abs/2212.10509">&ldquo;Interleaving retrieval with chain-of-thought reasoning for knowledge-intensive multi-step questions.&rdquo;</a> arXiv preprint arXiv:2212.10509 (2022).</p>
+<p>[13] Press et al. <a href="https://arxiv.org/abs/2210.03350">&ldquo;Measuring and narrowing the compositionality gap in language models.&rdquo;</a> arXiv preprint arXiv:2210.03350 (2022).</p>
+<p>[14] Yao et al. <a href="https://arxiv.org/abs/2210.03629">&ldquo;ReAct: Synergizing reasoning and acting in language models.&rdquo;</a> ICLR 2023.</p>
+<p>[15] Fu et al. <a href="https://arxiv.org/abs/2210.00720">&ldquo;Complexity-based prompting for multi-step reasoning.&rdquo;</a> arXiv preprint arXiv:2210.00720 (2022).</p>
+<p>[16] Wang et al. <a href="https://arxiv.org/abs/2207.00747">&ldquo;Rationale-augmented ensembles in language models.&rdquo;</a> arXiv preprint arXiv:2207.00747 (2022).</p>
+<p>[17] Zhang et al. <a href="https://arxiv.org/abs/2210.03493">&ldquo;Automatic chain of thought prompting in large language models.&rdquo;</a> arXiv preprint arXiv:2210.03493 (2022).</p>
+<p>[18] Shum et al. <a href="https://arxiv.org/abs/2302.12822">&ldquo;Automatic Prompt Augmentation and Selection with Chain-of-Thought from Labeled Data.&rdquo;</a> arXiv preprint arXiv:2302.12822 (2023).</p>
+<p>[19] Zhou et al. <a href="https://arxiv.org/abs/2211.01910">&ldquo;Large Language Models Are Human-Level Prompt Engineers.&rdquo;</a> ICLR 2023.</p>
+<p>[20] Lazaridou et al. <a href="https://arxiv.org/abs/2203.05115">&ldquo;Internet augmented language models through few-shot prompting for open-domain question answering.&rdquo;</a> arXiv preprint arXiv:2203.05115 (2022).</p>
+<p>[21] Chen et al. <a href="https://arxiv.org/abs/2211.12588">&ldquo;Program of Thoughts Prompting: Disentangling Computation from Reasoning for Numerical Reasoning Tasks.&rdquo;</a> arXiv preprint arXiv:2211.12588 (2022).</p>
+<p>[22] Gao et al. <a href="https://arxiv.org/abs/2211.10435">&ldquo;PAL: Program-aided language models.&rdquo;</a> arXiv preprint arXiv:2211.10435 (2022).</p>
+<p>[23] Parisi et al. <a href="https://arxiv.org/abs/2205.12255">&ldquo;TALM: Tool Augmented Language Models&rdquo;</a> arXiv preprint arXiv:2205.12255 (2022).</p>
+<p>[24] Schick et al. <a href="https://arxiv.org/abs/2302.04761">&ldquo;Toolformer: Language Models Can Teach Themselves to Use Tools.&rdquo;</a> arXiv preprint arXiv:2302.04761 (2023).</p>
+<p>[25] Mialon et al. <a href="https://arxiv.org/abs/2302.07842">&ldquo;Augmented Language Models: a Survey&rdquo;</a> arXiv preprint arXiv:2302.07842 (2023).</p>
+<p>[26] Yao et al. <a href="https://arxiv.org/abs/2305.10601">&ldquo;Tree of Thoughts: Deliberate Problem Solving with Large Language Models.&rdquo;</a> arXiv preprint arXiv:2305.10601 (2023).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/nlp/">Nlp</a></li>
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/alignment/">Alignment</a></li>
+      <li><a href="https://lilianweng.github.io/tags/steerability/">Steerability</a></li>
+      <li><a href="https://lilianweng.github.io/tags/prompting/">Prompting</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2023-06-23-agent/">
+    <span class="title">« </span>
+    <br>
+    <span>LLM Powered Autonomous Agents</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/">
+    <span class="title"> »</span>
+    <br>
+    <span>The Transformer Family Version 2.0</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on twitter"
+        href="https://twitter.com/intent/tweet/?text=Prompt%20Engineering&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f&amp;hashtags=nlp%2clanguage-model%2calignment%2csteerability%2cprompting">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f&amp;title=Prompt%20Engineering&amp;summary=Prompt%20Engineering&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f&title=Prompt%20Engineering">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on whatsapp"
+        href="https://api.whatsapp.com/send?text=Prompt%20Engineering%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Prompt Engineering on telegram"
+        href="https://telegram.me/share/url?text=Prompt%20Engineering&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2023-03-15-prompt-engineering%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

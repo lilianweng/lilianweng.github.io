@@ -1,0 +1,824 @@
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{Evolution Strategies}\label{evolution-strategies}
+
+Date: September 5, 2019 \textbar{} Estimated Reading Time: 22 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[what-are-evolution-strategies]{What are Evolution Strategies?}
+\item
+  \hyperref[simple-gaussian-evolution-strategies]{Simple Gaussian Evolution Strategies}
+\item
+  \hyperref[covariance-matrix-adaptation-evolution-strategies-cma-es]{Covariance Matrix Adaptation Evolution Strategies (CMA-ES)}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[updating-the-mean]{Updating the Mean}
+  \item
+    \hyperref[controlling-the-step-size]{Controlling the Step Size}
+  \item
+    \hyperref[adapting-the-covariance-matrix]{Adapting the Covariance Matrix}
+  \end{itemize}
+\item
+  \hyperref[natural-evolution-strategies]{Natural Evolution Strategies}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[natural-gradients]{Natural Gradients}
+  \item
+    \hyperref[estimation-using-fisher-information-matrix]{Estimation using Fisher Information Matrix}
+  \item
+    \hyperref[nes-algorithm]{NES Algorithm}
+  \end{itemize}
+\item
+  \hyperref[applications-es-in-deep-reinforcement-learning]{Applications: ES in Deep Reinforcement Learning}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[openai-es-for-rl]{OpenAI ES for RL}
+  \item
+    \hyperref[exploration-with-es]{Exploration with ES}
+  \item
+    \hyperref[cem-rl]{CEM-RL}
+  \end{itemize}
+\item
+  \hyperref[extension-ea-in-deep-learning]{Extension: EA in Deep Learning}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[hyperparameter-tuning-pbt]{Hyperparameter Tuning: PBT}
+  \item
+    \hyperref[network-topology-optimization-wann]{Network Topology Optimization: WANN}
+  \end{itemize}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+Stochastic gradient descent is a universal choice for optimizing deep learning models. However, it is not the only option. With black-box optimization algorithms, you can evaluate a target function \$f(x): \textbackslash mathbb\{R\}\^{}n \textbackslash to \textbackslash mathbb\{R\}\$, even when you don't know the precise analytic form of \$f(x)\$ and thus cannot compute gradients or the Hessian matrix. Examples of black-box optimization methods include \href{https://en.wikipedia.org/wiki/Simulated_annealing}{Simulated Annealing}, \href{https://en.wikipedia.org/wiki/Hill_climbing}{Hill Climbing} and \href{https://en.wikipedia.org/wiki/Nelder\%E2\%80\%93Mead_method}{Nelder-Mead method}.
+
+\textbf{Evolution Strategies (ES)} is one type of black-box optimization algorithms, born in the family of \textbf{Evolutionary Algorithms (EA)}. In this post, I would dive into a couple of classic ES methods and introduce a few applications of how ES can play a role in deep reinforcement learning.
+
+\section{\texorpdfstring{What are Evolution Strategies?\hyperref[what-are-evolution-strategies]{\#}}{What are Evolution Strategies?\#}}\label{what-are-evolution-strategies}
+
+Evolution strategies (ES) belong to the big family of evolutionary algorithms. The optimization targets of ES are vectors of real numbers, \$x \textbackslash in \textbackslash mathbb\{R\}\^{}n\$.
+
+Evolutionary algorithms refer to a division of population-based optimization algorithms inspired by \emph{natural selection}. Natural selection believes that individuals with traits beneficial to their survival can live through generations and pass down the good characteristics to the next generation. Evolution happens by the selection process gradually and the population grows better adapted to the environment.
+
+\begin{figure}
+\centering
+\includegraphics{EA-illustration.png}
+\caption{How natural selection works. (Image source: Khan Academy: \href{https://www.khanacademy.org/science/biology/her/evolution-and-natural-selection/a/darwin-evolution-natural-selection}{Darwin, evolution, \& natural selection})}
+\end{figure}
+
+Evolutionary algorithms can be summarized in the following \href{https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf}{format} as a general optimization solution:
+
+Let's say we want to optimize a function \$f(x)\$ and we are not able to compute gradients directly. But we still can evaluate \$f(x)\$ given any \$x\$ and the result is deterministic. Our belief in the probability distribution over \$x\$ as a good solution to \$f(x)\$ optimization is \$p\_\textbackslash theta(x)\$, parameterized by \$\textbackslash theta\$. The goal is to find an optimal configuration of \$\textbackslash theta\$.
+
+\begin{quote}
+Here given a fixed format of distribution (i.e. Gaussian), the parameter \$\textbackslash theta\$ carries the knowledge about the best solutions and is being iteratively updated across generations.
+\end{quote}
+
+Starting with an initial value of \$\textbackslash theta\$, we can continuously update \$\textbackslash theta\$ by looping three steps as follows:
+
+\begin{enumerate}
+\tightlist
+\item
+  Generate a population of samples \$D = \textbackslash\{(x\_i, f(x\_i)\textbackslash\}\$ where \$x\_i \textbackslash sim p\_\textbackslash theta(x)\$.
+\item
+  Evaluate the ``fitness'' of samples in \$D\$.
+\item
+  Select the best subset of individuals and use them to update \$\textbackslash theta\$, generally based on fitness or rank.
+\end{enumerate}
+
+In \textbf{Genetic Algorithms (GA)}, another popular subcategory of EA, \$x\$ is a sequence of binary codes, \$x \textbackslash in \textbackslash\{0, 1\textbackslash\}\^{}n\$. While in ES, \$x\$ is just a vector of real numbers, \$x \textbackslash in \textbackslash mathbb\{R\}\^{}n\$.
+
+\section{\texorpdfstring{Simple Gaussian Evolution Strategies\hyperref[simple-gaussian-evolution-strategies]{\#}}{Simple Gaussian Evolution Strategies\#}}\label{simple-gaussian-evolution-strategies}
+
+\href{http://blog.otoro.net/2017/10/29/visual-evolution-strategies/}{This} is the most basic and canonical version of evolution strategies. It models \$p\_\textbackslash theta(x)\$ as a \$n\$-dimensional isotropic Gaussian distribution, in which \$\textbackslash theta\$ only tracks the mean \$\textbackslash mu\$ and standard deviation \$\textbackslash sigma\$.
+
+\$\$ \textbackslash theta = (\textbackslash mu, \textbackslash sigma),\textbackslash;p\_\textbackslash theta(x) \textbackslash sim \textbackslash mathcal\{N\}(\textbackslash mathbf\{\textbackslash mu\}, \textbackslash sigma\^{}2 I) = \textbackslash mu + \textbackslash sigma \textbackslash mathcal\{N\}(0, I) \$\$
+
+The process of Simple-Gaussian-ES, given \$x \textbackslash in \textbackslash mathcal\{R\}\^{}n\$:
+
+\begin{enumerate}
+\tightlist
+\item
+  Initialize \$\textbackslash theta = \textbackslash theta\^{}\{(0)\}\$ and the generation counter \$t=0\$
+\item
+  Generate the offspring population of size \$\textbackslash Lambda\$ by sampling from the Gaussian distribution:\\
+  \strut \\
+  \$D\^{}\{(t+1)\}=\textbackslash\{ x\^{}\{(t+1)\}\_i \textbackslash mid x\^{}\{(t+1)\}\_i = \textbackslash mu\^{}\{(t)\} + \textbackslash sigma\^{}\{(t)\} y\^{}\{(t+1)\}\_i \textbackslash text\{ where \} y\^{}\{(t+1)\}\_i \textbackslash sim \textbackslash mathcal\{N\}(x \textbackslash vert 0, \textbackslash mathbf\{I\}),;i = 1, \textbackslash dots, \textbackslash Lambda\textbackslash\}\$\\
+  .
+\item
+  Select a top subset of \$\textbackslash lambda\$ samples with optimal \$f(x\_i)\$ and this subset is called \textbf{elite} set. Without loss of generality, we may consider the first \$k\$ samples in \$D\^{}\{(t+1)\}\$ to belong to the elite group --- Let's label them as
+\end{enumerate}
+
+\$\$ D\^{}\{(t+1)\}\textbackslash\_\textbackslash text\{elite\} = \textbackslash\textbackslash\{x\^{}\{(t+1)\}\textbackslash\_i \textbackslash mid x\^{}\{(t+1)\}\textbackslash\_i \textbackslash in D\^{}\{(t+1)\}, i=1,\textbackslash dots, \textbackslash lambda, \textbackslash lambda\textbackslash leq \textbackslash Lambda\textbackslash\textbackslash\} \$\$
+
+\begin{enumerate}
+\setcounter{enumi}{3}
+\tightlist
+\item
+  Then we estimate the new mean and std for the next generation using the elite set:\\
+  \strut \\
+\end{enumerate}
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mu\^{}\{(t+1)\} \&= \textbackslash text\{avg\}(D\^{}\{(t+1)\}\_\textbackslash text\{elite\}) = \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda x\_i\^{}\{(t+1)\} \textbackslash\textbackslash{} \{\textbackslash sigma\^{}\{(t+1)\}\}\^{}2 \&= \textbackslash text\{var\}(D\^{}\{(t+1)\}\_\textbackslash text\{elite\}) = \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda (x\_i\^{}\{(t+1)\} -\textbackslash mu\^{}\{(t)\})\^{}2 \textbackslash end\{aligned\} \$\$
+
+\begin{enumerate}
+\setcounter{enumi}{4}
+\tightlist
+\item
+  Repeat steps (2)-(4) until the result is good enough ✌️
+\end{enumerate}
+
+\section{\texorpdfstring{Covariance Matrix Adaptation Evolution Strategies (CMA-ES)\hyperref[covariance-matrix-adaptation-evolution-strategies-cma-es]{\#}}{Covariance Matrix Adaptation Evolution Strategies (CMA-ES)\#}}\label{covariance-matrix-adaptation-evolution-strategies-cma-es}
+
+The standard deviation \$\textbackslash sigma\$ accounts for the level of exploration: the larger \$\textbackslash sigma\$ the bigger search space we can sample our offspring population. In \hyperref[simple-gaussian-evolution-strategies]{vanilla ES}, \$\textbackslash sigma\^{}\{(t+1)\}\$ is highly correlated with \$\textbackslash sigma\^{}\{(t)\}\$, so the algorithm is not able to rapidly adjust the exploration space when needed (i.e. when the confidence level changes).
+
+\href{https://en.wikipedia.org/wiki/CMA-ES}{\textbf{CMA-ES}}, short for \emph{``Covariance Matrix Adaptation Evolution Strategy''}, fixes the problem by tracking pairwise dependencies between the samples in the distribution with a covariance matrix \$C\$. The new distribution parameter becomes:
+
+\$\$ \textbackslash theta = (\textbackslash mu, \textbackslash sigma, C),\textbackslash; p\_\textbackslash theta(x) \textbackslash sim \textbackslash mathcal\{N\}(\textbackslash mu, \textbackslash sigma\^{}2 C) \textbackslash sim \textbackslash mu + \textbackslash sigma \textbackslash mathcal\{N\}(0, C) \$\$
+
+where \$\textbackslash sigma\$ controls for the overall scale of the distribution, often known as \emph{step size}.
+
+Before we dig into how the parameters are updated in CMA-ES, it is better to review how the covariance matrix works in the multivariate Gaussian distribution first. As a real symmetric matrix, the covariance matrix \$C\$ has the following nice features (See \href{http://s3.amazonaws.com/mitsloan-php/wp-faculty/sites/30/2016/12/15032137/Symmetric-Matrices-and-Eigendecomposition.pdf}{proof} \& \href{http://control.ucsd.edu/mauricio/courses/mae280a/lecture11.pdf}{proof}):
+
+\begin{itemize}
+\tightlist
+\item
+  It is always diagonalizable.
+\item
+  Always positive semi-definite.
+\item
+  All of its eigenvalues are real non-negative numbers.
+\item
+  All of its eigenvectors are orthogonal.
+\item
+  There is an orthonormal basis of \$\textbackslash mathbb\{R\}\^{}n\$ consisting of its eigenvectors.
+\end{itemize}
+
+Let the matrix \$C\$ have an \emph{orthonormal} basis of eigenvectors \$B = {[}b\_1, \textbackslash dots, b\_n{]}\$, with corresponding eigenvalues \$\textbackslash lambda\_1\^{}2, \textbackslash dots, \textbackslash lambda\_n\^{}2\$. Let \$D=\textbackslash text\{diag\}(\textbackslash lambda\_1, \textbackslash dots, \textbackslash lambda\_n)\$.
+
+\$\$ C = B\^{}\textbackslash top D\^{}2 B = \textbackslash begin\{bmatrix\} \textbackslash mid \& \textbackslash mid \& \& \textbackslash mid \textbackslash\textbackslash{} b\_1 \& b\_2 \& \textbackslash dots \& b\_n\textbackslash\textbackslash{} \textbackslash mid \& \textbackslash mid \& \& \textbackslash mid \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \textbackslash begin\{bmatrix\} \textbackslash lambda\_1\^{}2 \& 0 \& \textbackslash dots \& 0 \textbackslash\textbackslash{} 0 \& \textbackslash lambda\_2\^{}2 \& \textbackslash dots \& 0 \textbackslash\textbackslash{} \textbackslash vdots \& \textbackslash dots \& \textbackslash ddots \& \textbackslash vdots \textbackslash\textbackslash{} 0 \& \textbackslash dots \& 0 \& \textbackslash lambda\_n\^{}2 \textbackslash end\{bmatrix\} \textbackslash begin\{bmatrix\} - \& b\_1 \& - \textbackslash\textbackslash{} - \& b\_2 \& - \textbackslash\textbackslash{} \& \textbackslash dots \& \textbackslash\textbackslash{} - \& b\_n \& - \textbackslash\textbackslash{} \textbackslash end\{bmatrix\} \$\$
+
+The square root of \$C\$ is:
+
+\$\$ C\^{}\{\textbackslash frac\{1\}\{2\}\} = B\^{}\textbackslash top D B \$\$
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Symbol & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\$x\_i\^{}\{(t)\} \textbackslash in \textbackslash mathbb\{R\}\^{}n\$ & the \$i\$-th samples at the generation (t) \\
+\$y\_i\^{}\{(t)\} \textbackslash in \textbackslash mathbb\{R\}\^{}n\$ & \$x\_i\^{}\{(t)\} = \textbackslash mu\^{}\{(t-1)\} + \textbackslash sigma\^{}\{(t-1)\} y\_i\^{}\{(t)\} \$ \\
+\$\textbackslash mu\^{}\{(t)\}\$ & mean of the generation (t) \\
+\$\textbackslash sigma\^{}\{(t)\}\$ & step size \\
+\$C\^{}\{(t)\}\$ & covariance matrix \\
+\$B\^{}\{(t)\}\$ & a matrix of \$C\$'s eigenvectors as row vectors \\
+\$D\^{}\{(t)\}\$ & a diagonal matrix with \$C\$'s eigenvalues on the diagnose. \\
+\$p\_\textbackslash sigma\^{}\{(t)\}\$ & evaluation path for \$\textbackslash sigma\$ at the generation (t) \\
+\$p\_c\^{}\{(t)\}\$ & evaluation path for \$C\$ at the generation (t) \\
+\$\textbackslash alpha\_\textbackslash mu\$ & learning rate for \$\textbackslash mu\$'s update \\
+\$\textbackslash alpha\_\textbackslash sigma\$ & learning rate for \$p\_\textbackslash sigma\$ \\
+\$d\_\textbackslash sigma\$ & damping factor for \$\textbackslash sigma\$'s update \\
+\$\textbackslash alpha\_\{cp\}\$ & learning rate for \$p\_c\$ \\
+\$\textbackslash alpha\_\{c\textbackslash lambda\}\$ & learning rate for \$C\$'s rank-min(λ, n) update \\
+\$\textbackslash alpha\_\{c1\}\$ & learning rate for \$C\$'s rank-1 update \\
+\end{longtable}
+
+\subsection{\texorpdfstring{Updating the Mean\hyperref[updating-the-mean]{\#}}{Updating the Mean\#}}\label{updating-the-mean}
+
+\$\$ \textbackslash mu\^{}\{(t+1)\} = \textbackslash mu\^{}\{(t)\} + \textbackslash alpha\_\textbackslash mu \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda (x\_i\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}) \$\$
+
+CMA-ES has a learning rate \$\textbackslash alpha\_\textbackslash mu \textbackslash leq 1\$ to control how fast the mean \$\textbackslash mu\$ should be updated. Usually it is set to 1 and thus the equation becomes the same as in vanilla ES, \$\textbackslash mu\^{}\{(t+1)\} = \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda (x\_i\^{}\{(t+1)\}\$.
+
+\subsection{\texorpdfstring{Controlling the Step Size\hyperref[controlling-the-step-size]{\#}}{Controlling the Step Size\#}}\label{controlling-the-step-size}
+
+The sampling process can be decoupled from the mean and standard deviation:
+
+\$\$ x\^{}\{(t+1)\}\_i = \textbackslash mu\^{}\{(t)\} + \textbackslash sigma\^{}\{(t)\} y\^{}\{(t+1)\}\_i \textbackslash text\{, where \} y\^{}\{(t+1)\}\_i = \textbackslash frac\{x\_i\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash sim \textbackslash mathcal\{N\}(0, C) \$\$
+
+The parameter \$\textbackslash sigma\$ controls the overall scale of the distribution. It is separated from the covariance matrix so that we can change steps faster than the full covariance. A larger step size leads to faster parameter update. In order to evaluate whether the current step size is proper, CMA-ES constructs an \emph{evolution path} \$p\_\textbackslash sigma\$ by summing up a consecutive sequence of moving steps, \$\textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i\}\^{}\textbackslash lambda y\_i\^{}\{(j)\}, j=1, \textbackslash dots, t\$. By comparing this path length with its expected length under random selection (meaning single steps are uncorrelated), we are able to adjust \$\textbackslash sigma\$ accordingly (See Fig. 2).
+
+\begin{figure}
+\centering
+\includegraphics{CMA-ES-step-size-path.png}
+\caption{Three scenarios of how single steps are correlated in different ways and their impacts on step size update. (Image source: additional annotations on Fig 5 in \href{https://arxiv.org/abs/1604.00772}{CMA-ES tutorial} paper)}
+\end{figure}
+
+Each time the evolution path is updated with the average of moving step \$y\_i\$ in the same generation.
+
+\$\$ \textbackslash begin\{aligned\} \&\textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda y\_i\^{}\{(t+1)\} = \textbackslash frac\{1\}\{\textbackslash lambda\} \textbackslash frac\{\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda x\_i\^{}\{(t+1)\} - \textbackslash lambda \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} = \textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash\textbackslash{} \&\textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda y\_i\^{}\{(t+1)\} \textbackslash sim \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash mathcal\{N\}(0, \textbackslash lambda C\^{}\{(t)\}) \textbackslash sim \textbackslash frac\{1\}\{\textbackslash sqrt\{\textbackslash lambda\}\}\{C\^{}\{(t)\}\}\^{}\{\textbackslash frac\{1\}\{2\}\}\textbackslash mathcal\{N\}(0, I) \textbackslash\textbackslash{} \&\textbackslash text\{Thus \} \textbackslash sqrt\{\textbackslash lambda\}\textbackslash;\{C\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} \textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash sim \textbackslash mathcal\{N\}(0, I) \textbackslash end\{aligned\} \$\$
+
+\begin{quote}
+By multiplying with \$C\^{}\{-\textbackslash frac\{1\}\{2\}\}\$, the evolution path is transformed to be independent of its direction. The term \$\{C\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} = \{B\^{}\{(t)\}\}\^{}\textbackslash top \{D\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} \{B\^{}\{(t)\}\}\$ transformation works as follows:
+\end{quote}
+
+\begin{enumerate}
+\tightlist
+\item
+  \$\{B\^{}\{(t)\}\}\$ contains row vectors of \$C\$'s eigenvectors. It projects the original space onto the perpendicular principal axes.
+\item
+  Then \$\{D\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} = \textbackslash text\{diag\}(\textbackslash frac\{1\}\{\textbackslash lambda\_1\}, \textbackslash dots, \textbackslash frac\{1\}\{\textbackslash lambda\_n\})\$ scales the length of principal axes to be equal.
+\item
+  \$\{B\^{}\{(t)\}\}\^{}\textbackslash top\$ transforms the space back to the original coordinate system.
+\end{enumerate}
+
+In order to assign higher weights to recent generations, we use polyak averaging to update the evolution path with learning rate \$\textbackslash alpha\_\textbackslash sigma\$. Meanwhile, the weights are balanced so that \$p\_\textbackslash sigma\$ is \href{https://en.wikipedia.org/wiki/Conjugate_prior}{conjugate}, \$\textbackslash sim \textbackslash mathcal\{N\}(0, I)\$ both before and after one update.
+
+\$\$ \textbackslash begin\{aligned\} p\_\textbackslash sigma\^{}\{(t+1)\} \& = (1 - \textbackslash alpha\_\textbackslash sigma) p\_\textbackslash sigma\^{}\{(t)\} + \textbackslash sqrt\{1 - (1 - \textbackslash alpha\_\textbackslash sigma)\^{}2\}\textbackslash;\textbackslash sqrt\{\textbackslash lambda\}\textbackslash; \{C\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} \textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash\textbackslash{} \& = (1 - \textbackslash alpha\_\textbackslash sigma) p\_\textbackslash sigma\^{}\{(t)\} + \textbackslash sqrt\{c\_\textbackslash sigma (2 - \textbackslash alpha\_\textbackslash sigma)\textbackslash lambda\}\textbackslash;\{C\^{}\{(t)\}\}\^{}\{-\textbackslash frac\{1\}\{2\}\} \textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash end\{aligned\} \$\$
+
+The expected length of \$p\_\textbackslash sigma\$ under random selection is \$\textbackslash mathbb\{E\}\textbar\textbackslash mathcal\{N\}(0,I)\textbar\$, that is the expectation of the L2-norm of a \$\textbackslash mathcal\{N\}(0,I)\$ random variable. Following the idea in Fig. 2, we adjust the step size according to the ratio of \$\textbar p\_\textbackslash sigma\^{}\{(t+1)\}\textbar{} / \textbackslash mathbb\{E\}\textbar\textbackslash mathcal\{N\}(0,I)\textbar\$:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash ln\textbackslash sigma\^{}\{(t+1)\} \&= \textbackslash ln\textbackslash sigma\^{}\{(t)\} + \textbackslash frac\{\textbackslash alpha\_\textbackslash sigma\}\{d\_\textbackslash sigma\} \textbackslash Big(\textbackslash frac\{\textbackslash\textbar p\_\textbackslash sigma\^{}\{(t+1)\}\textbackslash\textbar\}\{\textbackslash mathbb\{E\}\textbackslash\textbar\textbackslash mathcal\{N\}(0,I)\textbackslash\textbar\} - 1\textbackslash Big) \textbackslash\textbackslash{} \textbackslash sigma\^{}\{(t+1)\} \&= \textbackslash sigma\^{}\{(t)\} \textbackslash exp\textbackslash Big(\textbackslash frac\{\textbackslash alpha\_\textbackslash sigma\}\{d\_\textbackslash sigma\} \textbackslash Big(\textbackslash frac\{\textbackslash\textbar p\_\textbackslash sigma\^{}\{(t+1)\}\textbackslash\textbar\}\{\textbackslash mathbb\{E\}\textbackslash\textbar\textbackslash mathcal\{N\}(0,I)\textbackslash\textbar\} - 1\textbackslash Big)\textbackslash Big) \textbackslash end\{aligned\} \$\$
+
+where \$d\_\textbackslash sigma \textbackslash approx 1\$ is a damping parameter, scaling how fast \$\textbackslash ln\textbackslash sigma\$ should be changed.
+
+\subsection{\texorpdfstring{Adapting the Covariance Matrix\hyperref[adapting-the-covariance-matrix]{\#}}{Adapting the Covariance Matrix\#}}\label{adapting-the-covariance-matrix}
+
+For the covariance matrix, it can be estimated from scratch using \$y\_i\$ of elite samples (recall that \$y\_i \textbackslash sim \textbackslash mathcal\{N\}(0, C)\$):
+
+\$\$ C\_\textbackslash lambda\^{}\{(t+1)\} = \textbackslash frac\{1\}\{\textbackslash lambda\}\textbackslash sum\_\{i=1\}\^{}\textbackslash lambda y\^{}\{(t+1)\}\_i \{y\^{}\{(t+1)\}\_i\}\^{}\textbackslash top = \textbackslash frac\{1\}\{\textbackslash lambda \{\textbackslash sigma\^{}\{(t)\}\}\^{}2\} \textbackslash sum\_\{i=1\}\^{}\textbackslash lambda (x\_i\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\})(x\_i\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\})\^{}\textbackslash top \$\$
+
+The above estimation is only reliable when the selected population is large enough. However, we do want to run \emph{fast} iteration with a \emph{small} population of samples in each generation. That's why CMA-ES invented a more reliable but also more complicated way to update \$C\$. It involves two independent routes,
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{Rank-min(λ, n) update}: uses the history of \$\textbackslash\{C\_\textbackslash lambda\textbackslash\}\$, each estimated from scratch in one generation.
+\item
+  \emph{Rank-one update}: estimates the moving steps \$y\_i\$ and the sign information from the history.
+\end{itemize}
+
+The first route considers the estimation of \$C\$ from the entire history of \$\textbackslash\{C\_\textbackslash lambda\textbackslash\}\$. For example, if we have experienced a large number of generations, \$C\^{}\{(t+1)\} \textbackslash approx \textbackslash text\{avg\}(C\_\textbackslash lambda\^{}\{(i)\}; i=1,\textbackslash dots,t)\$ would be a good estimator. Similar to \$p\_\textbackslash sigma\$, we also use polyak averaging with a learning rate to incorporate the history:
+
+\$\$ C\^{}\{(t+1)\} = (1 - \textbackslash alpha\_\{c\textbackslash lambda\}) C\^{}\{(t)\} + \textbackslash alpha\_\{c\textbackslash lambda\} C\_\textbackslash lambda\^{}\{(t+1)\} = (1 - \textbackslash alpha\_\{c\textbackslash lambda\}) C\^{}\{(t)\} + \textbackslash alpha\_\{c\textbackslash lambda\} \textbackslash frac\{1\}\{\textbackslash lambda\} \textbackslash sum\_\{i=1\}\^{}\textbackslash lambda y\^{}\{(t+1)\}\_i \{y\^{}\{(t+1)\}\_i\}\^{}\textbackslash top \$\$
+
+A common choice for the learning rate is \$\textbackslash alpha\_\{c\textbackslash lambda\} \textbackslash approx \textbackslash min(1, \textbackslash lambda/n\^{}2)\$.
+
+The second route tries to solve the issue that \$y\_i\{y\_i\}\^{}\textbackslash top = (-y\_i)(-y\_i)\^{}\textbackslash top\$ loses the sign information. Similar to how we adjust the step size \$\textbackslash sigma\$, an evolution path \$p\_c\$ is used to track the sign information and it is constructed in a way that \$p\_c\$ is conjugate, \$\textbackslash sim \textbackslash mathcal\{N\}(0, C)\$ both before and after a new generation.
+
+We may consider \$p\_c\$ as another way to compute \$\textbackslash text\{avg\}\_i(y\_i)\$ (notice that both \$\textbackslash sim \textbackslash mathcal\{N\}(0, C)\$) while the entire history is used and the sign information is maintained. Note that we've known \$\textbackslash sqrt\{k\}\textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash sim \textbackslash mathcal\{N\}(0, C)\$ in the \hyperref[controlling-the-step-size]{last section},
+
+\$\$ \textbackslash begin\{aligned\} p\_c\^{}\{(t+1)\} \&= (1-\textbackslash alpha\_\{cp\}) p\_c\^{}\{(t)\} + \textbackslash sqrt\{1 - (1-\textbackslash alpha\_\{cp\})\^{}2\}\textbackslash;\textbackslash sqrt\{\textbackslash lambda\}\textbackslash;\textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash\textbackslash{} \&= (1-\textbackslash alpha\_\{cp\}) p\_c\^{}\{(t)\} + \textbackslash sqrt\{\textbackslash alpha\_\{cp\}(2 - \textbackslash alpha\_\{cp\})\textbackslash lambda\}\textbackslash;\textbackslash frac\{\textbackslash mu\^{}\{(t+1)\} - \textbackslash mu\^{}\{(t)\}\}\{\textbackslash sigma\^{}\{(t)\}\} \textbackslash end\{aligned\} \$\$
+
+Then the covariance matrix is updated according to \$p\_c\$:
+
+\$\$ C\^{}\{(t+1)\} = (1-\textbackslash alpha\_\{c1\}) C\^{}\{(t)\} + \textbackslash alpha\_\{c1\}\textbackslash;p\_c\^{}\{(t+1)\} \{p\_c\^{}\{(t+1)\}\}\^{}\textbackslash top \$\$
+
+The \emph{rank-one update} approach is claimed to generate a significant improvement over the \emph{rank-min(λ, n)-update} when \$k\$ is small, because the signs of moving steps and correlations between consecutive steps are all utilized and passed down through generations.
+
+Eventually we combine two approaches together,
+
+\$\$ C\^{}\{(t+1)\} = (1 - \textbackslash alpha\_\{c\textbackslash lambda\} - \textbackslash alpha\_\{c1\}) C\^{}\{(t)\} + \textbackslash alpha\_\{c1\}\textbackslash;\textbackslash underbrace\{p\_c\^{}\{(t+1)\} \{p\_c\^{}\{(t+1)\}\}\^{}\textbackslash top\}\_\textbackslash textrm\{rank-one update\} + \textbackslash alpha\_\{c\textbackslash lambda\} \textbackslash underbrace\{\textbackslash frac\{1\}\{\textbackslash lambda\} \textbackslash sum\_\{i=1\}\^{}\textbackslash lambda y\^{}\{(t+1)\}\_i \{y\^{}\{(t+1)\}\_i\}\^{}\textbackslash top\}\_\textbackslash textrm\{rank-min(lambda, n) update\} \$\$
+
+\begin{figure}
+\centering
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\includegraphics{CMA-ES-algorithm.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+In all my examples above, each elite sample is considered to contribute an equal amount of weights, \$1/\textbackslash lambda\$. The process can be easily extended to the case where selected samples are assigned with different weights, \$w\_1, \textbackslash dots, w\_\textbackslash lambda\$, according to their performances. See more detail in \href{https://arxiv.org/abs/1604.00772}{tutorial}.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{3.0000000000000002e-2\linewidth}
+\centering
+\includegraphics{CMA-ES-illustration.png}
+\caption{Illustration of how CMA-ES works on a 2D optimization problem (the lighter color the better). Black dots are samples in one generation. The samples are more spread out initially but when the model has higher confidence in finding a good solution in the late stage, the samples become very concentrated over the global optimum. (Image source: \href{https://en.wikipedia.org/wiki/CMA-ES}{Wikipedia CMA-ES})}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\section{\texorpdfstring{Natural Evolution Strategies\hyperref[natural-evolution-strategies]{\#}}{Natural Evolution Strategies\#}}\label{natural-evolution-strategies}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+Natural Evolution Strategies (\textbf{NES}; \href{https://arxiv.org/abs/1106.4487}{Wierstra, et al, 2008}) optimizes in a search distribution of parameters and moves the distribution in the direction of high fitness indicated by the \emph{natural gradient}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\subsection{\texorpdfstring{Natural Gradients\hyperref[natural-gradients]{\#}}{Natural Gradients\#}}\label{natural-gradients}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+Given an objective function \$\textbackslash mathcal\{J\}(\textbackslash theta)\$ parameterized by \$\textbackslash theta\$, let's say our goal is to find the optimal \$\textbackslash theta\$ to maximize the objective function value. A \emph{plain gradient} finds the steepest direction within a small Euclidean distance from the current \$\textbackslash theta\$; the distance restriction is applied on the parameter space. In other words, we compute the plain gradient with respect to a small change of the absolute value of \$\textbackslash theta\$. The optimal step is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ d\^{}\{*\} = \textbackslash operatorname*\{argmax\}\_\{\textbackslash\textbar d\textbackslash\textbar{} = \textbackslash epsilon\} \textbackslash mathcal\{J\}(\textbackslash theta + d)\textbackslash text\{, where \}\textbackslash epsilon \textbackslash to 0 \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+Differently, \emph{natural gradient} works with a probability \href{https://arxiv.org/abs/1301.3584v7}{distribution} \href{https://wiseodd.github.io/techblog/2018/03/14/natural-gradient/}{space} parameterized by \$\textbackslash theta\$, \$p\_\textbackslash theta(x)\$ (referred to as ``search distribution'' in NES \href{https://arxiv.org/abs/1106.4487}{paper}). It looks for the steepest direction within a small step in the distribution space where the distance is measured by KL divergence. With this constraint we ensure that each update is moving along the distributional manifold with constant speed, without being slowed down by its curvature.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ d\^{}\{*\}\_\textbackslash text\{N\} = \textbackslash operatorname*\{argmax\}\_\{\textbackslash text\{KL\}{[}p\_\textbackslash theta \textbackslash\textbar{} p\_\{\textbackslash theta+d\}{]} = \textbackslash epsilon\} \textbackslash mathcal\{J\}(\textbackslash theta + d) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\subsection{\texorpdfstring{Estimation using Fisher Information Matrix\hyperref[estimation-using-fisher-information-matrix]{\#}}{Estimation using Fisher Information Matrix\#}}\label{estimation-using-fisher-information-matrix}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+But, how to compute \$\textbackslash text\{KL\}{[}p\_\textbackslash theta \textbar{} p\_\{\textbackslash theta+\textbackslash Delta\textbackslash theta\}{]}\$ precisely? By running Taylor expansion of \$\textbackslash log p\_\{\textbackslash theta + d\}\$ at \$\textbackslash theta\$, we get:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \& \textbackslash text\{KL\}{[}p\_\textbackslash theta \textbackslash\textbar{} p\_\{\textbackslash theta+d\}{]} \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{x \textbackslash sim p\_\textbackslash theta\} {[}\textbackslash log p\_\textbackslash theta(x) - \textbackslash log p\_\{\textbackslash theta+d\}(x){]} \& \textbackslash\textbackslash{} \&\textbackslash approx \textbackslash mathbb\{E\}\_\{x \textbackslash sim p\_\textbackslash theta\} {[} \textbackslash log p\_\textbackslash theta(x) -( \textbackslash log p\_\{\textbackslash theta\}(x) + \textbackslash nabla\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}(x) d + \textbackslash frac\{1\}\{2\}d\^{}\textbackslash top \textbackslash nabla\^{}2\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}(x) d){]} \& \textbackslash scriptstyle\{\textbackslash text\{; Taylor expand \}\textbackslash log p\_\{\textbackslash theta+d\}\} \textbackslash\textbackslash{} \&\textbackslash approx - \textbackslash mathbb\{E\}\_x {[}\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}(x){]} d - \textbackslash frac\{1\}\{2\}d\^{}\textbackslash top \textbackslash mathbb\{E\}\_x {[}\textbackslash nabla\^{}2\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}(x){]} d \& \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+where
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbb\{E\}\_x {[}\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}{]} d \&= \textbackslash int\_\{x\textbackslash sim p\_\textbackslash theta\} p\_\textbackslash theta(x) \textbackslash nabla\_\textbackslash theta \textbackslash log p\_\textbackslash theta(x) \& \textbackslash\textbackslash{} \&= \textbackslash int\_\{x\textbackslash sim p\_\textbackslash theta\} p\_\textbackslash theta(x) \textbackslash frac\{1\}\{p\_\textbackslash theta(x)\} \textbackslash nabla\_\textbackslash theta p\_\textbackslash theta(x) \& \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta \textbackslash Big( \textbackslash int\_\{x\} p\_\textbackslash theta(x) \textbackslash Big) \& \textbackslash scriptstyle\{\textbackslash textrm\{; note that \}p\_\textbackslash theta(x)\textbackslash textrm\{ is probability distribution.\}\} \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta (1) = 0 \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+Finally we have,
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash text\{KL\}{[}p\_\textbackslash theta \textbackslash\textbar{} p\_\{\textbackslash theta+d\}{]} = - \textbackslash frac\{1\}\{2\}d\^{}\textbackslash top \textbackslash mathbf\{F\}\_\textbackslash theta d \textbackslash text\{, where \}\textbackslash mathbf\{F\}\_\textbackslash theta = \textbackslash mathbb\{E\}\_x {[}(\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\}) (\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\{\textbackslash theta\})\^{}\textbackslash top{]} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+where \$\textbackslash mathbf\{F\}\_\textbackslash theta\$ is called the \textbf{\href{http://mathworld.wolfram.com/FisherInformationMatrix.html}{Fisher Information Matrix}} and \href{https://wiseodd.github.io/techblog/2018/03/11/fisher-information/}{it is} the covariance matrix of \$\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\textbackslash theta\$ since \$\textbackslash mathbb\{E\}{[}\textbackslash nabla\_\textbackslash theta \textbackslash log p\_\textbackslash theta{]} = 0\$.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+The solution to the following optimization problem:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash max \textbackslash mathcal\{J\}(\textbackslash theta + d) \textbackslash approx \textbackslash max \textbackslash big( \textbackslash mathcal\{J\}(\textbackslash theta) + \{\textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{J\}(\textbackslash theta)\}\^{}\textbackslash top d \textbackslash big)\textbackslash;\textbackslash text\{ s.t. \}\textbackslash text\{KL\}{[}p\_\textbackslash theta \textbackslash\textbar{} p\_\{\textbackslash theta+d\}{]} - \textbackslash epsilon = 0 \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+can be found using a Lagrangian multiplier,
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}(\textbackslash theta, d, \textbackslash beta) \&= \textbackslash mathcal\{J\}(\textbackslash theta) + \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{J\}(\textbackslash theta)\^{}\textbackslash top d - \textbackslash beta (\textbackslash frac\{1\}\{2\}d\^{}\textbackslash top \textbackslash mathbf\{F\}\_\textbackslash theta d + \textbackslash epsilon) = 0 \textbackslash text\{ s.t. \} \textbackslash beta \textgreater{} 0 \textbackslash\textbackslash{} \textbackslash nabla\_d \textbackslash mathcal\{L\}(\textbackslash theta, d, \textbackslash beta) \&= \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{J\}(\textbackslash theta) - \textbackslash beta\textbackslash mathbf\{F\}\_\textbackslash theta d = 0 \textbackslash\textbackslash{} \textbackslash text\{Thus \} d\_\textbackslash text\{N\}\^{}* \&= \textbackslash nabla\_\textbackslash theta\^{}\textbackslash text\{N\} \textbackslash mathcal\{J\}(\textbackslash theta) = \textbackslash mathbf\{F\}\_\textbackslash theta\^{}\{-1\} \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{J\}(\textbackslash theta) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+where \$d\_\textbackslash text\{N\}\^{}*\$ only extracts the direction of the optimal moving step on \$\textbackslash theta\$, ignoring the scalar \$\textbackslash beta\^{}\{-1\}\$.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{3.0000000000000002e-2\linewidth}
+\centering
+\includegraphics{CMA-ES-coordinates.png}
+\caption{The natural gradient samples (black solid arrows) in the right are the plain gradient samples (black solid arrows) in the left multiplied by the inverse of their covariance. In this way, a gradient direction with high uncertainty (indicated by high covariance with other samples) are penalized with a small weight. The aggregated natural gradient (red dash arrow) is therefore more trustworthy than the natural gradient (green solid arrow). (Image source: additional annotations on Fig 2 in \href{https://arxiv.org/abs/1106.4487}{NES} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\subsection{\texorpdfstring{NES Algorithm\hyperref[nes-algorithm]{\#}}{NES Algorithm\#}}\label{nes-algorithm}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+The fitness associated with one sample is labeled as \$f(x)\$ and the search distribution over \$x\$ is parameterized by \$\textbackslash theta\$. NES is expected to optimize the parameter \$\textbackslash theta\$ to achieve maximum expected fitness:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash mathcal\{J\}(\textbackslash theta) = \textbackslash mathbb\{E\}\_\{x\textbackslash sim p\_\textbackslash theta(x)\} {[}f(x){]} = \textbackslash int\_x f(x) p\_\textbackslash theta(x) dx \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+Using the same log-likelihood \href{http://blog.shakirm.com/2015/11/machine-learning-trick-of-the-day-5-log-derivative-trick/}{trick} in \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#reinforce}{REINFORCE}:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{3.0000000000000002e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \textbackslash nabla\_\textbackslash theta\textbackslash mathcal\{J\}(\textbackslash theta) \&= \textbackslash nabla\_\textbackslash theta \textbackslash int\_x f(x) p\_\textbackslash theta(x) dx \textbackslash\textbackslash{} \&= \textbackslash int\_x f(x) \textbackslash frac\{p\_\textbackslash theta(x)\}\{p\_\textbackslash theta(x)\}\textbackslash nabla\_\textbackslash theta p\_\textbackslash theta(x) dx \textbackslash\textbackslash{} \& = \textbackslash int\_x f(x) p\_\textbackslash theta(x) \textbackslash nabla\_\textbackslash theta \textbackslash log p\_\textbackslash theta(x) dx \textbackslash\textbackslash{} \& = \textbackslash mathbb\{E\}\_\{x \textbackslash sim p\_\textbackslash theta\} {[}f(x) \textbackslash nabla\_\textbackslash theta \textbackslash log p\_\textbackslash theta(x){]} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{3.0000000000000002e-2\linewidth}
+\centering
+\begin{minipage}[t]{1.2e-2\linewidth}
+\includegraphics{NES-algorithm.png}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Besides natural gradients, NES adopts a couple of important heuristics to make the algorithm performance more robust.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \phantomsection\label{fitness-shaping}{}NES applies \textbf{rank-based fitness shaping}, that is to use the \emph{rank} under monotonically increasing fitness values instead of using \$f(x)\$ directly. Or it can be a function of the rank (``utility function''), which is considered as a free parameter of NES.
+\item
+  NES adopts \textbf{adaptation sampling} to adjust hyperparameters at run time. When changing \$\textbackslash theta \textbackslash to \textbackslash theta'\$, samples drawn from \$p\_\textbackslash theta\$ are compared with samples from \$p\_\{\textbackslash theta'\}\$ using {[}Mann-Whitney U-test(https://en.wikipedia.org/wiki/Mann\%E2\%80\%93Whitney\_U\_test){]}; if there shows a positive or negative sign, the target hyperparameter decreases or increases by a multiplication constant. Note the score of a sample \$x'\_i \textbackslash sim p\_\{\textbackslash theta'\}(x)\$ has importance sampling weights applied \$w\_i' = p\_\textbackslash theta(x) / p\_\{\textbackslash theta'\}(x)\$.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\section{\texorpdfstring{Applications: ES in Deep Reinforcement Learning\hyperref[applications-es-in-deep-reinforcement-learning]{\#}}{Applications: ES in Deep Reinforcement Learning\#}}\label{applications-es-in-deep-reinforcement-learning}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\subsection{\texorpdfstring{OpenAI ES for RL\hyperref[openai-es-for-rl]{\#}}{OpenAI ES for RL\#}}\label{openai-es-for-rl}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The concept of using evolutionary algorithms in reinforcement learning can be traced back \href{https://arxiv.org/abs/1106.0221}{long ago}, but only constrained to tabular RL due to computational limitations.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Inspired by \hyperref[natural-evolution-strategies]{NES}, researchers at OpenAI (\href{https://arxiv.org/abs/1703.03864}{Salimans, et al. 2017}) proposed to use NES as a gradient-free black-box optimizer to find optimal policy parameters \$\textbackslash theta\$ that maximizes the return function \$F(\textbackslash theta)\$. The key is to add Gaussian noise \$\textbackslash epsilon\$ on the model parameter \$\textbackslash theta\$ and then use the log-likelihood trick to write it as the gradient of the Gaussian pdf. Eventually only the noise term is left as a weighting scalar for measured performance.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Let's say the current parameter value is \$\textbackslash hat\{\textbackslash theta\}\$ (the added hat is to distinguish the value from the random variable \$\textbackslash theta\$). The search distribution of \$\textbackslash theta\$ is designed to be an isotropic multivariate Gaussian with a mean \$\textbackslash hat\{\textbackslash theta\}\$ and a fixed covariance matrix \$\textbackslash sigma\^{}2 I\$,
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash theta \textbackslash sim \textbackslash mathcal\{N\}(\textbackslash hat\{\textbackslash theta\}, \textbackslash sigma\^{}2 I) \textbackslash text\{ equivalent to \} \textbackslash theta = \textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon, \textbackslash epsilon \textbackslash sim \textbackslash mathcal\{N\}(0, I) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The gradient for \$\textbackslash theta\$ update is:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} \& \textbackslash nabla\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash theta\textbackslash sim\textbackslash mathcal\{N\}(\textbackslash hat\{\textbackslash theta\}, \textbackslash sigma\^{}2 I)\} F(\textbackslash theta) \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash epsilon\textbackslash sim\textbackslash mathcal\{N\}(0, I)\} F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) \textbackslash\textbackslash{} \&= \textbackslash nabla\_\textbackslash theta \textbackslash int\_\{\textbackslash epsilon\} p(\textbackslash epsilon) F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) d\textbackslash epsilon \& \textbackslash scriptstyle\{\textbackslash text\{; Gaussian \}p(\textbackslash epsilon)=(2\textbackslash pi)\^{}\{-\textbackslash frac\{n\}\{2\}\} \textbackslash exp(-\textbackslash frac\{1\}\{2\}\textbackslash epsilon\^{}\textbackslash top\textbackslash epsilon)\} \textbackslash\textbackslash{} \&= \textbackslash int\_\{\textbackslash epsilon\} p(\textbackslash epsilon) \textbackslash nabla\_\textbackslash epsilon \textbackslash log p(\textbackslash epsilon) \textbackslash nabla\_\textbackslash theta \textbackslash epsilon\textbackslash;F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) d\textbackslash epsilon \& \textbackslash scriptstyle\{\textbackslash text\{; log-likelihood trick\}\}\textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{\textbackslash epsilon\textbackslash sim\textbackslash mathcal\{N\}(0, I)\} {[} \textbackslash nabla\_\textbackslash epsilon \textbackslash big(-\textbackslash frac\{1\}\{2\}\textbackslash epsilon\^{}\textbackslash top\textbackslash epsilon\textbackslash big) \textbackslash nabla\_\textbackslash theta \textbackslash big(\textbackslash frac\{\textbackslash theta - \textbackslash hat\{\textbackslash theta\}\}\{\textbackslash sigma\}\textbackslash big) F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) {]} \& \textbackslash\textbackslash{} \&= \textbackslash mathbb\{E\}\_\{\textbackslash epsilon\textbackslash sim\textbackslash mathcal\{N\}(0, I)\} {[} (-\textbackslash epsilon) (\textbackslash frac\{1\}\{\textbackslash sigma\}) F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) {]} \& \textbackslash\textbackslash{} \&= \textbackslash frac\{1\}\{\textbackslash sigma\}\textbackslash mathbb\{E\}\_\{\textbackslash epsilon\textbackslash sim\textbackslash mathcal\{N\}(0, I)\} {[} \textbackslash epsilon F(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon) {]} \& \textbackslash scriptstyle\{\textbackslash text\{; negative sign can be absorbed.\}\} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+In one generation, we can sample many \$epsilon\_i, i=1,\textbackslash dots,n\$ and evaluate the fitness \emph{in parallel}. One beautiful design is that no large model parameter needs to be shared. By only communicating the random seeds between workers, it is enough for the master node to do parameter update. This approach is later extended to adaptively learn a loss function; see my previous post on \href{https://lilianweng.github.io/posts/2019-06-23-meta-rl/\#meta-learning-the-loss-function}{Evolved Policy Gradient}.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{OpenAI-ES-algorithm.png}
+\caption{The algorithm for training a RL policy using evolution strategies. (Image source: \href{https://arxiv.org/abs/1703.03864}{ES-for-RL} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+To make the performance more robust, OpenAI ES adopts virtual batch normalization (BN with mini-batch used for calculating statistics fixed), mirror sampling (sampling a pair of \$(-\textbackslash epsilon, \textbackslash epsilon)\$ for evaluation), and \hyperref[fitness-shaping]{fitness shaping}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\subsection{\texorpdfstring{Exploration with ES\hyperref[exploration-with-es]{\#}}{Exploration with ES\#}}\label{exploration-with-es}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Exploration (\href{https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/\#exploitation-vs-exploration}{vs exploitation}) is an important topic in RL. The optimization direction in the ES algorithm \href{TBA}{above} is only extracted from the cumulative return \$F(\textbackslash theta)\$. Without explicit exploration, the agent might get trapped in a local optimum.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Novelty-Search ES (\textbf{NS-ES}; \href{https://arxiv.org/abs/1712.06560}{Conti et al, 2018}) encourages exploration by updating the parameter in the direction to maximize the \emph{novelty} score. The novelty score depends on a domain-specific behavior characterization function \$b(\textbackslash pi\_\textbackslash theta)\$. The choice of \$b(\textbackslash pi\_\textbackslash theta)\$ is specific to the task and seems to be a bit arbitrary; for example, in the Humanoid locomotion task in the paper, \$b(\textbackslash pi\_\textbackslash theta)\$ is the final \$(x,y)\$ location of the agent.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{enumerate}
+\tightlist
+\item
+  Every policy's \$b(\textbackslash pi\_\textbackslash theta)\$ is pushed to an archive set \$\textbackslash mathcal\{A\}\$.
+\item
+  Novelty of a policy \$\textbackslash pi\_\textbackslash theta\$ is measured as the k-nearest neighbor score between \$b(\textbackslash pi\_\textbackslash theta)\$ and all other entries in \$\textbackslash mathcal\{A\}\$. (The use case of the archive set sounds quite similar to \href{https://lilianweng.github.io/posts/2019-06-23-meta-rl/\#episodic-control}{episodic memory}.)
+\end{enumerate}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ N(\textbackslash theta, \textbackslash mathcal\{A\}) = \textbackslash frac\{1\}\{\textbackslash lambda\} \textbackslash sum\_\{i=1\}\^{}\textbackslash lambda \textbackslash\textbar{} b(\textbackslash pi\_\textbackslash theta), b\^{}\textbackslash text\{knn\}\_i \textbackslash\textbar\_2 \textbackslash text\{, where \}b\^{}\textbackslash text\{knn\}\_i \textbackslash in \textbackslash text\{kNN\}(b(\textbackslash pi\_\textbackslash theta), \textbackslash mathcal\{A\}) \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The ES optimization step relies on the novelty score instead of fitness:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash nabla\_\textbackslash theta \textbackslash mathbb\{E\}\_\{\textbackslash theta\textbackslash sim\textbackslash mathcal\{N\}(\textbackslash hat\{\textbackslash theta\}, \textbackslash sigma\^{}2 I)\} N(\textbackslash theta, \textbackslash mathcal\{A\}) = \textbackslash frac\{1\}\{\textbackslash sigma\}\textbackslash mathbb\{E\}\_\{\textbackslash epsilon\textbackslash sim\textbackslash mathcal\{N\}(0, I)\} {[} \textbackslash epsilon N(\textbackslash hat\{\textbackslash theta\} + \textbackslash sigma\textbackslash epsilon, \textbackslash mathcal\{A\}) {]} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+NS-ES maintains a group of \$M\$ independently trained agents (``meta-population''), \$\textbackslash mathcal\{M\} = \textbackslash\{\textbackslash theta\_1, \textbackslash dots, \textbackslash theta\_M \textbackslash\}\$ and picks one to advance proportional to the novelty score. Eventually we select the best policy. This process is equivalent to ensembling; also see the same idea in \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#svpg}{SVPG}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash begin\{aligned\} m \&\textbackslash leftarrow \textbackslash text\{pick \} i=1,\textbackslash dots,M\textbackslash text\{ according to probability\}\textbackslash frac\{N(\textbackslash theta\_i, \textbackslash mathcal\{A\})\}\{\textbackslash sum\_\{j=1\}\^{}M N(\textbackslash theta\_j, \textbackslash mathcal\{A\})\} \textbackslash\textbackslash{} \textbackslash theta\_m\^{}\{(t+1)\} \&\textbackslash leftarrow \textbackslash theta\_m\^{}\{(t)\} + \textbackslash alpha \textbackslash frac\{1\}\{\textbackslash sigma\}\textbackslash sum\_\{i=1\}\^{}N \textbackslash epsilon\_i N(\textbackslash theta\^{}\{(t)\}\_m + \textbackslash epsilon\_i, \textbackslash mathcal\{A\}) \textbackslash text\{ where \}\textbackslash epsilon\_i \textbackslash sim \textbackslash mathcal\{N\}(0, I) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+where \$N\$ is the number of Gaussian perturbation noise vectors and \$\textbackslash alpha\$ is the learning rate.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+NS-ES completely discards the reward function and only optimizes for novelty to avoid deceptive local optima. To incorporate the fitness back into the formula, another two variations are proposed.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\textbf{NSR-ES}:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash theta\_m\^{}\{(t+1)\} \textbackslash leftarrow \textbackslash theta\_m\^{}\{(t)\} + \textbackslash alpha \textbackslash frac\{1\}\{\textbackslash sigma\}\textbackslash sum\_\{i=1\}\^{}N \textbackslash epsilon\_i \textbackslash frac\{N(\textbackslash theta\^{}\{(t)\}\_m + \textbackslash epsilon\_i, \textbackslash mathcal\{A\}) + F(\textbackslash theta\^{}\{(t)\}\_m + \textbackslash epsilon\_i)\}\{2\} \$\$
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\textbf{NSRAdapt-ES (NSRA-ES)}: the adaptive weighting parameter \$w = 1.0\$ initially. We start decreasing \$w\$ if performance stays flat for a number of generations. Then when the performance starts to increase, we stop decreasing \$w\$ but increase it instead. In this way, fitness is preferred when the performance stops growing but novelty is preferred otherwise.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\$\$ \textbackslash theta\_m\^{}\{(t+1)\} \textbackslash leftarrow \textbackslash theta\_m\^{}\{(t)\} + \textbackslash alpha \textbackslash frac\{1\}\{\textbackslash sigma\}\textbackslash sum\_\{i=1\}\^{}N \textbackslash epsilon\_i \textbackslash big((1-w) N(\textbackslash theta\^{}\{(t)\}\_m + \textbackslash epsilon\_i, \textbackslash mathcal\{A\}) + w F(\textbackslash theta\^{}\{(t)\}\_m + \textbackslash epsilon\_i)\textbackslash big) \$\$
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{NS-ES-experiments.png}
+\caption{(Left) The environment is Humanoid locomotion with a three-sided wall which plays a role as a deceptive trap to create local optimum. (Right) Experiments compare ES baseline and other variations that encourage exploration. (Image source: \href{https://arxiv.org/abs/1712.06560}{NS-ES} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\subsection{\texorpdfstring{CEM-RL\hyperref[cem-rl]{\#}}{CEM-RL\#}}\label{cem-rl}
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{CEM-RL.png}
+\caption{Architectures of the (a) CEM-RL and (b) \href{https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf}{ERL} algorithms (Image source: \href{https://arxiv.org/abs/1810.01222}{CEM-RL} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The CEM-RL method (\href{https://arxiv.org/abs/1810.01222}{Pourchot \& Sigaud, 2019}) combines Cross Entropy Method (CEM) with either \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#ddpg}{DDPG} or \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#td3}{TD3}. CEM here works pretty much the same as the simple Gaussian ES described \hyperref[simple-gaussian-evolution-strategies]{above} and therefore the same function can be replaced using CMA-ES. CEM-RL is built on the framework of \emph{Evolutionary Reinforcement Learning} (\emph{ERL}; \href{https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf}{Khadka \& Tumer, 2018}) in which the standard EA algorithm selects and evolves a population of actors and the rollout experience generated in the process is then added into reply buffer for training both RL-actor and RL-critic networks.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Workflow:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{itemize}
+\item
+  \begin{enumerate}
+  \tightlist
+  \item
+    The mean actor of the CEM population is \$\textbackslash pi\_\textbackslash mu\$ is initialized with a random actor network.
+  \end{enumerate}
+\item
+  \begin{enumerate}
+  \setcounter{enumi}{1}
+  \tightlist
+  \item
+    The critic network \$Q\$ is initialized too, which will be updated by DDPG/TD3.
+  \end{enumerate}
+\item
+  \begin{enumerate}
+  \setcounter{enumi}{2}
+  \tightlist
+  \item
+    Repeat until happy:
+  \end{enumerate}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    a. Sample a population of actors \$\textbackslash sim \textbackslash mathcal\{N\}(\textbackslash pi\_\textbackslash mu, \textbackslash Sigma)\$.
+  \item
+    b. Half of the population is evaluated. Their fitness scores are used as the cumulative reward \$R\$ and added into replay buffer.
+  \item
+    c. The other half are updated together with the critic.
+  \item
+    d. The new \$\textbackslash pi\_mu\$ and \$\textbackslash Sigma\$ is computed using top performing elite samples. \hyperref[covariance-matrix-adaptation-evolution-strategies-cma-es]{CMA-ES} can be used for parameter update too.
+  \end{itemize}
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\section{\texorpdfstring{Extension: EA in Deep Learning\hyperref[extension-ea-in-deep-learning]{\#}}{Extension: EA in Deep Learning\#}}\label{extension-ea-in-deep-learning}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+(This section is not on evolution strategies, but still an interesting and relevant reading.)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The \emph{Evolutionary Algorithms} have been applied on many deep learning problems. POET (\href{https://arxiv.org/abs/1901.01753}{Wang et al, 2019}) is a framework based on EA and attempts to generate a variety of different tasks while the problems themselves are being solved. POET has been introduced in my \href{https://lilianweng.github.io/posts/2019-06-23-meta-rl/\#task-generation-by-domain-randomization}{last post} on meta-RL. Evolutionary Reinforcement Learning (ERL) is another example; See Fig. 7 (b).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Below I would like to introduce two applications in more detail, \emph{Population-Based Training (PBT)} and \emph{Weight-Agnostic Neural Networks (WANN)}.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\subsection{\texorpdfstring{Hyperparameter Tuning: PBT\hyperref[hyperparameter-tuning-pbt]{\#}}{Hyperparameter Tuning: PBT\#}}\label{hyperparameter-tuning-pbt}
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{PBT.png}
+\caption{Paradigms of comparing different ways of hyperparameter tuning. (Image source: \href{https://arxiv.org/abs/1711.09846}{PBT} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Population-Based Training (\href{https://arxiv.org/abs/1711.09846}{Jaderberg, et al, 2017}), short for \textbf{PBT} applies EA on the problem of hyperparameter tuning. It jointly trains a population of models and corresponding hyperparameters for optimal performance.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+PBT starts with a set of random candidates, each containing a pair of model weights initialization and hyperparameters, \$\textbackslash\{(\textbackslash theta\_i, h\_i)\textbackslash mid i=1, \textbackslash dots, N\textbackslash\}\$. Every sample is trained in parallel and asynchronously evaluates its own performance periodically. Whenever a member deems ready (i.e. after taking enough gradient update steps, or when the performance is good enough), it has a chance to be updated by comparing with the whole population:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \textbf{\texttt{exploit()}}: When this model is under-performing, the weights could be replaced with a better performing model.
+\item
+  \textbf{\texttt{explore()}}: If the model weights are overwritten, \texttt{explore} step perturbs the hyperparameters with random noise.
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+In this process, only promising model and hyperparameter pairs can survive and keep on evolving, achieving better utilization of computational resources.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{PBT-algorithm.png}
+\caption{The algorithm of population-based training. (Image source: \href{https://arxiv.org/abs/1711.09846}{PBT} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\subsection{\texorpdfstring{Network Topology Optimization: WANN\hyperref[network-topology-optimization-wann]{\#}}{Network Topology Optimization: WANN\#}}\label{network-topology-optimization-wann}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\emph{Weight Agnostic Neural} Networks (short for \textbf{WANN}; \href{https://arxiv.org/abs/1906.04358}{Gaier \& Ha 2019}) experiments with searching for the smallest network topologies that can achieve the optimal performance without training the network weights. By not considering the best configuration of network weights, WANN puts much more emphasis on the architecture itself, making the focus different from \href{http://openaccess.thecvf.com/content_cvpr_2018/papers/Zoph_Learning_Transferable_Architectures_CVPR_2018_paper.pdf}{NAS}. WANN is heavily inspired by a classic genetic algorithm to evolve network topologies, called \emph{NEAT} (``Neuroevolution of Augmenting Topologies''; \href{http://nn.cs.utexas.edu/downloads/papers/stanley.gecco02_1.pdf}{Stanley \& Miikkulainen 2002}).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+The workflow of WANN looks pretty much the same as standard GA:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{enumerate}
+\tightlist
+\item
+  Initialize: Create a population of minimal networks.
+\item
+  Evaluation: Test with a range of \emph{shared} weight values.
+\item
+  Rank and Selection: Rank by performance and complexity.
+\item
+  Mutation: Create new population by varying best networks.
+\end{enumerate}
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{WANN-mutations.png}
+\caption{mutation operations for searching for new network topologies in WANN (Image source: \href{https://arxiv.org/abs/1906.04358}{WANN} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+At the ``evaluation'' stage, all the network weights are set to be the same. In this way, WANN is actually searching for network that can be described with a minimal description length. In the ``selection'' stage, both the network connection and the model performance are considered.
+\end{minipage}
+\hfill
+\begin{subfigure}[t]{1.2e-2\linewidth}
+\centering
+\includegraphics{WANN-results.png}
+\caption{Performance of WANN found network topologies on different RL tasks are compared with baseline FF networks commonly used in the literature. "Tuned Shared Weight" only requires adjusting one weight value. (Image source: \href{https://arxiv.org/abs/1906.04358}{WANN} paper)}
+\end{subfigure}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+As shown in Fig. 11, WANN results are evaluated with both random weights and shared weights (single weight). It is interesting that even when enforcing weight-sharing on all weights and tuning this single parameter, WANN can discover topologies that achieve non-trivial good performance.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+Cited as:
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{verbatim}
+@article{weng2019ES,
+  title   = "Evolution Strategies",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2019",
+  url     = "https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/"
+}
+\end{verbatim}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}1{]} Nikolaus Hansen. \href{https://arxiv.org/abs/1604.00772}{``The CMA Evolution Strategy: A Tutorial''} arXiv preprint arXiv:1604.00772 (2016).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}2{]} Marc Toussaint. \href{https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf}{Slides: ``Introduction to Optimization''}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}3{]} David Ha. \href{http://blog.otoro.net/2017/10/29/visual-evolution-strategies/}{``A Visual Guide to Evolution Strategies''} blog.otoro.net. Oct 2017.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}4{]} Daan Wierstra, et al. \href{https://arxiv.org/abs/1106.4487}{``Natural evolution strategies.''} IEEE World Congress on Computational Intelligence, 2008.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}5{]} Agustinus Kristiadi. \href{https://wiseodd.github.io/techblog/2018/03/14/natural-gradient/}{``Natural Gradient Descent''} Mar 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}6{]} Razvan Pascanu \& Yoshua Bengio. \href{https://arxiv.org/abs/1301.3584v7}{``Revisiting Natural Gradient for Deep Networks.''} arXiv preprint arXiv:1301.3584 (2013).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}7{]} Tim Salimans, et al. \href{https://arxiv.org/abs/1703.03864}{``Evolution strategies as a scalable alternative to reinforcement learning.''} arXiv preprint arXiv:1703.03864 (2017).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}8{]} Edoardo Conti, et al. \href{https://arxiv.org/abs/1712.06560}{``Improving exploration in evolution strategies for deep reinforcement learning via a population of novelty-seeking agents.''} NIPS. 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}9{]} Aloïs Pourchot \& Olivier Sigaud. \href{https://arxiv.org/abs/1810.01222}{``CEM-RL: Combining evolutionary and gradient-based methods for policy search.''} ICLR 2019.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}10{]} Shauharda Khadka \& Kagan Tumer. \href{https://papers.nips.cc/paper/7395-evolution-guided-policy-gradient-in-reinforcement-learning.pdf}{``Evolution-guided policy gradient in reinforcement learning.''} NIPS 2018.
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}11{]} Max Jaderberg, et al. \href{https://arxiv.org/abs/1711.09846}{``Population based training of neural networks.''} arXiv preprint arXiv:1711.09846 (2017).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{[}12{]} Adam Gaier \& David Ha. \href{https://arxiv.org/abs/1906.04358}{``Weight Agnostic Neural Networks.''} arXiv preprint arXiv:1906.04358 (2019).
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/evolution/}{Evolution}
+\item
+  \href{https://lilianweng.github.io/tags/reinforcement-learning/}{Reinforcement-Learning}
+\end{itemize}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\href{https://lilianweng.github.io/posts/2019-11-10-self-supervised/}{{« }\\
+{Self-Supervised Representation Learning}} \href{https://lilianweng.github.io/posts/2019-06-23-meta-rl/}{{ »}\\
+{Meta Reinforcement Learning}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\href{https://twitter.com/intent/tweet/?text=Evolution\%20Strategies&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f&hashtags=evolution\%2creinforcement-learning}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f&title=Evolution\%20Strategies&summary=Evolution\%20Strategies&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f&title=Evolution\%20Strategies}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f}{} \href{https://api.whatsapp.com/send?text=Evolution\%20Strategies\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f}{} \href{https://telegram.me/share/url?text=Evolution\%20Strategies&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2019-09-05-evolution-strategies\%2f}{}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+\end{minipage}
+\hfill
+\begin{minipage}[t]{1.2e-2\linewidth}
+\phantomsection\label{top-link}\hyperref[top]{}
+\end{minipage}
+\caption{}
+\end{subfigure}
+\caption{}
+\end{figure}

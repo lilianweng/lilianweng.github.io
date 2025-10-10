@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>The Transformer Family | Lil&#39;Log</title>
+<meta name="keywords" content="architecture, attention, transformer, foundation, reinforcement-learning" />
+<meta name="description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="The Transformer Family" />
+<meta property="og:description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-04-07T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2020-04-07T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="The Transformer Family"/>
+<meta name="twitter:description" content="
+[Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.]
+"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "The Transformer Family",
+      "item": "https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The Transformer Family",
+  "name": "The Transformer Family",
+  "description": " [Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] ",
+  "keywords": [
+    "architecture", "attention", "transformer", "foundation", "reinforcement-learning"
+  ],
+  "articleBody": " [Updated on 2023-01-27: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: The Transformer Family Version 2.0. Please refer to that post on this topic.] It has been almost two years since my last post on attention. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more.\nNotations Symbol Meaning $d$ The model size / hidden state dimension / positional encoding size. $h$ The number of heads in multi-head attention layer. $L$ The segment length of input sequence. $\\mathbf{X} \\in \\mathbb{R}^{L \\times d}$ The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size. $\\mathbf{W}^k \\in \\mathbb{R}^{d \\times d_k}$ The key weight matrix. $\\mathbf{W}^q \\in \\mathbb{R}^{d \\times d_k}$ The query weight matrix. $\\mathbf{W}^v \\in \\mathbb{R}^{d \\times d_v}$ The value weight matrix. Often we have $d_k = d_v = d$. $\\mathbf{W}^k_i, \\mathbf{W}^q_i \\in \\mathbb{R}^{d \\times d_k/h}; \\mathbf{W}^v_i \\in \\mathbb{R}^{d \\times d_v/h}$ The weight matrices per head. $\\mathbf{W}^o \\in \\mathbb{R}^{d_v \\times d}$ The output weight matrix. $\\mathbf{Q} = \\mathbf{X}\\mathbf{W}^q \\in \\mathbb{R}^{L \\times d_k}$ The query embedding inputs. $\\mathbf{K} = \\mathbf{X}\\mathbf{W}^k \\in \\mathbb{R}^{L \\times d_k}$ The key embedding inputs. $\\mathbf{V} = \\mathbf{X}\\mathbf{W}^v \\in \\mathbb{R}^{L \\times d_v}$ The value embedding inputs. $S_i$ A collection of key positions for the $i$-th query $\\mathbf{q}_i$ to attend to. $\\mathbf{A} \\in \\mathbb{R}^{L \\times L}$ The self-attention matrix between a input sequence of length $L$ and itself. $\\mathbf{A} = \\text{softmax}(\\mathbf{Q}\\mathbf{K}^\\top / \\sqrt{d_k})$. $a_{ij} \\in \\mathbf{A}$ The scalar attention score between query $\\mathbf{q}_i$ and key $\\mathbf{k}_j$. $\\mathbf{P} \\in \\mathbb{R}^{L \\times d}$ position encoding matrix, where the $i$-th row $\\mathbf{p}_i$ is the positional encoding for input $\\mathbf{x}_i$. Attention and Self-Attention Attention is a mechanism in the neural network that a model can learn to make predictions by selectively attending to a given set of data. The amount of attention is quantified by learned weights and thus the output is usually formed as a weighted average.\nSelf-attention is a type of attention mechanism where the model makes prediction for one part of a data sample using other parts of the observation about the same sample. Conceptually, it feels quite similar to non-local means. Also note that self-attention is permutation-invariant; in other words, it is an operation on sets.\nThere are various forms of attention / self-attention, Transformer (Vaswani et al., 2017) relies on the scaled dot-product attention: given a query matrix $\\mathbf{Q}$, a key matrix $\\mathbf{K}$ and a value matrix $\\mathbf{V}$, the output is a weighted sum of the value vectors, where the weight assigned to each value slot is determined by the dot-product of the query with the corresponding key:\n$$ \\text{Attention}(\\mathbf{Q}, \\mathbf{K}, \\mathbf{V}) = \\text{softmax}(\\frac{\\mathbf{Q} {\\mathbf{K}}^\\top}{\\sqrt{d_k}})\\mathbf{V} $$ And for a query and a key vector $\\mathbf{q}_i, \\mathbf{k}_j \\in \\mathbb{R}^d$ (row vectors in query and key matrices), we have a scalar score:\n$$ a_{ij} = \\text{softmax}(\\frac{\\mathbf{q}_i {\\mathbf{k}_j}^\\top}{\\sqrt{d_k}}) = \\frac{\\exp(\\mathbf{q}_i {\\mathbf{k}_j}^\\top)}{ \\sqrt{d_k} \\sum_{r \\in S_i} \\exp(\\mathbf{q}_i {\\mathbf{k}_r}^\\top) } $$ See my old post for other types of attention if interested.\nMulti-Head Self-Attention The multi-head self-attention module is a key component in Transformer. Rather than only computing the attention once, the multi-head mechanism splits the inputs into smaller chunks and then computes the scaled dot-product attention over each subspace in parallel. The independent attention outputs are simply concatenated and linearly transformed into expected dimensions.\n$$ \\begin{aligned} \\text{MultiHeadAttention}(\\mathbf{X}_q, \\mathbf{X}_k, \\mathbf{X}_v) \u0026= [\\text{head}_1; \\dots; \\text{head}_h] \\mathbf{W}^o \\\\ \\text{where head}_i \u0026= \\text{Attention}(\\mathbf{X}_q\\mathbf{W}^q_i, \\mathbf{X}_k\\mathbf{W}^k_i, \\mathbf{X}_v\\mathbf{W}^v_i) \\end{aligned} $$ where $[.;.]$ is a concatenation operation. $\\mathbf{W}^q_i, \\mathbf{W}^k_i \\in \\mathbb{R}^{d \\times d_k/h}, \\mathbf{W}^v_i \\in \\mathbb{R}^{d \\times d_v/h}$ are weight matrices to map input embeddings of size $L \\times d$ into query, key and value matrices. And $\\mathbf{W}^o \\in \\mathbb{R}^{d_v \\times d}$ is the output linear transformation. All the weights should be learned during training.\nIllustration of the multi-head scaled dot-product attention mechanism. (Image source: Figure 2 in Vaswani, et al., 2017) Transformer The Transformer (which will be referred to as “vanilla Transformer” to distinguish it from other enhanced versions; Vaswani, et al., 2017) model has an encoder-decoder architecture, as commonly used in many NMT models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only BERT or decoder-only GPT.\nEncoder-Decoder Architecture\nThe encoder generates an attention-based representation with capability to locate a specific piece of information from a large context. It consists of a stack of 6 identity modules, each containing two submodules, a multi-head self-attention layer and a point-wise fully connected feed-forward network. By point-wise, it means that it applies the same linear transformation (with same weights) to each element in the sequence. This can also be viewed as a convolutional layer with filter size 1. Each submodule has a residual connection and layer normalization. All the submodules output data of the same dimension $d$.\nThe function of Transformer decoder is to retrieve information from the encoded representation. The architecture is quite similar to the encoder, except that the decoder contains two multi-head attention submodules instead of one in each identical repeating module. The first multi-head attention submodule is masked to prevent positions from attending to the future.\nThe architecture of the vanilla Transformer model. (Image source: Figure 17) Positional Encoding\nBecause self-attention operation is permutation invariant, it is important to use proper positional encodingto provide order information to the model. The positional encoding $\\mathbf{P} \\in \\mathbb{R}^{L \\times d}$ has the same dimension as the input embedding, so it can be added on the input directly. The vanilla Transformer considered two types of encodings:\n(1) Sinusoidal positional encoding is defined as follows, given the token position $i=1,\\dots,L$ and the dimension $\\delta=1,\\dots,d$:\n$$ \\text{PE}(i,\\delta) = \\begin{cases} \\sin(\\frac{i}{10000^{2\\delta'/d}}) \u0026 \\text{if } \\delta = 2\\delta'\\\\ \\cos(\\frac{i}{10000^{2\\delta'/d}}) \u0026 \\text{if } \\delta = 2\\delta' + 1\\\\ \\end{cases} $$ In this way each dimension of the positional encoding corresponds to a sinusoid of different wavelengths in different dimensions, from $2\\pi$ to $10000 \\cdot 2\\pi$.\nSinusoidal positional encoding with $L=32$ and $d=128$. The value is between -1 (black) and 1 (white) and the value 0 is in gray. (2) Learned positional encoding, as its name suggested, assigns each element with a learned column vector which encodes its absolute position (Gehring, et al. 2017).\nQuick Follow-ups\nFollowing the vanilla Transformer, Al-Rfou et al. (2018) added a set of auxiliary losses to enable training a deep Transformer model on character-level language modeling which outperformed LSTMs. Several types of auxiliary tasks are used:\nInstead of producing only one prediction at the sequence end, every immediate position is also asked to make a correct prediction, forcing the model to predict given smaller contexts (e.g. first couple tokens at the beginning of a context window). Each intermediate Transformer layer is used for making predictions as well. Lower layers are weighted to contribute less and less to the total loss as training progresses. Each position in the sequence can predict multiple targets, i.e. two or more predictions of the future tokens. Auxiliary prediction tasks used in deep Transformer for character-level language modeling. (Image source: Al-Rfou et al. (2018)) Adaptive Computation Time (ACT) Adaptive Computation Time (short for ACT; Graves, 2016) is a mechanism for dynamically deciding how many computational steps are needed in a recurrent neural network. Here is a cool tutorial on ACT from distill.pub.\nLet’s say, we have a RNN model $\\mathcal{R}$ composed of input weights $W_x$, a parametric state transition function $\\mathcal{S}(.)$, a set of output weights $W_y$ and an output bias $b_y$. Given an input sequence $(x_1, \\dots, x_L)$, the output sequence $(y_1, \\dots, y_L)$ is computed by:\n$$ s_t = \\mathcal{S}(s_{t-1}, W_x x_t), \\quad y_t = W_y s_t + b_y\\quad\\text{for }t=1, \\dots, L $$ ACT enables the above RNN setup to perform a variable number of steps at each input element. Multiple computational steps lead to a sequence of intermediate states $(s_t^1, \\dots, s_t^{N(t)})$ and outputs $(y_t^1, \\dots, y_t^{N(t)})$ — they all share the same state transition function $\\mathcal{S}(.)$, as well as the same output weights $W_y$ and bias $b_y$:\n$$ \\begin{aligned} s_t^0 \u0026= s_{t-1} \\\\ s_t^n \u0026= \\mathcal{S}(s_{t}^{n-1}, x_t^n) = \\mathcal{S}(s_{t}^{n-1}, x_t + \\delta_{n,1}) \\text{ for } n=1, \\dots, N(t)\\\\ y_t^n \u0026= W_y s_t^n + b_y \\end{aligned} $$ where $\\delta_{n,1}$ is a binary flag indicating whether the input step has been incremented.\nThe number of steps $N(t)$ is determined by an extra sigmoidal halting unit $h$, with associated weight matrix $W_h$ and bias $b_h$, outputting a halting probability $p_t^n$ at immediate step $n$ for $t$-th input element:\n$$ h_t^n = \\sigma(W_h s_t^n + b_h) $$ In order to allow the computation to halt after a single step, ACT introduces a small constant $\\epsilon$ (e.g. 0.01), so that whenever the cumulative probability goes above $1-\\epsilon$, the computation stops.\n$$ \\begin{aligned} N(t) \u0026= \\min(\\min\\{n': \\sum_{n=1}^{n'} h_t^n \\geq 1 -\\epsilon\\}, M) \\\\ p_t^n \u0026= \\begin{cases} h_t^n \u0026 \\text{if }n \u003c N(t) \\\\ R(t) = 1 - \\sum_{n=1}^{N(t)-1} h_t^n \u0026 \\text{if }n= N(t)\\\\ \\end{cases} \\end{aligned} $$ where $M$ is an upper limit for the number of immediate steps allowed.\nThe final state and output are mean-field updates:\n$$ s_t = \\sum_{n=1}^{N(t)} p_t^n s_t^n,\\quad y_t = \\sum_{n=1}^{N(t)} p_t^n y_t^n $$ The computation graph of a RNN with ACT mechanism. (Image source: Graves, 2016) To avoid unnecessary pondering over each input, ACT adds a ponder cost $\\mathcal{P}(x) = \\sum_{t=1}^L N(t) + R(t) $ in the loss function to encourage a smaller number of intermediate computational steps.\nImproved Attention Span The goal of improving attention span is to make the context that can be used in self-attention longer, more efficient and flexible.\nLonger Attention Span (Transformer-XL) The vanilla Transformer has a fixed and limited attention span. The model can only attend to other elements in the same segments during each update step and no information can flow across separated fixed-length segments.\nThis context segmentation causes several issues:\nThe model cannot capture very long term dependencies. It is hard to predict the first few tokens in each segment given no or thin context. The evaluation is expensive. Whenever the segment is shifted to the right by one, the new segment is re-processed from scratch, although there are a lot of overlapped tokens. Transformer-XL (Dai et al., 2019; “XL” means “extra long”) solves the context segmentation problem with two main modifications:\nReusing hidden states between segments. Adopting a new positional encoding that is suitable for reused states. Hidden State Reuse\nThe recurrent connection between segments is introduced into the model by continuously using the hidden states from the previous segments.\nA comparison between the training phrase of vanilla Transformer \u0026 Transformer-XL with a segment length 4. (Image source: left part of Figure 2 in Dai et al., 2019). Let’s label the hidden state of the $n$-th layer for the $(\\tau + 1)$-th segment in the model as $\\mathbf{h}_{\\tau+1}^{(n)} \\in \\mathbb{R}^{L \\times d}$. In addition to the hidden state of the last layer for the same segment $\\mathbf{h}_{\\tau+1}^{(n-1)}$, it also depends on the hidden state of the same layer for the previous segment $\\mathbf{h}_{\\tau}^{(n)}$. By incorporating information from the previous hidden states, the model extends the attention span much longer in the past, over multiple segments.\n$$ \\begin{aligned} \\color{red}{\\widetilde{\\mathbf{h}}_{\\tau+1}^{(n-1)}} \u0026= [\\text{stop-gradient}(\\mathbf{h}_{\\tau}^{(n-1)}) \\circ \\mathbf{h}_{\\tau+1}^{(n-1)}] \\\\ \\mathbf{Q}_{\\tau+1}^{(n)} \u0026= \\mathbf{h}_{\\tau+1}^{(n-1)}\\mathbf{W}^q \\\\ \\mathbf{K}_{\\tau+1}^{(n)} \u0026= \\color{red}{\\widetilde{\\mathbf{h}}_{\\tau+1}^{(n-1)}} \\mathbf{W}^k \\\\ \\mathbf{V}_{\\tau+1}^{(n)} \u0026= \\color{red}{\\widetilde{\\mathbf{h}}_{\\tau+1}^{(n-1)}} \\mathbf{W}^v \\\\ \\mathbf{h}_{\\tau+1}^{(n)} \u0026= \\text{transformer-layer}(\\mathbf{Q}_{\\tau+1}^{(n)}, \\mathbf{K}_{\\tau+1}^{(n)}, \\mathbf{V}_{\\tau+1}^{(n)}) \\end{aligned} $$ Note that both key and value rely on the extended hidden state, while the query only consumes hidden state at current step. The concatenation operation $[. \\circ .]$ is along the sequence length dimension.\nRelative Positional Encoding\nIn order to work with this new form of attention span, Transformer-XL proposed a new type of positional encoding. If using the same approach by vanilla Transformer and encoding the absolute position, the previous and current segments will be assigned with the same encoding, which is undesired.\nTo keep the positional information flow coherently across segments, Transformer-XL encodes the relative position instead, as it could be sufficient enough to know the position offset for making good predictions, i.e. $i-j$, between one key vector $\\mathbf{k}_{\\tau, j}$ and its query $\\mathbf{q}_{\\tau, i}$.\nIf omitting the scalar $1/\\sqrt{d_k}$ and the normalizing term in softmax but including positional encodings, we can write the attention score between query at position $i$ and key at position $j$ as:\n$$ \\begin{aligned} a_{ij} \u0026= \\mathbf{q}_i {\\mathbf{k}_j}^\\top = (\\mathbf{x}_i + \\mathbf{p}_i)\\mathbf{W}^q ((\\mathbf{x}_j + \\mathbf{p}_j)\\mathbf{W}^k)^\\top \\\\ \u0026= \\mathbf{x}_i\\mathbf{W}^q {\\mathbf{W}^k}^\\top\\mathbf{x}_j^\\top + \\mathbf{x}_i\\mathbf{W}^q {\\mathbf{W}^k}^\\top\\mathbf{p}_j^\\top + \\mathbf{p}_i\\mathbf{W}^q {\\mathbf{W}^k}^\\top\\mathbf{x}_j^\\top + \\mathbf{p}_i\\mathbf{W}^q {\\mathbf{W}^k}^\\top\\mathbf{p}_j^\\top \\end{aligned} $$ Transformer-XL reparameterizes the above four terms as follows:\n$$ a_{ij}^\\text{rel} = \\underbrace{ \\mathbf{x}_i\\mathbf{W}^q \\color{blue}{ {\\mathbf{W}_E^k}^\\top } \\mathbf{x}_j^\\top }_\\text{content-based addressing} + \\underbrace{ \\mathbf{x}_i\\mathbf{W}^q \\color{blue}{ {\\mathbf{W}_R^k}^\\top } \\color{green}{\\mathbf{r}_{i-j}^\\top} }_\\text{content-dependent positional bias} + \\underbrace{ \\color{red}{\\mathbf{u}} \\color{blue}{ {\\mathbf{W}_E^k}^\\top } \\mathbf{x}_j^\\top }_\\text{global content bias} + \\underbrace{ \\color{red}{\\mathbf{v}} \\color{blue}{ {\\mathbf{W}_R^k}^\\top } \\color{green}{\\mathbf{r}_{i-j}^\\top} }_\\text{global positional bias} $$ Replace $\\mathbf{p}_j$ with relative positional encoding $\\mathbf{r}_{i-j} \\in \\mathbf{R}^{d}$; Replace $\\mathbf{p}_i\\mathbf{W}^q$ with two trainable parameters $\\mathbf{u}$ (for content) and $\\mathbf{v}$ (for location) in two different terms; Split $\\mathbf{W}^k$ into two matrices, $\\mathbf{W}^k_E$ for content information and $\\mathbf{W}^k_R$ for location information. Adaptive Attention Span One key advantage of Transformer is the capability of capturing long-term dependencies. Depending on the context, the model may prefer to attend further sometime than others; or one attention head may had different attention pattern from the other. If the attention span could adapt its length flexibly and only attend further back when needed, it would help reduce both computation and memory cost to support longer maximum context size in the model.\nThis is the motivation for Adaptive Attention Span. Sukhbaatar, et al., (2019) proposed a self-attention mechanism that seeks an optimal attention span. They hypothesized that different attention heads might assign scores differently within the same context window (See Fig. 7) and thus the optimal span would be trained separately per head.\nTwo attention heads in the same model, A \u0026 B, assign attention differently within the same context window. Head A attends more to the recent tokens, while head B look further back into the past uniformly. (Image source: Sukhbaatar, et al. 2019) Given the $i$-th token, we need to compute the attention weights between this token and other keys at positions $j \\in S_i$, where $S_i$ defineds the $i$-th token’s context window.\n$$ \\begin{aligned} e_{ij} \u0026= \\mathbf{q}_i {\\mathbf{k}_j}^\\top \\\\ a_{ij} \u0026= \\text{softmax}(e_{ij}) = \\frac{\\exp(e_{ij})}{\\sum_{r=i-s}^{i-1} \\exp(e_{ir})} \\\\ \\mathbf{y}_i \u0026= \\sum_{r=i-s}^{i-1}a_{ir}\\mathbf{v}_r = \\sum_{r=i-s}^{i-1}a_{ir}\\mathbf{x}_r\\mathbf{W}^v \\end{aligned} $$ A soft mask function $m_z$ is added to control for an effective adjustable attention span, which maps the distance between query and key into a [0, 1] value. $m_z$ is parameterized by $z \\in [0, s]$ and $z$ is to be learned:\n$$ m_z(x) = \\text{clamp}(\\frac{1}{R}(R+z-x), 0, 1) $$ where $R$ is a hyper-parameter which defines the softness of $m_z$.\nThe soft masking function used in the adaptive attention span. (Image source: Sukhbaatar, et al. 2019.) The soft mask function is applied to the softmax elements in the attention weights:\n$$ a_{ij} = \\frac{m_z(i-j)\\exp(s_{ij})}{\\sum_{r=i-s}^{i-1}m_z(i-r) \\exp(s_{ir})} $$ In the above equation, $z$ is differentiable so it is trained jointly with other parts of the model. Parameters $z^{(i)}, i=1, \\dots, h$ are learned separately per head. Moreover, the loss function has an extra L1 penalty on $\\sum_{i=1}^h z^{(i)}$.\nUsing Adaptive Computation Time, the approach can be further enhanced to have flexible attention span length, adaptive to the current input dynamically. The span parameter $z_t$ of an attention head at time $t$ is a sigmoidal function, $z_t = S \\sigma(\\mathbf{v} \\cdot \\mathbf{x}_t +b)$, where the vector $\\mathbf{v}$ and the bias scalar $b$ are learned jointly with other parameters.\nIn the experiments of Transformer with adaptive attention span, Sukhbaatar, et al. (2019) found a general tendency that lower layers do not require very long attention spans, while a few attention heads in higher layers may use exceptionally long spans. Adaptive attention span also helps greatly reduce the number of FLOPS, especially in a big model with many attention layers and a large context length.\nLocalized Attention Span (Image Transformer) The original, also the most popular, use case for Transformer is to do language modeling. The text sequence is one-dimensional in a clearly defined chronological order and thus the attention span grows linearly with increased context size.\nHowever, if we want to use Transformer on images, it is unclear how to define the scope of context or the order. Image Transformer (Parmer, et al 2018) embraces a formulation of image generation similar to sequence modeling within the Transformer framework. Additionally, Image Transformer restricts the self-attention span to only local neighborhoods, so that the model can scale up to process more images in parallel and keep the likelihood loss tractable.\nThe encoder-decoder architecture remains for image-conditioned generation:\nThe encoder generates a contextualized, per-pixel-channel representation of the source image; The decoder autoregressively generates an output image, one channel per pixel at each time step. Let’s label the representation of the current pixel to be generated as the query $\\mathbf{q}$. Other positions whose representations will be used for computing $\\mathbf{q}$ are key vector $\\mathbf{k}_1, \\mathbf{k}_2, \\dots$ and they together form a memory matrix $\\mathbf{M}$. The scope of $\\mathbf{M}$ defines the context window for pixel query $\\mathbf{q}$.\nImage Transformer introduced two types of localized $\\mathbf{M}$, as illustrated below.\nIllustration of 1D and 2D attention span for visual inputs in Image Transformer. The black line marks a query block and the cyan outlines the actual attention span for pixel q. (Image source: Figure 2 in Parmer et al, 2018) (1) 1D Local Attention: The input image is flattened in the raster scanning order, that is, from left to right and top to bottom. The linearized image is then partitioned into non-overlapping query blocks. The context window consists of pixels in the same query block as $\\mathbf{q}$ and a fixed number of additional pixels generated before this query block.\n(2) 2D Local Attention: The image is partitioned into multiple non-overlapping rectangular query blocks. The query pixel can attend to all others in the same memory blocks. To make sure the pixel at the top-left corner can also have a valid context window, the memory block is extended to the top, left and right by a fixed amount, respectively.\nLess Time and Memory Cost This section introduces several improvements made on Transformer to reduce the computation time and memory consumption.\nSparse Attention Matrix Factorization (Sparse Transformers) The compute and memory cost of the vanilla Transformer grows quadratically with sequence length and thus it is hard to be applied on very long sequences.\nSparse Transformer (Child et al., 2019) introduced factorized self-attention, through sparse matrix factorization, making it possible to train dense attention networks with hundreds of layers on sequence length up to 16,384, which would be infeasible on modern hardware otherwise.\nGiven a set of attention connectivity pattern $\\mathcal{S} = \\{S_1, \\dots, S_n\\}$, where each $S_i$ records a set of key positions that the $i$-th query vector attends to.\n$$ \\begin{aligned} \\text{Attend}(\\mathbf{X}, \\mathcal{S}) \u0026= \\Big( a(\\mathbf{x}_i, S_i) \\Big)_{i \\in \\{1, \\dots, L\\}} \\\\ \\text{ where } a(\\mathbf{x}_i, S_i) \u0026= \\text{softmax}\\Big(\\frac{(\\mathbf{x}_i \\mathbf{W}^q)(\\mathbf{x}_j \\mathbf{W}^k)_{j \\in S_i}^\\top}{\\sqrt{d_k}}\\Big) (\\mathbf{x}_j \\mathbf{W}^v)_{j \\in S_i} \\end{aligned} $$ Note that although the size of $S_i$ is not fixed, $a(\\mathbf{x}_i, S_i)$ is always of size $d_v$ and thus $\\text{Attend}(\\mathbf{X}, \\mathcal{S}) \\in \\mathbb{R}^{L \\times d_v}$.\nIn anto-regressive models, one attention span is defined as $S_i = \\{j: j \\leq i\\}$ as it allows each token to attend to all the positions in the past.\nIn factorized self-attention, the set $S_i$ is decomposed into a tree of dependencies, such that for every pair of $(i, j)$ where $j \\leq i$, there is a path connecting $i$ back to $j$ and $i$ can attend to $j$ either directly or indirectly.\nPrecisely, the set $S_i$ is divided into $p$ non-overlapping subsets, where the $m$-th subset is denoted as $A^{(m)}_i \\subset S_i, m = 1,\\dots, p$. Therefore the path between the output position $i$ and any $j$ has a maximum length $p + 1$. For example, if $(j, a, b, c, \\dots, i)$ is a path of indices between $i$ and $j$, we would have $j \\in A_a^{(1)}, a \\in A_b^{(2)}, b \\in A_c^{(3)}, \\dots$, so on and so forth.\nSparse Factorized Attention\nSparse Transformer proposed two types of fractorized attention. It is easier to understand the concepts as illustrated in Fig. 10 with 2D image inputs as examples.\nThe top row illustrates the attention connectivity patterns in (a) Transformer, (b) Sparse Transformer with strided attention, and (c) Sparse Transformer with fixed attention. The bottom row contains corresponding self-attention connectivity matrices. Note that the top and bottom rows are not in the same scale. (Image source: Child et al., 2019 + a few of extra annotations.) (1) Strided attention with stride $\\ell \\sim \\sqrt{n}$. This works well with image data as the structure is aligned with strides. In the image case, each pixel would attend to all the previous $\\ell$ pixels in the raster scanning order (naturally cover the entire width of the image) and then those pixels attend to others in the same column (defined by another attention connectivity subset).\n$$ \\begin{aligned} A_i^{(1)} \u0026= \\{ t, t+1, \\dots, i\\} \\text{, where } t = \\max(0, i - \\ell) \\\\ A_i^{(2)} \u0026= \\{j: (i-j) \\mod \\ell = 0\\} \\end{aligned} $$ (2) Fixed attention. A small set of tokens summarize previous locations and propagate that information to all future locations.\n$$ \\begin{aligned} A_i^{(1)} \u0026= \\{j: \\lfloor \\frac{j}{\\ell} \\rfloor = \\lfloor \\frac{i}{\\ell} \\rfloor \\} \\\\ A_i^{(2)} \u0026= \\{j: j \\mod \\ell \\in \\{\\ell-c, \\dots, \\ell-1\\} \\} \\end{aligned} $$ where $c$ is a hyperparameter. If $c=1$, it restricts the representation whereas many depend on a few positions. The paper chose $c\\in \\{ 8, 16, 32 \\}$ for $\\ell \\in \\{ 128, 256 \\}$.\nUse Factorized Self-Attention in Transformer\nThere are three ways to use sparse factorized attention patterns in Transformer architecture:\nOne attention type per residual block and then interleave them, $\\text{attention}(\\mathbf{X}) = \\text{Attend}(\\mathbf{X}, A^{(n \\mod p)}) \\mathbf{W}^o$, where $n$ is the index of the current residual block. Set up a single head which attends to locations that all the factorized heads attend to, $\\text{attention}(\\mathbf{X}) = \\text{Attend}(\\mathbf{X}, \\cup_{m=1}^p A^{(m)}) \\mathbf{W}^o $. Use a multi-head attention mechanism, but different from vanilla Transformer, each head might adopt a pattern presented above, 1 or 2. =\u003e This option often performs the best. Sparse Transformer also proposed a set of changes so as to train the Transformer up to hundreds of layers, including gradient checkpointing, recomputing attention \u0026 FF layers during the backward pass, mixed precision training, efficient block-sparse implementation, etc. Please check the paper for more details.\nLocality-Sensitive Hashing (Reformer) The improvements proposed by the Reformer model (Kitaev, et al. 2020) aim to solve the following pain points in Transformer:\nMemory in a model with $N$ layers is $N$-times larger than in a single-layer model because we need to store activations for back-propagation. The intermediate FF layers are often quite large. The attention matrix on sequences of length $L$ often requires $O(L^2)$ in both memory and time. Reformer proposed two main changes:\nReplace the dot-product attention with locality-sensitive hashing (LSH) attention, reducing the complexity from $O(L^2)$ to $O(L\\log L)$. Replace the standard residual blocks with reversible residual layers, which allows storing activations only once during training instead of $N$ times (i.e. proportional to the number of layers). Locality-Sensitive Hashing Attention\nIn $\\mathbf{Q} \\mathbf{K}^\\top$ part of the attention formula, we are only interested in the largest elements as only large elements contribute a lot after softmax. For each query $\\mathbf{q}_i \\in \\mathbf{Q}$, we are looking for row vectors in $\\mathbf{K}$ closest to $\\mathbf{q}_i$. In order to find nearest neighbors quickly in high-dimensional space, Reformer incorporates Locality-Sensitive Hashing (LSH) into its attention mechanism.\nA hashing scheme $x \\mapsto h(x)$ is locality-sensitive if it preserves the distancing information between data points, such that close vectors obtain similar hashes while distant vectors have very different ones. The Reformer adopts a hashing scheme as such, given a fixed random matrix $\\mathbf{R} \\in \\mathbb{R}^{d \\times b/2}$ (where $b$ is a hyperparam), the hash function is $h(x) = \\arg\\max([xR; −xR])$.\nIllustration of Locality-Sensitive Hashing (LSH) attention. (Image source: right part of Figure 1 in Kitaev, et al. 2020). In LSH attention, a query can only attend to positions in the same hashing bucket, $S_i = \\{j: h(\\mathbf{q}_i) = h(\\mathbf{k}_j)\\}$. It is carried out in the following process, as illustrated in Fig. 11:\n(a) The attention matrix for full attention is often sparse. (b) Using LSH, we can sort the keys and queries to be aligned according to their hash buckets. (c) Set $\\mathbf{Q} = \\mathbf{K}$ (precisely $\\mathbf{k}_j = \\mathbf{q}_j / |\\mathbf{q}_j|$), so that there are equal numbers of keys and queries in one bucket, easier for batching. Interestingly, this “shared-QK” config does not affect the performance of the Transformer. (d) Apply batching where chunks of $m$ consecutive queries are grouped together. The LSH attention consists of 4 steps: bucketing, sorting, chunking, and attention computation. (Image source: left part of Figure 1 in Kitaev, et al. 2020). Reversible Residual Network\nAnother improvement by Reformer is to use reversible residual layers (Gomez et al. 2017). The motivation for reversible residual network is to design the architecture in a way that activations at any given layer can be recovered from the activations at the following layer, using only the model parameters. Hence, we can save memory by recomputing the activation during backprop rather than storing all the activations.\nGiven a layer $x \\mapsto y$, the normal residual layer does $y = x + F(x)$, but the reversible layer splits both input and output into pairs $(x_1, x_2) \\mapsto (y_1, y_2)$ and then executes the following:\n$$ y_1 = x_1 + F(x_2),\\; y_2 = x_2 + G(y_1) $$ and reversing is easy:\n$$ x_2 = y_2 - G(y_1), \\; x_1 = y_1 − F(x_2) $$ Reformer applies the same idea to Transformer by combination attention ($F$) and feed-forward layers ($G$) within a reversible net block:\n$$ Y_1 = X_1 + \\text{Attention}(X_2), \\; Y_2 = X_2 + \\text{FeedForward}(Y_1) $$ The memory can be further reduced by chunking the feed-forward computation:\n$$ Y_2 = [Y_2^{(1)}; \\dots; Y_2^{(c)}] = [X_2^{(1)} + \\text{FeedForward}(Y_1^{(1)}); \\dots; X_2^{(c)} + \\text{FeedForward}(Y_1^{(c)})] $$ The resulting reversible Transformer does not need to store activation in every layer.\nMake it Recurrent (Universal Transformer) The Universal Transformer (Dehghani, et al. 2019) combines self-attention in Transformer with the recurrent mechanism in RNN, aiming to benefit from both a long-term global receptive field of Transformer and learned inductive biases of RNN.\nRather than going through a fixed number of layers, Universal Transformer dynamically adjusts the number of steps using adaptive computation time. If we fix the number of steps, an Universal Transformer is equivalent to a multi-layer Transformer with shared parameters across layers.\nOn a high level, the universal transformer can be viewed as a recurrent function for learning the hidden state representation per token. The recurrent function evolves in parallel across token positions and the information between positions is shared through self-attention.\nHow the Universal Transformer refines a set of hidden state representations repeatedly for every position in parallel. (Image source: Figure 1 in Dehghani, et al. 2019). Given an input sequence of length $L$, Universal Transformer iteratively updates the representation $\\mathbf{H}^t \\in \\mathbb{R}^{L \\times d}$ at step $t$ for an adjustable number of steps. At step 0, $\\mathbf{H}^0$ is initialized to be same as the input embedding matrix. All the positions are processed in parallel in the multi-head self-attention mechanism and then go through a recurrent transition function.\n$$ \\begin{aligned} \\mathbf{A}^t \u0026= \\text{LayerNorm}(\\mathbf{H}^{t-1} + \\text{MultiHeadAttention}(\\mathbf{H}^{t-1} + \\mathbf{P}^t) \\\\ \\mathbf{H}^t \u0026= \\text{LayerNorm}(\\mathbf{A}^{t-1} + \\text{Transition}(\\mathbf{A}^t)) \\end{aligned} $$ where $\\text{Transition}(.)$ is either a separable convolution or a fully-connected neural network that consists of two position-wise (i.e. applied to each row of $\\mathbf{A}^t$ individually) affine transformation + one ReLU.\nThe positional encoding $\\mathbf{P}^t$ uses sinusoidal position signal but with an additional time dimension:\n$$ \\text{PE}(i, t, \\delta) = \\begin{cases} \\sin(\\frac{i}{10000^{2\\delta'/d}}) \\oplus \\sin(\\frac{t}{10000^{2\\delta'/d}}) \u0026 \\text{if } \\delta = 2\\delta'\\\\ \\cos(\\frac{i}{10000^{2\\delta'/d}}) \\oplus \\cos(\\frac{t}{10000^{2\\delta'/d}}) \u0026 \\text{if } \\delta = 2\\delta' + 1\\\\ \\end{cases} $$ A simplified illustration of Universal Transformer. The encoder and decoder share the same basic recurrent structure. But the decoder also attends to final encoder representation $\\mathbf{H}^T$. (Image source: Figure 2 in Dehghani, et al. 2019) In the adaptive version of Universal Transformer, the number of recurrent steps $T$ is dynamically determined by ACT. Each position is equipped with a dynamic ACT halting mechanism. Once a per-token recurrent block halts, it stops taking more recurrent updates but simply copies the current value to the next step until all the blocks halt or until the model reaches a maximum step limit.\nStabilization for RL (GTrXL) The self-attention mechanism avoids compressing the whole past into a fixed-size hidden state and does not suffer from vanishing or exploding gradients as much as RNNs. Reinforcement Learning tasks can for sure benefit from these traits. However, it is quite difficult to train Transformer even in supervised learning, let alone in the RL context. It could be quite challenging to stabilize and train a LSTM agent by itself, after all.\nThe Gated Transformer-XL (GTrXL; Parisotto, et al. 2019) is one attempt to use Transformer for RL. GTrXL succeeded in stabilizing training with two changes on top of Transformer-XL:\nThe layer normalization is only applied on the input stream in a residual module, but NOT on the shortcut stream. A key benefit to this reordering is to allow the original input to flow from the first to last layer. The residual connection is replaced with a GRU-style (Gated Recurrent Unit; Chung et al., 2014) gating mechanism. $$ \\begin{aligned} r \u0026= \\sigma(W_r^{(l)} y + U_r^{(l)} x) \\\\ z \u0026= \\sigma(W_z^{(l)} y + U_z^{(l)} x - b_g^{(l)}) \\\\ \\hat{h} \u0026= \\tanh(W_g^{(l)} y + U_g^{(l)} (r \\odot x)) \\\\ g^{(l)}(x, y) \u0026= (1-z)\\odot x + z\\odot \\hat{h} \\end{aligned} $$ The gating function parameters are explicitly initialized to be close to an identity map - this is why there is a $b_g$ term. A $b_g \u003e 0$ greatly helps with the learning speedup.\nComparison of the model architecture of Transformer-XL, Transformer-XL with the layer norm reordered, and Gated Transformer-XL. (Image source: Figure 1 in Parisotto, et al. 2019) Citation Cited as:\nWeng, Lilian. (Apr 2020). The transformer family. Lil’Log. https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/.\nOr\n@article{weng2020transformer, title = \"The Transformer Family\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2020\", month = \"Apr\", url = \"https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/\" } Reference [1] Ashish Vaswani, et al. “Attention is all you need.” NIPS 2017.\n[2] Rami Al-Rfou, et al. “Character-level language modeling with deeper self-attention.” AAAI 2019.\n[3] Olah \u0026 Carter, “Attention and Augmented Recurrent Neural Networks”, Distill, 2016.\n[4] Sainbayar Sukhbaatar, et al. “Adaptive Attention Span in Transformers”. ACL 2019.\n[5] Rewon Child, et al. “Generating Long Sequences with Sparse Transformers” arXiv:1904.10509 (2019).\n[6] Nikita Kitaev, et al. “Reformer: The Efficient Transformer” ICLR 2020.\n[7] Alex Graves. (“Adaptive Computation Time for Recurrent Neural Networks”)[https://arxiv.org/abs/1603.08983]\n[8] Niki Parmar, et al. “Image Transformer” ICML 2018.\n[9] Zihang Dai, et al. “Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context.” ACL 2019.\n[10] Aidan N. Gomez, et al. “The Reversible Residual Network: Backpropagation Without Storing Activations” NIPS 2017.\n[11] Mostafa Dehghani, et al. “Universal Transformers” ICLR 2019.\n[12] Emilio Parisotto, et al. “Stabilizing Transformers for Reinforcement Learning” arXiv:1910.06764 (2019).\n",
+  "wordCount" : "5204",
+  "inLanguage": "en",
+  "datePublished": "2020-04-07T00:00:00Z",
+  "dateModified": "2020-04-07T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      The Transformer Family
+    </h1>
+    <div class="post-meta">Date: April 7, 2020  |  Estimated Reading Time: 25 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul><ul>
+                <li>
+                    <a href="#notations" aria-label="Notations">Notations</a></li></ul>
+                    
+                <li>
+                    <a href="#attention-and-self-attention" aria-label="Attention and Self-Attention">Attention and Self-Attention</a></li>
+                <li>
+                    <a href="#multi-head-self-attention" aria-label="Multi-Head Self-Attention">Multi-Head Self-Attention</a></li>
+                <li>
+                    <a href="#transformer" aria-label="Transformer">Transformer</a></li>
+                <li>
+                    <a href="#adaptive-computation-time-act" aria-label="Adaptive Computation Time (ACT)">Adaptive Computation Time (ACT)</a></li>
+                <li>
+                    <a href="#improved-attention-span" aria-label="Improved Attention Span">Improved Attention Span</a><ul>
+                        
+                <li>
+                    <a href="#longer-attention-span-transformer-xl" aria-label="Longer Attention Span (Transformer-XL)">Longer Attention Span (Transformer-XL)</a></li>
+                <li>
+                    <a href="#adaptive-attention-span" aria-label="Adaptive Attention Span">Adaptive Attention Span</a></li>
+                <li>
+                    <a href="#localized-attention-span-image-transformer" aria-label="Localized Attention Span (Image Transformer)">Localized Attention Span (Image Transformer)</a></li></ul>
+                </li>
+                <li>
+                    <a href="#less-time-and-memory-cost" aria-label="Less Time and Memory Cost">Less Time and Memory Cost</a><ul>
+                        
+                <li>
+                    <a href="#sparse-attention-matrix-factorization-sparse-transformers" aria-label="Sparse Attention Matrix Factorization (Sparse Transformers)">Sparse Attention Matrix Factorization (Sparse Transformers)</a></li>
+                <li>
+                    <a href="#locality-sensitive-hashing-reformer" aria-label="Locality-Sensitive Hashing (Reformer)">Locality-Sensitive Hashing (Reformer)</a></li></ul>
+                </li>
+                <li>
+                    <a href="#make-it-recurrent-universal-transformer" aria-label="Make it Recurrent (Universal Transformer)">Make it Recurrent (Universal Transformer)</a></li>
+                <li>
+                    <a href="#stabilization-for-rl-gtrxl" aria-label="Stabilization for RL (GTrXL)">Stabilization for RL (GTrXL)</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Inspired by recent progress on various enhanced versions of Transformer models, this post presents how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving, etc. -->
+<p><span class="update">[Updated on <mark><strong>2023-01-27</strong></mark>: After almost three years, I did a big refactoring update of this post to incorporate a bunch of new Transformer models since 2020. The enhanced version of this post is here: <a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/"><mark><b>The Transformer Family Version 2.0</b></mark></a>. Please refer to that post on this topic.]</span>
+<br/></p>
+<p>It has been almost two years since my last post on <a href="https://lilianweng.github.io/posts/2018-06-24-attention/">attention</a>. Recent progress on new and enhanced versions of Transformer motivates me to write another post on this specific topic, focusing on how the vanilla Transformer can be improved for longer-term attention span, less memory and computation consumption, RL task solving and more.</p>
+<h2 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h2>
+<table>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$d$</td>
+          <td>The model size / hidden state dimension / positional encoding size.</td>
+      </tr>
+      <tr>
+          <td>$h$</td>
+          <td>The number of heads in multi-head attention layer.</td>
+      </tr>
+      <tr>
+          <td>$L$</td>
+          <td>The segment length of input sequence.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{X} \in \mathbb{R}^{L \times d}$</td>
+          <td>The input sequence where each element has been mapped into an embedding vector of shape $d$, same as the model size.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The key weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^q \in \mathbb{R}^{d \times d_k}$</td>
+          <td>The query weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^v \in \mathbb{R}^{d \times d_v}$</td>
+          <td>The value weight matrix. Often we have $d_k = d_v = d$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^k_i, \mathbf{W}^q_i \in \mathbb{R}^{d \times d_k/h}; \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$</td>
+          <td>The weight matrices per head.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$</td>
+          <td>The output weight matrix.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{Q} = \mathbf{X}\mathbf{W}^q \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The query embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{K} = \mathbf{X}\mathbf{W}^k \in \mathbb{R}^{L \times d_k}$</td>
+          <td>The key embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{V} = \mathbf{X}\mathbf{W}^v \in \mathbb{R}^{L \times d_v}$</td>
+          <td>The value embedding inputs.</td>
+      </tr>
+      <tr>
+          <td>$S_i$</td>
+          <td>A collection of key positions for the $i$-th query $\mathbf{q}_i$ to attend to.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{A} \in \mathbb{R}^{L \times L}$</td>
+          <td>The self-attention matrix between a input sequence of length $L$ and itself. $\mathbf{A} = \text{softmax}(\mathbf{Q}\mathbf{K}^\top / \sqrt{d_k})$.</td>
+      </tr>
+      <tr>
+          <td>$a_{ij} \in \mathbf{A}$</td>
+          <td>The scalar attention score between query $\mathbf{q}_i$ and key $\mathbf{k}_j$.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{P} \in \mathbb{R}^{L \times d}$</td>
+          <td>position encoding matrix, where the $i$-th row $\mathbf{p}_i$ is the positional encoding for input $\mathbf{x}_i$.</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="attention-and-self-attention">Attention and Self-Attention<a hidden class="anchor" aria-hidden="true" href="#attention-and-self-attention">#</a></h1>
+<p><em>Attention</em> is a mechanism in the neural network that a model can learn to make predictions by selectively attending to a given set of data. The amount of attention is quantified by learned weights and thus the output is usually formed as a weighted average.</p>
+<p><em>Self-attention</em> is a type of attention mechanism where the model makes prediction for one part of a data sample using other parts of the observation about the same sample. Conceptually, it feels quite similar to <a href="https://en.wikipedia.org/wiki/Non-local_means">non-local means</a>. Also note that self-attention is permutation-invariant; in other words, it is an operation on sets.</p>
+<p>There are various forms of attention / self-attention, Transformer (<a href="https://arxiv.org/abs/1706.03762">Vaswani et al., 2017</a>) relies on the <em>scaled dot-product attention</em>: given a query matrix $\mathbf{Q}$, a key matrix $\mathbf{K}$ and a value matrix $\mathbf{V}$, the output is a weighted sum of the value vectors, where the weight assigned to each value slot is determined by the dot-product of the query with the corresponding key:</p>
+<div>
+$$
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}(\frac{\mathbf{Q} {\mathbf{K}}^\top}{\sqrt{d_k}})\mathbf{V}
+$$
+</div>
+<p>And for a query and a key vector $\mathbf{q}_i, \mathbf{k}_j \in \mathbb{R}^d$ (row vectors in query and key matrices), we have a scalar score:</p>
+<div>
+$$
+a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
+= \frac{\exp(\mathbf{q}_i {\mathbf{k}_j}^\top)}{ \sqrt{d_k} \sum_{r \in S_i} \exp(\mathbf{q}_i {\mathbf{k}_r}^\top) }
+$$ 
+</div>
+<p>See my old <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#a-family-of-attention-mechanisms">post</a> for other types of attention if interested.</p>
+<h1 id="multi-head-self-attention">Multi-Head Self-Attention<a hidden class="anchor" aria-hidden="true" href="#multi-head-self-attention">#</a></h1>
+<p>The <em>multi-head self-attention</em> module is a key component in Transformer. Rather than only computing the attention once, the multi-head mechanism splits the inputs into smaller chunks and then computes the scaled dot-product attention over each subspace in parallel. The independent attention outputs are simply concatenated and linearly transformed into expected dimensions.</p>
+<div>
+$$
+\begin{aligned}
+\text{MultiHeadAttention}(\mathbf{X}_q, \mathbf{X}_k, \mathbf{X}_v) &= [\text{head}_1; \dots; \text{head}_h] \mathbf{W}^o \\ 
+\text{where head}_i &= \text{Attention}(\mathbf{X}_q\mathbf{W}^q_i, \mathbf{X}_k\mathbf{W}^k_i, \mathbf{X}_v\mathbf{W}^v_i)
+\end{aligned}
+$$
+</div>
+<p>where $[.;.]$ is a concatenation operation. $\mathbf{W}^q_i, \mathbf{W}^k_i \in \mathbb{R}^{d \times d_k/h}, \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}$ are weight matrices to map input embeddings of size $L \times d$ into query, key and value matrices. And $\mathbf{W}^o \in \mathbb{R}^{d_v \times d}$ is the output linear transformation. All the weights should be learned during training.</p>
+<figure>
+	<img src="multi-head-attention.png" style="width: 30%;"  />
+	<figcaption>Illustration of the multi-head scaled dot-product attention mechanism. (Image source: Figure 2 in <a href="https://arxiv.org/abs/1706.03762" target="_blank">Vaswani, et al., 2017</a>)</figcaption>
+</figure>
+<h1 id="transformer">Transformer<a hidden class="anchor" aria-hidden="true" href="#transformer">#</a></h1>
+<p>The <strong>Transformer</strong> (which will be referred to as &ldquo;vanilla Transformer&rdquo; to distinguish it from other enhanced versions; <a href="https://arxiv.org/abs/1706.03762">Vaswani, et al., 2017</a>) model has an encoder-decoder architecture, as commonly used in many <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#born-for-translation">NMT</a> models. Later simplified Transformer was shown to achieve great performance in language modeling tasks, like in encoder-only <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#bert">BERT</a> or decoder-only <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#openai-gpt">GPT</a>.</p>
+<p><strong>Encoder-Decoder Architecture</strong></p>
+<p>The <strong>encoder</strong> generates an attention-based representation with capability to locate a specific piece of information from a large context. It consists of a stack of 6 identity modules, each containing two submodules, a <em>multi-head self-attention</em> layer and a <em>point-wise</em> fully connected feed-forward network. By point-wise, it means that it applies the same linear transformation (with same weights) to each element in the sequence. This can also be viewed as a convolutional layer with filter size 1. Each submodule has a residual connection and layer normalization. All the submodules output data of the same dimension $d$.</p>
+<p>The function of Transformer <strong>decoder</strong> is to retrieve information from the encoded representation. The architecture is quite similar to the encoder, except that the decoder contains two multi-head attention submodules instead of one in each identical repeating module. The first multi-head attention submodule is <em>masked</em> to prevent positions from attending to the future.</p>
+<figure>
+	<img src="transformer.png" style="width: 100%;"  />
+	<figcaption>The architecture of the vanilla Transformer model. (Image source: <a href="https://lilianweng.github.io/posts/2018-06-24-attention/#full-architecture" target="_blank">Figure 17</a>)</figcaption>
+</figure>
+<p><strong>Positional Encoding</strong></p>
+<p>Because self-attention operation is permutation invariant, it is important to use proper <strong>positional encoding</strong>to provide <em>order information</em> to the model. The positional encoding $\mathbf{P} \in \mathbb{R}^{L \times d}$ has the same dimension as the input embedding, so it can be added on the input directly. The vanilla Transformer considered two types of encodings:</p>
+<p>(1) <em>Sinusoidal positional encoding</em> is defined as follows, given the token position $i=1,\dots,L$ and the dimension $\delta=1,\dots,d$:</p>
+<div>
+$$
+\text{PE}(i,\delta) = 
+\begin{cases}
+\sin(\frac{i}{10000^{2\delta'/d}}) & \text{if } \delta = 2\delta'\\
+\cos(\frac{i}{10000^{2\delta'/d}}) & \text{if } \delta = 2\delta' + 1\\
+\end{cases}
+$$
+</div>
+<p>In this way each dimension of the positional encoding corresponds to a sinusoid of different wavelengths in different dimensions, from $2\pi$ to $10000 \cdot 2\pi$.</p>
+<figure>
+	<img src="sinoidual-positional-encoding.png" style="width: 100%;"  />
+	<figcaption>Sinusoidal positional encoding with $L=32$ and $d=128$. The value is between -1 (black) and 1 (white) and the value 0 is in gray.</figcaption>
+</figure>
+<p>(2) <em>Learned positional encoding</em>, as its name suggested, assigns each element with a learned column vector which encodes its <em>absolute</em> position (<a href="https://arxiv.org/abs/1705.03122">Gehring, et al. 2017</a>).</p>
+<p><strong>Quick Follow-ups</strong></p>
+<p>Following the vanilla Transformer, <a href="https://arxiv.org/abs/1808.04444">Al-Rfou et al. (2018)</a> added a set of auxiliary losses to enable training a deep Transformer model on character-level language modeling which outperformed LSTMs. Several types of auxiliary tasks are used:</p>
+<ul>
+<li>Instead of producing only one prediction at the sequence end, every <em>immediate position</em> is also asked to make a correct prediction, forcing the model to predict given smaller contexts (e.g. first couple tokens at the beginning of a context window).</li>
+<li>Each intermediate Transformer layer is used for making predictions as well. Lower layers are weighted to contribute less and less to the total loss as training progresses.</li>
+<li>Each position in the sequence can predict multiple targets, i.e. two or more predictions of the future tokens.</li>
+</ul>
+<figure>
+	<img src="transformer-aux-losses.png" style="width: 100%;"  />
+	<figcaption>Auxiliary prediction tasks used in deep Transformer for character-level language modeling. (Image source: <a href="https://arxiv.org/abs/1808.04444" target="_blank">Al-Rfou et al. (2018)</a>)</figcaption>
+</figure>
+<h1 id="adaptive-computation-time-act">Adaptive Computation Time (ACT)<a hidden class="anchor" aria-hidden="true" href="#adaptive-computation-time-act">#</a></h1>
+<p><strong>Adaptive Computation Time</strong> (short for <strong>ACT</strong>; <a href="https://arxiv.org/abs/1603.08983">Graves, 2016</a>) is a mechanism for dynamically deciding how many computational steps are needed in a recurrent neural network. Here is a cool <a href="https://distill.pub/2016/augmented-rnns/#adaptive-computation-time">tutorial</a> on ACT from distill.pub.</p>
+<p>Let&rsquo;s say, we have a RNN model $\mathcal{R}$ composed of input weights $W_x$, a parametric state transition function $\mathcal{S}(.)$, a set of output weights $W_y$ and an output bias $b_y$. Given an input sequence $(x_1, \dots, x_L)$, the output sequence $(y_1, \dots, y_L)$ is computed by:</p>
+<div>
+$$
+s_t = \mathcal{S}(s_{t-1}, W_x x_t), \quad y_t = W_y s_t + b_y\quad\text{for }t=1, \dots, L
+$$
+</div>
+<p>ACT enables the above RNN setup to perform a variable number of steps at each input element. Multiple computational steps lead to a sequence of intermediate states $(s_t^1, \dots, s_t^{N(t)})$ and outputs $(y_t^1, \dots, y_t^{N(t)})$ &mdash; they all share the same state transition function $\mathcal{S}(.)$, as well as the same output weights $W_y$ and bias $b_y$:</p>
+<div>
+$$
+\begin{aligned}
+s_t^0 &= s_{t-1} \\
+s_t^n &= \mathcal{S}(s_{t}^{n-1}, x_t^n) = \mathcal{S}(s_{t}^{n-1}, x_t + \delta_{n,1}) \text{ for } n=1, \dots, N(t)\\
+y_t^n &= W_y s_t^n + b_y
+\end{aligned}
+$$
+</div>
+<p>where $\delta_{n,1}$ is a binary flag indicating whether the input step has been incremented.</p>
+<p>The number of steps $N(t)$ is determined by an extra sigmoidal halting unit $h$, with associated weight matrix $W_h$ and bias $b_h$, outputting a halting probability $p_t^n$ at immediate step $n$ for $t$-th input element:</p>
+<div>
+$$
+h_t^n = \sigma(W_h s_t^n + b_h)
+$$
+</div>
+<p>In order to allow the computation to halt after a single step, ACT introduces a small constant $\epsilon$ (e.g. 0.01), so that whenever the cumulative probability goes above $1-\epsilon$, the computation stops.</p>
+<div>
+$$
+\begin{aligned}
+N(t) &= \min(\min\{n': \sum_{n=1}^{n'} h_t^n \geq 1 -\epsilon\}, M) \\
+p_t^n &= \begin{cases}
+h_t^n & \text{if }n < N(t) \\
+R(t) = 1 - \sum_{n=1}^{N(t)-1} h_t^n & \text{if }n= N(t)\\
+\end{cases}
+\end{aligned}
+$$
+</div>
+<p>where $M$ is an upper limit for the number of immediate steps allowed.</p>
+<p>The final state and output are mean-field updates:</p>
+<div>
+$$
+s_t = \sum_{n=1}^{N(t)} p_t^n s_t^n,\quad y_t = \sum_{n=1}^{N(t)} p_t^n y_t^n
+$$
+</div>
+<figure>
+	<img src="ACT-computation-graph.png" style="width: 85%;"  />
+	<figcaption>The computation graph of a RNN with ACT mechanism. (Image source: <a href="https://arxiv.org/abs/1603.08983" target="_blank">Graves, 2016</a>)</figcaption>
+</figure>
+<p>To avoid unnecessary pondering over each input, ACT adds a <em>ponder cost</em> $\mathcal{P}(x) = \sum_{t=1}^L N(t) + R(t) $  in the loss function to encourage a smaller number of intermediate computational steps.</p>
+<h1 id="improved-attention-span">Improved Attention Span<a hidden class="anchor" aria-hidden="true" href="#improved-attention-span">#</a></h1>
+<p>The goal of improving attention span is to make the context that can be used in self-attention longer, more efficient and flexible.</p>
+<h2 id="longer-attention-span-transformer-xl">Longer Attention Span (Transformer-XL)<a hidden class="anchor" aria-hidden="true" href="#longer-attention-span-transformer-xl">#</a></h2>
+<p>The vanilla Transformer has a fixed and limited attention span. The model can only attend to other elements in the same segments during each update step and no information can flow across separated fixed-length segments.</p>
+<p>This <em>context segmentation</em> causes several issues:</p>
+<ul>
+<li>The model cannot capture very long term dependencies.</li>
+<li>It is hard to predict the first few tokens in each segment given no or thin context.</li>
+<li>The evaluation is expensive. Whenever the segment is shifted  to the right by one, the new segment is re-processed from scratch, although there are a lot of overlapped tokens.</li>
+</ul>
+<p><strong>Transformer-XL</strong> (<a href="https://arxiv.org/abs/1901.02860">Dai et al., 2019</a>; &ldquo;XL&rdquo; means &ldquo;extra long&rdquo;) solves the context segmentation problem with two main modifications:</p>
+<ol>
+<li>Reusing hidden states between segments.</li>
+<li>Adopting a new positional encoding that is suitable for reused states.</li>
+</ol>
+<p><strong>Hidden State Reuse</strong></p>
+<p>The recurrent connection between segments is introduced into the model by continuously using the hidden states from the previous segments.</p>
+<figure>
+	<img src="transformer-XL-training.png" style="width: 100%;"  />
+	<figcaption>A comparison between the training phrase of vanilla Transformer & Transformer-XL with a segment length 4. (Image source: left part of Figure 2 in <a href="https://arxiv.org/abs/1901.02860" target="_blank">Dai et al., 2019</a>).</figcaption>
+</figure>
+<p>Let&rsquo;s label the hidden state of the $n$-th layer for the $(\tau + 1)$-th segment in the model as $\mathbf{h}_{\tau+1}^{(n)} \in \mathbb{R}^{L \times d}$. In addition to the hidden state of the last layer for the same segment $\mathbf{h}_{\tau+1}^{(n-1)}$, it also depends on the hidden state of the same layer for the previous segment $\mathbf{h}_{\tau}^{(n)}$.  By incorporating information from the previous hidden states, the model extends the attention span much longer in the past, over multiple segments.</p>
+<div>
+$$
+\begin{aligned}
+\color{red}{\widetilde{\mathbf{h}}_{\tau+1}^{(n-1)}} &= [\text{stop-gradient}(\mathbf{h}_{\tau}^{(n-1)}) \circ \mathbf{h}_{\tau+1}^{(n-1)}] \\
+\mathbf{Q}_{\tau+1}^{(n)} &= \mathbf{h}_{\tau+1}^{(n-1)}\mathbf{W}^q \\
+\mathbf{K}_{\tau+1}^{(n)} &= \color{red}{\widetilde{\mathbf{h}}_{\tau+1}^{(n-1)}} \mathbf{W}^k \\
+\mathbf{V}_{\tau+1}^{(n)} &= \color{red}{\widetilde{\mathbf{h}}_{\tau+1}^{(n-1)}} \mathbf{W}^v \\
+\mathbf{h}_{\tau+1}^{(n)} &= \text{transformer-layer}(\mathbf{Q}_{\tau+1}^{(n)}, \mathbf{K}_{\tau+1}^{(n)}, \mathbf{V}_{\tau+1}^{(n)})
+\end{aligned}
+$$
+</div>
+<p>Note that both key and value rely on the extended hidden state, while the query only consumes hidden state at current step. The concatenation operation $[. \circ .]$ is along the sequence length dimension.</p>
+<p><strong>Relative Positional Encoding</strong></p>
+<p>In order to work with this new form of attention span, Transformer-XL proposed a new type of positional encoding. If using the same approach by vanilla Transformer and encoding the absolute position, the previous and current segments will be assigned with the same encoding, which is undesired.</p>
+<p>To keep the positional information flow coherently across segments, Transformer-XL encodes the <em>relative</em> position instead, as it could be sufficient enough to know the position offset for making good predictions, i.e. $i-j$, between one key vector $\mathbf{k}_{\tau, j}$ and its query $\mathbf{q}_{\tau, i}$.</p>
+<p>If omitting the scalar $1/\sqrt{d_k}$ and the normalizing term in softmax but including positional encodings, we can write the attention score between query at position $i$ and key at position $j$ as:</p>
+<div>
+$$
+\begin{aligned}
+a_{ij} 
+&= \mathbf{q}_i {\mathbf{k}_j}^\top = (\mathbf{x}_i + \mathbf{p}_i)\mathbf{W}^q ((\mathbf{x}_j + \mathbf{p}_j)\mathbf{W}^k)^\top \\
+&= \mathbf{x}_i\mathbf{W}^q {\mathbf{W}^k}^\top\mathbf{x}_j^\top + \mathbf{x}_i\mathbf{W}^q {\mathbf{W}^k}^\top\mathbf{p}_j^\top + \mathbf{p}_i\mathbf{W}^q {\mathbf{W}^k}^\top\mathbf{x}_j^\top + \mathbf{p}_i\mathbf{W}^q {\mathbf{W}^k}^\top\mathbf{p}_j^\top
+\end{aligned}
+$$
+</div>
+<p>Transformer-XL reparameterizes the above four terms as follows:</p>
+<div>
+$$
+a_{ij}^\text{rel} = 
+\underbrace{ \mathbf{x}_i\mathbf{W}^q \color{blue}{ {\mathbf{W}_E^k}^\top } \mathbf{x}_j^\top }_\text{content-based addressing} + 
+\underbrace{ \mathbf{x}_i\mathbf{W}^q \color{blue}{ {\mathbf{W}_R^k}^\top } \color{green}{\mathbf{r}_{i-j}^\top} }_\text{content-dependent positional bias} + 
+\underbrace{ \color{red}{\mathbf{u}} \color{blue}{ {\mathbf{W}_E^k}^\top } \mathbf{x}_j^\top }_\text{global content bias} + 
+\underbrace{ \color{red}{\mathbf{v}} \color{blue}{ {\mathbf{W}_R^k}^\top } \color{green}{\mathbf{r}_{i-j}^\top} }_\text{global positional bias}
+$$
+</div>
+<ul>
+<li>Replace $\mathbf{p}_j$ with relative positional encoding $\mathbf{r}_{i-j} \in \mathbf{R}^{d}$;</li>
+<li>Replace $\mathbf{p}_i\mathbf{W}^q$ with two trainable parameters $\mathbf{u}$ (for content) and $\mathbf{v}$ (for location) in two different terms;</li>
+<li>Split $\mathbf{W}^k$ into two matrices, $\mathbf{W}^k_E$ for content information and $\mathbf{W}^k_R$ for location information.</li>
+</ul>
+<h2 id="adaptive-attention-span">Adaptive Attention Span<a hidden class="anchor" aria-hidden="true" href="#adaptive-attention-span">#</a></h2>
+<p>One key advantage of Transformer is the capability of capturing long-term dependencies. Depending on the context, the model may prefer to attend further sometime than others; or one attention head may had different attention pattern from the other. If the attention span could adapt its length flexibly and only attend further back when needed, it would help reduce both computation and memory cost to support longer maximum context size in the model.</p>
+<p>This is the motivation for <strong>Adaptive Attention Span</strong>. <a href="https://arxiv.org/abs/1905.07799">Sukhbaatar, et al., (2019)</a> proposed a self-attention mechanism that seeks an optimal attention span. They hypothesized that different attention heads might assign scores differently within the same context window (See Fig. 7) and thus the optimal span would be trained separately per head.</p>
+<figure>
+	<img src="attention-per-head.png" style="width: 70%;"  />
+	<figcaption>Two attention heads in the same model, A & B, assign attention differently within the same context window. Head A attends more to the recent tokens, while head B look further back into the past uniformly. (Image source: <a href="https://arxiv.org/abs/1905.07799" target="_blank">Sukhbaatar, et al. 2019</a>)</figcaption>
+</figure>
+<p>Given the $i$-th token, we need to compute the attention weights between this token and other keys at positions $j \in S_i$, where $S_i$ defineds the $i$-th token&rsquo;s context window.</p>
+<div>
+$$
+\begin{aligned}
+e_{ij} &= \mathbf{q}_i {\mathbf{k}_j}^\top \\ 
+a_{ij} &= \text{softmax}(e_{ij}) = \frac{\exp(e_{ij})}{\sum_{r=i-s}^{i-1} \exp(e_{ir})} \\
+\mathbf{y}_i &= \sum_{r=i-s}^{i-1}a_{ir}\mathbf{v}_r = \sum_{r=i-s}^{i-1}a_{ir}\mathbf{x}_r\mathbf{W}^v
+\end{aligned}
+$$
+</div>
+<p>A <em>soft mask function</em> $m_z$ is added to control for an effective adjustable attention span, which maps the distance between query and key into a [0, 1] value. $m_z$ is parameterized by $z \in [0, s]$ and $z$ is to be learned:</p>
+<div>
+$$
+m_z(x) = \text{clamp}(\frac{1}{R}(R+z-x), 0, 1)
+$$
+</div>
+<p>where $R$ is a hyper-parameter which defines the softness of $m_z$.</p>
+<figure>
+	<img src="soft-masking-function.png" style="width: 55%;"  />
+	<figcaption>The soft masking function used in the adaptive attention span. (Image source: <a href="https://arxiv.org/abs/1905.07799" target="_blank">Sukhbaatar, et al. 2019</a>.)</figcaption>
+</figure>
+<p>The soft mask function is applied to the softmax elements in the attention weights:</p>
+<div>
+$$
+a_{ij} = \frac{m_z(i-j)\exp(s_{ij})}{\sum_{r=i-s}^{i-1}m_z(i-r) \exp(s_{ir})}
+$$
+</div>
+<p>In the above equation, $z$ is differentiable so it is trained jointly with other parts of the model. Parameters $z^{(i)}, i=1, \dots, h$ are learned <em>separately per head</em>. Moreover, the loss function has an extra L1 penalty on $\sum_{i=1}^h z^{(i)}$.</p>
+<p>Using <a href="#adaptive-computation-time-act">Adaptive Computation Time</a>, the approach can be further enhanced to have flexible attention span length, adaptive to the current input dynamically. The span parameter $z_t$ of an attention head at time $t$ is a sigmoidal function, $z_t = S \sigma(\mathbf{v} \cdot \mathbf{x}_t +b)$, where the vector $\mathbf{v}$ and the bias scalar $b$ are learned jointly with other parameters.</p>
+<p>In the experiments of Transformer with adaptive attention span, <a href="https://arxiv.org/abs/1905.07799">Sukhbaatar, et al. (2019)</a> found a general tendency that lower layers do not require very long attention spans, while a few attention heads in higher layers may use exceptionally long spans. Adaptive attention span also helps greatly reduce the number of FLOPS, especially in a big model with many attention layers and a large context length.</p>
+<h2 id="localized-attention-span-image-transformer">Localized Attention Span (Image Transformer)<a hidden class="anchor" aria-hidden="true" href="#localized-attention-span-image-transformer">#</a></h2>
+<p>The original, also the most popular, use case for Transformer is to do language modeling. The text sequence is one-dimensional in a clearly defined chronological order and thus the attention span grows linearly with increased context size.</p>
+<p>However, if we want to use Transformer on images, it is unclear how to define the scope of context or the order. <strong>Image Transformer</strong> (<a href="https://arxiv.org/abs/1802.05751">Parmer, et al 2018</a>) embraces a formulation of image generation similar to sequence modeling within the Transformer framework. Additionally, Image Transformer restricts the self-attention span to only <em>local</em> neighborhoods, so that the model can scale up to process more images in parallel and keep the likelihood loss tractable.</p>
+<p>The encoder-decoder architecture remains for image-conditioned generation:</p>
+<ul>
+<li>The encoder generates a contextualized, per-pixel-channel representation of the source image;</li>
+<li>The decoder <em>autoregressively</em> generates an output image, one channel per pixel at each time step.</li>
+</ul>
+<p>Let&rsquo;s label the representation of the current pixel to be generated as the query $\mathbf{q}$. Other positions whose representations will be used for computing $\mathbf{q}$ are key vector $\mathbf{k}_1, \mathbf{k}_2, \dots$ and they together form a memory matrix $\mathbf{M}$. The scope of $\mathbf{M}$ defines the context window for pixel query $\mathbf{q}$.</p>
+<p>Image Transformer introduced two types of localized $\mathbf{M}$, as illustrated below.</p>
+<figure>
+	<img src="image-transformer-attention.png" style="width: 100%;"  />
+	<figcaption>Illustration of 1D and 2D attention span for visual inputs in Image Transformer. The black line marks a query block and the cyan outlines the actual attention span for pixel q. (Image source: Figure 2 in <a href="https://arxiv.org/abs/1802.05751" target="_blank">Parmer et al, 2018</a>)</figcaption>
+</figure>
+<p>(1) <em>1D Local Attention</em>: The input image is flattened in the <a href="https://en.wikipedia.org/wiki/Raster_scan#Scanning_pattern">raster scanning</a> order, that is, from left to right and top to bottom. The linearized image is then partitioned into non-overlapping query blocks. The context window consists of pixels in the same query block as $\mathbf{q}$ and a fixed number of additional pixels generated before this query block.</p>
+<p>(2) <em>2D Local Attention</em>: The image is partitioned into multiple non-overlapping rectangular query blocks. The query pixel can attend to all others in the same memory blocks. To make sure the pixel at the top-left corner can also have a valid context window, the memory block is extended to the top, left and right by a fixed amount, respectively.</p>
+<h1 id="less-time-and-memory-cost">Less Time and Memory Cost<a hidden class="anchor" aria-hidden="true" href="#less-time-and-memory-cost">#</a></h1>
+<p>This section introduces several improvements made on Transformer to reduce the computation time and memory consumption.</p>
+<h2 id="sparse-attention-matrix-factorization-sparse-transformers">Sparse Attention Matrix Factorization (Sparse Transformers)<a hidden class="anchor" aria-hidden="true" href="#sparse-attention-matrix-factorization-sparse-transformers">#</a></h2>
+<p>The compute and memory cost of the vanilla Transformer grows quadratically with sequence length and thus it is hard to be applied on very long sequences.</p>
+<p><strong>Sparse Transformer</strong> (<a href="https://arxiv.org/abs/1904.10509">Child et al., 2019</a>) introduced <em>factorized self-attention</em>, through sparse matrix factorization, making it possible to train dense attention networks with hundreds of layers on sequence length up to 16,384, which would be infeasible on modern hardware otherwise.</p>
+<p>Given a set of attention connectivity pattern $\mathcal{S} = \{S_1, \dots, S_n\}$, where each $S_i$ records a set of key positions that the $i$-th query vector attends to.</p>
+<div>
+$$
+\begin{aligned}
+\text{Attend}(\mathbf{X}, \mathcal{S}) &= \Big( a(\mathbf{x}_i, S_i) \Big)_{i \in \{1, \dots, L\}} \\
+\text{ where } a(\mathbf{x}_i, S_i) &= \text{softmax}\Big(\frac{(\mathbf{x}_i \mathbf{W}^q)(\mathbf{x}_j \mathbf{W}^k)_{j \in S_i}^\top}{\sqrt{d_k}}\Big) (\mathbf{x}_j \mathbf{W}^v)_{j \in S_i}
+\end{aligned}
+$$
+</div>
+<p>Note that although the size of $S_i$ is not fixed, $a(\mathbf{x}_i, S_i)$ is always of size $d_v$ and thus $\text{Attend}(\mathbf{X}, \mathcal{S}) \in \mathbb{R}^{L \times d_v}$.</p>
+<p>In anto-regressive models, one attention span is defined as $S_i = \{j: j \leq i\}$ as it allows each token to attend to all the positions in the past.</p>
+<p>In factorized self-attention, the set $S_i$ is decomposed into a <em>tree</em> of dependencies, such that for every pair of $(i, j)$ where $j \leq i$, there is a path connecting $i$ back to $j$ and $i$ can attend to $j$ either directly or indirectly.</p>
+<p>Precisely, the set $S_i$ is divided into $p$ <em>non-overlapping</em> subsets, where the $m$-th subset is denoted as $A^{(m)}_i \subset S_i, m = 1,\dots, p$. Therefore the path between the output position $i$ and any $j$ has a maximum length $p + 1$. For example, if $(j, a, b, c, \dots, i)$ is a path of indices between $i$ and $j$, we would have $j \in A_a^{(1)}, a \in A_b^{(2)}, b \in A_c^{(3)}, \dots$, so on and so forth.</p>
+<p><strong>Sparse Factorized Attention</strong></p>
+<p>Sparse Transformer proposed two types of fractorized attention. It is easier to understand the concepts as illustrated in Fig. 10 with 2D image inputs as examples.</p>
+<figure>
+	<img src="sparse-attention.png" style="width: 100%;"  />
+	<figcaption>The top row illustrates the attention connectivity patterns in (a) Transformer, (b) Sparse Transformer with strided attention, and (c) Sparse Transformer with fixed attention. The bottom row contains corresponding self-attention connectivity matrices. Note that the top and bottom rows are not in the same scale. (Image source: <a href="https://arxiv.org/abs/1904.10509" target="_blank">Child et al., 2019</a> + a few of extra annotations.)</figcaption>
+</figure>
+<p>(1) <em>Strided</em> attention with stride $\ell \sim \sqrt{n}$. This works well with image data as the structure is aligned with strides. In the image case, each pixel would attend to all the previous $\ell$ pixels in the raster scanning order (naturally cover the entire width of the image) and then those pixels attend to others in the same column (defined by another attention connectivity subset).</p>
+<div>
+$$
+\begin{aligned}
+A_i^{(1)} &= \{ t, t+1, \dots, i\} \text{, where } t = \max(0, i - \ell) \\
+A_i^{(2)} &= \{j: (i-j) \mod \ell = 0\}
+\end{aligned}
+$$
+</div>
+<p>(2) <em>Fixed</em> attention. A small set of tokens summarize previous locations and propagate that information to all future locations.</p>
+<div>
+$$
+\begin{aligned}
+A_i^{(1)} &= \{j: \lfloor \frac{j}{\ell} \rfloor = \lfloor \frac{i}{\ell} \rfloor \} \\
+A_i^{(2)} &= \{j: j \mod \ell \in \{\ell-c, \dots, \ell-1\} \}
+\end{aligned}
+$$
+</div>
+<p>where $c$ is a hyperparameter. If $c=1$, it restricts the representation whereas many depend on a few positions. The paper chose $c\in \{ 8, 16, 32 \}$ for $\ell \in \{ 128, 256 \}$.</p>
+<p><strong>Use Factorized Self-Attention in Transformer</strong></p>
+<p>There are three ways to use sparse factorized attention patterns in Transformer architecture:</p>
+<ol>
+<li>One attention type per residual block and then interleave them, <br/>
+$\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, A^{(n \mod p)}) \mathbf{W}^o$, where $n$ is the index of the current residual block.</li>
+<li>Set up a single head which attends to locations that all the factorized heads attend to, <br/>
+$\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, \cup_{m=1}^p A^{(m)}) \mathbf{W}^o $.</li>
+<li>Use a multi-head attention mechanism, but different from vanilla Transformer, each head might adopt a pattern presented above, 1 or 2. =&gt; This option often performs the best.</li>
+</ol>
+<p>Sparse Transformer also proposed a set of changes so as to train the Transformer up to hundreds of layers, including gradient checkpointing, recomputing attention &amp; FF layers during the backward pass, mixed precision training, efficient block-sparse implementation, etc. Please check the <a href="https://arxiv.org/abs/1904.10509">paper</a> for more details.</p>
+<h2 id="locality-sensitive-hashing-reformer">Locality-Sensitive Hashing (Reformer)<a hidden class="anchor" aria-hidden="true" href="#locality-sensitive-hashing-reformer">#</a></h2>
+<p>The improvements proposed by the <strong>Reformer</strong> model (<a href="https://arxiv.org/abs/2001.04451">Kitaev, et al. 2020</a>) aim to solve the following pain points in Transformer:</p>
+<ul>
+<li>Memory in a model with $N$ layers is $N$-times larger than in a single-layer model because we need to store activations for back-propagation.</li>
+<li>The intermediate FF layers are often quite large.</li>
+<li>The attention matrix on sequences of length $L$ often requires $O(L^2)$ in both memory and time.</li>
+</ul>
+<p>Reformer proposed two main changes:</p>
+<ol>
+<li>Replace the dot-product attention with <em>locality-sensitive hashing (LSH) attention</em>, reducing the complexity from $O(L^2)$ to $O(L\log L)$.</li>
+<li>Replace the standard residual blocks with <em>reversible residual layers</em>, which allows storing activations only once during training instead of $N$ times (i.e. proportional to the number of layers).</li>
+</ol>
+<p><a id="LSH" ></a><strong>Locality-Sensitive Hashing Attention</strong></p>
+<p>In $\mathbf{Q} \mathbf{K}^\top$ part of the <a href="#attention-and-self-attention">attention formula</a>, we are only interested in the largest elements as only large elements contribute a lot after softmax. For each query $\mathbf{q}_i \in \mathbf{Q}$, we are looking for row vectors in $\mathbf{K}$ closest to $\mathbf{q}_i$. In order to find nearest neighbors quickly in high-dimensional space, Reformer incorporates <a href="https://en.wikipedia.org/wiki/Locality-sensitive_hashing">Locality-Sensitive Hashing (LSH)</a> into its attention mechanism.</p>
+<p>A hashing scheme $x \mapsto h(x)$ is <em>locality-sensitive</em> if it preserves the distancing information between data points, such that close vectors obtain similar hashes while distant vectors have very different ones. The Reformer adopts a hashing scheme as such, given a fixed random matrix $\mathbf{R} \in \mathbb{R}^{d \times b/2}$ (where $b$ is a hyperparam), the hash function is $h(x) = \arg\max([xR; −xR])$.</p>
+<!-- If we omit the scalar in self-attention and summarize the denominator into a normalizing term $Z(.)$, an normal attention output looks as follows:
+
+
+<div>
+$$
+\mathbf{o}_i = \sum_{j \in S_i} \exp(\mathbf{q}_i \cdot \mathbf{k}_j - Z(i, S_i)) \mathbf{v}_j \text{, where } S_i = \{j: j \leq i\}
+$$ 
+</div>
+
+-->
+<figure>
+	<img src="LSH-attention-matrix.png" style="width: 100%;"  />
+	<figcaption>Illustration of Locality-Sensitive Hashing (LSH) attention. (Image source: right part of Figure 1 in <a href="https://arxiv.org/abs/2001.04451" target="_blank">Kitaev, et al. 2020</a>).</figcaption>
+</figure>
+<p>In LSH attention, a query can only attend to positions in the same hashing bucket, $S_i = \{j: h(\mathbf{q}_i) = h(\mathbf{k}_j)\}$. It is carried out in the following process, as illustrated in Fig. 11:</p>
+<ul>
+<li>(a) The attention matrix for full attention is often sparse.</li>
+<li>(b) Using LSH, we can sort the keys and queries to be aligned according to their hash buckets.</li>
+<li>(c) Set $\mathbf{Q} = \mathbf{K}$ (precisely $\mathbf{k}_j = \mathbf{q}_j / |\mathbf{q}_j|$), so that there are equal numbers of keys and queries in one bucket, easier for batching. Interestingly, this &ldquo;shared-QK&rdquo; config does not affect the performance of the Transformer.</li>
+<li>(d) Apply batching where chunks of $m$ consecutive queries are grouped together.</li>
+</ul>
+<figure>
+	<img src="LSH-attention.png" style="width: 75%;"  />
+	<figcaption>The LSH attention consists of 4 steps: bucketing, sorting, chunking, and attention computation. (Image source: left part of Figure 1 in <a href="https://arxiv.org/abs/2001.04451" target="_blank">Kitaev, et al. 2020</a>).</figcaption>
+</figure>
+<p><strong>Reversible Residual Network</strong></p>
+<p>Another improvement by Reformer is to use <em>reversible residual layers</em> (<a href="https://arxiv.org/abs/1707.04585">Gomez et al. 2017</a>). The motivation for reversible residual network is to design the architecture in a way that activations at any given layer can be recovered from the activations at the following layer, using only the model parameters. Hence, we can save memory by recomputing the activation during backprop rather than storing all the activations.</p>
+<p>Given a layer $x \mapsto y$, the normal residual layer does $y = x + F(x)$, but the reversible layer splits both input and output into pairs $(x_1, x_2) \mapsto (y_1, y_2)$ and then executes the following:</p>
+<div>
+$$
+y_1 = x_1 + F(x_2),\; y_2 = x_2 + G(y_1) 
+$$
+</div>
+<p>and reversing is easy:</p>
+<div>
+$$
+x_2 = y_2 - G(y_1), \; x_1 = y_1 − F(x_2)
+$$
+</div>
+<p>Reformer applies the same idea to Transformer by combination attention ($F$) and feed-forward layers ($G$) within a reversible net block:</p>
+<div>
+$$
+Y_1 = X_1 + \text{Attention}(X_2), \; Y_2 = X_2 + \text{FeedForward}(Y_1)
+$$
+</div>
+<p>The memory can be further reduced by chunking the feed-forward computation:</p>
+<div>
+$$
+Y_2 = [Y_2^{(1)}; \dots; Y_2^{(c)}] = [X_2^{(1)} + \text{FeedForward}(Y_1^{(1)}); \dots; X_2^{(c)} + \text{FeedForward}(Y_1^{(c)})]
+$$
+</div>
+<p>The resulting reversible Transformer does not need to store activation in every layer.</p>
+<h1 id="make-it-recurrent-universal-transformer">Make it Recurrent (Universal Transformer)<a hidden class="anchor" aria-hidden="true" href="#make-it-recurrent-universal-transformer">#</a></h1>
+<p>The <strong>Universal Transformer</strong> (<a href="https://arxiv.org/abs/1807.03819">Dehghani, et al. 2019</a>) combines self-attention in Transformer with the recurrent mechanism in RNN, aiming to benefit from both a long-term global receptive field of Transformer and learned inductive biases of RNN.</p>
+<p>Rather than going through a fixed number of layers, Universal Transformer dynamically adjusts the number of steps using <a href="#adaptive-computation-time-act">adaptive computation time</a>. If we fix the number of steps, an Universal Transformer is equivalent to a multi-layer Transformer with shared parameters across layers.</p>
+<p>On a high level, the universal transformer can be viewed as a recurrent function for learning the hidden state representation per token. The recurrent function evolves in parallel across token positions and the information between positions is shared through self-attention.</p>
+<figure>
+	<img src="universal-transformer-loop.png" style="width: 100%;"  />
+	<figcaption>How the Universal Transformer refines a set of hidden state representations repeatedly for every position in parallel. (Image source: Figure 1 in <a href="https://arxiv.org/abs/1807.03819" target="_blank">Dehghani, et al. 2019</a>).</figcaption>
+</figure>
+<p>Given an input sequence of length $L$, Universal Transformer iteratively updates the representation $\mathbf{H}^t \in \mathbb{R}^{L \times d}$ at step $t$ for an adjustable number of steps. At step 0, $\mathbf{H}^0$ is initialized to be same as the input embedding matrix. All the positions are processed in parallel in the multi-head self-attention mechanism and then go through a recurrent transition function.</p>
+<div>
+$$
+\begin{aligned}
+\mathbf{A}^t &= \text{LayerNorm}(\mathbf{H}^{t-1} + \text{MultiHeadAttention}(\mathbf{H}^{t-1} + \mathbf{P}^t) \\
+\mathbf{H}^t &= \text{LayerNorm}(\mathbf{A}^{t-1} + \text{Transition}(\mathbf{A}^t))
+\end{aligned}
+$$
+</div>
+<p>where $\text{Transition}(.)$ is either a <a href="https://arxiv.org/abs/1610.02357">separable convolution</a> or a fully-connected neural network that consists of two position-wise (i.e. applied to each row of $\mathbf{A}^t$ individually) affine transformation + one ReLU.</p>
+<p>The positional encoding $\mathbf{P}^t$ uses sinusoidal position signal but with an additional time dimension:</p>
+<div>
+$$
+\text{PE}(i, t, \delta) = 
+\begin{cases}
+\sin(\frac{i}{10000^{2\delta'/d}}) \oplus \sin(\frac{t}{10000^{2\delta'/d}}) & \text{if } \delta = 2\delta'\\
+\cos(\frac{i}{10000^{2\delta'/d}}) \oplus \cos(\frac{t}{10000^{2\delta'/d}}) & \text{if } \delta = 2\delta' + 1\\
+\end{cases}
+$$
+</div>
+<figure>
+	<img src="universal-transformer.png" style="width: 100%;"  />
+	<figcaption>A simplified illustration of Universal Transformer. The encoder and decoder share the same basic recurrent structure. But the decoder also attends to final encoder representation $\mathbf{H}^T$. (Image source: Figure 2 in <a href="https://arxiv.org/abs/1807.03819" target="_blank">Dehghani, et al. 2019</a>)</figcaption>
+</figure>
+<p>In the adaptive version of Universal Transformer, the number of recurrent steps $T$ is dynamically determined by <a href="#adaptive-computation-time-act">ACT</a>. Each position is equipped with a dynamic ACT halting mechanism. Once a per-token recurrent block halts, it stops taking more recurrent updates but simply copies the current value to the next step until all the blocks halt or until the model reaches a maximum step limit.</p>
+<h1 id="stabilization-for-rl-gtrxl">Stabilization for RL (GTrXL)<a hidden class="anchor" aria-hidden="true" href="#stabilization-for-rl-gtrxl">#</a></h1>
+<p>The self-attention mechanism avoids compressing the whole past into a fixed-size hidden state and does not suffer from vanishing or exploding gradients as much as RNNs. Reinforcement Learning tasks can for sure benefit from these traits. <em>However</em>, it is quite difficult to train Transformer even in supervised learning, let alone in the RL context. It could be quite challenging to stabilize and train a LSTM agent by itself, after all.</p>
+<p>The <strong>Gated Transformer-XL</strong> (<strong>GTrXL</strong>; <a href="https://arxiv.org/abs/1910.06764">Parisotto, et al. 2019</a>) is one attempt to use Transformer for RL. GTrXL succeeded in stabilizing training with two changes on top of <a href="#longer-attention-span-transformer-xl">Transformer-XL</a>:</p>
+<ol>
+<li>The layer normalization is only applied on the input stream in a residual module, but NOT on the shortcut stream. A key benefit to this reordering is to allow the original input to flow from the first to last layer.</li>
+<li>The residual connection is replaced with a GRU-style (Gated Recurrent Unit; <a href="https://arxiv.org/abs/1412.3555">Chung et al., 2014</a>) <em>gating</em> mechanism.</li>
+</ol>
+<div>
+$$
+\begin{aligned}
+r &= \sigma(W_r^{(l)} y + U_r^{(l)} x) \\
+z &= \sigma(W_z^{(l)} y + U_z^{(l)} x - b_g^{(l)}) \\
+\hat{h} &= \tanh(W_g^{(l)} y + U_g^{(l)} (r \odot x)) \\
+g^{(l)}(x, y) &= (1-z)\odot x + z\odot \hat{h}
+\end{aligned}
+$$
+</div>
+<p>The gating function parameters are explicitly initialized to be close to an identity map - this is why there is a $b_g$ term. A $b_g &gt; 0$ greatly helps with the learning speedup.</p>
+<figure>
+	<img src="gated-transformer-XL.png" style="width: 100%;"  />
+	<figcaption>Comparison of the model architecture of Transformer-XL, Transformer-XL with the layer norm reordered, and Gated Transformer-XL. (Image source: Figure 1 in <a href="https://arxiv.org/abs/1910.06764" target="_blank">Parisotto, et al. 2019</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Apr 2020). The transformer family. Lil&rsquo;Log. https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2020transformer,
+  title   = &#34;The Transformer Family&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2020&#34;,
+  month   = &#34;Apr&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Ashish Vaswani, et al. <a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf">&ldquo;Attention is all you need.&rdquo;</a> NIPS 2017.</p>
+<p>[2] Rami Al-Rfou, et al. <a href="https://arxiv.org/abs/1808.04444">&ldquo;Character-level language modeling with deeper self-attention.&rdquo;</a> AAAI 2019.</p>
+<p>[3] Olah &amp; Carter, <a href="http://doi.org/10.23915/disti">&ldquo;Attention and Augmented Recurrent Neural Networks&rdquo;</a>, Distill, 2016.</p>
+<p>[4] Sainbayar Sukhbaatar, et al. <a href="https://arxiv.org/abs/1905.07799">&ldquo;Adaptive Attention Span in Transformers&rdquo;</a>. ACL 2019.</p>
+<p>[5] Rewon Child, et al. <a href="https://arxiv.org/abs/1904.10509">&ldquo;Generating Long Sequences with Sparse Transformers&rdquo;</a> arXiv:1904.10509 (2019).</p>
+<p>[6] Nikita Kitaev, et al. <a href="https://arxiv.org/abs/2001.04451">&ldquo;Reformer: The Efficient Transformer&rdquo;</a> ICLR 2020.</p>
+<p>[7] Alex Graves. (&ldquo;Adaptive Computation Time for Recurrent Neural Networks&rdquo;)[https://arxiv.org/abs/1603.08983]</p>
+<p>[8] Niki Parmar, et al. <a href="https://arxiv.org/abs/1802.05751">&ldquo;Image Transformer&rdquo;</a> ICML 2018.</p>
+<p>[9] Zihang Dai, et al. <a href="https://arxiv.org/abs/1901.02860">&ldquo;Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context.&rdquo;</a> ACL 2019.</p>
+<p>[10] Aidan N. Gomez, et al. <a href="https://arxiv.org/abs/1707.04585">&ldquo;The Reversible Residual Network: Backpropagation Without Storing Activations&rdquo;</a> NIPS 2017.</p>
+<p>[11] Mostafa Dehghani, et al. <a href="https://arxiv.org/abs/1807.03819">&ldquo;Universal Transformers&rdquo;</a> ICLR 2019.</p>
+<p>[12] Emilio Parisotto, et al. <a href="https://arxiv.org/abs/1910.06764">&ldquo;Stabilizing Transformers for Reinforcement Learning&rdquo;</a> arXiv:1910.06764 (2019).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/attention/">Attention</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/">
+    <span class="title">« </span>
+    <br>
+    <span>Exploration Strategies in Deep Reinforcement Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/">
+    <span class="title"> »</span>
+    <br>
+    <span>Curriculum for Reinforcement Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on twitter"
+        href="https://twitter.com/intent/tweet/?text=The%20Transformer%20Family&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f&amp;hashtags=architecture%2cattention%2ctransformer%2cfoundation%2creinforcement-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f&amp;title=The%20Transformer%20Family&amp;summary=The%20Transformer%20Family&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f&title=The%20Transformer%20Family">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on whatsapp"
+        href="https://api.whatsapp.com/send?text=The%20Transformer%20Family%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Transformer Family on telegram"
+        href="https://telegram.me/share/url?text=The%20Transformer%20Family&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-04-07-the-transformer-family%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

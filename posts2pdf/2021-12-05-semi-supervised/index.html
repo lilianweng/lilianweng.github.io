@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Learning with not Enough Data Part 1: Semi-Supervised Learning | Lil&#39;Log</title>
+<meta name="keywords" content="data, unsupervised-learning" />
+<meta name="description" content="
+When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Learning with not Enough Data Part 1: Semi-Supervised Learning" />
+<meta property="og:description" content="
+When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-12-05T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2021-12-05T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Learning with not Enough Data Part 1: Semi-Supervised Learning"/>
+<meta name="twitter:description" content="
+When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Learning with not Enough Data Part 1: Semi-Supervised Learning",
+      "item": "https://lilianweng.github.io/posts/2021-12-05-semi-supervised/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Learning with not Enough Data Part 1: Semi-Supervised Learning",
+  "name": "Learning with not Enough Data Part 1: Semi-Supervised Learning",
+  "description": " When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed.\n",
+  "keywords": [
+    "data", "unsupervised-learning"
+  ],
+  "articleBody": " When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed.\nPre-training + fine-tuning: Pre-train a powerful task-agnostic model on a large unsupervised data corpus, e.g. pre-training LMs on free text, or pre-training vision models on unlabelled images via self-supervised learning, and then fine-tune it on the downstream task with a small set of labeled samples. Semi-supervised learning: Learn from the labelled and unlabeled samples together. A lot of research has happened on vision tasks within this approach. Active learning: Labeling is expensive, but we still want to collect more given a cost budget. Active learning learns to select most valuable unlabeled samples to be collected next and helps us act smartly with a limited budget. Pre-training + dataset auto-generation: Given a capable pre-trained model, we can utilize it to auto-generate a lot more labeled samples. This has been especially popular within the language domain driven by the success of few-shot learning. I plan to write a series of posts on the topic of “Learning with not enough data”. Part 1 is on Semi-Supervised Learning.\nWhat is semi-supervised learning? Semi-supervised learning uses both labeled and unlabeled data to train a model.\nInterestingly most existing literature on semi-supervised learning focuses on vision tasks. And instead pre-training + fine-tuning is a more common paradigm for language tasks.\nAll the methods introduced in this post have a loss combining two parts: $\\mathcal{L} = \\mathcal{L}_s + \\mu(t) \\mathcal{L}_u$. The supervised loss $\\mathcal{L}_s$ is easy to get given all the labeled examples. We will focus on how the unsupervised loss $\\mathcal{L}_u$ is designed. A common choice of the weighting term $\\mu(t)$ is a ramp function increasing the importance of $\\mathcal{L}_u$ in time, where $t$ is the training step.\nDisclaimer: The post is not gonna cover semi-supervised methods with focus on model architecture modification. Check this survey for how to use generative models and graph-based methods in semi-supervised learning.\nNotations Symbol Meaning $L$ Number of unique labels. $(\\mathbf{x}^l, y) \\sim \\mathcal{X}, y \\in \\{0, 1\\}^L$ Labeled dataset. $y$ is a one-hot representation of the true label. $\\mathbf{u} \\sim \\mathcal{U}$ Unlabeled dataset. $\\mathcal{D} = \\mathcal{X} \\cup \\mathcal{U}$ The entire dataset, including both labeled and unlabeled examples. $\\mathbf{x}$ Any sample which can be either labeled or unlabeled. $\\bar{\\mathbf{x}}$ $\\mathbf{x}$ with augmentation applied. $\\mathbf{x}_i$ The $i$-th sample. $\\mathcal{L}$, $\\mathcal{L}_s$, $\\mathcal{L}_u$ Loss, supervised loss, and unsupervised loss. $\\mu(t)$ The unsupervised loss weight, increasing in time. $p(y \\vert \\mathbf{x}), p_\\theta(y \\vert \\mathbf{x})$ The conditional probability over the label set given the input. $f_\\theta(.)$ The implemented neural network with weights $\\theta$, the model that we want to train. $\\mathbf{z} = f_\\theta(\\mathbf{x})$ A vector of logits output by $f$. $\\hat{y} = \\text{softmax}(\\mathbf{z})$ The predicted label distribution. $D[.,.]$ A distance function between two distributions, such as MSE, cross entropy, KL divergence, etc. $\\beta$ EMA weighting hyperparameter for teacher model weights. $\\alpha, \\lambda$ Parameters for MixUp, $\\lambda \\sim \\text{Beta}(\\alpha, \\alpha)$. $T$ Temperature for sharpening the predicted distribution. $\\tau$ A confidence threshold for selecting the qualified prediction. Hypotheses Several hypotheses have been discussed in literature to support certain design decisions in semi-supervised learning methods.\nH1: Smoothness Assumptions: If two data samples are close in a high-density region of the feature space, their labels should be the same or very similar.\nH2: Cluster Assumptions: The feature space has both dense regions and sparse regions. Densely grouped data points naturally form a cluster. Samples in the same cluster are expected to have the same label. This is a small extension of H1.\nH3: Low-density Separation Assumptions: The decision boundary between classes tends to be located in the sparse, low density regions, because otherwise the decision boundary would cut a high-density cluster into two classes, corresponding to two clusters, which invalidates H1 and H2.\nH4: Manifold Assumptions: The high-dimensional data tends to locate on a low-dimensional manifold. Even though real-world data might be observed in very high dimensions (e.g. such as images of real-world objects/scenes), they actually can be captured by a lower dimensional manifold where certain attributes are captured and similar points are grouped closely (e.g. images of real-world objects/scenes are not drawn from a uniform distribution over all pixel combinations). This enables us to learn a more efficient representation for us to discover and measure similarity between unlabeled data points. This is also the foundation for representation learning. [see a helpful link].\nConsistency Regularization Consistency Regularization, also known as Consistency Training, assumes that randomness within the neural network (e.g. with Dropout) or data augmentation transformations should not modify model predictions given the same input. Every method in this section has a consistency regularization loss as $\\mathcal{L}_u$.\nThis idea has been adopted in several self-supervised learning methods, such as SimCLR, BYOL, SimCSE, etc. Different augmented versions of the same sample should result in the same representation. Cross-view training in language modeling and multi-view learning in self-supervised learning all share the same motivation.\nΠ-model Overview of the Π-model. Two versions of the same input with different stochastic augmentation and dropout masks pass through the network and the outputs are expected to be consistent. (Image source: Laine \u0026 Aila (2017)) Sajjadi et al. (2016) proposed an unsupervised learning loss to minimize the difference between two passes through the network with stochastic transformations (e.g. dropout, random max-pooling) for the same data point. The label is not explicitly used, so the loss can be applied to unlabeled dataset. Laine \u0026 Aila (2017) later coined the name, Π-Model, for such a setup.\n$$ \\mathcal{L}_u^\\Pi = \\sum_{\\mathbf{x} \\in \\mathcal{D}} \\text{MSE}(f_\\theta(\\mathbf{x}), f'_\\theta(\\mathbf{x})) $$ where $f’$ is the same neural network with different stochastic augmentation or dropout masks applied. This loss utilizes the entire dataset.\nTemporal ensembling Overview of Temporal Ensembling. The per-sample EMA label prediction is the learning target. (Image source: Laine \u0026 Aila (2017)) Π-model requests the network to run two passes per sample, doubling the computation cost. To reduce the cost, Temporal Ensembling (Laine \u0026 Aila 2017) maintains an exponential moving average (EMA) of the model prediction in time per training sample $\\tilde{\\mathbf{z}}_i$ as the learning target, which is only evaluated and updated once per epoch. Because the ensemble output $\\tilde{\\mathbf{z}}_i$ is initialized to $\\mathbf{0}$, it is normalized by $(1-\\alpha^t)$ to correct this startup bias. Adam optimizer has such bias correction terms for the same reason.\n$$ \\tilde{\\mathbf{z}}^{(t)}_i = \\frac{\\alpha \\tilde{\\mathbf{z}}^{(t-1)}_i + (1-\\alpha) \\mathbf{z}_i}{1-\\alpha^t} $$ where $\\tilde{\\mathbf{z}}^{(t)}$ is the ensemble prediction at epoch $t$ and $\\mathbf{z}_i$ is the model prediction in the current round. Note that since $\\tilde{\\mathbf{z}}^{(0)} = \\mathbf{0}$, with correction, $\\tilde{\\mathbf{z}}^{(1)}$ is simply equivalent to $\\mathbf{z}_i$ at epoch 1.\nMean teachers Overview of the Mean Teacher framework. (Image source: Tarvaninen \u0026 Valpola, 2017) Temporal Ensembling keeps track of an EMA of label predictions for each training sample as a learning target. However, this label prediction only changes every epoch, making the approach clumsy when the training dataset is large. Mean Teacher (Tarvaninen \u0026 Valpola, 2017) is proposed to overcome the slowness of target update by tracking the moving average of model weights instead of model outputs. Let’s call the original model with weights $\\theta$ as the student model and the model with moving averaged weights $\\theta’$ across consecutive student models as the mean teacher: $\\theta’ \\gets \\beta \\theta’ + (1-\\beta)\\theta$\nThe consistency regularization loss is the distance between predictions by the student and teacher and the student-teacher gap should be minimized. The mean teacher is expected to provide more accurate predictions than the student. It got confirmed in the empirical experiments, as shown in Classification error on SVHN of Mean Teacher and the Π Model. The mean teacher (in orange) has better performance than the student model (in blue). (Image source: Tarvaninen \u0026 Valpola, 2017)\nAccording to their ablation studies,\nInput augmentation (e.g. random flips of input images, Gaussian noise) or student model dropout is necessary for good performance. Dropout is not needed on the teacher model. The performance is sensitive to the EMA decay hyperparameter $\\beta$. A good strategy is to use a small $\\beta=0.99$ during the ramp up stage and a larger $\\beta=0.999$ in the later stage when the student model improvement slows down. They found that MSE as the consistency cost function performs better than other cost functions like KL divergence. Noisy samples as learning targets Several recent consistency training methods learn to minimize prediction difference between the original unlabeled sample and its corresponding augmented version. It is quite similar to the Π-model but the consistency regularization loss is only applied to the unlabeled data.\nConsistency training with noisy samples. Adversarial Training (Goodfellow et al. 2014) applies adversarial noise onto the input and trains the model to be robust to such adversarial attack. The setup works in supervised learning,\n$$ \\begin{aligned} \\mathcal{L}_\\text{adv}(\\mathbf{x}^l, \\theta) \u0026= D[q(y\\mid \\mathbf{x}^l), p_\\theta(y\\mid \\mathbf{x}^l + r_\\text{adv})] \\\\ r_\\text{adv} \u0026= {\\arg\\max}_{r; \\|r\\| \\leq \\epsilon} D[q(y\\mid \\mathbf{x}^l), p_\\theta(y\\mid \\mathbf{x}^l + r_\\text{adv})] \\\\ r_\\text{adv} \u0026\\approx \\epsilon \\frac{g}{\\|g\\|_2} \\approx \\epsilon\\text{sign}(g)\\quad\\text{where }g = \\nabla_{r} D[y, p_\\theta(y\\mid \\mathbf{x}^l + r)] \\end{aligned} $$ where $q(y \\mid \\mathbf{x}^l)$ is the true distribution, approximated by one-hot encoding of the ground truth label, $y$. $p_\\theta(y \\mid \\mathbf{x}^l)$ is the model prediction. $D[.,.]$ is a distance function measuring the divergence between two distributions.\nVirtual Adversarial Training (VAT; Miyato et al. 2018) extends the idea to work in semi-supervised learning. Because $q(y \\mid \\mathbf{x}^l)$ is unknown, VAT replaces it with the current model prediction for the original input with the current weights $\\hat{\\theta}$. Note that $\\hat{\\theta}$ is a fixed copy of model weights, so there is no gradient update on $\\hat{\\theta}$.\n$$ \\begin{aligned} \\mathcal{L}_u^\\text{VAT}(\\mathbf{x}, \\theta) \u0026= D[p_{\\hat{\\theta}}(y\\mid \\mathbf{x}), p_\\theta(y\\mid \\mathbf{x} + r_\\text{vadv})] \\\\ r_\\text{vadv} \u0026= {\\arg\\max}_{r; \\|r\\| \\leq \\epsilon} D[p_{\\hat{\\theta}}(y\\mid \\mathbf{x}), p_\\theta(y\\mid \\mathbf{x} + r)] \\end{aligned} $$ The VAT loss applies to both labeled and unlabeled samples. It is a negative smoothness measure of the current model’s prediction manifold at each data point. The optimization of such loss motivates the manifold to be smoother.\nInterpolation Consistency Training (ICT; Verma et al. 2019) enhances the dataset by adding more interpolations of data points and expects the model prediction to be consistent with interpolations of the corresponding labels. MixUp (Zheng et al. 2018) operation mixes two images via a simple weighted sum and combines it with label smoothing. Following the idea of MixUp, ICT expects the prediction model to produce a label on a mixup sample to match the interpolation of predictions of corresponding inputs:\n$$ \\begin{aligned} \\text{mixup}_\\lambda (\\mathbf{x}_i, \\mathbf{x}_j) \u0026= \\lambda \\mathbf{x}_i + (1-\\lambda)\\mathbf{x}_j \\\\ p(\\text{mixup}_\\lambda (y \\mid \\mathbf{x}_i, \\mathbf{x}_j)) \u0026\\approx \\lambda p(y \\mid \\mathbf{x}_i) + (1-\\lambda) p(y \\mid \\mathbf{x}_j) \\end{aligned} $$ where $\\theta’$ is a moving average of $\\theta$, which is a mean teacher.\nOverview of Interpolation Consistency Training. MixUp is applied to produce more interpolated samples with interpolated labels as learning targets. (Image source: Verma et al. 2019) Because the probability of two randomly selected unlabeled samples belonging to different classes is high (e.g. There are 1000 object classes in ImageNet), the interpolation by applying a mixup between two random unlabeled samples is likely to happen around the decision boundary. According to the low-density separation assumptions, the decision boundary tends to locate in the low density regions.\n$$ \\mathcal{L}^\\text{ICT}_{u} = \\mathbb{E}_{\\mathbf{u}_i, \\mathbf{u}_j \\sim \\mathcal{U}} \\mathbb{E}_{\\lambda \\sim \\text{Beta}(\\alpha, \\alpha)} D[p_\\theta(y \\mid \\text{mixup}_\\lambda (\\mathbf{u}_i, \\mathbf{u}_j)), \\text{mixup}_\\lambda(p_{\\theta’}(y \\mid \\mathbf{u}_i), p_{\\theta'}(y \\mid \\mathbf{u}_j)] $$ where $\\theta’$ is a moving average of $\\theta$.\nSimilar to VAT, Unsupervised Data Augmentation (UDA; Xie et al. 2020) learns to predict the same output for an unlabeled example and the augmented one. UDA especially focuses on studying how the “quality” of noise can impact the semi-supervised learning performance with consistency training. It is crucial to use advanced data augmentation methods for producing meaningful and effective noisy samples. Good data augmentation should produce valid (i.e. does not change the label) and diverse noise, and carry targeted inductive biases.\nFor images, UDA adopts RandAugment (Cubuk et al. 2019) which uniformly samples augmentation operations available in PIL, no learning or optimization, so it is much cheaper than AutoAugment.\nComparison of various semi-supervised learning methods on CIFAR-10 classification. Fully supervised Wide-ResNet-28-2 and PyramidNet+ShakeDrop have an error rate of **5.4** and **2.7** respectively when trained on 50,000 examples without RandAugment. (Image source: Xie et al. 2020) For language, UDA combines back-translation and TF-IDF based word replacement. Back-translation preserves the high-level meaning but may not retain certain words, while TF-IDF based word replacement drops uninformative words with low TF-IDF scores. In the experiments on language tasks, they found UDA to be complementary to transfer learning and representation learning; For example, BERT fine-tuned (i.e. $\\text{BERT}_\\text{FINETUNE}$ in Fig. 8.) on in-domain unlabeled data can further improve the performance.\nComparison of UDA with different initialization configurations on various text classification tasks. (Image source: Xie et al. 2020) When calculating $\\mathcal{L}_u$, UDA found two training techniques to help improve the results.\nLow confidence masking: Mask out examples with low prediction confidence if lower than a threshold $\\tau$. Sharpening prediction distribution: Use a low temperature $T$ in softmax to sharpen the predicted probability distribution. In-domain data filtration: In order to extract more in-domain data from a large out-of-domain dataset, they trained a classifier to predict in-domain labels and then retain samples with high confidence predictions as in-domain candidates. $$ \\begin{aligned} \u0026\\mathcal{L}_u^\\text{UDA} = \\mathbb{1}[\\max_{y'} p_{\\hat{\\theta}}(y'\\mid \\mathbf{x}) \u003e \\tau ] \\cdot D[p^\\text{(sharp)}_{\\hat{\\theta}}(y \\mid \\mathbf{x}; T), p_\\theta(y \\mid \\bar{\\mathbf{x}})] \\\\ \u0026\\text{where } p_{\\hat{\\theta}}^\\text{(sharp)}(y \\mid \\mathbf{x}; T) = \\frac{\\exp(z^{(y)} / T)}{ \\sum_{y'} \\exp(z^{(y')} / T) } \\end{aligned} $$ where $\\hat{\\theta}$ is a fixed copy of model weights, same as in VAT, so no gradient update, and $\\bar{\\mathbf{x}}$ is the augmented data point. $\\tau$ is the prediction confidence threshold and $T$ is the distribution sharpening temperature.\nPseudo Labeling Pseudo Labeling (Lee 2013) assigns fake labels to unlabeled samples based on the maximum softmax probabilities predicted by the current model and then trains the model on both labeled and unlabeled samples simultaneously in a pure supervised setup.\nWhy could pseudo labels work? Pseudo label is in effect equivalent to Entropy Regularization (Grandvalet \u0026 Bengio 2004), which minimizes the conditional entropy of class probabilities for unlabeled data to favor low density separation between classes. In other words, the predicted class probabilities is in fact a measure of class overlap, minimizing the entropy is equivalent to reduced class overlap and thus low density separation.\nt-SNE visualization of outputs on MNIST test set by models training (a) without and (b) with pseudo labeling on 60000 unlabeled samples, in addition to 600 labeled data. Pseudo labeling leads to better segregation in the learned embedding space. (Image source: Lee 2013) Training with pseudo labeling naturally comes as an iterative process. We refer to the model that produces pseudo labels as teacher and the model that learns with pseudo labels as student.\nLabel propagation Label Propagation (Iscen et al. 2019) is an idea to construct a similarity graph among samples based on feature embedding. Then the pseudo labels are “diffused” from known samples to unlabeled ones where the propagation weights are proportional to pairwise similarity scores in the graph. Conceptually it is similar to a k-NN classifier and both suffer from the problem of not scaling up well with a large dataset.\nIllustration of how Label Propagation works. (Image source: Iscen et al. 2019) Self-Training Self-Training is not a new concept (Scudder 1965, Nigram \u0026 Ghani CIKM 2000). It is an iterative algorithm, alternating between the following two steps until every unlabeled sample has a label assigned:\nInitially it builds a classifier on labeled data. Then it uses this classifier to predict labels for the unlabeled data and converts the most confident ones into labeled samples. Xie et al. (2020) applied self-training in deep learning and achieved great results. On the ImageNet classification task, they first trained an EfficientNet (Tan \u0026 Le 2019) model as teacher to generate pseudo labels for 300M unlabeled images and then trained a larger EfficientNet as student to learn with both true labeled and pseudo labeled images. One critical element in their setup is to have noise during student model training but have no noise for the teacher to produce pseudo labels. Thus their method is called Noisy Student. They applied stochastic depth (Huang et al. 2016), dropout and RandAugment to noise the student. Noise is important for the student to perform better than the teacher. The added noise has a compound effect to encourage the model’s decision making frontier to be smooth, on both labeled and unlabeled data.\nA few other important technical configs in noisy student self-training are:\nThe student model should be sufficiently large (i.e. larger than the teacher) to fit more data. Noisy student should be paired with data balancing, especially important to balance the number of pseudo labeled images in each class. Soft pseudo labels work better than hard ones. Noisy student also improves adversarial robustness against an FGSM (Fast Gradient Sign Attack = The attack uses the gradient of the loss w.r.t the input data and adjusts the input data to maximize the loss) attack though the model is not optimized for adversarial robustness.\nSentAugment, proposed by Du et al. (2020), aims to solve the problem when there is not enough in-domain unlabeled data for self-training in the language domain. It relies on sentence embedding to find unlabeled in-domain samples from a large corpus and uses the retrieved sentences for self-training.\nReducing confirmation bias Confirmation bias is a problem with incorrect pseudo labels provided by an imperfect teacher model. Overfitting to wrong labels may not give us a better student model.\nTo reduce confirmation bias, Arazo et al. (2019) proposed two techniques. One is to adopt MixUp with soft labels. Given two samples, $(\\mathbf{x}_i, \\mathbf{x}_j)$ and their corresponding true or pseudo labels $(y_i, y_j)$, the interpolated label equation can be translated to a cross entropy loss with softmax outputs:\n$$ \\begin{aligned} \u0026\\bar{\\mathbf{x}} = \\lambda \\mathbf{x}_i + (1-\\lambda) \\mathbf{x}_j \\\\ \u0026\\bar{y} = \\lambda y_i + (1-\\lambda) y_j \\Leftrightarrow \\mathcal{L} = \\lambda [y_i^\\top \\log f_\\theta(\\bar{\\mathbf{x}})] + (1-\\lambda) [y_j^\\top \\log f_\\theta(\\bar{\\mathbf{x}})] \\end{aligned} $$ Mixup is insufficient if there are too few labeled samples. They further set a minimum number of labeled samples in every mini batch by oversampling the labeled samples. This works better than upweighting labeled samples, because it leads to more frequent updates rather than few updates of larger magnitude which could be less stable. Like consistency regularization, data augmentation and dropout are also important for pseudo labeling to work well.\nMeta Pseudo Labels (Pham et al. 2021) adapts the teacher model constantly with the feedback of how well the student performs on the labeled dataset. The teacher and the student are trained in parallel, where the teacher learns to generate better pseudo labels and the student learns from the pseudo labels.\nLet the teacher and student model weights be $\\theta_T$ and $\\theta_S$, respectively. The student model’s loss on the labeled samples is defined as a function $\\theta^\\text{PL}_S(.)$ of $\\theta_T$ and we would like to minimize this loss by optimizing the teacher model accordingly.\n$$ \\begin{aligned} \\min_{\\theta_T} \u0026\\mathcal{L}_s(\\theta^\\text{PL}_S(\\theta_T)) = \\min_{\\theta_T} \\mathbb{E}_{(\\mathbf{x}^l, y) \\in \\mathcal{X}} \\text{CE}[y, f_{\\theta_S}(\\mathbf{x}^l)] \\\\ \\text{where } \u0026\\theta^\\text{PL}_S(\\theta_T) = \\arg\\min_{\\theta_S} \\mathcal{L}_u (\\theta_T, \\theta_S) = \\arg\\min_{\\theta_S} \\mathbb{E}_{\\mathbf{u} \\sim \\mathcal{U}} \\text{CE}[(f_{\\theta_T}(\\mathbf{u}), f_{\\theta_S}(\\mathbf{u}))] \\end{aligned} $$ However, it is not trivial to optimize the above equation. Borrowing the idea of MAML, it approximates the multi-step $\\arg\\min_{\\theta_S}$ with the one-step gradient update of $\\theta_S$,\n$$ \\begin{aligned} \\theta^\\text{PL}_S(\\theta_T) \u0026\\approx \\theta_S - \\eta_S \\cdot \\nabla_{\\theta_S} \\mathcal{L}_u(\\theta_T, \\theta_S) \\\\ \\min_{\\theta_T} \\mathcal{L}_s (\\theta^\\text{PL}_S(\\theta_T)) \u0026\\approx \\min_{\\theta_T} \\mathcal{L}_s \\big( \\theta_S - \\eta_S \\cdot \\nabla_{\\theta_S} \\mathcal{L}_u(\\theta_T, \\theta_S) \\big) \\end{aligned} $$ With soft pseudo labels, the above objective is differentiable. But if using hard pseudo labels, it is not differentiable and thus we need to use RL, e.g. REINFORCE.\nThe optimization procedure is alternative between training two models:\nStudent model update: Given a batch of unlabeled samples $\\{ \\mathbf{u} \\}$, we generate pseudo labels by $f_{\\theta_T}(\\mathbf{u})$ and optimize $\\theta_S$ with one step SGD: $\\theta’_S = \\color{green}{\\theta_S - \\eta_S \\cdot \\nabla_{\\theta_S} \\mathcal{L}_u(\\theta_T, \\theta_S)}$. Teacher model update: Given a batch of labeled samples $\\{(\\mathbf{x}^l, y)\\}$, we reuse the student’s update to optimize $\\theta_T$: $\\theta’_T = \\theta_T - \\eta_T \\cdot \\nabla_{\\theta_T} \\mathcal{L}_s ( \\color{green}{\\theta_S - \\eta_S \\cdot \\nabla_{\\theta_S} \\mathcal{L}_u(\\theta_T, \\theta_S)} )$. In addition, the UDA objective is applied to the teacher model to incorporate consistency regularization. Comparison of Meta Pseudo Labels with other semi- or self-supervised learning methods on image classification tasks. (Image source: Pham et al. 2021) Pseudo Labeling with Consistency Regularization It is possible to combine the above two approaches together, running semi-supervised learning with both pseudo labeling and consistency training.\nMixMatch MixMatch (Berthelot et al. 2019), as a holistic approach to semi-supervised learning, utilizes unlabeled data by merging the following techniques:\nConsistency regularization: Encourage the model to output the same predictions on perturbed unlabeled samples. Entropy minimization: Encourage the model to output confident predictions on unlabeled data. MixUp augmentation: Encourage the model to have linear behaviour between samples. Given a batch of labeled data $\\mathcal{X}$ and unlabeled data $\\mathcal{U}$, we create augmented versions of them via $\\text{MixMatch}(.)$, $\\bar{\\mathcal{X}}$ and $\\bar{\\mathcal{U}}$, containing augmented samples and guessed labels for unlabeled examples.\n$$ \\begin{aligned} \\bar{\\mathcal{X}}, \\bar{\\mathcal{U}} \u0026= \\text{MixMatch}(\\mathcal{X}, \\mathcal{U}, T, K, \\alpha) \\\\ \\mathcal{L}^\\text{MM}_s \u0026= \\frac{1}{\\vert \\bar{\\mathcal{X}} \\vert} \\sum_{(\\bar{\\mathbf{x}}^l, y)\\in \\bar{\\mathcal{X}}} D[y, p_\\theta(y \\mid \\bar{\\mathbf{x}}^l)] \\\\ \\mathcal{L}^\\text{MM}_u \u0026= \\frac{1}{L\\vert \\bar{\\mathcal{U}} \\vert} \\sum_{(\\bar{\\mathbf{u}}, \\hat{y})\\in \\bar{\\mathcal{U}}} \\| \\hat{y} - p_\\theta(y \\mid \\bar{\\mathbf{u}}) \\|^2_2 \\\\ \\end{aligned} $$ where $T$ is the sharpening temperature to reduce the guessed label overlap; $K$ is the number of augmentations generated per unlabeled example; $\\alpha$ is the parameter in MixUp.\nFor each $\\mathbf{u}$, MixMatch generates $K$ augmentations, $\\bar{\\mathbf{u}}^{(k)} = \\text{Augment}(\\mathbf{u})$ for $k=1, \\dots, K$ and the pseudo label is guessed based on the average: $\\hat{y} = \\frac{1}{K} \\sum_{k=1}^K p_\\theta(y \\mid \\bar{\\mathbf{u}}^{(k)})$.\nThe process of \"label guessing\" in MixMatch: averaging $K$ augmentations, correcting the predicted marginal distribution and finally sharpening the distribution. (Image source: Berthelot et al. 2019) According to their ablation studies, it is critical to have MixUp especially on the unlabeled data. Removing temperature sharpening on the pseudo label distribution hurts the performance quite a lot. Average over multiple augmentations for label guessing is also necessary.\nReMixMatch (Berthelot et al. 2020) improves MixMatch by introducing two new mechanisms:\nIllustration of two improvements introduced in ReMixMatch over MixMatch. (Image source: Berthelot et al. 2020) Distribution alignment. It encourages the marginal distribution $p(y)$ to be close to the marginal distribution of the ground truth labels. Let $p(y)$ be the class distribution in the true labels and $\\tilde{p}(\\hat{y})$ be a running average of the predicted class distribution among the unlabeled data. The model prediction on an unlabeled sample $p_\\theta(y \\vert \\mathbf{u})$ is normalized to be $\\text{Normalize}\\big( \\frac{p_\\theta(y \\vert \\mathbf{u}) p(y)}{\\tilde{p}(\\hat{y})} \\big)$ to match the true marginal distribution. Note that entropy minimization is not a useful objective if the marginal distribution is not uniform. I do feel the assumption that the class distributions on the labeled and unlabeled data should match is too strong and not necessarily to be true in the real-world setting. Augmentation anchoring. Given an unlabeled sample, it first generates an “anchor” version with weak augmentation and then averages $K$ strongly augmented versions using CTAugment (Control Theory Augment). CTAugment only samples augmentations that keep the model predictions within the network tolerance. The ReMixMatch loss is a combination of several terms,\na supervised loss with data augmentation and MixUp applied; an unsupervised loss with data augmentation and MixUp applied, using pseudo labels as targets; a CE loss on a single heavily-augmented unlabeled image without MixUp; a rotation loss as in self-supervised learning. DivideMix DivideMix (Junnan Li et al. 2020) combines semi-supervised learning with Learning with noisy labels (LNL). It models the per-sample loss distribution via a GMM to dynamically divide the training data into a labeled set with clean examples and an unlabeled set with noisy ones. Following the idea in Arazo et al. 2019, they fit a two-component GMM on the per-sample cross entropy loss $\\ell_i = y_i^\\top \\log f_\\theta(\\mathbf{x}_i)$. Clean samples are expected to get lower loss faster than noisy samples. The component with smaller mean is the cluster corresponding to clean labels and let’s denote it as $c$. If the GMM posterior probability $w_i = p_\\text{GMM}(c \\mid \\ell_i)$ (i.e. the probability of the sampling belonging to the clean sample set) is larger than the threshold $\\tau$, this sample is considered as a clean sample and otherwise a noisy one.\nThe data clustering step is named co-divide. To avoid confirmation bias, DivideMix simultaneously trains two diverged networks where each network uses the dataset division from the other network; e.g. thinking about how Double Q Learning works.\nDivideMix trains two networks independently to reduce confirmation bias. They run co-divide, co-refinement, and co-guessing together. (Image source: Junnan Li et al. 2020) Compared to MixMatch, DivideMix has an additional co-divide stage for handling noisy samples, as well as the following improvements during training:\nLabel co-refinement: It linearly combines the ground-truth label $y_i$ with the network’s prediction $\\hat{y}_i$, which is averaged across multiple augmentations of $\\mathbf{x}_i$, guided by the clean set probability $w_i$ produced by the other network. Label co-guessing: It averages the predictions from two models for unlabelled data samples. The algorithm of DivideMix. (Image source: Junnan Li et al. 2020) FixMatch FixMatch (Sohn et al. 2020) generates pseudo labels on unlabeled samples with weak augmentation and only keeps predictions with high confidence. Here both weak augmentation and high confidence filtering help produce high-quality trustworthy pseudo label targets. Then FixMatch learns to predict these pseudo labels given a heavily-augmented sample.\nIllustration of how FixMatch works. (Image source: Sohn et al. 2020) $$ \\begin{aligned} \\mathcal{L}_s \u0026= \\frac{1}{B} \\sum^B_{b=1} \\text{CE}[y_b, p_\\theta(y \\mid \\mathcal{A}_\\text{weak}(\\mathbf{x}_b))] \\\\ \\mathcal{L}_u \u0026= \\frac{1}{\\mu B} \\sum_{b=1}^{\\mu B} \\mathbb{1}[\\max(\\hat{y}_b) \\geq \\tau]\\;\\text{CE}(\\hat{y}_b, p_\\theta(y \\mid \\mathcal{A}_\\text{strong}(\\mathbf{u}_b))) \\end{aligned} $$ where $\\hat{y}_b$ is the pseudo label for an unlabeled example; $\\mu$ is a hyperparameter that determines the relative sizes of $\\mathcal{X}$ and $\\mathcal{U}$.\nWeak augmentation $\\mathcal{A}_\\text{weak}(.)$: A standard flip-and-shift augmentation Strong augmentation $\\mathcal{A}_\\text{strong}(.)$ : AutoAugment, Cutout, RandAugment, CTAugment Performance of FixMatch and several other semi-supervised learning methods on image classification tasks. (Image source: Sohn et al. 2020) According to the ablation studies of FixMatch,\nSharpening the predicted distribution with a temperature parameter $T$ does not have a significant impact when the threshold $\\tau$ is used. Cutout and CTAugment as part of strong augmentations are necessary for good performance. When the weak augmentation for label guessing is replaced with strong augmentation, the model diverges early in training. If discarding weak augmentation completely, the model overfit the guessed labels. Using weak instead of strong augmentation for pseudo label prediction leads to unstable performance. Strong data augmentation is critical. Combined with Powerful Pre-Training It is a common paradigm, especially in language tasks, to first pre-train a task-agnostic model on a large unsupervised data corpus via self-supervised learning and then fine-tune it on the downstream task with a small labeled dataset. Research has shown that we can obtain extra gain if combining semi-supervised learning with pretraining.\nZoph et al. (2020) studied to what degree self-training can work better than pre-training. Their experiment setup was to use ImageNet for pre-training or self-training to improve COCO. Note that when using ImageNet for self-training, it discards labels and only uses ImageNet samples as unlabeled data points. He et al. (2018) has demonstrated that ImageNet classification pre-training does not work well if the downstream task is very different, such as object detection.\nThe effect of (a) data augment (from weak to strong) and (b) the labeled dataset size on the object detection performance. In the legend: `Rand Init` refers to a model initialized w/ random weights; `ImageNet` is initialized with a pre-trained checkpoint at 84.5% top-1 ImageNet accuracy; `ImageNet++` is initialized with a checkpoint with a higher accuracy 86.9%. (Image source: Zoph et al. 2020) Their experiments demonstrated a series of interesting findings:\nThe effectiveness of pre-training diminishes with more labeled samples available for the downstream task. Pre-training is helpful in the low-data regimes (20%) but neutral or harmful in the high-data regime. Self-training helps in high data/strong augmentation regimes, even when pre-training hurts. Self-training can bring in additive improvement on top of pre-training, even using the same data source. Self-supervised pre-training (e.g. via SimCLR) hurts the performance in a high data regime, similar to how supervised pre-training does. Joint-training supervised and self-supervised objectives help resolve the mismatch between the pre-training and downstream tasks. Pre-training, joint-training and self-training are all additive. Noisy labels or un-targeted labeling (i.e. pre-training labels are not aligned with downstream task labels) is worse than targeted pseudo labeling. Self-training is computationally more expensive than fine-tuning on a pre-trained model. Chen et al. (2020) proposed a three-step procedure to merge the benefits of self-supervised pretraining, supervised fine-tuning and self-training together:\nUnsupervised or self-supervised pretrain a big model. Supervised fine-tune it on a few labeled examples. It is important to use a big (deep and wide) neural network. Bigger models yield better performance with fewer labeled samples. Distillation with unlabeled examples by adopting pseudo labels in self-training. It is possible to distill the knowledge from a large model into a small one because the task-specific use does not require extra capacity of the learned representation. The distillation loss is formatted as the following, where the teacher network is fixed with weights $\\hat{\\theta}_T$. $$ \\mathcal{L}_\\text{distill} = - (1-\\alpha) \\underbrace{\\sum_{(\\mathbf{x}^l_i, y_i) \\in \\mathcal{X}} \\big[ \\log p_{\\theta_S}(y_i \\mid \\mathbf{x}^l_i) \\big]}_\\text{Supervised loss} - \\alpha \\underbrace{\\sum_{\\mathbf{u}_i \\in \\mathcal{U}} \\Big[ \\sum_{i=1}^L p_{\\hat{\\theta}_T}(y^{(i)} \\mid \\mathbf{u}_i; T) \\log p_{\\theta_S}(y^{(i)} \\mid \\mathbf{u}_i; T) \\Big]}_\\text{Distillation loss using unlabeled data} $$ A semi-supervised learning framework leverages unlabeled data corpus by (Left) task-agnostic unsupervised pretraining and (Right) task-specific self-training and distillation. (Image source: Chen et al. 2020) They experimented on the ImageNet classification task. The self-supervised pre-training uses SimCLRv2, a directly improved version of SimCLR. Observations in their empirical studies confirmed several learnings, aligned with Zoph et al. 2020:\nBigger models are more label-efficient; Bigger/deeper project heads in SimCLR improve representation learning; Distillation using unlabeled data improves semi-supervised learning. Comparison of performance by SimCLRv2 + semi-supervised distillation on ImageNet classification. (Image source: Chen et al. 2020) 💡 Quick summary of common themes among recent semi-supervised learning methods, many aiming to reduce confirmation bias:\nApply valid and diverse noise to samples by advanced data augmentation methods. When dealing with images, MixUp is an effective augmentation. Mixup could work on language too, resulting in a small incremental improvement (Guo et al. 2019). Set a threshold and discard pseudo labels with low confidence. Set a minimum number of labeled samples per mini-batch. Sharpen the pseudo label distribution to reduce the class overlap. Citation Cited as:\nWeng, Lilian. (Dec 2021). Learning with not enough data part 1: semi-supervised learning. Lil’Log. https://lilianweng.github.io/posts/2021-12-05-semi-supervised/.\nOr\n@article{weng2021semi, title = \"Learning with not Enough Data Part 1: Semi-Supervised Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2021\", month = \"Dec\", url = \"https://lilianweng.github.io/posts/2021-12-05-semi-supervised/\" } References [1] Ouali, Hudelot \u0026 Tami. “An Overview of Deep Semi-Supervised Learning” arXiv preprint arXiv:2006.05278 (2020).\n[2] Sajjadi, Javanmardi \u0026 Tasdizen “Regularization With Stochastic Transformations and Perturbations for Deep Semi-Supervised Learning.” arXiv preprint arXiv:1606.04586 (2016).\n[3] Pham et al. “Meta Pseudo Labels.” CVPR 2021.\n[4] Laine \u0026 Aila. “Temporal Ensembling for Semi-Supervised Learning” ICLR 2017.\n[5] Tarvaninen \u0026 Valpola. “Mean teachers are better role models: Weight-averaged consistency targets improve semi-supervised deep learning results.” NeuriPS 2017\n[6] Xie et al. “Unsupervised Data Augmentation for Consistency Training.” NeuriPS 2020.\n[7] Miyato et al. “Virtual Adversarial Training: A Regularization Method for Supervised and Semi-Supervised Learning.” IEEE transactions on pattern analysis and machine intelligence 41.8 (2018).\n[8] Verma et al. “Interpolation consistency training for semi-supervised learning.” IJCAI 2019\n[9] Lee. “Pseudo-label: The simple and efficient semi-supervised learning method for deep neural networks.” ICML 2013 Workshop: Challenges in Representation Learning.\n[10] Iscen et al. “Label propagation for deep semi-supervised learning.” CVPR 2019.\n[11] Xie et al. “Self-training with Noisy Student improves ImageNet classification” CVPR 2020.\n[12] Jingfei Du et al. “Self-training Improves Pre-training for Natural Language Understanding.” 2020\n[13] Iscen et al. “Label propagation for deep semi-supervised learning.” CVPR 2019\n[14] Arazo et al. “Pseudo-labeling and confirmation bias in deep semi-supervised learning.” IJCNN 2020.\n[15] Berthelot et al. “MixMatch: A holistic approach to semi-supervised learning.” NeuriPS 2019\n[16] Berthelot et al. “ReMixMatch: Semi-supervised learning with distribution alignment and augmentation anchoring.” ICLR 2020\n[17] Sohn et al. “FixMatch: Simplifying semi-supervised learning with consistency and confidence.” CVPR 2020\n[18] Junnan Li et al. “DivideMix: Learning with Noisy Labels as Semi-supervised Learning.” 2020 [code]\n[19] Zoph et al. “Rethinking pre-training and self-training.” 2020.\n[20] Chen et al. “Big Self-Supervised Models are Strong Semi-Supervised Learners” 2020\n",
+  "wordCount" : "5377",
+  "inLanguage": "en",
+  "datePublished": "2021-12-05T00:00:00Z",
+  "dateModified": "2021-12-05T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2021-12-05-semi-supervised/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Learning with not Enough Data Part 1: Semi-Supervised Learning
+    </h1>
+    <div class="post-meta">Date: December 5, 2021  |  Estimated Reading Time: 26 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#what-is-semi-supervised-learning" aria-label="What is semi-supervised learning?">What is semi-supervised learning?</a></li>
+                <li>
+                    <a href="#notations" aria-label="Notations">Notations</a></li>
+                <li>
+                    <a href="#hypotheses" aria-label="Hypotheses">Hypotheses</a></li>
+                <li>
+                    <a href="#consistency-regularization" aria-label="Consistency Regularization">Consistency Regularization</a><ul>
+                        
+                <li>
+                    <a href="#%cf%80-model" aria-label="Π-model">Π-model</a></li>
+                <li>
+                    <a href="#temporal-ensembling" aria-label="Temporal ensembling">Temporal ensembling</a></li>
+                <li>
+                    <a href="#mean-teachers" aria-label="Mean teachers">Mean teachers</a></li>
+                <li>
+                    <a href="#noisy-samples-as-learning-targets" aria-label="Noisy samples as learning targets">Noisy samples as learning targets</a></li></ul>
+                </li>
+                <li>
+                    <a href="#pseudo-labeling" aria-label="Pseudo Labeling">Pseudo Labeling</a><ul>
+                        
+                <li>
+                    <a href="#label-propagation" aria-label="Label propagation">Label propagation</a></li>
+                <li>
+                    <a href="#self-training" aria-label="Self-Training">Self-Training</a></li>
+                <li>
+                    <a href="#reducing-confirmation-bias" aria-label="Reducing confirmation bias">Reducing confirmation bias</a></li></ul>
+                </li>
+                <li>
+                    <a href="#pseudo-labeling-with-consistency-regularization" aria-label="Pseudo Labeling with Consistency Regularization">Pseudo Labeling with Consistency Regularization</a><ul>
+                        
+                <li>
+                    <a href="#mixmatch" aria-label="MixMatch">MixMatch</a></li>
+                <li>
+                    <a href="#dividemix" aria-label="DivideMix">DivideMix</a></li>
+                <li>
+                    <a href="#fixmatch" aria-label="FixMatch">FixMatch</a></li></ul>
+                </li>
+                <li>
+                    <a href="#combined-with-powerful-pre-training" aria-label="Combined with Powerful Pre-Training">Combined with Powerful Pre-Training</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- The performance of supervised learning tasks improves with more high-quality labels available. However, it is expensive to collect a large number of labeled samples. There are several paradigms in machine learning to deal with the scenario when the labels are scarce. Semi-supervised learning is one candidate, utilizing a large amount of unlabeled data conjunction with a small amount of labeled data. -->
+<p>When facing a limited amount of labeled data for supervised learning tasks, four approaches are commonly discussed.</p>
+<ol>
+<li><strong>Pre-training + fine-tuning</strong>: Pre-train a powerful task-agnostic model on a large unsupervised data corpus, e.g. <a href="https://lilianweng.github.io/posts/2019-01-31-lm/">pre-training LMs</a> on free text, or pre-training vision models on unlabelled images via <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">self-supervised learning</a>, and then fine-tune it on the downstream task with a small set of labeled samples.</li>
+<li><strong>Semi-supervised learning</strong>: Learn from the labelled and unlabeled samples together. A lot of research has happened on vision tasks within this approach.</li>
+<li><strong>Active learning</strong>: Labeling is expensive, but we still want to collect more given a cost budget. Active learning learns to select most valuable unlabeled samples to be collected next and helps us act smartly with a limited budget.</li>
+<li><strong>Pre-training + dataset auto-generation</strong>: Given a capable pre-trained model, we can utilize it to auto-generate a lot more labeled samples. This has been especially popular within the language domain driven by the success of few-shot learning.</li>
+</ol>
+<p>I plan to write a series of posts on the topic of “Learning with not enough data”. Part 1 is on <em>Semi-Supervised Learning</em>.</p>
+<h1 id="what-is-semi-supervised-learning">What is semi-supervised learning?<a hidden class="anchor" aria-hidden="true" href="#what-is-semi-supervised-learning">#</a></h1>
+<p>Semi-supervised learning uses both labeled and unlabeled data to train a model.</p>
+<p>Interestingly most existing literature on semi-supervised learning focuses on vision tasks. And instead pre-training + fine-tuning is a more common paradigm for language tasks.</p>
+<p>All the methods introduced in this post have a loss combining two parts: $\mathcal{L} = \mathcal{L}_s +  \mu(t) \mathcal{L}_u$. The supervised loss $\mathcal{L}_s$ is easy to get given all the labeled examples. We will focus on how the unsupervised loss $\mathcal{L}_u$ is designed. A common choice of the weighting term $\mu(t)$ is a ramp function increasing the importance of $\mathcal{L}_u$ in time, where $t$ is the training step.</p>
+<blockquote>
+<p><em>Disclaimer</em>: The post is not gonna cover semi-supervised methods with focus on model architecture modification. Check <a href="https://arxiv.org/abs/2006.05278">this survey</a> for how to use generative models and graph-based methods in semi-supervised learning.</p>
+</blockquote>
+<h1 id="notations">Notations<a hidden class="anchor" aria-hidden="true" href="#notations">#</a></h1>
+<table>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$L$</td>
+          <td>Number of unique labels.</td>
+      </tr>
+      <tr>
+          <td>$(\mathbf{x}^l, y) \sim \mathcal{X}, y \in \{0, 1\}^L$</td>
+          <td>Labeled dataset. $y$ is a one-hot representation of the true label.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{u} \sim \mathcal{U}$</td>
+          <td>Unlabeled dataset.</td>
+      </tr>
+      <tr>
+          <td>$\mathcal{D} = \mathcal{X} \cup \mathcal{U}$</td>
+          <td>The entire dataset, including both labeled and unlabeled examples.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}$</td>
+          <td>Any sample which can be either labeled or unlabeled.</td>
+      </tr>
+      <tr>
+          <td>$\bar{\mathbf{x}}$</td>
+          <td>$\mathbf{x}$ with augmentation applied.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{x}_i$</td>
+          <td>The $i$-th sample.</td>
+      </tr>
+      <tr>
+          <td>$\mathcal{L}$, $\mathcal{L}_s$, $\mathcal{L}_u$</td>
+          <td>Loss, supervised loss, and unsupervised loss.</td>
+      </tr>
+      <tr>
+          <td>$\mu(t)$</td>
+          <td>The unsupervised loss weight, increasing in time.</td>
+      </tr>
+      <tr>
+          <td>$p(y \vert \mathbf{x}), p_\theta(y \vert \mathbf{x})$</td>
+          <td>The conditional probability over the label set given the input.</td>
+      </tr>
+      <tr>
+          <td>$f_\theta(.)$</td>
+          <td>The implemented neural network with weights $\theta$, the model that we want to train.</td>
+      </tr>
+      <tr>
+          <td>$\mathbf{z} = f_\theta(\mathbf{x})$</td>
+          <td>A vector of logits output by $f$.</td>
+      </tr>
+      <tr>
+          <td>$\hat{y} = \text{softmax}(\mathbf{z})$</td>
+          <td>The predicted label distribution.</td>
+      </tr>
+      <tr>
+          <td>$D[.,.]$</td>
+          <td>A distance function between two distributions, such as MSE, cross entropy, KL divergence, etc.</td>
+      </tr>
+      <tr>
+          <td>$\beta$</td>
+          <td>EMA weighting hyperparameter for <a href="#mean-teachers">teacher</a> model weights.</td>
+      </tr>
+      <tr>
+          <td>$\alpha, \lambda$</td>
+          <td>Parameters for MixUp, $\lambda \sim \text{Beta}(\alpha, \alpha)$.</td>
+      </tr>
+      <tr>
+          <td>$T$</td>
+          <td>Temperature for sharpening the predicted distribution.</td>
+      </tr>
+      <tr>
+          <td>$\tau$</td>
+          <td>A confidence threshold for selecting the qualified prediction.</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="hypotheses">Hypotheses<a hidden class="anchor" aria-hidden="true" href="#hypotheses">#</a></h1>
+<p>Several hypotheses have been discussed in literature to support certain design decisions in semi-supervised learning methods.</p>
+<ul>
+<li>
+<p>H1: <strong>Smoothness Assumptions</strong>: If two data samples are close in a high-density region of the feature space, their labels should be the same or very similar.</p>
+</li>
+<li>
+<p>H2: <strong>Cluster Assumptions</strong>: The feature space has both dense regions and sparse regions. Densely grouped data points naturally form a cluster. Samples in the same cluster are expected to have the same label. This is a small extension of H1.</p>
+</li>
+<li>
+<p>H3: <strong>Low-density Separation Assumptions</strong>: The decision boundary between classes tends to be located in the sparse, low density regions, because otherwise the decision boundary would cut a high-density cluster into two classes, corresponding to two clusters, which invalidates H1 and H2.</p>
+</li>
+<li>
+<p>H4: <strong>Manifold Assumptions</strong>: The high-dimensional data tends to locate on a low-dimensional manifold. Even though real-world data might be observed in very high dimensions (e.g. such as images of real-world objects/scenes), they actually can be captured by a lower dimensional manifold where certain attributes are captured and similar points are grouped closely (e.g. images of real-world objects/scenes are not drawn from a uniform distribution over all pixel combinations). This enables us to learn a more efficient representation for us to discover and measure similarity between unlabeled data points. This is also the foundation for representation learning. [see <a href="https://stats.stackexchange.com/questions/66939/what-is-the-manifold-assumption-in-semi-supervised-learning">a helpful link</a>].</p>
+</li>
+</ul>
+<h1 id="consistency-regularization">Consistency Regularization<a hidden class="anchor" aria-hidden="true" href="#consistency-regularization">#</a></h1>
+<p><strong>Consistency Regularization</strong>, also known as <strong>Consistency Training</strong>, assumes that randomness within the neural network (e.g. with Dropout) or data augmentation transformations should not modify model predictions given the same input. Every method in this section has a consistency regularization loss as $\mathcal{L}_u$.</p>
+<p>This idea has been adopted in several <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">self-supervised</a> <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/">learning</a> methods, such as SimCLR, BYOL, SimCSE, etc. Different augmented versions of the same sample should result in the same representation. <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#cross-view-training">Cross-view training</a> in language modeling and multi-view learning in self-supervised learning all share the same motivation.</p>
+<h2 id="π-model">Π-model<a hidden class="anchor" aria-hidden="true" href="#π-model">#</a></h2>
+<figure>
+	<img src="PI-model.png" style="width: 100%;"  />
+	<figcaption>Overview of the Π-model. Two versions of the same input with different stochastic augmentation and dropout masks pass through the network and the outputs are expected to be consistent. (Image source: <a href="https://arxiv.org/abs/1610.02242" target="_blank">Laine & Aila (2017)</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1606.04586">Sajjadi et al. (2016)</a> proposed an unsupervised learning loss to minimize the difference between two passes through the network with stochastic transformations (e.g. dropout, random max-pooling) for the same data point. The label is not explicitly used, so the loss can be applied to unlabeled dataset. <a href="https://arxiv.org/abs/1610.02242">Laine &amp; Aila (2017)</a> later coined the name, <strong>Π-Model</strong>, for such a setup.</p>
+<div>
+$$
+\mathcal{L}_u^\Pi = \sum_{\mathbf{x} \in \mathcal{D}} \text{MSE}(f_\theta(\mathbf{x}), f'_\theta(\mathbf{x}))
+$$
+</div>
+<p>where $f&rsquo;$ is the same neural network with different stochastic augmentation or dropout masks applied. This loss utilizes the entire dataset.</p>
+<h2 id="temporal-ensembling">Temporal ensembling<a hidden class="anchor" aria-hidden="true" href="#temporal-ensembling">#</a></h2>
+<figure>
+	<img src="temperal-ensembling.png" style="width: 100%;"  />
+	<figcaption>Overview of Temporal Ensembling. The per-sample EMA label prediction is the learning target. (Image source: <a href="https://arxiv.org/abs/1610.02242" target="_blank">Laine & Aila (2017)</a>)</figcaption>
+</figure>
+<p>Π-model requests the network to run two passes per sample, doubling the computation cost. To reduce the cost, <strong>Temporal Ensembling</strong> (<a href="https://arxiv.org/abs/1610.02242">Laine &amp; Aila 2017</a>) maintains an exponential moving average (EMA) of the model prediction in time per training sample $\tilde{\mathbf{z}}_i$ as the learning target, which is only evaluated and updated once per epoch. Because the ensemble output $\tilde{\mathbf{z}}_i$ is initialized to $\mathbf{0}$, it is normalized by $(1-\alpha^t)$ to correct this startup bias. Adam optimizer has such <a href="https://stats.stackexchange.com/questions/232741/why-is-it-important-to-include-a-bias-correction-term-for-the-adam-optimizer-for">bias correction</a> terms for the same reason.</p>
+<div>
+$$
+\tilde{\mathbf{z}}^{(t)}_i = \frac{\alpha \tilde{\mathbf{z}}^{(t-1)}_i + (1-\alpha) \mathbf{z}_i}{1-\alpha^t}
+$$
+</div>
+<p>where $\tilde{\mathbf{z}}^{(t)}$ is the ensemble prediction at epoch $t$ and $\mathbf{z}_i$ is the model prediction in the current round. Note that since $\tilde{\mathbf{z}}^{(0)} = \mathbf{0}$, with correction, $\tilde{\mathbf{z}}^{(1)}$ is simply equivalent to $\mathbf{z}_i$ at epoch 1.</p>
+<h2 id="mean-teachers">Mean teachers<a hidden class="anchor" aria-hidden="true" href="#mean-teachers">#</a></h2>
+<figure>
+	<img src="mean-teacher.png" style="width: 68%;"  />
+	<figcaption>Overview of the Mean Teacher framework. (Image source: <a href="https://arxiv.org/abs/1703.01780" target="_blank">Tarvaninen & Valpola, 2017</a>)</figcaption>
+</figure>
+<p>Temporal Ensembling keeps track of an EMA of label predictions for each training sample as a learning target. However, this label prediction only changes <em>every epoch</em>, making the approach clumsy when the training dataset is large. <strong>Mean Teacher</strong> (<a href="https://arxiv.org/abs/1703.01780">Tarvaninen &amp; Valpola, 2017</a>) is proposed to overcome the slowness of target update by tracking the moving average of model weights instead of model outputs. Let’s call the original model with weights $\theta$ as the <em>student</em> model and the model with moving averaged weights $\theta’$ across consecutive student models as the <em>mean teacher</em>: $\theta’ \gets \beta \theta’ + (1-\beta)\theta$</p>
+<p>The consistency regularization loss is the distance between predictions by the student and teacher and the student-teacher gap should be minimized. The mean teacher is expected to provide more accurate predictions than the student. It got confirmed in the empirical experiments, as shown in <figure>
+<img src="mean-teacher-results.png" style="width: 100%;"  />
+<figcaption>Classification error on SVHN of Mean Teacher and the Π Model. The mean teacher (in orange) has better performance than the student model (in blue). (Image source: <a href="https://arxiv.org/abs/1703.01780" target="_blank">Tarvaninen &amp; Valpola, 2017</a>)</figcaption></p>
+</figure>
+<p>According to their ablation studies,</p>
+<ul>
+<li>Input augmentation (e.g. random flips of input images, Gaussian noise) or student model dropout is necessary for good performance. Dropout is not needed on the teacher model.</li>
+<li>The performance is sensitive to the EMA decay hyperparameter $\beta$. A good strategy is to use a small $\beta=0.99$ during the ramp up stage and a larger $\beta=0.999$ in the later stage when the student model improvement slows down.</li>
+<li>They found that MSE as the consistency cost function performs better than other cost functions like KL divergence.</li>
+</ul>
+<h2 id="noisy-samples-as-learning-targets">Noisy samples as learning targets<a hidden class="anchor" aria-hidden="true" href="#noisy-samples-as-learning-targets">#</a></h2>
+<p>Several recent consistency training methods learn to minimize prediction difference between the original unlabeled sample and its corresponding augmented version. It is quite similar to the Π-model but the consistency regularization loss is <em>only</em> applied to the unlabeled data.</p>
+<figure>
+	<img src="consistency-training-with-noisy-samples.png" style="width: 100%;"  />
+	<figcaption>Consistency training with noisy samples.</figcaption>
+</figure>
+<p>Adversarial Training (<a href="https://arxiv.org/abs/1412.6572">Goodfellow et al. 2014</a>) applies adversarial noise onto the input and trains the model to be robust to such adversarial attack. The setup works in supervised learning,</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{adv}(\mathbf{x}^l, \theta) &= D[q(y\mid \mathbf{x}^l), p_\theta(y\mid \mathbf{x}^l + r_\text{adv})] \\
+r_\text{adv} &= {\arg\max}_{r; \|r\| \leq \epsilon} D[q(y\mid \mathbf{x}^l), p_\theta(y\mid \mathbf{x}^l + r_\text{adv})] \\
+r_\text{adv} &\approx \epsilon \frac{g}{\|g\|_2} \approx \epsilon\text{sign}(g)\quad\text{where }g = \nabla_{r} D[y, p_\theta(y\mid \mathbf{x}^l + r)]
+\end{aligned}
+$$
+</div>
+<p>where $q(y \mid \mathbf{x}^l)$ is the true distribution, approximated by one-hot encoding of the ground truth label, $y$. $p_\theta(y \mid \mathbf{x}^l)$ is the model prediction. $D[.,.]$ is a distance function measuring the divergence between two distributions.</p>
+<p><strong>Virtual Adversarial Training</strong> (<strong>VAT</strong>; <a href="https://arxiv.org/abs/1704.03976">Miyato et al. 2018</a>) extends the idea to work in semi-supervised learning. Because $q(y \mid \mathbf{x}^l)$ is unknown, VAT replaces it with the current model prediction for the original input with the current weights $\hat{\theta}$.  Note that $\hat{\theta}$ is a fixed copy of model weights, so there is no gradient update on $\hat{\theta}$.</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_u^\text{VAT}(\mathbf{x}, \theta) &= D[p_{\hat{\theta}}(y\mid \mathbf{x}), p_\theta(y\mid \mathbf{x} + r_\text{vadv})] \\
+r_\text{vadv} &= {\arg\max}_{r; \|r\| \leq \epsilon} D[p_{\hat{\theta}}(y\mid \mathbf{x}), p_\theta(y\mid \mathbf{x} + r)]
+\end{aligned}
+$$
+</div>
+<p>The VAT loss applies to both labeled and unlabeled samples. It is a negative smoothness measure of the current model&rsquo;s prediction manifold at each data point. The optimization of such loss motivates the manifold to be smoother.</p>
+<p><strong>Interpolation Consistency Training</strong> (<strong>ICT</strong>; <a href="https://arxiv.org/abs/1903.03825">Verma et al. 2019</a>) enhances the dataset by adding more interpolations of data points and expects the model prediction to be consistent with interpolations of the corresponding labels. MixUp (<a href="https://arxiv.org/abs/1710.09412">Zheng et al. 2018</a>) operation mixes two images via a simple weighted sum and combines it with label smoothing. Following the idea of MixUp, ICT expects the prediction model to produce a label on a mixup sample to match the interpolation of predictions of corresponding inputs:</p>
+<div>
+$$
+\begin{aligned}
+\text{mixup}_\lambda (\mathbf{x}_i, \mathbf{x}_j) &= \lambda \mathbf{x}_i + (1-\lambda)\mathbf{x}_j \\
+p(\text{mixup}_\lambda (y \mid \mathbf{x}_i, \mathbf{x}_j)) &\approx \lambda p(y \mid \mathbf{x}_i) + (1-\lambda) p(y \mid \mathbf{x}_j)
+\end{aligned}
+$$
+</div>
+<p>where $\theta&rsquo;$ is a moving average of $\theta$, which is a <a href="#mean-teachers">mean teacher</a>.</p>
+<figure>
+	<img src="ICT.png" style="width: 100%;"  />
+	<figcaption>Overview of Interpolation Consistency Training. MixUp is applied to produce more interpolated samples with interpolated labels as learning targets. (Image source: <a href="https://arxiv.org/abs/1903.03825" target="_blank">Verma et al. 2019</a>)</figcaption>
+</figure>
+<p>Because the probability of two randomly selected unlabeled samples belonging to different classes is high (e.g. There are 1000 object classes in ImageNet), the interpolation by applying a mixup between two random unlabeled samples is likely to happen around the decision boundary. According to the low-density separation <a href="#hypotheses">assumptions</a>, the decision boundary tends to locate in the low density regions.</p>
+<div>
+$$
+\mathcal{L}^\text{ICT}_{u} = \mathbb{E}_{\mathbf{u}_i, \mathbf{u}_j \sim \mathcal{U}} \mathbb{E}_{\lambda \sim \text{Beta}(\alpha, \alpha)} D[p_\theta(y \mid \text{mixup}_\lambda (\mathbf{u}_i, \mathbf{u}_j)), \text{mixup}_\lambda(p_{\theta’}(y \mid \mathbf{u}_i), p_{\theta'}(y \mid \mathbf{u}_j)]
+$$
+</div>
+<p>where $\theta&rsquo;$ is a moving average of $\theta$.</p>
+<p>Similar to VAT, <strong>Unsupervised Data Augmentation</strong> (<strong>UDA</strong>; <a href="https://arxiv.org/abs/1904.12848">Xie et al. 2020</a>) learns to predict the same output for an unlabeled example and the augmented one. UDA especially focuses on studying how the <em>&ldquo;quality&rdquo;</em> of noise can impact the semi-supervised learning performance with consistency training. It is crucial to use advanced data augmentation methods for producing meaningful and effective noisy samples. Good data augmentation should produce valid (i.e. does not change the label) and diverse noise, and carry targeted inductive biases.</p>
+<p>For images, UDA adopts RandAugment (<a href="https://arxiv.org/abs/1909.13719">Cubuk et al. 2019</a>) which uniformly samples augmentation operations available in <a href="https://pillow.readthedocs.io/en/stable/">PIL</a>, no learning or optimization, so it is much cheaper than AutoAugment.</p>
+<figure>
+	<img src="UDA-image-results.png" style="width: 80%;"  />
+	<figcaption>Comparison of various semi-supervised learning methods on CIFAR-10 classification. Fully supervised Wide-ResNet-28-2 and PyramidNet+ShakeDrop have an error rate of **5.4** and **2.7** respectively when trained on 50,000 examples without RandAugment. (Image source: <a href="https://arxiv.org/abs/1904.12848" target="_blank">Xie et al. 2020</a>)</figcaption>
+</figure>
+<p>For language, UDA combines back-translation and TF-IDF based word replacement. Back-translation preserves the high-level meaning but may not retain certain words, while TF-IDF based word replacement drops uninformative words with low TF-IDF scores. In the experiments on language tasks, they found UDA to be complementary to transfer learning and representation learning; For example, BERT fine-tuned (i.e. $\text{BERT}_\text{FINETUNE}$ in Fig. 8.) on in-domain unlabeled data can further improve the performance.</p>
+<figure>
+	<img src="UDA-language-results.png" style="width: 83%;"  />
+	<figcaption>Comparison of UDA with different initialization configurations on various text classification tasks. (Image source: <a href="https://arxiv.org/abs/1904.12848" target="_blank">Xie et al. 2020</a>)</figcaption>
+</figure>
+<p>When calculating $\mathcal{L}_u$, UDA found two training techniques to help improve the results.</p>
+<ul>
+<li><em>Low confidence masking</em>: Mask out examples with low prediction confidence if lower than a threshold $\tau$.</li>
+<li><em>Sharpening prediction distribution</em>: Use a low temperature $T$ in softmax to sharpen the predicted probability distribution.</li>
+<li><em>In-domain data filtration</em>: In order to extract more in-domain data from a large out-of-domain dataset, they trained a classifier to predict in-domain labels and then retain samples with high confidence predictions as in-domain candidates.</li>
+</ul>
+<div>
+$$
+\begin{aligned}
+&\mathcal{L}_u^\text{UDA} = \mathbb{1}[\max_{y'} p_{\hat{\theta}}(y'\mid \mathbf{x}) > \tau ] \cdot D[p^\text{(sharp)}_{\hat{\theta}}(y \mid \mathbf{x}; T), p_\theta(y \mid \bar{\mathbf{x}})] \\
+&\text{where } p_{\hat{\theta}}^\text{(sharp)}(y \mid \mathbf{x}; T) = \frac{\exp(z^{(y)} / T)}{ \sum_{y'} \exp(z^{(y')} / T) }
+\end{aligned}
+$$
+</div>
+<p>where $\hat{\theta}$ is a fixed copy of model weights, same as in VAT, so no gradient update, and $\bar{\mathbf{x}}$ is the augmented data point. $\tau$ is the prediction confidence threshold and $T$ is the distribution sharpening temperature.</p>
+<h1 id="pseudo-labeling">Pseudo Labeling<a hidden class="anchor" aria-hidden="true" href="#pseudo-labeling">#</a></h1>
+<p><strong>Pseudo Labeling</strong> (<a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.664.3543&amp;rep=rep1&amp;type=pdf">Lee 2013</a>) assigns fake labels to unlabeled samples based on the maximum softmax probabilities predicted by the current model and then trains the model on both labeled and unlabeled samples simultaneously in a pure supervised setup.</p>
+<p>Why could pseudo labels work? Pseudo label is in effect equivalent to <em>Entropy Regularization</em> (<a href="https://papers.nips.cc/paper/2004/hash/96f2b50b5d3613adf9c27049b2a888c7-Abstract.html">Grandvalet &amp; Bengio 2004</a>), which minimizes the conditional entropy of class probabilities for unlabeled data to favor low density separation between classes. In other words, the predicted class probabilities is in fact a measure of class overlap, minimizing the entropy is equivalent to reduced class overlap and thus low density separation.</p>
+<figure>
+	<img src="pseudo-label-segregation.png" style="width: 100%;"  />
+	<figcaption>t-SNE visualization of outputs on MNIST test set by models training (a) without and (b) with pseudo labeling on 60000 unlabeled samples, in addition to 600 labeled data. Pseudo labeling leads to better segregation in the learned embedding space.  (Image source: <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.664.3543&rep=rep1&type=pdf" target="_blank">Lee 2013</a>)</figcaption>
+</figure>
+<p>Training with pseudo labeling naturally comes as an iterative process. We refer to the model that produces pseudo labels as teacher and the model that learns with pseudo labels as student.</p>
+<h2 id="label-propagation">Label propagation<a hidden class="anchor" aria-hidden="true" href="#label-propagation">#</a></h2>
+<p><strong>Label Propagation</strong> (<a href="https://arxiv.org/abs/1904.04717">Iscen et al. 2019</a>) is an idea to construct a similarity graph among samples based on feature embedding. Then the pseudo labels are &ldquo;diffused&rdquo; from known samples to unlabeled ones where the propagation weights are proportional to pairwise similarity scores in the graph. Conceptually it is similar to a k-NN classifier and both suffer from the problem of not scaling up well with a large dataset.</p>
+<figure>
+	<img src="label-propagation.png" style="width: 100%;"  />
+	<figcaption>Illustration of how Label Propagation works. (Image source: <a href="https://arxiv.org/abs/1904.04717" target="_blank">Iscen et al. 2019</a>)</figcaption>
+</figure>
+<h2 id="self-training">Self-Training<a hidden class="anchor" aria-hidden="true" href="#self-training">#</a></h2>
+<p><strong>Self-Training</strong> is not a new concept (<a href="https://ieeexplore.ieee.org/document/1053799">Scudder 1965</a>, <a href="http://www.kamalnigam.com/papers/cotrain-CIKM00.pdf">Nigram &amp; Ghani CIKM 2000</a>). It is an iterative algorithm, alternating between the following two steps until every unlabeled sample has a label assigned:</p>
+<ul>
+<li>Initially it builds a classifier on labeled data.</li>
+<li>Then it uses this classifier to predict labels for the unlabeled data and converts the most confident ones into labeled samples.</li>
+</ul>
+<p><a href="https://arxiv.org/abs/1911.04252">Xie et al. (2020)</a> applied self-training in deep learning and achieved great results. On the ImageNet classification task, they first trained an EfficientNet (<a href="https://arxiv.org/abs/1905.11946">Tan &amp; Le 2019</a>) model as teacher to generate pseudo labels for 300M unlabeled images and then trained a larger EfficientNet as student to learn with both true labeled and pseudo labeled images. One critical element in their setup is to have <em>noise</em> during student model training but have no noise for the teacher to produce pseudo labels. Thus their method is called <strong>Noisy Student</strong>. They applied stochastic depth (<a href="https://arxiv.org/abs/1603.09382">Huang et al. 2016</a>), dropout and RandAugment to noise the student. Noise is important for the student to perform better than the teacher. The added noise has a compound effect to encourage the model&rsquo;s decision making frontier to be smooth, on both labeled and unlabeled data.</p>
+<p>A few other important technical configs in noisy student self-training are:</p>
+<ul>
+<li>The student model should be sufficiently large (i.e. larger than the teacher) to fit more data.</li>
+<li>Noisy student should be paired with data balancing, especially important to balance the number of pseudo labeled images in each class.</li>
+<li>Soft pseudo labels work better than hard ones.</li>
+</ul>
+<p>Noisy student also improves adversarial robustness against an FGSM (Fast Gradient Sign Attack = The attack uses the gradient of the loss w.r.t the input data and adjusts the input data to maximize the loss) attack though the model is not optimized for adversarial robustness.</p>
+<p>SentAugment, proposed by <a href="https://arxiv.org/abs/2010.02194">Du et al. (2020)</a>, aims to solve the problem when there is not enough in-domain unlabeled data for self-training in the language domain. It relies on sentence embedding to find unlabeled in-domain samples from a large corpus and uses the retrieved sentences for self-training.</p>
+<h2 id="reducing-confirmation-bias">Reducing confirmation bias<a hidden class="anchor" aria-hidden="true" href="#reducing-confirmation-bias">#</a></h2>
+<p>Confirmation bias is a problem with incorrect pseudo labels provided by an imperfect teacher model. Overfitting to wrong labels may not give us a better student model.</p>
+<p>To reduce confirmation bias, <a href="https://arxiv.org/abs/1908.02983">Arazo et al. (2019)</a> proposed  two techniques. One is to adopt MixUp with soft labels. Given two samples, $(\mathbf{x}_i, \mathbf{x}_j)$ and their corresponding true or pseudo labels $(y_i, y_j)$, the interpolated label equation can be translated to a cross entropy loss with softmax outputs:</p>
+<div>
+$$
+\begin{aligned}
+&\bar{\mathbf{x}} = \lambda \mathbf{x}_i + (1-\lambda) \mathbf{x}_j \\
+&\bar{y} = \lambda y_i + (1-\lambda) y_j \Leftrightarrow
+\mathcal{L} = \lambda [y_i^\top \log f_\theta(\bar{\mathbf{x}})] + (1-\lambda) [y_j^\top \log f_\theta(\bar{\mathbf{x}})]
+\end{aligned}
+$$
+</div>
+<p>Mixup is insufficient if there are too few labeled samples. They further set a minimum number of labeled samples in every mini batch by oversampling the labeled samples. This works better than upweighting labeled samples, because it leads to more frequent updates rather than few updates of larger magnitude which could be less stable. Like consistency regularization, data augmentation and dropout are also important for pseudo labeling to work well.</p>
+<p><strong>Meta Pseudo Labels</strong> (<a href="https://arxiv.org/abs/2003.10580">Pham et al. 2021</a>) adapts the teacher model constantly with the feedback of how well the student performs on the labeled dataset. The teacher and the student are trained in parallel, where the teacher learns to generate better pseudo labels and the student learns from the pseudo labels.</p>
+<p>Let the teacher and student model weights be $\theta_T$ and $\theta_S$, respectively. The student model&rsquo;s loss on the labeled samples is defined as a function $\theta^\text{PL}_S(.)$ of $\theta_T$ and we would like to minimize this loss by optimizing the teacher model accordingly.</p>
+<div>
+$$
+\begin{aligned}
+\min_{\theta_T} &\mathcal{L}_s(\theta^\text{PL}_S(\theta_T)) = \min_{\theta_T} \mathbb{E}_{(\mathbf{x}^l, y) \in \mathcal{X}} \text{CE}[y, f_{\theta_S}(\mathbf{x}^l)]  \\
+\text{where } &\theta^\text{PL}_S(\theta_T)
+= \arg\min_{\theta_S} \mathcal{L}_u (\theta_T, \theta_S)
+= \arg\min_{\theta_S} \mathbb{E}_{\mathbf{u} \sim \mathcal{U}} \text{CE}[(f_{\theta_T}(\mathbf{u}), f_{\theta_S}(\mathbf{u}))]
+\end{aligned}
+$$
+</div>
+<p>However, it is not trivial to optimize the above equation. Borrowing the idea of <a href="https://arxiv.org/abs/1703.03400">MAML</a>, it approximates the multi-step $\arg\min_{\theta_S}$ with the one-step gradient update of $\theta_S$,</p>
+<div>
+$$
+\begin{aligned}
+\theta^\text{PL}_S(\theta_T) &\approx \theta_S - \eta_S \cdot \nabla_{\theta_S} \mathcal{L}_u(\theta_T, \theta_S) \\
+\min_{\theta_T} \mathcal{L}_s (\theta^\text{PL}_S(\theta_T)) &\approx \min_{\theta_T} \mathcal{L}_s \big( \theta_S - \eta_S \cdot \nabla_{\theta_S} \mathcal{L}_u(\theta_T, \theta_S) \big)
+\end{aligned}
+$$
+</div>
+<p>With soft pseudo labels, the above objective is differentiable. But if using hard pseudo labels, it is not differentiable and thus we need to use RL, e.g. REINFORCE.</p>
+<p>The optimization procedure is alternative between training two models:</p>
+<ul>
+<li><em>Student model update</em>: Given a batch of unlabeled samples $\{ \mathbf{u} \}$, we generate pseudo labels by $f_{\theta_T}(\mathbf{u})$ and optimize $\theta_S$ with one step SGD: $\theta’_S = \color{green}{\theta_S - \eta_S \cdot \nabla_{\theta_S} \mathcal{L}_u(\theta_T, \theta_S)}$.</li>
+<li><em>Teacher model update</em>: Given a batch of labeled samples $\{(\mathbf{x}^l, y)\}$, we reuse the student’s update to optimize $\theta_T$: $\theta’_T = \theta_T  - \eta_T \cdot \nabla_{\theta_T} \mathcal{L}_s ( \color{green}{\theta_S - \eta_S \cdot \nabla_{\theta_S} \mathcal{L}_u(\theta_T, \theta_S)} )$. In addition, the UDA objective is applied to the teacher model to incorporate consistency regularization.</li>
+</ul>
+<figure>
+	<img src="MPL-results.png" style="width: 100%;"  />
+	<figcaption>Comparison of Meta Pseudo Labels with other semi- or self-supervised learning methods on image classification tasks. (Image source: <a href="https://arxiv.org/abs/2003.10580" target="_blank">Pham et al. 2021</a>)</figcaption>
+</figure>
+<h1 id="pseudo-labeling-with-consistency-regularization">Pseudo Labeling with Consistency Regularization<a hidden class="anchor" aria-hidden="true" href="#pseudo-labeling-with-consistency-regularization">#</a></h1>
+<p>It is possible to combine the above two approaches together, running semi-supervised learning with both pseudo labeling and consistency training.</p>
+<h2 id="mixmatch">MixMatch<a hidden class="anchor" aria-hidden="true" href="#mixmatch">#</a></h2>
+<p><strong>MixMatch</strong> (<a href="https://arxiv.org/abs/1905.02249">Berthelot et al. 2019</a>), as a holistic approach to semi-supervised learning, utilizes unlabeled data by merging the following techniques:</p>
+<ol>
+<li><em>Consistency regularization</em>: Encourage the model to output the same predictions on perturbed unlabeled samples.</li>
+<li><em>Entropy minimization</em>: Encourage the model to output confident predictions on unlabeled data.</li>
+<li><em>MixUp</em> augmentation: Encourage the model to have linear behaviour between samples.</li>
+</ol>
+<p>Given a batch of labeled data $\mathcal{X}$ and unlabeled data $\mathcal{U}$, we create augmented versions of them via $\text{MixMatch}(.)$, $\bar{\mathcal{X}}$ and $\bar{\mathcal{U}}$, containing augmented samples and guessed labels for unlabeled examples.</p>
+<div>
+$$
+\begin{aligned}
+\bar{\mathcal{X}}, \bar{\mathcal{U}} &= \text{MixMatch}(\mathcal{X}, \mathcal{U}, T, K, \alpha) \\
+\mathcal{L}^\text{MM}_s &= \frac{1}{\vert \bar{\mathcal{X}} \vert} \sum_{(\bar{\mathbf{x}}^l, y)\in \bar{\mathcal{X}}} D[y, p_\theta(y \mid \bar{\mathbf{x}}^l)] \\
+\mathcal{L}^\text{MM}_u &= \frac{1}{L\vert \bar{\mathcal{U}} \vert} \sum_{(\bar{\mathbf{u}}, \hat{y})\in \bar{\mathcal{U}}} \| \hat{y} - p_\theta(y \mid \bar{\mathbf{u}}) \|^2_2 \\
+\end{aligned}
+$$
+</div>
+<p>where $T$ is the sharpening temperature to reduce the guessed label overlap; $K$ is the number of augmentations generated per unlabeled example; $\alpha$ is the parameter in MixUp.</p>
+<p>For each $\mathbf{u}$, MixMatch generates $K$ augmentations, $\bar{\mathbf{u}}^{(k)} = \text{Augment}(\mathbf{u})$ for $k=1, \dots, K$ and the pseudo label is guessed based on the average: $\hat{y} = \frac{1}{K} \sum_{k=1}^K p_\theta(y \mid \bar{\mathbf{u}}^{(k)})$.</p>
+<figure>
+	<img src="MixMatch.png" style="width: 100%;"  />
+	<figcaption>The process of "label guessing" in MixMatch: averaging $K$ augmentations, correcting the predicted marginal distribution and finally sharpening the distribution. (Image source: <a href="https://arxiv.org/abs/1905.02249" target="_blank">Berthelot et al. 2019</a>)</figcaption>
+</figure>
+<p>According to their ablation studies, it is critical to have MixUp especially on the unlabeled data. Removing temperature sharpening on the pseudo label distribution hurts the performance quite a lot. Average over multiple augmentations for label guessing is also necessary.</p>
+<p><strong>ReMixMatch</strong> (<a href="https://arxiv.org/abs/1911.09785">Berthelot et al. 2020</a>) improves MixMatch by introducing two new mechanisms:</p>
+<figure>
+	<img src="ReMixMatch.png" style="width: 100%;"  />
+	<figcaption>Illustration of two improvements introduced in ReMixMatch over MixMatch. (Image source: <a href="https://arxiv.org/abs/1911.09785" target="_blank">Berthelot et al. 2020</a>)</figcaption>
+</figure>
+<ul>
+<li><em>Distribution alignment.</em> It encourages the marginal distribution $p(y)$ to be close to the marginal distribution of the ground truth labels. Let $p(y)$ be the class distribution in the true labels and $\tilde{p}(\hat{y})$ be a running average of the predicted class distribution among the unlabeled data. The model prediction on an unlabeled sample $p_\theta(y \vert \mathbf{u})$ is normalized to be $\text{Normalize}\big( \frac{p_\theta(y \vert \mathbf{u}) p(y)}{\tilde{p}(\hat{y})} \big)$ to match the true marginal distribution.
+<ul>
+<li>Note that entropy minimization is not a useful objective if the marginal distribution is not uniform.</li>
+<li>I do feel the assumption that the class distributions on the labeled and unlabeled data should match is too strong and not necessarily to be true in the real-world setting.</li>
+</ul>
+</li>
+<li><em>Augmentation anchoring</em>. Given an unlabeled sample, it first generates an &ldquo;anchor&rdquo; version with weak augmentation and then averages $K$ strongly augmented versions using CTAugment (Control Theory Augment). CTAugment only samples augmentations that keep the model predictions within the network tolerance.</li>
+</ul>
+<p>The ReMixMatch loss is a combination of several terms,</p>
+<ul>
+<li>a supervised loss with data augmentation and MixUp applied;</li>
+<li>an unsupervised loss with data augmentation and MixUp applied, using pseudo labels as targets;</li>
+<li>a CE loss on a single heavily-augmented unlabeled image without MixUp;</li>
+<li>a <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/#distortion">rotation</a> loss as in self-supervised learning.</li>
+</ul>
+<h2 id="dividemix">DivideMix<a hidden class="anchor" aria-hidden="true" href="#dividemix">#</a></h2>
+<p><strong>DivideMix</strong> (<a href="https://arxiv.org/abs/2002.07394">Junnan Li et al. 2020</a>) combines semi-supervised learning with Learning with noisy labels (LNL). It models the per-sample loss distribution via a <a href="https://scikit-learn.org/stable/modules/mixture.html">GMM</a> to dynamically divide the training data into a labeled set with clean examples and an unlabeled set with noisy ones. Following the idea in <a href="https://arxiv.org/abs/1904.11238">Arazo et al. 2019</a>, they fit a two-component GMM on the per-sample cross entropy loss $\ell_i = y_i^\top \log f_\theta(\mathbf{x}_i)$. Clean samples are expected to get lower loss faster than noisy samples. The component with smaller mean is the cluster corresponding to clean labels and let’s denote it as $c$. If the GMM posterior probability $w_i = p_\text{GMM}(c \mid \ell_i)$ (i.e. the probability of the sampling belonging to the clean sample set) is larger than the threshold $\tau$, this sample is considered as a clean sample and otherwise a noisy one.</p>
+<p>The data clustering step is named <em>co-divide</em>. To avoid confirmation bias, DivideMix simultaneously trains two diverged networks where each network uses the dataset division from the other network; e.g. thinking about how Double Q Learning works.</p>
+<figure>
+	<img src="DivideMix.png" style="width: 100%;"  />
+	<figcaption>DivideMix trains two networks independently to reduce confirmation bias. They run co-divide, co-refinement, and co-guessing together. (Image source: <a href="https://arxiv.org/abs/2002.07394" target="_blank">Junnan Li et al. 2020</a>)</figcaption>
+</figure>
+<p>Compared to MixMatch, DivideMix has an additional <em>co-divide</em> stage for handling noisy samples, as well as the following improvements during training:</p>
+<ul>
+<li><em>Label co-refinement</em>: It linearly combines the ground-truth label $y_i$ with the network’s prediction $\hat{y}_i$, which is averaged across multiple augmentations of $\mathbf{x}_i$, guided by the clean set probability $w_i$ produced by the other network.</li>
+<li><em>Label co-guessing</em>: It averages the predictions from two models for unlabelled data samples.</li>
+</ul>
+<figure>
+	<img src="DivideMix-algo.png" style="width: 100%;"  />
+	<figcaption>The algorithm of DivideMix. (Image source: <a href="https://arxiv.org/abs/2002.07394" target="_blank">Junnan Li et al. 2020</a>)</figcaption>
+</figure>
+<h2 id="fixmatch">FixMatch<a hidden class="anchor" aria-hidden="true" href="#fixmatch">#</a></h2>
+<p><strong>FixMatch</strong> (<a href="https://arxiv.org/abs/2001.07685">Sohn et al. 2020</a>) generates pseudo labels on unlabeled samples with weak augmentation and only keeps predictions with high confidence. Here both weak augmentation and high confidence filtering help produce high-quality trustworthy pseudo label targets. Then FixMatch learns to predict these pseudo labels given a heavily-augmented sample.</p>
+<figure>
+	<img src="FixMatch.png" style="width: 80%;"  />
+	<figcaption>Illustration of how FixMatch works. (Image source: <a href="https://arxiv.org/abs/2001.07685" target="_blank">Sohn et al. 2020</a>)</figcaption>
+</figure>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_s &= \frac{1}{B} \sum^B_{b=1} \text{CE}[y_b, p_\theta(y \mid \mathcal{A}_\text{weak}(\mathbf{x}_b))] \\
+\mathcal{L}_u &= \frac{1}{\mu B} \sum_{b=1}^{\mu B} \mathbb{1}[\max(\hat{y}_b) \geq \tau]\;\text{CE}(\hat{y}_b, p_\theta(y \mid \mathcal{A}_\text{strong}(\mathbf{u}_b)))
+\end{aligned}
+$$
+</div>
+<p>where $\hat{y}_b$ is the pseudo label for an unlabeled example; $\mu$ is a hyperparameter that determines the relative sizes of $\mathcal{X}$ and $\mathcal{U}$.</p>
+<ul>
+<li>Weak augmentation $\mathcal{A}_\text{weak}(.)$: A standard flip-and-shift augmentation</li>
+<li>Strong augmentation $\mathcal{A}_\text{strong}(.)$ : AutoAugment, Cutout, RandAugment, CTAugment</li>
+</ul>
+<figure>
+	<img src="FixMatch-results.png" style="width: 100%;"  />
+	<figcaption>Performance of FixMatch and several other semi-supervised learning methods on image classification tasks. (Image source: <a href="https://arxiv.org/abs/2001.07685" target="_blank">Sohn et al. 2020</a>)</figcaption>
+</figure>
+<p>According to the ablation studies of FixMatch,</p>
+<ul>
+<li>Sharpening the predicted distribution with a temperature parameter $T$ does not have a significant impact when the threshold $\tau$ is used.</li>
+<li>Cutout and CTAugment as part of strong augmentations are necessary for good performance.</li>
+<li>When the weak augmentation for label guessing is replaced with strong augmentation, the model diverges early in training. If discarding weak augmentation completely, the model overfit the guessed labels.</li>
+<li>Using weak instead of strong augmentation for pseudo label prediction leads to unstable performance. Strong data augmentation is critical.</li>
+</ul>
+<h1 id="combined-with-powerful-pre-training">Combined with Powerful Pre-Training<a hidden class="anchor" aria-hidden="true" href="#combined-with-powerful-pre-training">#</a></h1>
+<p>It is a common paradigm, especially in language tasks, to first pre-train a task-agnostic model on a large unsupervised data corpus via self-supervised learning and then fine-tune it on the downstream task with a small labeled dataset. Research has shown that we can obtain extra gain if combining semi-supervised learning with pretraining.</p>
+<p><a href="https://arxiv.org/abs/2006.06882">Zoph et al. (2020)</a> studied to what degree <a href="#self-training">self-training</a> can work better than pre-training. Their experiment setup was to use ImageNet for pre-training or self-training to improve COCO. Note that when using ImageNet for self-training, it discards labels and only uses ImageNet samples as unlabeled data points. <a href="https://arxiv.org/abs/1811.08883">He et al. (2018)</a> has demonstrated that ImageNet classification pre-training does not work well if the downstream task is very different, such as object detection.</p>
+<figure>
+	<img src="self-training-pre-training.png" style="width: 100%;"  />
+	<figcaption>The effect of (a) data augment (from weak to strong) and (b) the labeled dataset size on the object detection performance. In the legend: `Rand Init` refers to a model initialized w/ random weights; `ImageNet` is initialized with a pre-trained checkpoint at 84.5% top-1 ImageNet accuracy; `ImageNet++` is initialized with a checkpoint with a higher accuracy 86.9%. (Image source: <a href="https://arxiv.org/abs/2006.06882" target="_blank">Zoph et al. 2020</a>)</figcaption>
+</figure>
+<p>Their experiments demonstrated a series of interesting findings:</p>
+<ul>
+<li>The effectiveness of pre-training diminishes with more labeled samples available for the downstream task. Pre-training is helpful in the low-data regimes (20%) but neutral or harmful in the high-data regime.</li>
+<li>Self-training helps in high data/strong augmentation regimes, even when pre-training hurts.</li>
+<li>Self-training can bring in additive improvement on top of pre-training, even using the same data source.</li>
+<li>Self-supervised pre-training (e.g. via SimCLR) hurts the performance in a high data regime, similar to how supervised pre-training does.</li>
+<li>Joint-training supervised and self-supervised objectives help resolve the mismatch between the pre-training and downstream tasks. Pre-training, joint-training and self-training are all additive.</li>
+<li>Noisy labels or un-targeted labeling (i.e. pre-training labels are not aligned with downstream task labels) is worse than targeted pseudo labeling.</li>
+<li>Self-training is computationally more expensive than fine-tuning on a pre-trained model.</li>
+</ul>
+<p><a href="https://arxiv.org/abs/2006.10029">Chen et al. (2020)</a> proposed a three-step procedure to merge the benefits of self-supervised pretraining, supervised fine-tuning and self-training together:</p>
+<ol>
+<li>Unsupervised or self-supervised pretrain a big model.</li>
+<li>Supervised fine-tune it on a few labeled examples. It is important to use a big (deep and wide) neural network. <em>Bigger models yield better performance with fewer labeled samples.</em></li>
+<li>Distillation with unlabeled examples by adopting pseudo labels in self-training.
+<ul>
+<li>It is possible to distill the knowledge from a large model into a small one because the task-specific use does not require extra capacity of the learned representation.</li>
+<li>The distillation loss is formatted as the following, where the teacher network is fixed with weights $\hat{\theta}_T$.</li>
+</ul>
+</li>
+</ol>
+<div>
+     $$
+     \mathcal{L}_\text{distill} = - (1-\alpha) \underbrace{\sum_{(\mathbf{x}^l_i, y_i) \in \mathcal{X}} \big[ \log p_{\theta_S}(y_i \mid \mathbf{x}^l_i) \big]}_\text{Supervised loss} - \alpha \underbrace{\sum_{\mathbf{u}_i \in \mathcal{U}} \Big[ \sum_{i=1}^L p_{\hat{\theta}_T}(y^{(i)} \mid \mathbf{u}_i; T) \log p_{\theta_S}(y^{(i)} \mid \mathbf{u}_i; T) \Big]}_\text{Distillation loss using unlabeled data}
+     $$
+     </div>
+<figure>
+	<img src="big-self-supervised-model.png" style="width: 85%;"  />
+	<figcaption>A semi-supervised learning framework leverages unlabeled data corpus by (Left) task-agnostic unsupervised pretraining and (Right) task-specific self-training and distillation. (Image source: <a href="https://arxiv.org/abs/2006.10029" target="_blank">Chen et al. 2020</a>)</figcaption>
+</figure>
+<p>They experimented on the ImageNet classification task. The self-supervised pre-training uses SimCLRv2, a directly improved version of <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/#simclr">SimCLR</a>. Observations in their empirical studies confirmed several learnings, aligned with <a href="https://arxiv.org/abs/2006.06882">Zoph et al. 2020</a>:</p>
+<ul>
+<li>Bigger models are more label-efficient;</li>
+<li>Bigger/deeper project heads in SimCLR improve representation learning;</li>
+<li>Distillation using unlabeled data improves semi-supervised learning.</li>
+</ul>
+<figure>
+	<img src="big-self-supervised-model-results.png" style="width: 85%;"  />
+	<figcaption>Comparison of performance by SimCLRv2 + semi-supervised distillation on ImageNet classification. (Image source: <a href="https://arxiv.org/abs/2006.10029" target="_blank">Chen et al. 2020</a>)</figcaption>
+</figure>
+<hr>
+<p>💡 Quick summary of common themes among recent semi-supervised learning methods, many aiming to reduce confirmation bias:</p>
+<ul>
+<li>Apply valid and diverse noise to samples by advanced data augmentation methods.</li>
+<li>When dealing with images, MixUp is an effective augmentation. Mixup could work on language too, resulting in a small incremental improvement (<a href="https://arxiv.org/abs/1905.08941">Guo et al. 2019</a>).</li>
+<li>Set a threshold and discard pseudo labels with low confidence.</li>
+<li>Set a minimum number of labeled samples per mini-batch.</li>
+<li>Sharpen the pseudo label distribution to reduce the class overlap.</li>
+</ul>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Dec 2021). Learning with not enough data part 1: semi-supervised learning. Lil&rsquo;Log. https://lilianweng.github.io/posts/2021-12-05-semi-supervised/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2021semi,
+  title   = &#34;Learning with not Enough Data Part 1: Semi-Supervised Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2021&#34;,
+  month   = &#34;Dec&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2021-12-05-semi-supervised/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Ouali, Hudelot &amp; Tami. <a href="https://arxiv.org/abs/2006.05278">“An Overview of Deep Semi-Supervised Learning”</a> arXiv preprint arXiv:2006.05278 (2020).</p>
+<p>[2] Sajjadi, Javanmardi &amp; Tasdizen <a href="https://arxiv.org/abs/1606.04586">“Regularization With Stochastic Transformations and Perturbations for Deep Semi-Supervised Learning.”</a> arXiv preprint arXiv:1606.04586 (2016).</p>
+<p>[3] Pham et al. <a href="https://arxiv.org/abs/2003.10580">“Meta Pseudo Labels.”</a> CVPR 2021.</p>
+<p>[4] Laine &amp; Aila. <a href="https://arxiv.org/abs/1610.02242">“Temporal Ensembling for Semi-Supervised Learning”</a> ICLR 2017.</p>
+<p>[5] Tarvaninen &amp; Valpola. <a href="https://arxiv.org/abs/1703.01780">“Mean teachers are better role models: Weight-averaged consistency targets improve semi-supervised deep learning results.”</a> NeuriPS 2017</p>
+<p>[6] Xie et al. <a href="https://arxiv.org/abs/1904.12848">“Unsupervised Data Augmentation for Consistency Training.”</a> NeuriPS 2020.</p>
+<p>[7] Miyato et al. <a href="https://arxiv.org/abs/1704.03976">“Virtual Adversarial Training: A Regularization Method for Supervised and Semi-Supervised Learning.”</a> IEEE transactions on pattern analysis and machine intelligence 41.8 (2018).</p>
+<p>[8] Verma et al. <a href="https://arxiv.org/abs/1903.03825">“Interpolation consistency training for semi-supervised learning.”</a> IJCAI 2019</p>
+<p>[9] Lee. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.664.3543&amp;rep=rep1&amp;type=pdf">“Pseudo-label: The simple and efficient semi-supervised learning method for deep neural networks.”</a> ICML 2013 Workshop: Challenges in Representation Learning.</p>
+<p>[10] Iscen et al. <a href="https://arxiv.org/abs/1904.04717">“Label propagation for deep semi-supervised learning.”</a> CVPR 2019.</p>
+<p>[11] Xie et al. <a href="https://arxiv.org/abs/1911.04252">“Self-training with Noisy Student improves ImageNet classification”</a> CVPR 2020.</p>
+<p>[12] Jingfei Du et al. <a href="https://arxiv.org/abs/2010.02194">“Self-training Improves Pre-training for Natural Language Understanding.”</a> 2020</p>
+<p>[13] Iscen et al. <a href="https://arxiv.org/abs/1904.04717">“Label propagation for deep semi-supervised learning.”</a> CVPR 2019</p>
+<p>[14] Arazo et al. <a href="https://arxiv.org/abs/1908.02983">“Pseudo-labeling and confirmation bias in deep semi-supervised learning.”</a> IJCNN 2020.</p>
+<p>[15] Berthelot et al. <a href="https://arxiv.org/abs/1905.02249">“MixMatch: A holistic approach to semi-supervised learning.”</a> NeuriPS 2019</p>
+<p>[16] Berthelot et al. <a href="https://arxiv.org/abs/1911.09785">“ReMixMatch: Semi-supervised learning with distribution alignment and augmentation anchoring.”</a> ICLR 2020</p>
+<p>[17] Sohn et al. <a href="https://arxiv.org/abs/2001.07685">“FixMatch: Simplifying semi-supervised learning with consistency and confidence.”</a>  CVPR 2020</p>
+<p>[18] Junnan Li et al. <a href="https://arxiv.org/abs/2002.07394">“DivideMix: Learning with Noisy Labels as Semi-supervised Learning.”</a> 2020 [<a href="https://github.com/LiJunnan1992/DivideMix">code</a>]</p>
+<p>[19] Zoph et al. <a href="https://arxiv.org/abs/2006.06882">“Rethinking pre-training and self-training.”</a> 2020.</p>
+<p>[20] Chen et al. <a href="https://arxiv.org/abs/2006.10029">“Big Self-Supervised Models are Strong Semi-Supervised Learners”</a> 2020</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/data/">Data</a></li>
+      <li><a href="https://lilianweng.github.io/tags/unsupervised-learning/">Unsupervised-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/">
+    <span class="title">« </span>
+    <br>
+    <span>Learning with not Enough Data Part 2: Active Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2021-09-25-train-large/">
+    <span class="title"> »</span>
+    <br>
+    <span>How to Train Really Large Models on Many GPUs?</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f&amp;hashtags=data%2cunsupervised-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f&amp;title=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning&amp;summary=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f&title=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 1: Semi-Supervised Learning on telegram"
+        href="https://telegram.me/share/url?text=Learning%20with%20not%20Enough%20Data%20Part%201%3a%20Semi-Supervised%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2021-12-05-semi-supervised%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

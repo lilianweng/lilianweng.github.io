@@ -1,0 +1,958 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{How to Build an Open-Domain Question Answering System?}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+
+\hypersetup{
+    pdftitle={How to Build an Open-Domain Question Answering System?},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={general},
+    pdfsubject={Example PDF generated from LaTeX},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+
+\title{How to Build an Open-Domain Question Answering System?}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2020-10-29-odqa/} \\
+    \textbf{Date:} \quad
+    \textbf{Estimated Reading Time:}  min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2020-10-29-odqa/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+
+\href{https://lilianweng.github.io/}{Lil\textquotesingle Log}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbar{}
+\end{itemize}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/}{{Posts}}
+\item
+  \href{https://lilianweng.github.io/archives}{{Archive}}
+\item
+  \href{https://lilianweng.github.io/search/}{{Search}}
+\item
+  \href{https://lilianweng.github.io/tags/}{{Tags}}
+\item
+  \href{https://lilianweng.github.io/faq}{{FAQ}}
+\end{itemize}
+
+\section{How to Build an Open-Domain Question Answering System?}\label{how-to-build-an-open-domain-question-answering-system}
+
+Date: October 29, 2020 \textbar{} Estimated Reading Time: 33 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[what-is-open-domain-question-answering]{What is Open-Domain Question Answering?}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[notation]{Notation}
+  \item
+    \hyperref[concerns-of-qa-data-fine-tuning]{Concerns of QA data fine-tuning}
+  \end{itemize}
+\item
+  \hyperref[open-book-qa-retriever-reader]{Open-book QA: Retriever-Reader}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[retriever-model]{Retriever Model}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[classic-ir]{Classic IR}
+    \item
+      \hyperref[neural-ir]{Neural IR}
+    \end{itemize}
+  \item
+    \hyperref[reader-model]{Reader Model}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \hyperref[bi-directional-lstm]{Bi-directional LSTM}
+    \item
+      \hyperref[bert-universe]{BERT-universe}
+    \end{itemize}
+  \item
+    \hyperref[end-to-end-joint-training]{End-to-end Joint Training}
+  \end{itemize}
+\item
+  \hyperref[open-book-qa-retriever-generator]{Open-book QA: Retriever-Generator}
+\item
+  \hyperref[closed-book-qa-generative-language-model]{Closed-book QA: Generative Language Model}
+\item
+  \hyperref[related-techniques]{Related Techniques}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[fast-maximum-inner-product-search-mips]{Fast Maximum Inner Product Search (MIPS)}
+  \item
+    \hyperref[language-model-pre-training]{Language Model Pre-training}
+  \end{itemize}
+\item
+  \hyperref[summary]{Summary}
+\item
+  \hyperref[citation]{Citation}
+\item
+  \hyperref[appendix-qa-datasets]{Appendix: QA Datasets}
+\item
+  \hyperref[references]{References}
+\end{itemize}
+
+{{[}Updated on 2020-11-12: add \hyperref[openai-api-example]{an example} on closed-book factual QA using OpenAI API (beta).}
+
+A model that can answer any question with regard to factual knowledge can lead to many useful and practical applications, such as working as a chatbot or an AI assistant🤖. In this post, we will review several common approaches for building such an open-domain question answering system.
+
+Disclaimers given so many papers in the wild:
+
+\begin{itemize}
+\tightlist
+\item
+  Assume we have access to a powerful pretrained \href{https://lilianweng.github.io/posts/2019-01-31-lm/}{language model}.
+\item
+  We do not cover how to use structured knowledge base (e.g. Freebase, WikiData) here.
+\item
+  We only focus on a single-turn QA instead of a multi-turn conversation style QA.
+\item
+  We mostly focus on QA models that contain neural networks, specially Transformer-based language models.
+\item
+  I admit that I missed a lot of papers with architectures designed specifically for QA tasks between 2017-2019😔
+\end{itemize}
+
+\section{\texorpdfstring{What is Open-Domain Question Answering?\hyperref[what-is-open-domain-question-answering]{\#}}{What is Open-Domain Question Answering?\#}}\label{what-is-open-domain-question-answering}
+
+\textbf{Open-domain Question Answering (ODQA)} is a type of language tasks, asking a model to produce answers to factoid questions in natural language. The true answer is objective, so it is simple to evaluate model performance.
+
+For example,
+
+\begin{verbatim}
+Question: What did Albert Einstein win the Nobel Prize for?
+Answer: The law of the photoelectric effect.
+\end{verbatim}
+
+The ``open-domain'' part refers to the lack of the relevant context for any arbitrarily asked factual question. In the above case, the model only takes as the input the question but no article about ``why Einstein didn't win a Nobel Prize for the theory of relativity'' is provided, where the term ``the law of the photoelectric effect'' is likely mentioned. In the case when both the question and the context are provided, the task is known as \textbf{Reading comprehension (RC)}.
+
+An ODQA model may work with or without \emph{access to an external source of knowledge} (e.g. Wikipedia) and these two conditions are referred to as \emph{open-book} or \emph{closed-book} question answering, respectively.
+
+When considering different types of open-domain questions, I like the classification by \href{https://arxiv.org/abs/2008.02637}{Lewis, et al., 2020}, in increasing order of difficulty:
+
+\begin{enumerate}
+\tightlist
+\item
+  A model is able to correctly memorize and respond with the answer to a question that has been seen at training time.
+\item
+  A model is able to answer novel questions at test time and choose an answer from the set of answers it has seen during training.
+\item
+  A model is able to answer novel questions which have answers not contained in the training dataset.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\includegraphics{QA-summary.png}
+\caption{Overview of three frameworks discussed in this post.}
+\end{figure}
+
+\subsection{\texorpdfstring{Notation\hyperref[notation]{\#}}{Notation\#}}\label{notation}
+
+Given a question \$x\$ and a ground truth answer span \$y\$, the context passage containing the true answer is labelled as \$z \textbackslash in \textbackslash mathcal\{Z\}\$, where \$\textbackslash mathcal\{Z\}\$ is an external knowledge corpus. Wikipedia is a common choice for such an external knowledge source.
+
+\subsection{\texorpdfstring{Concerns of QA data fine-tuning\hyperref[concerns-of-qa-data-fine-tuning]{\#}}{Concerns of QA data fine-tuning\#}}\label{concerns-of-qa-data-fine-tuning}
+
+Before we dive into the details of many models below. I would like to point out one concern of fine-tuning a model with common QA datasets, which appears as one fine-tuning step in several ODQA models. It could be concerning, because there is a significant overlap between questions in the train and test sets in several public QA datasets.
+
+\href{https://arxiv.org/abs/2008.02637}{Lewis, et al., (2020)} (\href{https://github.com/facebookresearch/QA-Overlap}{code}) found that 58-71\% of test-time answers are also present somewhere in the training sets and 28-34\% of test-set questions have a near-duplicate paraphrase in their corresponding training sets. In their experiments, several models performed notably worse when duplicated or paraphrased questions were removed from the training set.
+
+\section{\texorpdfstring{Open-book QA: Retriever-Reader\hyperref[open-book-qa-retriever-reader]{\#}}{Open-book QA: Retriever-Reader\#}}\label{open-book-qa-retriever-reader}
+
+Given a factoid question, if a language model has no context or is not big enough to memorize the context which exists in the training dataset, it is unlikely to guess the correct answer. In an open-book exam, students are allowed to refer to external resources like notes and books while answering test questions. Similarly, a ODQA system can be paired with a rich knowledge base to identify relevant documents as evidence of answers.
+
+We can decompose the process of finding answers to given questions into two stages,
+
+\begin{enumerate}
+\tightlist
+\item
+  Find the related context in an external repository of knowledge;
+\item
+  Process the retrieved context to \emph{extract} an answer.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\includegraphics{QA-retriever-reader.png}
+\caption{The retriever-reader QA framework combines information retrieval with machine reading comprehension.}
+\end{figure}
+
+Such a retriever + reader framework was first proposed in \textbf{DrQA} (``Document retriever Question-Answering'' by \href{https://arxiv.org/abs/1704.00051}{Chen et al., 2017}; \href{https://github.com/facebookresearch/DrQA}{code}). The retriever and the reader components can be set up and trained independently, or jointly trained \hyperref[end-to-end-joint-training]{end-to-end}.
+
+\subsection{\texorpdfstring{Retriever Model\hyperref[retriever-model]{\#}}{Retriever Model\#}}\label{retriever-model}
+
+Two popular approaches for implementing the retriever is to use the information retrieval (IR) system that depends on (1) the classic non-learning-based \href{https://en.wikipedia.org/wiki/Tf\%E2\%80\%93idf}{TF-IDF} features (``classic IR'') or (2) dense embedding vectors of text produced by neural networks (``neural IR'').
+
+\subsubsection{\texorpdfstring{Classic IR\hyperref[classic-ir]{\#}}{Classic IR\#}}\label{classic-ir}
+
+\textbf{DrQA} (\href{https://arxiv.org/abs/1704.00051}{Chen et al., 2017}) adopts an efficient non-learning-based search engine based on the \href{https://en.wikipedia.org/wiki/Vector_space_model}{vector space model}. Every query and document is modelled as a bag-of-word vector, where each term is weighted by TF-IDF (term frequency \$\textbackslash times\$ inverse document frequency).
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash text\{tf-idf\}(t, d, \textbackslash mathcal\{D\}) \&= \textbackslash text\{tf\}(t, d) \textbackslash times \textbackslash text\{idf\}(t, \textbackslash mathcal\{D\}) \textbackslash\textbackslash{} \textbackslash text\{tf\}(t, d) \&= \textbackslash log(1 + \textbackslash text\{freq\}(t, d)) \textbackslash\textbackslash{} \textbackslash text\{idf\}(t, \textbackslash mathcal\{D\}) \&= \textbackslash log \textbackslash Big( \textbackslash frac\{\textbackslash vert\textbackslash mathcal\{D\}\textbackslash vert\}\{\textbackslash vert d\textbackslash in\textbackslash mathcal\{D\}: t\textbackslash in d\textbackslash vert\} \textbackslash Big) \textbackslash end\{aligned\} \$\$
+
+where \$t\$ is a unigram or bigram term in a document \$d\$ from a collection of documents \$\textbackslash mathcal\{D\}\$ . \$\textbackslash text\{freq\}(t, d)\$ measures how many times a term \$t\$ appears in \$d\$. Note that the term-frequency here includes bigram counts too, which is found to be very helpful because the local word order is taken into consideration via bigrams. As part of the implementation, DrQA maps the bigrams of \$2\^{}\{24\}\$ bins using unsigned murmur3 hash.
+
+Precisely, DrQA implemented Wikipedia as its knowledge source and this choice has became a default setting for many ODQA studies since then. The non-ML document retriever returns the top \$k=5\$ most relevant Wikipedia articles given a question.
+
+\textbf{BERTserini} (\href{https://arxiv.org/abs/1902.01718}{Yang et al., 2019}) pairs the open-source \href{https://github.com/castorini/anserini}{\emph{Anserini}} IR toolkit as the retriever with a fine-tuned pre-trained BERT model as the reader. The top \$k\$ documents (\$k=10\$) are retrieved via the \texttt{post-v3.0} branch of Anserini with the query treated as a bag of words. The retrieved text segments are ranked by \href{https://en.wikipedia.org/wiki/Okapi_BM25}{BM25}, a classic TF-IDF-based retrieval scoring function. In terms of the effect of text granularity on performance, they found that paragraph retrieval \textgreater{} sentence retrieval \textgreater{} article retrieval.
+
+\begin{figure}
+\centering
+\includegraphics{BERTserini-arch.png}
+\caption{An illustration of BERTserini architecture. (Image source: \href{https://arxiv.org/abs/1902.01718}{Yang et al., 2019})}
+\end{figure}
+
+\emph{ElasticSearch + BM25} is used by the \textbf{Multi-passage BERT} QA model (\href{https://arxiv.org/abs/1908.08167}{Wang et al., 2019}). They found that splitting articles into passages with the length of 100 words by \emph{sliding window} brings 4\% improvements, since splitting documents into passages without overlap may cause some near-boundary evidence to lose useful contexts.
+
+\subsubsection{\texorpdfstring{Neural IR\hyperref[neural-ir]{\#}}{Neural IR\#}}\label{neural-ir}
+
+There is a long history in learning a low-dimensional representation of text, denser than raw term-based vectors (\href{http://lsa.colorado.edu/papers/JASIS.lsi.90.pdf}{Deerwester et al., 1990}; \href{https://www.aclweb.org/anthology/W11-0329/}{Yih, et al., 2011}). Dense representations can be learned through matrix decomposition or some neural network architectures (e.g. MLP, LSTM, bidirectional LSTM, etc). When involving neural networks, such approaches are referred to as ``Neural IR'', Neural IR is a new category of methods for retrieval problems, but it is not necessary to perform better/superior than classic IR (\href{https://sigir.org/wp-content/uploads/2019/01/p040.pdf}{Lim, 2018}).
+
+After the success of many large-scale \href{https://lilianweng.github.io/posts/2019-01-31-lm/}{general language models}, many QA models embrace the following approach:
+
+\$\$ h\_x = E\_x(x)\textbackslash quad h\_z = E\_z(z)\textbackslash quad \textbackslash text\{score\}(x, z) = h\_x\^{}\textbackslash top h\_z \$\$
+
+\begin{enumerate}
+\tightlist
+\item
+  Extract the dense representations of a question \$x\$ and a context passage \$z\$ by feeding them into a language model;
+\item
+  Use the dot-product of these two representations as the retrieval score to rank and select most relevant passages.
+\end{enumerate}
+
+ORQA, REALM and DPR all use such a scoring function for context retrieval, which will be described in detail in a \hyperref[end-to-end-joint-training]{later section} on the end-to-end QA model.
+
+An extreme approach, investigated by \textbf{DenSPI} (``Dense-Sparse Phrase Index''; \href{https://arxiv.org/abs/1906.05807}{Seo et al., 2019}), is to encode all the text in the knowledge corpus at the \emph{phrase} level and then only rely on the retriever to identify the most relevant phrase as the predicted answer. In this way, the retriever+reader pipeline is reduced to only retriever. Of course, the index would be much larger and the retrieval problem is more challenging.
+
+DenSPI introduces a \emph{query-agnostic} indexable representation of document phrases. Precisely it encodes query-agnostic representations of text spans in Wikipedia offline and looks for the answer at inference time by performing nearest neighbor search. It can drastically speed up the inference time, because there is no need to re-encode documents for every new query, which is often required by a reader model.
+
+Given a question \$x\$ and a fixed set of (Wikipedia) documents, \$z\_1, \textbackslash dots, z\_K\$ and each document \$z\_k\$ contains \$N\_k\$ words, \$z\_k = \textbackslash langle z\_k\^{}\{(1)\}, \textbackslash dots, z\_k\^{}\{(N\_k)\}\textbackslash rangle\$. An ODQA model is a scoring function \$F\$ for each candidate phrase span \$z\_k\^{}\{(i:j)\}, 1 \textbackslash leq i \textbackslash leq j \textbackslash leq N\_k\$, such that the truth answer is the phrase with maximum score: \$y = \{\textbackslash arg\textbackslash max\}\_\{k,i,j\} F(x, z\_k\^{}\{(i:j)\})\$.
+
+The phrase representation \$z\_k\^{}\{(i:j)\}\$ combines both dense and sparse vectors, \$z\_k\^{}\{(i:j)\} = {[}d\_k\^{}\{(i:j)\}, s\_k\^{}\{(i:j)\}{]} \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\^{}d + d\^{}s\}\$ (note that \$d\^{}d \textbackslash ll d\^{}s\$):
+
+\begin{itemize}
+\tightlist
+\item
+  The dense vector \$d\_k\^{}\{(i:j)\}\$ is effective for encoding local \emph{syntactic} and \emph{semantic} cues, as what can be learned by a pretrained language model.
+\item
+  The sparse vector \$s\_k\^{}\{(i:j)\}\$ is superior at encoding precise \emph{lexical} information. The sparse vector is term-frequency-based encoding. DenSPI uses 2-gram term-frequency same as DrQA, resulting a highly sparse representation (\$d\^{}s \textbackslash approx 16\$M)
+\end{itemize}
+
+The dense vector \$d\^{}\{(i:j)\}\$ is further decomposed into three parts, \$d\^{}\{(i:j)\} = {[}a\_i, b\_j, c\_\{ij\}{]} \textbackslash in \textbackslash mathbb\{R\}\^{}\{2d\^{}b + 1\}\$ where \$2d\^{}b + 1 = d\^{}d\$. All three components are learned based on different columns of the fine-tuned BERT representations.
+
+\begin{itemize}
+\tightlist
+\item
+  A vector \$a\_i\$ encodes the \emph{start} position for the \$i\$-th word of the document;
+\item
+  A vector \$b\_j\$ encodes the \emph{end} position for the \$j\$-th word of the document;
+\item
+  A scalar \$c\_\{ij\}\$ measures the \emph{coherency} between the start and the end vectors, helping avoid non-constituent phrases during inference.
+\end{itemize}
+
+For all possible \$(i,j,k)\$ tuples where \$j-i \textless{} J\$, the text span embeddings are precomputed and stored as a \emph{phrase index}. The maximum span length \$J\$ is a predefined scalar constant.
+
+\begin{figure}
+\centering
+\includegraphics{DenSPI-arch.png}
+\caption{An illustration of Dense-Sparse Phrase Index (DenSPI) architecture. (Image source: \href{https://arxiv.org/abs/1906.05807}{Seo et al., 2019})}
+\end{figure}
+
+At the inference time, the question is mapped into the same vector space \$x={[}d', s'{]} \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\^{}d + d\^{}s\}\$, where the dense vector \$d'\$ is extracted from the BERT embedding of the special \texttt{{[}CLS{]}} symbol. The same BERT model is shared for encoding both questions and phrases. The final answer is predicted by \$k\^{}*, i\^{}*, j\^{}* = \textbackslash arg\textbackslash max x\^{}\textbackslash top z\_k\^{}\{(i:j)\}\$.
+
+\subsection{\texorpdfstring{Reader Model\hyperref[reader-model]{\#}}{Reader Model\#}}\label{reader-model}
+
+The reader model learns to solve the reading comprehension task --- extract an answer for a given question from a given context document. Here we only discuss approaches for machine comprehension using neural networks.
+
+\subsubsection{\texorpdfstring{Bi-directional LSTM\hyperref[bi-directional-lstm]{\#}}{Bi-directional LSTM\#}}\label{bi-directional-lstm}
+
+The reader model for answer detection of \textbf{DrQA} (\href{https://arxiv.org/abs/1704.00051}{Chen et al., 2017}) is a 3-layer bidirectional LSTM with hidden size 128. Every relevant paragraph of retrieved Wikipedia articles is encoded by a sequence of feature vector, \$\textbackslash\{\textbackslash tilde\{\textbackslash mathbf\{z\}\}\_1, \textbackslash dots, \textbackslash tilde\{\textbackslash mathbf\{z\}\}\_m \textbackslash\}\$. Each feature vector \$\textbackslash hat\{\textbackslash mathbf\{z\}\}\_i \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\_z\}\$ is expected to capture useful contextual information around one token \$z\_i\$. The feature consists of several categories of features:
+
+\begin{enumerate}
+\tightlist
+\item
+  Word embeddings: A 300d \href{https://lilianweng.github.io/posts/2017-10-15-word-embedding/\#glove-global-vectors}{Glove} word embedding trained from 800B Web crawl data, \$f\_\textbackslash text\{embed\} = E\_g(z\_i)\$.
+\item
+  Exact match: Whether a word \$z\_i\$ appears in the question \$x\$, \$f\_\textbackslash text\{match\} = \textbackslash mathbb\{I\}(z\_i \textbackslash in x)\$.
+\item
+  Token features: This includes POS (part-of-speech) tagging, NER (named entity recognition), and TF (term-frequency), \$f\_\textbackslash text\{token\}(z\_i) = (\textbackslash text\{POS\}(z\_i), \textbackslash text\{NER\}(z\_i), \textbackslash text\{TF\}(z\_i))\$.
+\item
+  Aligned question embedding: The attention score \$y\_\{ij\}\$ is designed to capture inter-sentence matching and similarity between the paragraph token \$z\_i\$ and the question word \$x\_j\$. This feature adds soft alignments between similar but non-identical words.
+\end{enumerate}
+
+\$\$ \textbackslash begin\{aligned\} f\_\textbackslash text\{align\}(z\_i) \&= \textbackslash sum\_j y\_\{i,j\} E\_g(x\_j) \textbackslash\textbackslash{} y\_\{i,j\} \&= \textbackslash frac\{\textbackslash exp(\textbackslash alpha(E\_g(z\_i))\^{}\textbackslash top \textbackslash alpha(E\_g(x\_j)) )\}\{\textbackslash sum\_\{j\textquotesingle\} \textbackslash exp(\textbackslash alpha(E\_g(z\_i))\^{}\textbackslash top \textbackslash alpha(E\_g(x\_\{j\textquotesingle\})) ) \} \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash alpha\$ is a single dense layer with ReLU and \$E\_g(.)\$ is the glove word embedding.
+
+The feature vector of a paragraph of \$m\$ tokens is fed into LSTM to obtain the final paragraph vectors:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{z\} = \textbackslash\{\textbackslash mathbf\{z\}\_1, \textbackslash dots, \textbackslash mathbf\{z\}\_m\textbackslash\} \&= \textbackslash text\{LSTM\}(\textbackslash\{\textbackslash tilde\{\textbackslash mathbf\{z\}\}\_1, \textbackslash dots, \textbackslash tilde\{\textbackslash mathbf\{z\}\}\_m\textbackslash\}) \textbackslash\textbackslash{} \textbackslash text\{where \} \textbackslash tilde\{\textbackslash mathbf\{z\}\}\_i \&= \textbackslash\{f\_\textbackslash text\{embed\}, f\_\textbackslash text\{match\}, f\_\textbackslash text\{token\}, f\_\textbackslash text\{align\}\textbackslash\} \textbackslash end\{aligned\} \$\$
+
+The question is encoded as a weighted sum of the embeddings of every word in the question:
+
+\$\$ \textbackslash mathbf\{x\} = \textbackslash sum\_j b\_j E(x\_j) \textbackslash quad b\_j = \textbackslash text\{softmax\}(\textbackslash mathbf\{w\}\^{}\textbackslash top E(x\_j)) \$\$
+
+where \$\textbackslash mathbf\{w\}\$ is a weight vector to learn.
+
+Once the feature vectors are constructed for the question and all the related paragraphs, the reader needs to predict the probabilities of each position in a paragraph to be the start and the end of an answer span, \$p\_\textbackslash text\{start\}(i\_s)\$ and \$p\_\textbackslash text\{end\}(i\_s)\$, respectively. Across all the paragraphs, the optimal span is returned as the final answer with maximum \$p\_\textbackslash text\{start\}(i\_s) \textbackslash times p\_\textbackslash text\{end\}(i\_e) \$.
+
+\$\$ \textbackslash begin\{aligned\} p\_\textbackslash text\{start\}(i\_s) \textbackslash propto \textbackslash exp(\textbackslash mathbf\{z\}\_\{i\_s\} \textbackslash mathbf\{W\}\_s \textbackslash mathbf\{x\}) \textbackslash\textbackslash{} p\_\textbackslash text\{end\}(i\_e) \textbackslash propto \textbackslash exp(\textbackslash mathbf\{z\}\_\{i\_e\} \textbackslash mathbf\{W\}\_e \textbackslash mathbf\{x\}) \textbackslash\textbackslash{} \textbackslash text\{ s.t. \} i\_s \textbackslash leq i\_e \textbackslash leq i\_s + 15 \textbackslash end\{aligned\} \$\$
+
+where \$\textbackslash mathbf\{W\}\_s\$ and \$\textbackslash mathbf\{W\}\_e\$ are learned parameters.
+
+\subsubsection{\texorpdfstring{BERT-universe\hyperref[bert-universe]{\#}}{BERT-universe\#}}\label{bert-universe}
+
+Following the success of \href{https://lilianweng.github.io/posts/2019-01-31-lm/\#bert}{BERT} (\href{https://arxiv.org/abs/1810.04805}{Devlin et al., 2018}), many QA models develop the machine comprehension component based on BERT. Let's define the BERT model as a function that can take one or multiple strings (concatenated by \texttt{{[}SEP{]}}) as input and outputs a set of BERT encoding vectors for the special \texttt{{[}CLS{]}} token and every input token:
+
+\$\$ \textbackslash text\{BERT\}(s\_1, s\_2, \textbackslash dots) = {[}\textbackslash mathbf\{h\}\^{}\textbackslash texttt\{{[}CLS{]}\}, \textbackslash mathbf\{h\}\^{}\{(1)\}, \textbackslash mathbf\{h\}\^{}\{(2)\}, \textbackslash dots{]} \$\$
+
+where \$\textbackslash mathbf\{h\}\^{}\textbackslash texttt\{{[}CLS{]}\}\$ is the embedding vector for the special \texttt{{[}CLS{]}} token and \$\textbackslash mathbf\{h\}\^{}\{(i)\}\$ is the embedding vector for the \$i\$-th token.
+
+To use BERT for reading comprehension, it learns two additional weights, \$\textbackslash mathbf\{W\}\_s\$ and \$\textbackslash mathbf\{W\}\_e\$, and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\{(i)\}\textbackslash mathbf\{W\}\_s)\$ and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\{(i)\}\textbackslash mathbf\{W\}\_e)\$ define two probability distributions of start and end position of the predicted span per token.
+
+\textbf{BERTserini} (\href{https://arxiv.org/abs/1902.01718}{Yang et al., 2019}) utilizes a pre-trained BERT model to work as the reader. Their experiments showed that \emph{fine-tuning} pretrained BERT with SQuAD is sufficient to achieve high accuracy in identifying answer spans.
+
+\begin{figure}
+\centering
+\includegraphics{BERT-RC.png}
+\caption{How BERT is used to solve question-answering tasks. (Image source: \href{https://arxiv.org/abs/1810.04805}{Devlin et al., 2018})}
+\end{figure}
+
+The key difference of the BERTserini reader from the original BERT is: to allow comparison and aggregation of results from different segments, the final softmax layer over different answer spans is removed. The pre-trained BERT model is fine-tuned on the training set of SQuAD, where all inputs to the reader are padded to 384 tokens with the learning rate 3e-5.
+
+When ranking all the extracted answer spans, the retriever score (BM25) and the reader score (probability of token being the start position \$\textbackslash times\$ probability of the same token being the end position ) are combined via linear interpolation.
+
+The original BERT normalizes the probability distributions of start and end position per token for every passage independently. Differently, the \textbf{Multi-passage BERT} (\href{https://arxiv.org/abs/1908.08167}{Wang et al., 2019}) normalizes answer scores across all the retrieved passages of one question \href{https://arxiv.org/abs/1710.10723}{globally}. Precisely, multi-passage BERT removes the final normalization layer per passage in BERT for QA (same as in BERTserini) and then adds a global \texttt{softmax} over all the word positions of all the passages. Global normalization makes the reader model more stable while pin-pointing answers from a large number of passages.
+
+In addition, multi-passage BERT implemented an independent \emph{passage ranker} model via another BERT model and the rank score for \$(x, z)\$ is generated by a \texttt{softmax} over the representation vectors of the first \texttt{{[}CLS{]}} token. The passage ranker brings in extra 2\% improvements. Similar idea of re-ranking passages with BERT was discussed in \href{https://arxiv.org/abs/1901.04085}{Nogueira \& Cho, 2019}, too.
+
+Interestingly, \href{https://arxiv.org/abs/1908.08167}{Wang et al., 2019} found that \emph{explicit inter-sentence matching} does not seem to be critical for RC tasks with BERT; check the original paper for how the experiments were designed. One possible reason is that the multi-head self-attention layers in BERT has already embedded the inter-sentence matching.
+
+\subsection{\texorpdfstring{End-to-end Joint Training\hyperref[end-to-end-joint-training]{\#}}{End-to-end Joint Training\#}}\label{end-to-end-joint-training}
+
+The retriever and reader components can be jointly trained. This section covers R\^{}3, ORQA, REALM and DPR. There are a lot of common designs, such as BERT-based dense vectors for retrieval and the loss function on maximizing the marginal likelihood of obtaining true answers.
+
+The retriever and reader models in the \textbf{R\^{}3} (``Reinforced Ranker-Reader''; \href{https://arxiv.org/abs/1709.00023}{Wang, et al., 2017}) QA system are jointly trained via \href{https://lilianweng.github.io/posts/2018-02-19-rl-overview/}{reinforcement learning}. (Note that to keep the term consistent between papers in this section, the ``ranker'' model in the original R\^{}3 paper is referred to as the ``retriever'' model here.) Both components are variants of \href{https://arxiv.org/abs/1512.08849}{Match-LSTM}, which relies on an attention mechanism to compute word similarities between the passage and question sequences.
+
+\textbf{How does the Match-LSTM module work?} Given a question \$\textbackslash mathbf\{X\}\$ of \$d\_x\$ words and a passage \$\textbackslash mathbf\{Z\}\$ of \$d\_z\$ words, both representations use fixed \href{https://lilianweng.github.io/posts/2017-10-15-word-embedding/\#glove-global-vectors}{Glove} word embeddings,
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{H\}\^{}x \&= \textbackslash text\{BiLSTM\}(\textbackslash mathbf\{X\}) \textbackslash in \textbackslash mathbb\{R\}\^{}\{l \textbackslash times d\_x\} \textbackslash\textbackslash{} \textbackslash mathbf\{H\}\^{}z \&= \textbackslash text\{BiLSTM\}(\textbackslash mathbf\{Z\}) \textbackslash in \textbackslash mathbb\{R\}\^{}\{l \textbackslash times d\_z\} \textbackslash\textbackslash{} \textbackslash mathbf\{G\} \&= \textbackslash text\{softmax\}((\textbackslash mathbf\{W\}\^{}g \textbackslash mathbf\{H\}\^{}x + \textbackslash mathbf\{b\}\^{}g \textbackslash otimes \textbackslash mathbf\{e\}\_\{d\_x\})\^{}\textbackslash top \textbackslash mathbf\{H\}\^{}z) \textbackslash in \textbackslash mathbb\{R\}\^{}\{d\_x \textbackslash times d\_z\} \& \textbackslash text\{; an attention matrix\}\textbackslash\textbackslash{} \textbackslash bar\{\textbackslash mathbf\{H\}\}\^{}x \&= \textbackslash mathbf\{H\}\^{}x \textbackslash mathbf\{G\} \textbackslash in \textbackslash mathbb\{R\}\^{}\{l \textbackslash times d\_z\} \textbackslash\textbackslash{} \textbackslash mathbf\{M\} \&= \textbackslash text\{ReLU\} \textbackslash Big( \textbackslash mathbf\{W\}\^{}m \textbackslash begin\{bmatrix\} \textbackslash mathbf\{H\}\^{}z \textbackslash\textbackslash{} \textbackslash bar\{\textbackslash mathbf\{H\}\}\^{}x \textbackslash\textbackslash{} \textbackslash mathbf\{H\}\^{}z \textbackslash odot \textbackslash bar\{\textbackslash mathbf\{H\}\}\^{}x \textbackslash\textbackslash{} \textbackslash mathbf\{H\}\^{}z - \textbackslash bar\{\textbackslash mathbf\{H\}\}\^{}x \textbackslash end\{bmatrix\} \textbackslash Big) \textbackslash in \textbackslash mathbb\{R\}\^{}\{2l \textbackslash times d\_z\} \textbackslash\textbackslash{} \textbackslash mathbf\{H\}\^{}m \&= \textbackslash text\{BiLSTM\}(M) \textbackslash in \textbackslash mathbb\{R\}\^{}\{l \textbackslash times d\_z\} \textbackslash end\{aligned\} \$\$
+
+where \$l\$ is the hidden dimension of the bidirectional LSTM module. \$\textbackslash mathbf\{W\}\^{}g \textbackslash in \textbackslash mathbb\{R\}\^{}\{l\textbackslash times l\}\$, \$\textbackslash mathbf\{b\}\^{}g \textbackslash in \textbackslash mathbb\{R\}\^{}l\$, and \$\textbackslash mathbf\{W\}\^{}m \textbackslash in \textbackslash mathbb\{R\}\^{}\{2l \textbackslash times 4l\}\$ are parameters to learn. The operator \$\textbackslash otimes \textbackslash mathbf\{e\}\_\{d\_x\}\$ is the outer product to repeat the column vector \$\textbackslash mathbf\{b\}\^{}g\$ \$d\_x\$ times.
+
+The ranker and reader components share the same Match-LSTM module with two separate prediction heads in the last layer, resulting in \$\textbackslash mathbf\{H\}\^{}\textbackslash text\{rank\}\$ and \$\textbackslash mathbf\{H\}\^{}\textbackslash text\{reader\}\$.
+
+\begin{figure}
+\centering
+\includegraphics{R\%5E3-arch.png}
+\caption{The overview of R\^{}3 (reinforced ranker-reader) architecture. Both components share the same Match-LSTM module. (Image source: \href{https://arxiv.org/abs/1709.00023}{Wang, et al., 2017})}
+\end{figure}
+
+The retriever runs a max-pooling operation per passage and then aggregates to output a probability of each passage entailing the answer.
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{u\}\_i \&= \textbackslash text\{max-pooling\}(\textbackslash mathbf\{H\}\^{}\textbackslash text\{rank\}\_i) \textbackslash in \textbackslash mathbb\{R\}\^{}l \textbackslash\textbackslash{} \textbackslash mathbf\{C\} \&= \textbackslash text\{tanh\}(\textbackslash mathbf\{W\}\^{}c{[}\textbackslash mathbf\{u\}\_1;\textbackslash dots;\textbackslash mathbf\{u\}\_N{]} + \textbackslash mathbf\{b\}\^{}c \textbackslash otimes \textbackslash mathbf\{e\}\_N) \textbackslash in \textbackslash mathbb\{R\}\^{}\{l \textbackslash times n\} \textbackslash\textbackslash{} \textbackslash gamma \&= \textbackslash text\{softmax\}(\textbackslash mathbf\{w\}\^{}c \textbackslash mathbf\{C\}) \textbackslash in \textbackslash mathbb\{R\}\^{}n \textbackslash end\{aligned\} \$\$
+
+Finally, the retriever is viewed as a \emph{policy} to output action to sample a passage according to predicted \$\textbackslash gamma\$,
+
+\$\$ \textbackslash pi(z \textbackslash vert x; \textbackslash theta\^{}\textbackslash gamma) = \textbackslash gamma\_z \$\$
+
+The reader predicts the start position \$\textbackslash beta\^{}s\$ and the end position \$\textbackslash beta\^{}e\$ of the answer span. Two positions are computed in the same way, with independent parameters to learn. There are \$V\$ words in all the passages involved.
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathbf\{H\}\^{}\textbackslash text\{read\} \&= {[}\textbackslash mathbf\{H\}\^{}\textbackslash text\{read\}\_\textbackslash tau; \textbackslash mathbf\{H\}\^{}\textbackslash text\{read\}\_\{\textbackslash text\{neg\}\_1\}; \textbackslash dots; \textbackslash mathbf\{H\}\^{}\textbackslash text\{read\}\_\{\textbackslash text\{neg\}\_n\}{]} \textbackslash\textbackslash{} \textbackslash mathbf\{F\}\^{}s \&= \textbackslash text\{tanh\}(\textbackslash mathbf\{W\}\^{}s \textbackslash mathbf\{H\}\^{}\textbackslash text\{read\} + \textbackslash mathbf\{b\}\^{}s \textbackslash otimes \textbackslash mathbf\{e\}\_V) \textbackslash quad \textbackslash beta\^{}s = \textbackslash text\{softmax\}(\textbackslash mathbf\{w\}\^{}s \textbackslash mathbf\{F\}\^{}s) \textbackslash in \textbackslash mathbb\{R\}\^{}V \textbackslash\textbackslash{} \textbackslash mathbf\{F\}\^{}e \&= \textbackslash text\{tanh\}(\textbackslash mathbf\{W\}\^{}e \textbackslash mathbf\{H\}\^{}\textbackslash text\{read\} + \textbackslash mathbf\{b\}\^{}e \textbackslash otimes \textbackslash mathbf\{e\}\_V) \textbackslash quad \textbackslash beta\^{}e = \textbackslash text\{softmax\}(\textbackslash mathbf\{w\}\^{}e \textbackslash mathbf\{F\}\^{}e) \textbackslash in \textbackslash mathbb\{R\}\^{}V \textbackslash\textbackslash{} L(y \textbackslash vert z, x) \&= -\textbackslash log(\textbackslash beta\^{}s\_\{y\_z\^{}s\})-\textbackslash log(\textbackslash beta\^{}e\_\{y\_z\^{}e\}) \textbackslash end\{aligned\} \$\$
+
+where \$y\$ is the ground-truth answer and the passage \$z\$ is sampled by the retriever. \$\textbackslash beta\^{}s\_\{y\_z\^{}s\}\$ and \$\textbackslash beta\^{}s\_\{y\_z\^{}e\}\$ represent the probabilities of the start and end positions of \$y\$ in passage \$z\$.
+
+The training objective for the end-to-end R\^{}3 QA system is to minimize the negative log-likelihood of obtaining the correct answer \$y\$ given a question \$x\$,
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{J\}(\textbackslash theta) \&= -\textbackslash mathbb\{E\}\_\{z\textbackslash sim\textbackslash pi(.\textbackslash vert x)\} {[}L(y \textbackslash vert z, x){]} \textbackslash\textbackslash{} \textbackslash nabla \textbackslash mathcal\{J\}(\textbackslash theta) \&= - \textbackslash nabla\_\textbackslash theta \textbackslash sum\_z \textbackslash pi(z \textbackslash vert x) L(y \textbackslash vert z, x) \textbackslash\textbackslash{} \&= - \textbackslash sum\_z \textbackslash big( L(y \textbackslash vert z, x) \textbackslash nabla\_\textbackslash theta\textbackslash pi(z \textbackslash vert x) + \textbackslash pi(z \textbackslash vert x) \textbackslash nabla\_\textbackslash theta L(y \textbackslash vert z, x) \textbackslash big) \textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{z\textbackslash sim\textbackslash pi(.\textbackslash vert x)\} \textbackslash big( \textbackslash color\{red\}\{L(y \textbackslash vert z, x)\textbackslash nabla\_\textbackslash theta\textbackslash log\textbackslash pi(z \textbackslash vert x)\} + \textbackslash nabla\_\textbackslash theta L(y \textbackslash vert z, x) \textbackslash big) \textbackslash\textbackslash{} \&\textbackslash approx - \textbackslash mathbb\{E\}\_\{z\textbackslash sim\textbackslash pi(.\textbackslash vert x)\} \textbackslash big( \textbackslash underbrace\{\textbackslash color\{red\}\{R(y \textbackslash vert z, x)\textbackslash nabla\_\textbackslash theta\textbackslash log\textbackslash pi(z \textbackslash vert x)\}\}\_\textbackslash text\{REINFORCE\} + \textbackslash nabla\_\textbackslash theta L(y \textbackslash vert z, x) \textbackslash big) \textbackslash end\{aligned\} \$\$
+
+Essentially in training, given a passage \$z\$ sampled by the retriever, the reader is trained by gradient descent while the retriever is trained by \href{https://lilianweng.github.io/posts/2018-04-08-policy-gradient/\#reinforce}{REINFORCE} using \$L(y \textbackslash vert z, x)\$ as the reward function. However, \$L(y \textbackslash vert z, x)\$ is not bounded and may introduce a lot of variance. The paper replaces the reward with a customized scoring function by comparing the ground truth \$y\$ and the answer extracted by the reader \$\textbackslash hat\{y\}\$:
+
+\$\$ R(y, \textbackslash hat\{y\} \textbackslash vert z) = \textbackslash begin\{cases\} 2 \& \textbackslash text\{if \} y = \textbackslash hat\{y\}\textbackslash\textbackslash{} f1(y, \textbackslash hat\{y\}) \& \textbackslash text\{if \} y \textbackslash cap \textbackslash hat\{y\} = \textbackslash varnothing \textbackslash\textbackslash{} -1 \& \textbackslash text\{otherwise\} \textbackslash end\{cases\} \$\$
+
+\begin{figure}
+\centering
+\includegraphics{R\%5E3-reward-flow.png}
+\caption{The workflow of R\^{}3 training process. (Image source: \href{https://github.com/danqi/acl2020-openqa-tutorial/blob/master/slides/part4-retriever-reader.pdf}{acl2020-openqa-tutorial/slides/part4})}
+\end{figure}
+
+\phantomsection\label{ORQA}{}\textbf{ORQA} (``Open-Retrieval Question-Answering''; \href{https://arxiv.org/abs/1906.00300}{Lee et al., 2019}) jointly learns a retriever + reader QA model to optimize marginal log-likelihood of obtaining correct answers in a supervised manner. No explicit ``black-box'' IR system is involved. Instead, it is capable of retrieving any text in an open corpus. During training, ORQA does not need ground-truth context passages (i.e. reading comprehension datasets) but only needs (question, answer) string pairs. Both retriever and reader components are based on BERT, but not shared.
+
+\begin{figure}
+\centering
+\includegraphics{ORQA-retriever.png}
+\caption{An illustration of the retriever component in ORQA. (Image source: replotted based on one slide in \href{https://github.com/danqi/acl2020-openqa-tutorial/blob/master/slides/part5-dense-retriever-e2e-training.pdf}{acl2020-openqa-tutorial/slides/part5})}
+\end{figure}
+
+All the evidence blocks are ranked by a retrieval score, defined as the inner product of BERT embedding vectors of the \texttt{{[}CLS{]}} token of the question \$x\$ and the evidence block \$z\$. Note that the encoders for questions and context are independent.
+
+\$\$ \textbackslash begin\{aligned\} h\_x \&= \textbackslash mathbf\{W\}\_x \textbackslash text\{BERT\}\_x(x)\^{}\{\textbackslash mathtt\{{[}CLS{]}\}\} \textbackslash\textbackslash{} h\_z \&= \textbackslash mathbf\{W\}\_z \textbackslash text\{BERT\}\_z(z)\^{}\{\textbackslash mathtt\{{[}CLS{]}\}\} \textbackslash\textbackslash{} S\_\textbackslash text\{retr\}(z, x) \&= h\_x\^{}\textbackslash top h\_z \textbackslash end\{aligned\} \$\$
+
+\phantomsection\label{ICT-loss}{}The retriever module is pretrained with \emph{Inverse Cloze Task (ICT)}, which is to predict the context given a sentence, opposite to the standard \href{https://en.wikipedia.org/wiki/Cloze_test}{Cloze Task}. The ICT objective is to maximize the retrieval score of the correct context \$z\$ given a random sentence \$x\$:
+
+\$\$ L\_\textbackslash text\{ICT\} = p\_\textbackslash text\{early\}(z \textbackslash vert x) = \textbackslash frac\{\textbackslash exp(S\_\textbackslash text\{retr\}(z, x))\}\{\textbackslash sum\_\{z\textquotesingle\textbackslash in\textbackslash text\{BATCH\}(\textbackslash mathcal\{Z\})\} \textbackslash exp(S\_\textbackslash text\{retr\}(z\textquotesingle, x))\} \$\$
+
+where \$\textbackslash text\{BATCH\}(\textbackslash mathcal\{Z\})\$ is the set of evidence blocks in the same batch used as sampled negatives.
+
+After such pretraining, the BERT retriever is expected to have representations good enough for evidence retrieval. Only the question encoder needs to be fine-tuned for answer extraction. In other words, the evidence block encoder (i.e., \$\textbackslash mathbf\{W\}\_z\$ and \$\textbackslash text\{BERT\}\_z\$) is fixed and thus all the evidence block encodings can be pre-computed with support for \hyperref[fast-maximum-inner-product-search-mips]{fast Maximum Inner Product Search (MIPS)}.
+
+\begin{figure}
+\centering
+\includegraphics{ORQA-reader.png}
+\caption{An illustration of the reader component in ORQA. (Image source: \href{https://github.com/danqi/acl2020-openqa-tutorial/blob/master/slides/part5-dense-retriever-e2e-training.pdf}{acl2020-openqa-tutorial/slides/part5})}
+\end{figure}
+
+The reader follows the same design as in the original \href{https://lilianweng.github.io/posts/2019-01-31-lm/\#use-bert-in-downstream-tasks}{BERT RC} experiments. It learns in a supervised manner, while the parameters of the evidence block encoder are fixed and all other parameters are fine-tuned. Given a question \$x\$ and a gold answer string \$y\$, the reader loss contains two parts:
+
+\$\$ \textbackslash mathcal\{L\}(x, y) = \textbackslash mathcal\{L\}\_\textbackslash text\{early\}(x, y) + \textbackslash mathcal\{L\}\_\textbackslash text\{full\}(x, y) \$\$
+
+(1) Find all correct text spans within top \$k\$ evidence blocks and optimize for the marginal likelihood of a text span \$s\$ that matches the true answer \$y\$:
+
+\$\$ \textbackslash begin\{aligned\} h\_s \&= \textbackslash text\{BERT\}\_R(x, y)\^{}\{(\textbackslash text\{START\}(s))\} \textbackslash\textbackslash{} h\_e \&= \textbackslash text\{BERT\}\_R(x, y)\^{}\{(\textbackslash text\{END\}(s))\} \textbackslash\textbackslash{} S\_\textbackslash text\{read\}(z, s, x) \&= \textbackslash text\{MLP\}({[}h\_s; h\_e{]}) \textbackslash\textbackslash{} p(z, s \textbackslash vert x) \&= \textbackslash frac\{\textbackslash exp(S\_\textbackslash text\{read\}(z, s, x))\}\{\textbackslash sum\_\{z\textquotesingle\textbackslash in\textbackslash text\{TOP\}(k)\} \textbackslash sum\_\{s\textquotesingle\textbackslash in z\textquotesingle\} \textbackslash exp(S\_\textbackslash text\{read\}(z\textquotesingle, s\textquotesingle, x))\} \textbackslash\textbackslash{} L\_\textbackslash text\{full\}(x, y) \&= - \textbackslash log \textbackslash sum\_\{\textbackslash substack\{z \textbackslash in \textbackslash text\{TOP\}(k)\textbackslash\textbackslash{} s \textbackslash in z\}\} \textbackslash sum\_\{y=\textbackslash text\{TEXT\}(s)\} p(z, s \textbackslash vert x) \textbackslash end\{aligned\} \$\$
+
+where \$y=\textbackslash text\{TEXT\}(s)\$ indicates whether the answer \$y\$ matches the text span \$s\$. \$\textbackslash text\{TOP\}(k)\$ is the top \$k\$ retrieved blocks according to \$S\_\textbackslash text\{retr\}(z, x)\$. The paper sets \$k=5\$.
+
+(2) At the early stage of learning, when the retriever is not strong enough, it is possible none of the top \$k\$ blocks contains the answer. To avoid such sparse learning signals, ORQA considers a larger set of \$c\$ evidence blocks for more aggressive learning. The paper has \$c=5000\$.
+
+\$\$ L\_\textbackslash text\{early\}(x, y) = -\textbackslash log \textbackslash sum\_\{\textbackslash substack\{z\textbackslash in \textbackslash text\{TOP\}(c)\textbackslash\textbackslash y\textbackslash in\textbackslash text\{TEXT\}(z)\}\} p\_\textbackslash text\{early\}(z\textbackslash vert x) = -\textbackslash log \textbackslash sum\_\{\textbackslash substack\{z\textbackslash in \textbackslash text\{TOP\}(c)\textbackslash\textbackslash y\textbackslash in\textbackslash text\{TEXT\}(z)\}\} \textbackslash frac\{\textbackslash exp(S\_\textbackslash text\{retr\}(z, x)\}\{\textbackslash sum\_\{z\textquotesingle\textbackslash in\textbackslash text\{TOP\}(c)\} \textbackslash exp(S\_\textbackslash text\{retr\}(z\textquotesingle, x)\} \$\$
+
+Some issues in SQuAD dataset were discussed in the ORQA paper:
+
+\begin{quote}
+" The notable drop between development and test accuracy for SQuAD is a reflection of an artifact in the dataset---its 100k questions are derived from only 536 documents. Therefore, good retrieval targets are highly correlated between training examples, violating the IID assumption, and making it unsuitable for learned retrieval. We strongly suggest that those who are interested in end-to-end open-domain QA models no longer train and evaluate with SQuAD for this reason."
+\end{quote}
+
+\phantomsection\label{REALM}{}\textbf{REALM} (``Retrieval-Augmented Language Model pre-training''; \href{https://arxiv.org/abs/2002.08909}{Guu et al., 2020}) also jointly trains retriever + reader by optimizing the marginal likelihood of obtaining the true answer:
+
+\$\$ p(y \textbackslash vert x) = \textbackslash sum\_\{z \textbackslash in \textbackslash mathcal\{Z\}\} \textbackslash underbrace\{p(y \textbackslash vert x, z)\}\_\textbackslash text\{reader\} \textbackslash underbrace\{p(z \textbackslash vert x)\}\_\textbackslash text\{retriever\} \textbackslash approx \textbackslash sum\_\{z \textbackslash in \textbackslash text\{TOP\}\_k(\textbackslash mathcal\{Z\})\} p(y \textbackslash vert x, z) p(z \textbackslash vert x) \$\$
+
+\begin{figure}
+\centering
+\includegraphics{REALM-train.png}
+\caption{REALM is first unsupervised pre-trained with salient spans masking and then fine-tuned with QA data. (Image source: \href{https://arxiv.org/abs/2002.08909}{Guu et al., 2020}).}
+\end{figure}
+
+REALM computes two probabilities, \$p(z \textbackslash vert x)\$ and \$p(y \textbackslash vert x, z)\$, same as ORQA. However, different from ICT in ORQA, REALM upgrades the unsupervised pre-training step with several new design decisions, leading towards better retrievals. REALM pre-trains the model with Wikipedia or CC-News corpus.
+
+\begin{enumerate}
+\tightlist
+\item
+  \phantomsection\label{ssm}{}Use \emph{salient span masking}. Named entities and dates are identified. Then one of these ``salient spans'' is selected and masked. Salient span masking is a special case of MLM and works out well for QA tasks.
+\item
+  Add an \emph{empty null document}. Because not every question demands a context document.
+\item
+  No trivial retrieval. The context document should not be same as the selected sentence with a masked span.
+\item
+  Apply the same ICT loss as in ORQA to encourage learning when the retrieval quality is still poor at the early stage of training.
+\end{enumerate}
+
+\begin{quote}
+``Among all systems, the most direct comparison with REALM is ORQA (Lee et al., 2019), where the fine-tuning setup, hyperparameters and training data are identical. The improvement of REALM over ORQA is purely due to better pre-training methods.'' --- from REALM paper.
+\end{quote}
+
+Both unsupervised pre-training and supervised fine-tuning optimize the same log-likelihood \$\textbackslash log p(y \textbackslash vert x)\$. Because the parameters of the retriever encoder for evidence documents are also updated in the process, the index for MIPS is changing. REALM asynchronously refreshes the index with the updated encoder parameters every several hundred training steps.
+
+\href{https://arxiv.org/abs/2104.08710}{Balachandran, et al. (2021)} found that REALM is significantly undertrained and REALM++ achieves great EM accuracy improvement (3-5\%) by scaling up the model training with larger batch size and more retrieved documents for the reader to process.
+
+\phantomsection\label{DPR}{}\textbf{DPR} (``Dense Passage Retriever''; \href{https://arxiv.org/abs/2004.04906}{Karpukhin et al., 2020}, \href{https://github.com/facebookresearch/DPR}{code}) argues that ICT pre-training could be too computationally expensive and the ORQA's context encoder might be sub-optimal because it is not fine-tuned with question-answer pairs. DPR aims to resolve these two issues by only training a dense dual-encoder architecture for retrieval only from a small number of Q/A pairs, without any pre-training.
+
+Same as previous work, DPR uses the dot-product (L2 distance or cosine similarity also works) of BERT representations as retrieval score. The loss function for training the dual-encoder is the NLL of the positive passage, which essentially takes the same formulation as \hyperref[ICT-loss]{ICT loss} of ORQA. Note that both of them consider other passages in the same batch as the negative samples, named \emph{in-batch negative sampling}. The main difference is that DPR relies on supervised QA data, while ORQA trains with ICT on unsupervised corpus. At the inference time, DPR uses \href{https://github.com/facebookresearch/faiss}{FAISS} to run fast MIPS.
+
+DPR did a set of comparison experiments involving several different types of negatives:
+
+\begin{enumerate}
+\tightlist
+\item
+  Random: any random passage from the corpus;
+\item
+  BM25: top passages returned by BM25 which don't contain the answer but match most question tokens;
+\item
+  In-batch negative sampling (``gold''): positive passages paired with other questions which appear in the training set.
+\end{enumerate}
+
+DPR found that using gold passages from the same mini-batch and one negative passage with high BM25 score works the best. To further improve the retrieval results, DPR also explored a setting where a BM25 score and a dense embedding retrieval score are linearly combined to serve as a new ranking function.
+
+\section{\texorpdfstring{Open-book QA: Retriever-Generator\hyperref[open-book-qa-retriever-generator]{\#}}{Open-book QA: Retriever-Generator\#}}\label{open-book-qa-retriever-generator}
+
+Compared to the retriever-reader approach, the retriever-generator also has 2 stages but the second stage is to generate free text directly to answer the question rather than to extract start/end position in a retrieved passage. Some paper also refer to this as \emph{Generative question answering}.
+
+\begin{figure}
+\centering
+\includegraphics{QA-retiever-generator.png}
+\caption{The retriever + generator QA framework combines a document retrieval system with a general language model.}
+\end{figure}
+
+A pretrained LM has a great capacity of memorizing knowledge in its parameters, as shown above. However, they cannot easily modify or expand their memory, cannot straightforwardly provide insights into their predictions, and may produce non-existent illusion.
+
+\href{https://arxiv.org/abs/2005.04611}{Petroni et al. (2020)} studied how the retrieved relevant context can help a generative language model produce better answers. They found:
+
+\begin{enumerate}
+\tightlist
+\item
+  Augmenting queries with relevant contexts dramatically improves the pretrained LM on unsupervised machine reading capabilities.
+\item
+  An off-the-shelf IR system is sufficient for BERT to match the performance of a supervised ODQA baseline;
+\item
+  BERT's \href{https://lilianweng.github.io/posts/2019-01-31-lm/\#pre-training-tasks}{NSP} pre-training strategy is a highly effective unsupervised mechanism in dealing with noisy and irrelevant contexts.
+\end{enumerate}
+
+They pair the BERT model with different types of context, including adversarial (unrelated context), retrieved (by BM25), and generative (by an autoregressive language model of 1.4N parameters, trained on CC-NEWS). The model is found to be robust to adversarial context, but only when the question and the context are provided as two segments (e.g. separated by \texttt{{[}SEP{]}}). One hypothesis is related to NSP task: ``BERT might learn to not condition across segments for masked token prediction if the NSP score is low, thereby implicitly detecting irrelevant and noisy contexts.''
+
+\phantomsection\label{RAG}{}\textbf{RAG} (``Retrieval-Augmented Generation''; \href{https://arxiv.org/abs/2005.11401}{Lewis et al., 2020}) combines pre-trained parametric (language model) and non-parametric memory (external knowledge index) together for language generation. RAG can be fine-tuned on any seq2seq task, whereby both the retriever and the sequence generator are jointly learned. They found that unconstrained generation outperforms previous extractive approaches.
+
+RAG consists of a retriever model \$p\_\textbackslash eta(z \textbackslash vert x)\$ and a generator model \$p\_\textbackslash theta(y\_i \textbackslash vert x, z, y\_\{1:i-1\})\$:
+
+\begin{itemize}
+\tightlist
+\item
+  The retriever uses the input sequence \$x\$ to retrieve text passages \$z\$, implemented as a \hyperref[DPR]{DPR} retriever. \$\textbackslash log p\_\textbackslash eta(z \textbackslash vert x) \textbackslash propto E\_z(z)\^{}\textbackslash top E\_x(x)\$.
+\item
+  The generator uses \$z\$ as additional context when generating the target sequence \$y\$, where the context and the question are simply concatenated.
+\end{itemize}
+
+Depending on whether using the same or different retrieved documents for each token generation, there are two versions of RAG:
+
+\$\$ \textbackslash begin\{aligned\} p\_\textbackslash text\{RAG-seq\}(y \textbackslash vert x) \&= \textbackslash sum\_\{z \textbackslash in \textbackslash text\{TOP\}\_k(p\_\textbackslash eta(.\textbackslash vert x))\} p\_\textbackslash eta(z \textbackslash vert x) \textbackslash prod\_i\^{}N p\_\textbackslash theta(y\_i \textbackslash vert x, z, y\_\{1:i-1\}) \textbackslash\textbackslash{} p\_\textbackslash text\{RAG-token\}(y \textbackslash vert x) \&= \textbackslash prod\_i\^{}N \textbackslash sum\_\{z \textbackslash in \textbackslash text\{TOP\}\_k(p\_\textbackslash eta(.\textbackslash vert x))\} p\_\textbackslash eta(z\_i\textbackslash vert x) p\_\textbackslash theta(y\_i \textbackslash vert x, z\_i, y\_\{1:i-1\}) \textbackslash end\{aligned\} \$\$
+
+The retriever + generator in RAG is jointly trained to minimize the NLL loss, \$\textbackslash mathcal\{L\}\_\textbackslash text\{RAG\} = \textbackslash sum\_j -\textbackslash log p(y\_j \textbackslash vert x\_j)\$. Updating the passage encoder \$E\_z(.)\$ is expensive as it requires the model to re-index the documents for fast MIPS. RAG does not find fine-tuning \$E\_z(.)\$ necessary (like in \hyperref[ORQA]{ORQA}) and only updates the query encoder + generator.
+
+\begin{figure}
+\centering
+\includegraphics{RAG.png}
+\caption{An illustration of retrieval-augmented generation (RAG) architecture. (Image source: \href{https://arxiv.org/abs/2005.11401}{Lewis et al., 2020})}
+\end{figure}
+
+At decoding/test time, RAG-token can be evaluated via a \href{https://d2l.ai/chapter_recurrent-modern/beam-search.html\#id1}{beam search}. RAG-seq cannot be broken down into a set of per-token likelihood, so it runs beam search for each candidate document \$z\$ and picks the one with optimal \$p\_\textbackslash theta(y\_i \textbackslash vert x, z, y\_\{1:i-1\})\$.
+
+The \emph{Fusion-in-Decoder} approach, proposed by \href{https://arxiv.org/abs/2007.01282}{Izacard \& Grave (2020)} is also based on a pre-trained T5. It works similar to RAG but differently for how the context is integrated into the decoder.
+
+\begin{enumerate}
+\tightlist
+\item
+  Retrieve top \$k\$ related passage of 100 words each, using BM25 or DPR.
+\item
+  Each retrieved passage and its title are concatenated with the question using special tokens like \texttt{question:}, \texttt{title:} and \texttt{context:} to indicate the content differences.
+\item
+  Each retrieved passage is processed independently and later combined in the decoder. Processing passages independently in the encoder allows us to parallelize the computation. OTOH, processing them jointly encourages better aggregation of multiple pieces of evidence. The aggregation part is missing in extractive approaches.
+\end{enumerate}
+
+Note that they did fine-tune the pretrained LM independently for each dataset.
+
+\section{\texorpdfstring{Closed-book QA: Generative Language Model\hyperref[closed-book-qa-generative-language-model]{\#}}{Closed-book QA: Generative Language Model\#}}\label{closed-book-qa-generative-language-model}
+
+Big language models have been pre-trained on a large collection of unsupervised textual corpus. Given enough parameters, these models are able to memorize some factual knowledge within parameter weights. Therefore, we can use these models to do question-answering without explicit context, just like in a closed-book exam. The pre-trained language models produce \emph{free text} to respond to questions, no explicit reading comprehension.
+
+\begin{figure}
+\centering
+\includegraphics{LM-compute.png}
+\caption{The amount of computation used for training big language models of different sizes is getting big. (Image source: \href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020}).}
+\end{figure}
+
+\href{https://arxiv.org/abs/2002.08910}{Roberts et al. (2020)} measured the practical utility of a language model by fine-tuning a pre-trained model to answer questions without access to any external context or knowledge. They fine-tuned the \href{https://arxiv.org/abs/1910.10683}{T5} language model (same architecture as the original Transformer) to answer questions without inputting any additional information or context. Such setup enforces the language model to answer questions based on ``knowledge'' that it internalized during pre-training.
+
+\begin{figure}
+\centering
+\includegraphics{T5_SSM.png}
+\caption{T5 is first pre-trained with salient span masking and then fine-tuned for each QA dataset to produce answers in free text. (Image source: \href{https://arxiv.org/abs/2002.08910}{Roberts et al. 2020})}
+\end{figure}
+
+The original T5 models were pre-trained on a multi-task mixture including an unsupervised \href{https://lilianweng.github.io/posts/2019-01-31-lm/\#use-bert-in-downstream-tasks}{``masked language modeling''} (MLM) tasks on the C4 (``Colossal Clean Crawled Corpus'') dataset as well as fine-tuned altogether with supervised translation, summarization, classification, and reading comprehension tasks. \href{https://arxiv.org/abs/2002.08910}{Roberts, et al. (2020)} took a pre-trained T5 model and continued pre-training with \hyperref[ssm]{salient span masking} over Wikipedia corpus, which has been found to substantially boost the performance for ODQA. Then they fine-tuned the model for each QA datasets independently.
+
+With a pre-trained T5 language model + continue pre-training with salient spans masking + fine-tuning for each QA dataset,
+
+\begin{itemize}
+\tightlist
+\item
+  It can attain competitive results in open-domain question answering without access to external knowledge.
+\item
+  A larger model can obtain better performance. For example, a T5 with 11B parameters is able to match the performance with \hyperref[DPR]{DPR} with 3 BERT-base models, each with 330M parameters.
+\end{itemize}
+
+Interestingly, fine-tuning is not strictly necessary. GPT3 (\href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020}) has been evaluated on the closed book question answering task \emph{without any gradient updates or fine-tuning}. During evaluation, the few-shot, one-shot and zero-shot settings here only refer to how many demonstrations are provided as context in the text input:
+
+\begin{enumerate}
+\tightlist
+\item
+  ``few-shot learning'': GPT3 is allowed to take as many demonstrations as what can fit into the model's context window (typically 10 to 100).
+\item
+  ``one-shot learning'': only one demonstration is provided.
+\item
+  ``zero-shot learning'': no demonstrations are allowed and only an instruction in natural language is given to the model.
+\end{enumerate}
+
+The performance grows with the model size. On the TriviaQA dataset, GPT3 evaluation with demonstrations can match or exceed the performance of SOTA baseline with fine-tuning.
+
+\begin{figure}
+\centering
+\includegraphics{GPT3-triviaqa.png}
+\caption{GPT3\textquotesingle s performance on TriviaQA grows smoothly with the model size. More demonstrations lead to better performance. (Image source: \href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020}).}
+\end{figure}
+
+\phantomsection\label{openai-api-example}{}Check out this cool example in OpenAI API \href{https://beta.openai.com/playground/p/HMoho4552EHXrPLbmOIxpX4X}{playground viewer}. The model is able to answer factal questions in short answer and not to make up things when the model does not know the answer. I added the last two questions and asked the model to respond with \texttt{A:}. The API is still in beta version, so you might need to \href{https://beta.openai.com/}{apply} to get on the wait list.
+
+\begin{verbatim}
+Q: Who is Batman?
+A: Batman is a fictional comic book character.
+##
+Q: What is torsalplexity?
+A: ?
+##
+Q: What is Devz9?
+A: ?
+##
+Q: Who is George Lucas?
+A: George Lucas is American film director and producer famous for creating Star Wars.
+##
+Q: What is the capital of California?
+A: Sacramento.
+##
+Q: What orbits the Earth?
+A: The Moon.
+##
+Q: Who is Fred Rickerson?
+A: ?
+##
+Q: What is an atom?
+A: An atom is a tiny particle that makes up everything.
+##
+Q: Who is Alvan Muntz?
+A: ?
+##
+Q: What is Kozar-09?
+A: ?
+##
+Q: How many moons does Mars have?
+A: Two, Phobos and Deimos.
+##
+Q: What is COVID-19?
+A: ?
+##
+Q: What is H1N1?
+A: H1N1 is a strain of influenza.
+\end{verbatim}
+
+\section{\texorpdfstring{Related Techniques\hyperref[related-techniques]{\#}}{Related Techniques\#}}\label{related-techniques}
+
+\subsection{\texorpdfstring{Fast Maximum Inner Product Search (MIPS)\hyperref[fast-maximum-inner-product-search-mips]{\#}}{Fast Maximum Inner Product Search (MIPS)\#}}\label{fast-maximum-inner-product-search-mips}
+
+MIPS (maximum inner product search) is a crucial component in many open-domain question answering models. In retriever + reader/generator framework, a large number of passages from the knowledge source are encoded and stored in a memory. A retrieval model is able to query the memory to identify the top relevant passages which have the maximum inner product with the question's embedding.
+
+We need fast MIPS because the number of precomputed passage representations can be gigantic. There are several ways to achieve fast MIPS at run time, such as \href{https://papers.nips.cc/paper/5329-asymmetric-lsh-alsh-for-sublinear-time-maximum-inner-product-search-mips.pdf}{asymmetric LSH}, \href{https://arxiv.org/abs/1501.01062}{data-dependent hashing}, and \href{https://github.com/facebookresearch/faiss}{FAISS}.
+
+\subsection{\texorpdfstring{Language Model Pre-training\hyperref[language-model-pre-training]{\#}}{Language Model Pre-training\#}}\label{language-model-pre-training}
+
+Two pre-training tasks are especially helpful for QA tasks, as we have discussed above.
+
+\begin{itemize}
+\item
+  \textbf{Inverse Cloze Task} (proposed by \hyperref[ORQA]{ORQA}): The goal of \href{https://en.wikipedia.org/wiki/Cloze_test}{Cloze Task} is to predict masked-out text based on its context. The prediction of Inverse Cloze Task (ICT) is in the reverse direction, aiming to predict the context given a sentence. In the context of QA tasks, a random sentence can be treated as a pseudo-question, and its context can be treated as pseudo-evidence.
+\item
+  \textbf{Salient Spans Masking} (proposed by \hyperref[REALM]{REALM}): Salient span masking is a special case for MLM task in language model training. First, we find \emph{salient spans} by using a tagger to identify named entities and a regular expression to identify dates. Then one of the detected salient spans is selected and masked. The task is to predict this masked salient span.
+\end{itemize}
+
+\section{\texorpdfstring{Summary\hyperref[summary]{\#}}{Summary\#}}\label{summary}
+
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+Model & Retriever & Reader / Generator & Pre-training / Fine-tuning & End2end \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+DrQA & TF-IDF & Bi-directional LSTM & -- & No \\
+BERTserini & Aserini + BM25 & BERT without softmax layer & Fine-tune with SQuAD & No \\
+Multi-passage BERT & ElasticSearch + BM25 & Multi-passage BERT + Passage ranker & & No \\
+R\^{}3 & Classic IR + Match-LSTM & Match-LSTM & & Yes \\
+ORQA & Dot product of BERT embeddings & BERT-RC & Inverse cloze task & Yes \\
+REALM & Dot product of BERT embeddings & BERT-RC & Salient span masking & Yes \\
+DPR & Dot product of BERT embeddings & BERT-RC & supervised training with QA pairs & Yes \\
+DenSPI & Classic + Neural IR & -- & & Yes \\
+T5 + SSM & -- & T5 & SSM on \href{https://commoncrawl.org/the-data/get-started/}{CommonCrawl} data + Fine-tuning on QA data & Yes \\
+GPT3 & -- & GPT3 & NSP on \href{https://commoncrawl.org/the-data/get-started/}{CommonCrawl} data & Yes \\
+RAG & DPR retriever & \href{https://arxiv.org/abs/1910.13461}{BART} & & Yes \\
+Fusion-in-Decoder & BM25 / DPR retriever & Tranformer & & No \\
+\end{longtable}
+
+\begin{figure}
+\centering
+\includegraphics{QA-results.png}
+\caption{A comparison of performance of several QA models on common QA datasets. On TriviaQA, two columns of results are reported, on the open domain test set (left) and on the hidden test set (right). (Image source: \href{https://arxiv.org/abs/2007.01282}{Izacard \& Grave, 2020}).}
+\end{figure}
+
+\section{\texorpdfstring{Citation\hyperref[citation]{\#}}{Citation\#}}\label{citation}
+
+Cited as:
+
+\begin{quote}
+Weng, Lilian. (Oct 2020). How to build an open-domain question answering system? Lil'Log. https://lilianweng.github.io/posts/2020-10-29-odqa/.
+\end{quote}
+
+Or
+
+\begin{verbatim}
+@article{weng2020odqa,
+  title   = "How to Build an Open-Domain Question Answering System?",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2020",
+  month   = "Oct"
+  url     = "https://lilianweng.github.io/posts/2020-10-29-odqa/"
+}
+\end{verbatim}
+
+\section{\texorpdfstring{Appendix: QA Datasets\hyperref[appendix-qa-datasets]{\#}}{Appendix: QA Datasets\#}}\label{appendix-qa-datasets}
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://rajpurkar.github.io/SQuAD-explorer/}{SQuAD 2.0}: the Stanford QA dataset.
+\item
+  \href{http://www.qizhexie.com/data/RACE_leaderboard}{RACE}: a reading comprehension dataset collected from English Examinations that are created for middle school and high school students.
+\item
+  \href{https://trec.nist.gov/data/qa.html}{TREC QA}: the TREC QA collections.
+\item
+  \href{https://microsoft.github.io/msmarco/}{MS MARCO}: a QA dataset featuring 100,000 real Bing questions and a human generated answer.
+\item
+  \href{https://github.com/brmson/dataset-factoid-curated}{CuratedTREC}: based on the benchmarks from the TREC QA tasks that have been curated by \href{https://link.springer.com/chapter/10.1007\%2F978-3-319-24027-5_20}{Baudis \& Sedivy (2015)}.
+\item
+  \href{https://ai.google.com/research/NaturalQuestions/dataset}{Google Natural Questions}: contains real user questions issued to Google search, and answers found from Wikipedia by annotators.
+\item
+  \href{https://github.com/brmson/dataset-factoid-webquestions}{WebQuestions}: designed for knowledge-base QA with answers restricted to Freebase entities.
+\item
+  \href{https://www.microsoft.com/en-us/research/publication/wikiqa-a-challenge-dataset-for-open-domain-question-answering/}{WikiQA}: Bing query logs were used as the source of questions. Each question is then linked to a Wikipedia page that potentially contains the answer.
+\item
+  \href{https://research.fb.com/downloads/babi/}{WikiMovies}: contains movie-related questions from the OMDb and MovieLens databases and where the questions can be answered using Wikipedia pages.
+\item
+  \href{https://github.com/google-research-datasets/wiki-reading}{WikiReading}: to predict textual values from the structured knowledge base Wikidata by reading the text of the corresponding Wikipedia articles.
+\item
+  \href{https://nlp.cs.washington.edu/triviaqa/}{TriviaQA}: a reading comprehension dataset containing 95K question-answer pairs authored by trivia enthusiasts and independently gathered multiple evidence documents per question.
+\item
+  \href{https://www.kaggle.com/tunguz/200000-jeopardy-questions}{Jeopardy! Questions}: contains 200,000+ \href{https://en.wikipedia.org/wiki/Jeopardy!}{Jeopardy!} questions.
+\item
+  \href{https://cs.nyu.edu/~kcho/DMQA/}{DeepMind Q\&A Dataset}: question/answer pairs from CNN and Daily Mail articles.
+\item
+  \href{https://research.fb.com/downloads/babi/}{bAbi}: a rich collection of datasets for text understanding by Facebook.
+\item
+  \href{https://fever.ai/data.html}{FEVER}: for fact extraction and verification.
+\item
+  \href{https://github.com/nyu-dl/dl4ir-searchQA}{SearchQA}: question-answer pairs were crawled from from \href{https://j-archive.com/}{J! Archive}, and then augmented with text snippets from Google.
+\item
+  \href{https://github.com/bdhingra/quasar}{Quasar-T}: a collection of open-domain trivia questions and their answers obtained from various internet sources.
+\item
+  \href{https://people.cs.umass.edu/~miyyer/qblearn/index.html}{Quiz bowl}: contains data from a trivia competition called quiz bowl.
+\item
+  \href{https://nlp.cs.washington.edu/ambigqa/}{AmbigNQ}: ambiguous questions selected from NQ-OPEN dataset.
+\item
+  \href{https://github.com/facebookresearch/QA-Overlap}{QA-Overlap}: a collections of overlapped answers/questions between train and test set for Natural Questions, TriviaQA, and WebQuestions.
+\end{itemize}
+
+\section{\texorpdfstring{References\hyperref[references]{\#}}{References\#}}\label{references}
+
+{[}1{]} Danqi Chen \& Scott Yih. \href{https://github.com/danqi/acl2020-openqa-tutorial}{``ACL2020 Tutorial: Open-Domain Question Answering''} July 2020.
+
+{[}2{]} Danqi Chen, et al. \href{https://arxiv.org/abs/1704.00051}{``Reading Wikipedia to Answer Open-Domain Questions''} ACL 2017. \textbar{} \href{https://github.com/facebookresearch/DrQA}{code}
+
+{[}3{]} Shuohang Wang, et al. \href{https://arxiv.org/abs/1709.00023}{``R\^{}3: Reinforced Ranker-Reader for Open-Domain Question Answering''} AAAI 2018.
+
+{[}4{]} Jimmy Lin. \href{https://sigir.org/wp-content/uploads/2019/01/p040.pdf}{``The neural hype and comparisons against weak baselines.''} ACM SIGIR Forum. Vol. 52. No. 2. 2019.
+
+{[}5{]} Wei Yang, et al. \href{https://arxiv.org/abs/1902.01718}{``End-to-End Open-Domain Question Answering with BERTserini''} NAACL 2019.
+
+{[}6{]} Christopher Clark \& Matt Gardner. \href{https://arxiv.org/abs/1710.10723}{``Simple and Effective Multi-Paragraph Reading Comprehension.''} arXiv:1710.10723 (2017).
+
+{[}7{]} Rodrigo Nogueira \& Kyunghyun Cho. \href{https://arxiv.org/abs/1901.04085}{``Passage Re-ranking with BERT.''} arXiv preprint arXiv:1901.04085 (2019). \textbar{} \href{https://github.com/nyu-dl/dl4marco-bert}{code}
+
+{[}8{]} Zhiguo Wang, et al. \href{https://arxiv.org/abs/1908.08167}{``Multi-passage BERT: A globally normalized BERT model for open-domain question answering.''} EMNLP 2019.
+
+{[}9{]} Minjoon Seo et al. \href{https://arxiv.org/abs/1906.05807}{``Real-time open-domain question answering with dense-sparse phrase index.''} ACL 2019.
+
+{[}10{]} Kenton Lee, et al. \href{https://arxiv.org/abs/1906.00300}{``Latent Retrieval for Weakly Supervised Open Domain Question Answering''} ACL 2019.
+
+{[}11{]} Kelvin Guu, et al. \href{https://arxiv.org/abs/2002.08909}{``REALM: Retrieval-Augmented Language Model Pre-Training''} arXiv:2002.08909 (2020).
+
+{[}12{]} Vladimir Karpukhin et al. \href{https://arxiv.org/abs/2004.04906}{``Dense passage retrieval for open-domain question answering.''}. EMNLP 2020. \textbar{} \href{https://github.com/facebookresearch/DPR}{code}
+
+{[}13{]} Patrick Lewis et al. \href{https://arxiv.org/abs/2005.11401}{``Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks''} arXiv:2005.11401 (2020).
+
+{[}14{]} Adam Roberts, et al. \href{https://arxiv.org/abs/2002.08910}{``How Much Knowledge Can You Pack Into the Parameters of a Language Model?''} EMNLP 2020.
+
+{[}15{]} Tom Brown, et al. \href{https://arxiv.org/abs/2005.14165}{``Language models are few-shot learners.''} arXiv:2005.14165 (2020).
+
+{[}16{]} Fabio Petroni, et al. \href{https://arxiv.org/abs/2005.04611}{``How Context Affects Language Models' Factual Predictions''} AKBC 2020.
+
+{[}17{]} Gautier Izacard \& Edouard Grave. \href{https://arxiv.org/abs/2007.01282}{``Leveraging passage retrieval with generative models for open domain question answering.''} arXiv:2007.01282 (2020).
+
+{[}18{]} \href{https://d2l.ai/chapter_recurrent-modern/beam-search.html}{``Dive into deep learning: Beam search''}
+
+{[}19{]} Patrick Lewis, et al. \href{https://arxiv.org/abs/2008.02637}{``Question and Answer Test-Train Overlap in Open-Domain Question Answering Datasets''} arXiv:2008.02637 (2020). \textbar{} \href{https://github.com/facebookresearch/QA-Overlap}{data}
+
+{[}20{]} Hervé Jegou, et al. \href{https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/}{``Faiss: A library for efficient similarity search''} Mar 2017.
+
+{[}21{]} Vidhisha Balachandran, et al. \href{https://arxiv.org/abs/2104.08710}{``Simple and Efficient ways to Improve REALM.''} arXiv:2104.08710 (2021).
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/nlp/}{Nlp}
+\item
+  \href{https://lilianweng.github.io/tags/language-model/}{Language-Model}
+\item
+  \href{https://lilianweng.github.io/tags/attention/}{Attention}
+\item
+  \href{https://lilianweng.github.io/tags/transformer/}{Transformer}
+\end{itemize}
+
+\href{https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/}{{« }\\
+{Controllable Neural Text Generation}} \href{https://lilianweng.github.io/posts/2020-08-06-nas/}{{ »}\\
+{Neural Architecture Search}}
+
+\href{https://twitter.com/intent/tweet/?text=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f&hashtags=nlp\%2clanguage-model\%2cattention\%2ctransformer}{} \href{https://www.linkedin.com/shareArticle?mini=true&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f&title=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f&summary=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f&source=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f}{} \href{https://reddit.com/submit?url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f&title=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f}{} \href{https://facebook.com/sharer/sharer.php?u=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f}{} \href{https://api.whatsapp.com/send?text=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f\%20-\%20https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f}{} \href{https://telegram.me/share/url?text=How\%20to\%20Build\%20an\%20Open-Domain\%20Question\%20Answering\%20System\%3f&url=https\%3a\%2f\%2flilianweng.github.io\%2fposts\%2f2020-10-29-odqa\%2f}{}
+
+{© 2025 \href{https://lilianweng.github.io/}{Lil\textquotesingle Log}} { Powered by \href{https://gohugo.io/}{Hugo} \& \href{https://git.io/hugopapermod}{PaperMod} }
+
+\phantomsection\label{top-link}\hyperref[top]{}
+
+
+\section{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Title}''. Lil 'Log (May 2025). \url{https://lilianweng.github.io/posts/2020-10-29-odqa/}
+  \end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2025,
+
+    title   = \{\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2025\},
+    month   = \{May\},
+
+    url     = \{\}
+
+  \}
+  \end{tcolorbox}
+
+\newpage
+\section{References}
+
+% --- Post Footer: Tags and Navigation ---
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{tag1} \quad
+\href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{tag2}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{\textlangle\quad Title}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Title \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Twitter} \textbar{}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{LinkedIn} \textbar{}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Reddit} \textbar{}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Facebook} \textbar{}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{WhatsApp} \textbar{}
+  \href{https://lilianweng.github.io/posts/2020-10-29-odqa/}{Telegram}
+\end{center}
+
+
+
+\end{document}
