@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
+<html lang="en-us" dir="auto">
 
 <head><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,8 +11,8 @@
 In the Part 2 tutorial, I would like to continue the topic on stock price prediction and to endow the recurrent neural network that I have built in Part 1 with the capability of responding to multiple stocks. In order to distinguish the patterns associated with different price sequences, I use the stock symbol embedding vectors as part of the input.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2017-07-22-stock-rnn-part-2/" />
-<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.8e2f522e170c601ef0b359b6e27078d17e3020e1f4d928afdff4dae588c1e9e4.css" integrity="sha256-ji9SLhcMYB7ws1m24nB40X4wIOH02Siv3/Ta5YjB6eQ=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.199271f351c4b46f0d0536b6e2eb89a4766040c0e8df57f1a695c6570d8a4e0f.js" integrity="sha256-GZJx81HEtG8NBTa24uuJpHZgQMDo31fxppXGVw2KTg8="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -62,7 +62,7 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
       <script>
         var doNotTrack = false;
-        if ( false ) {
+        if ( true ) {
           var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
           var doNotTrack = (dnt == "1" || dnt == "yes");
         }
@@ -172,7 +172,6 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
     });
 
 </script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script type="text/javascript" id="MathJax-script" async
   src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -288,7 +287,7 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
 <h1 id="dataset">Dataset<a hidden class="anchor" aria-hidden="true" href="#dataset">#</a></h1>
 <p>During the search, I found <a href="https://github.com/lukaszbanasiak/yahoo-finance">this library</a> for querying Yahoo! Finance API. It would be very useful if Yahoo hasn’t shut down the historical data fetch API. You may find it useful for querying other information though. Here I pick the Google Finance link, among <a href="https://www.quantshare.com/sa-43-10-ways-to-download-historical-stock-quotes-data-for-free">a couple of free data sources</a> for downloading historical stock prices.</p>
 <p>The data fetch code can be written as simple as:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> urllib2
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> urllib2
 </span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> datetime <span style="color:#f92672">import</span> datetime
 </span></span><span style="display:flex;"><span>BASE_URL <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://www.google.com/finance/historical?&#34;</span>
 </span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;output=csv&amp;q=</span><span style="color:#e6db74">{0}</span><span style="color:#e6db74">&amp;startdate=Jan+1%2C+1980&amp;enddate=</span><span style="color:#e6db74">{1}</span><span style="color:#e6db74">&#34;</span>
@@ -297,7 +296,7 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
 </span></span><span style="display:flex;"><span>    urllib2<span style="color:#f92672">.</span>quote(datetime<span style="color:#f92672">.</span>now()<span style="color:#f92672">.</span>strftime(<span style="color:#e6db74">&#34;%b+</span><span style="color:#e6db74">%d</span><span style="color:#e6db74">,+%Y&#34;</span>), <span style="color:#e6db74">&#39;+&#39;</span>)
 </span></span><span style="display:flex;"><span>)
 </span></span></code></pre></div><p>When fetching the content, remember to add try-catch wrapper in case the link fails or the provided stock symbol is not valid.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">try</span>:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">try</span>:
 </span></span><span style="display:flex;"><span>    f <span style="color:#f92672">=</span> urllib2<span style="color:#f92672">.</span>urlopen(symbol_url)
 </span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">with</span> open(<span style="color:#e6db74">&#34;GOOG.csv&#34;</span>, <span style="color:#e6db74">&#39;w&#39;</span>) <span style="color:#66d9ef">as</span> fin:
 </span></span><span style="display:flex;"><span>        print <span style="color:#f92672">&gt;&gt;</span> fin, f<span style="color:#f92672">.</span>read()
@@ -322,17 +321,17 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
 <li><code>stock_count</code> refers to the number of unique stocks in the dataset.</li>
 </ul>
 <p>Together they define the size of the embedding matrix, for which the model has to learn <code>embedding_size</code> $\times$ <code>stock_count</code> additional variables compared to the model in <a href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/">Part 1</a>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">RNNConfig</span>():
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">RNNConfig</span>():
 </span></span><span style="display:flex;"><span>   <span style="color:#75715e"># ... old ones</span>
 </span></span><span style="display:flex;"><span>   embedding_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">3</span>
 </span></span><span style="display:flex;"><span>   stock_count <span style="color:#f92672">=</span> <span style="color:#ae81ff">50</span>
 </span></span></code></pre></div><h2 id="define-the-graph">Define the Graph<a hidden class="anchor" aria-hidden="true" href="#define-the-graph">#</a></h2>
 <p><strong>&mdash; Let&rsquo;s start going through some code &mdash;</strong></p>
 <p>(1) As demonstrated in tutorial <a href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/#define-graph">Part 1: Define the Graph</a>, let us define a <code>tf.Graph()</code> named <code>lstm_graph</code> and a set of tensors to hold input data, <code>inputs</code>, <code>targets</code>, and <code>learning_rate</code> in the same way. One more placeholder to define is a list of stock symbols associated with the input prices. Stock symbols have been mapped to unique integers beforehand with <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html">label encoding</a>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Mapped to an integer. one label refers to one stock symbol.</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Mapped to an integer. one label refers to one stock symbol.</span>
 </span></span><span style="display:flex;"><span>stock_labels <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>int32, [<span style="color:#66d9ef">None</span>, <span style="color:#ae81ff">1</span>])
 </span></span></code></pre></div><p>(2) Then we need to set up an embedding matrix to play as a lookup table, containing the embedding vectors of all the stocks. The matrix is initialized with random numbers in the interval [-1, 1] and gets updated during training.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># NOTE: config = RNNConfig() and it defines hyperparameters.</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># NOTE: config = RNNConfig() and it defines hyperparameters.</span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># Convert the integer labels to numeric embedding vectors.</span>
 </span></span><span style="display:flex;"><span>embedding_matrix <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(
 </span></span><span style="display:flex;"><span>    tf<span style="color:#f92672">.</span>random_uniform([config<span style="color:#f92672">.</span>stock_count, config<span style="color:#f92672">.</span>embedding_size], <span style="color:#f92672">-</span><span style="color:#ae81ff">1.0</span>, <span style="color:#ae81ff">1.0</span>)
@@ -340,12 +339,12 @@ In the Part 2 tutorial, I would like to continue the topic on stock price predic
 </span></span></code></pre></div><p>(3) Repeat the stock labels <code>num_steps</code> times to match the unfolded version of RNN and the shape of <code>inputs</code> tensor during training.
 The transformation operation <a href="https://www.tensorflow.org/api_docs/python/tf/tile">tf.tile</a> receives a base tensor and creates a new tensor by replicating its certain dimensions multiples times; precisely the $i$-th dimension of the input tensor gets multiplied by <code>multiples[i]</code> times. For example, if the <code>stock_labels</code> is <code>[[0], [0], [2], [1]]</code>
 tiling it by <code>[1, 5]</code> produces <code>[[0 0 0 0 0], [0 0 0 0 0], [2 2 2 2 2], [1 1 1 1 1]]</code>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>stacked_stock_labels <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>tile(stock_labels, multiples<span style="color:#f92672">=</span>[<span style="color:#ae81ff">1</span>, config<span style="color:#f92672">.</span>num_steps])
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>stacked_stock_labels <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>tile(stock_labels, multiples<span style="color:#f92672">=</span>[<span style="color:#ae81ff">1</span>, config<span style="color:#f92672">.</span>num_steps])
 </span></span></code></pre></div><p>(4) Then we map the symbols to embedding vectors according to the lookup table <code>embedding_matrix</code>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># stock_label_embeds.get_shape() = (?, num_steps, embedding_size).</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># stock_label_embeds.get_shape() = (?, num_steps, embedding_size).</span>
 </span></span><span style="display:flex;"><span>stock_label_embeds <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>nn<span style="color:#f92672">.</span>embedding_lookup(embedding_matrix, stacked_stock_labels)
 </span></span></code></pre></div><p>(5) Finally, combine the price values with the embedding vectors. The operation <a href="https://www.tensorflow.org/api_docs/python/tf/concat">tf.concat</a> concatenates a list of tensors along the dimension <code>axis</code>. In our case, we want to keep the batch size and the number of steps unchanged, but only extend the input vector of length <code>input_size</code> to include embedding features.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># inputs.get_shape() = (?, num_steps, input_size)</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># inputs.get_shape() = (?, num_steps, input_size)</span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># stock_label_embeds.get_shape() = (?, num_steps, embedding_size)</span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># inputs_with_embeds.get_shape() = (?, num_steps, input_size + embedding_size)</span>
 </span></span><span style="display:flex;"><span>inputs_with_embeds <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>concat([inputs, stock_label_embeds], axis<span style="color:#f92672">=</span><span style="color:#ae81ff">2</span>)
@@ -353,7 +352,7 @@ tiling it by <code>[1, 5]</code> produces <code>[[0 0 0 0 0], [0 0 0 0 0], [2 2 
 <h2 id="training-session">Training Session<a hidden class="anchor" aria-hidden="true" href="#training-session">#</a></h2>
 <p>Please read <a href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/#start-training-session">Part 1: Start Training Session</a> if you haven&rsquo;t for how to run a training session in Tensorflow.</p>
 <p>Before feeding the data into the graph, the stock symbols should be transformed to unique integers with <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html">label encoding</a>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> sklearn.preprocessing <span style="color:#f92672">import</span> LabelEncoder
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> sklearn.preprocessing <span style="color:#f92672">import</span> LabelEncoder
 </span></span><span style="display:flex;"><span>label_encoder <span style="color:#f92672">=</span> LabelEncoder()
 </span></span><span style="display:flex;"><span>label_encoder<span style="color:#f92672">.</span>fit(list_of_symbols)
 </span></span></code></pre></div><p>The train/test split ratio remains same, 90% for training and 10% for testing, for every individual stock.</p>
@@ -364,30 +363,30 @@ tiling it by <code>[1, 5]</code> produces <code>[[0 0 0 0 0], [0 0 0 0 0], [2 2 
 </figure>
 <p>Other than presenting the graph structure or tracking the variables in time, Tensorboard also supports <a href="https://www.tensorflow.org/get_started/embedding_viz"><strong>embeddings visualization</strong></a>. In order to communicate the embedding values to Tensorboard, we need to add proper tracking in the training logs.</p>
 <p>(0) In my embedding visualization, I want to color each stock with its industry sector. This metadata should stored in a csv file. The file has two columns, the stock symbol and the industry sector. It does not matter whether the csv file has header, but the order of the listed stocks must be consistent with <code>label_encoder.classes_</code>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> csv
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> csv
 </span></span><span style="display:flex;"><span>embedding_metadata_path <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>path<span style="color:#f92672">.</span>join(your_log_file_folder, <span style="color:#e6db74">&#39;metadata.csv&#39;</span>)
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">with</span> open(embedding_metadata_path, <span style="color:#e6db74">&#39;w&#39;</span>) <span style="color:#66d9ef">as</span> fout:
 </span></span><span style="display:flex;"><span>    csv_writer <span style="color:#f92672">=</span> csv<span style="color:#f92672">.</span>writer(fout)
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># write the content into the csv file.</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># for example, csv_writer.writerows([&#34;GOOG&#34;, &#34;information_technology&#34;])</span>
 </span></span></code></pre></div><p>(1) Set up the summary writer first within the training <code>tf.Session</code>.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> tensorflow.contrib.tensorboard.plugins <span style="color:#f92672">import</span> projector
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> tensorflow.contrib.tensorboard.plugins <span style="color:#f92672">import</span> projector
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
 </span></span><span style="display:flex;"><span>    summary_writer <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>summary<span style="color:#f92672">.</span>FileWriter(your_log_file_folder)
 </span></span><span style="display:flex;"><span>    summary_writer<span style="color:#f92672">.</span>add_graph(sess<span style="color:#f92672">.</span>graph)
 </span></span></code></pre></div><p>(2) Add the tensor <code>embedding_matrix</code> defined in our graph <code>lstm_graph</code> into the projector config variable and attach the metadata csv file.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    projector_config <span style="color:#f92672">=</span> projector<span style="color:#f92672">.</span>ProjectorConfig()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    projector_config <span style="color:#f92672">=</span> projector<span style="color:#f92672">.</span>ProjectorConfig()
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># You can add multiple embeddings. Here we add only one.</span>
 </span></span><span style="display:flex;"><span>    added_embedding <span style="color:#f92672">=</span> projector_config<span style="color:#f92672">.</span>embeddings<span style="color:#f92672">.</span>add()
 </span></span><span style="display:flex;"><span>    added_embedding<span style="color:#f92672">.</span>tensor_name <span style="color:#f92672">=</span> embedding_matrix<span style="color:#f92672">.</span>name
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># Link this tensor to its metadata file.</span>
 </span></span><span style="display:flex;"><span>    added_embedding<span style="color:#f92672">.</span>metadata_path <span style="color:#f92672">=</span> embedding_metadata_path
 </span></span></code></pre></div><p>(3) This line creates a file <code>projector_config.pbtxt</code> in the folder <code>your_log_file_folder</code>. TensorBoard will read this file during startup.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    projector<span style="color:#f92672">.</span>visualize_embeddings(summary_writer, projector_config)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    projector<span style="color:#f92672">.</span>visualize_embeddings(summary_writer, projector_config)
 </span></span></code></pre></div><h1 id="results">Results<a hidden class="anchor" aria-hidden="true" href="#results">#</a></h1>
 <p>The model is trained with top 50 stocks with largest market values in the S&amp;P 500 index.</p>
 <p>(Run the following command within <a href="https://github.com/lilianweng/stock-rnn">github.com/lilianweng/stock-rnn</a>)</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python main.py --stock_count<span style="color:#f92672">=</span><span style="color:#ae81ff">50</span> --embed_size<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span> --input_size<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span> --max_epoch<span style="color:#f92672">=</span><span style="color:#ae81ff">50</span> --train
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python main.py --stock_count<span style="color:#f92672">=</span><span style="color:#ae81ff">50</span> --embed_size<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span> --input_size<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span> --max_epoch<span style="color:#f92672">=</span><span style="color:#ae81ff">50</span> --train
 </span></span></code></pre></div><p>And the following configuration is used:</p>
 <pre tabindex="0"><code>stock_count = 100
 input_size = 3
@@ -507,7 +506,7 @@ init_epoch = 5
     </main>
     
 <footer class="footer">
-    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>&copy; 2026 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &

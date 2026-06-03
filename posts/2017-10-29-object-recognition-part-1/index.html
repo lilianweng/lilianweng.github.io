@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
+<html lang="en-us" dir="auto">
 
 <head><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,8 +11,8 @@
 I&rsquo;ve never worked in the field of computer vision and has no idea how the magic could work when an autonomous car is configured to tell apart a stop sign from a pedestrian in a red hat. To motivate myself to look into the maths behind object recognition and detection algorithms, I&rsquo;m writing a few posts on this topic &ldquo;Object Detection for Dummies&rdquo;. This post, part 1, starts with super rudimentary concepts in image processing and a few methods for image segmentation. Nothing related to deep neural networks yet. Deep learning models for object detection and recognition will be discussed in Part 2 and Part 3.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" />
-<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.8e2f522e170c601ef0b359b6e27078d17e3020e1f4d928afdff4dae588c1e9e4.css" integrity="sha256-ji9SLhcMYB7ws1m24nB40X4wIOH02Siv3/Ta5YjB6eQ=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.199271f351c4b46f0d0536b6e2eb89a4766040c0e8df57f1a695c6570d8a4e0f.js" integrity="sha256-GZJx81HEtG8NBTa24uuJpHZgQMDo31fxppXGVw2KTg8="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -62,7 +62,7 @@ I&rsquo;ve never worked in the field of computer vision and has no idea how the 
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
       <script>
         var doNotTrack = false;
-        if ( false ) {
+        if ( true ) {
           var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
           var doNotTrack = (dnt == "1" || dnt == "yes");
         }
@@ -172,7 +172,6 @@ I&rsquo;ve never worked in the field of computer vision and has no idea how the 
     });
 
 </script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script type="text/javascript" id="MathJax-script" async
   src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -415,7 +414,7 @@ $$
 $$
 </div>
 <p>Try this in python:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
 </span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy.signal <span style="color:#66d9ef">as</span> sig
 </span></span><span style="display:flex;"><span>data <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([[<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">105</span>, <span style="color:#ae81ff">0</span>], [<span style="color:#ae81ff">40</span>, <span style="color:#ae81ff">255</span>, <span style="color:#ae81ff">90</span>], [<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">55</span>, <span style="color:#ae81ff">0</span>]])
 </span></span><span style="display:flex;"><span>G_x <span style="color:#f92672">=</span> sig<span style="color:#f92672">.</span>convolve2d(data, np<span style="color:#f92672">.</span>array([[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1</span>]]), mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;valid&#39;</span>) 
@@ -459,7 +458,7 @@ $$
 	<img src="manu-2004.png"  />
 	<figcaption>Manu Ginobili in 2004 with hair. (Image source: <a href="http://ftw.usatoday.com/2013/05/manu-ginobilis-bald-spot-through-the-years" target="_blank">Manu Ginobili's bald spot through the years</a>)</figcaption>
 </figure>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> numpy <span style="color:#66d9ef">as</span> np
 </span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy
 </span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> scipy.signal <span style="color:#66d9ef">as</span> sig
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># With mode=&#34;L&#34;, we force the image to be parsed in the grayscale, so it is</span>
@@ -517,7 +516,7 @@ The final HOG feature vector is the concatenation of all the block vectors. It c
 </ol>
 <h2 id="example-manu-in-2004-1">Example: Manu in 2004<a hidden class="anchor" aria-hidden="true" href="#example-manu-in-2004-1">#</a></h2>
 <p>Let&rsquo;s reuse the same example image in the previous section. Remember that we have computed $\mathbf{G}_x$ and $\mathbf{G}_y$ for the whole image.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>N_BUCKETS <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>N_BUCKETS <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
 </span></span><span style="display:flex;"><span>CELL_SIZE <span style="color:#f92672">=</span> <span style="color:#ae81ff">8</span>  <span style="color:#75715e"># Each cell is 8x8 pixels</span>
 </span></span><span style="display:flex;"><span>BLOCK_SIZE <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>  <span style="color:#75715e"># Each block is 2x2 cells</span>
 </span></span><span style="display:flex;"><span>
@@ -557,7 +556,7 @@ The final HOG feature vector is the concatenation of all the block vectors. It c
 </span></span><span style="display:flex;"><span>        )]
 </span></span><span style="display:flex;"><span>    )
 </span></span></code></pre></div><p>The following code simply calls the functions to construct a histogram and plot it.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Random location [200, 200] as an example.</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Random location [200, 200] as an example.</span>
 </span></span><span style="display:flex;"><span>loc_x <span style="color:#f92672">=</span> loc_y <span style="color:#f92672">=</span> <span style="color:#ae81ff">200</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>ydata <span style="color:#f92672">=</span> get_magnitude_hist_block(loc_x, loc_y)
@@ -637,7 +636,7 @@ $$
 	<figcaption>Manu Ginobili in 2013 with bald spot. (Image source: <a href="http://ftw.usatoday.com/2013/05/manu-ginobilis-bald-spot-through-the-years" target="_blank">Manu Ginobili's bald spot through the years</a>)</figcaption>
 </figure>
 <p>Rather than coding from scratch, let us apply <a href="http://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb">skimage.segmentation.felzenszwalb</a> to the image.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> skimage.segmentation
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> skimage.segmentation
 </span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> matplotlib <span style="color:#f92672">import</span> pyplot <span style="color:#66d9ef">as</span> plt
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>img2 <span style="color:#f92672">=</span> scipy<span style="color:#f92672">.</span>misc<span style="color:#f92672">.</span>imread(<span style="color:#e6db74">&#34;manu-2013.jpg&#34;</span>, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;L&#34;</span>)
@@ -772,7 +771,7 @@ $$
     </main>
     
 <footer class="footer">
-    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>&copy; 2026 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &

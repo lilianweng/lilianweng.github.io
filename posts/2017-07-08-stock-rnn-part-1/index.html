@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
+<html lang="en-us" dir="auto">
 
 <head><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,8 +11,8 @@
 This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don&rsquo;t know what is recurrent neural network or LSTM cell, feel free to check my previous post.">
 <meta name="author" content="Lilian Weng">
 <link rel="canonical" href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/" />
-<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
-<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.8e2f522e170c601ef0b359b6e27078d17e3020e1f4d928afdff4dae588c1e9e4.css" integrity="sha256-ji9SLhcMYB7ws1m24nB40X4wIOH02Siv3/Ta5YjB6eQ=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.199271f351c4b46f0d0536b6e2eb89a4766040c0e8df57f1a695c6570d8a4e0f.js" integrity="sha256-GZJx81HEtG8NBTa24uuJpHZgQMDo31fxppXGVw2KTg8="
     onload="hljs.initHighlightingOnLoad();"></script>
 <link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
@@ -62,7 +62,7 @@ This is a tutorial for how to build a recurrent neural network using Tensorflow 
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
       <script>
         var doNotTrack = false;
-        if ( false ) {
+        if ( true ) {
           var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
           var doNotTrack = (dnt == "1" || dnt == "yes");
         }
@@ -172,7 +172,6 @@ This is a tutorial for how to build a recurrent neural network using Tensorflow 
     });
 
 </script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script type="text/javascript" id="MathJax-script" async
   src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -356,7 +355,7 @@ $$
 $$
 </div>
 <p>Here is the key part for formatting the data:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>seq <span style="color:#f92672">=</span> [np<span style="color:#f92672">.</span>array(seq[i <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size: (i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size]) 
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>seq <span style="color:#f92672">=</span> [np<span style="color:#f92672">.</span>array(seq[i <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size: (i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size]) 
 </span></span><span style="display:flex;"><span>       <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(seq) <span style="color:#f92672">//</span> self<span style="color:#f92672">.</span>input_size)]
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># Split into groups of `num_steps`</span>
@@ -390,7 +389,7 @@ $$</p>
 </ul>
 <p>The LSTM model has <code>num_layers</code> stacked LSTM layer(s) and each layer contains <code>lstm_size</code> number of LSTM cells. Then a <a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf">dropout</a> mask with keep probability <code>keep_prob</code> is applied to the output of every LSTM cell. The goal of dropout is to remove the potential strong dependency on one dimension so as to prevent overfitting.</p>
 <p>The training requires <code>max_epoch</code> epochs in total; an <a href="http://www.fon.hum.uva.nl/praat/manual/epoch.html">epoch</a> is a single full pass of all the training data points. In one epoch, the training data points are split into mini-batches of size <code>batch_size</code>. We send one mini-batch to the model for one BPTT learning. The learning rate is set to <code>init_learning_rate</code> during the first <code>init_epoch</code> epochs and then decay by $\times$ <code>learning_rate_decay</code> during every succeeding epoch.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Configuration is wrapped in one object for easy tracking and passing.</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Configuration is wrapped in one object for easy tracking and passing.</span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">RNNConfig</span>():
 </span></span><span style="display:flex;"><span>    input_size<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
 </span></span><span style="display:flex;"><span>    num_steps<span style="color:#f92672">=</span><span style="color:#ae81ff">30</span>
@@ -408,18 +407,18 @@ $$</p>
 <p>A <a href="https://www.tensorflow.org/api_docs/python/tf/Graph"><code>tf.Graph</code></a> is not attached to any real data. It defines the flow of how to process the data and how to run the computation. Later, this graph can be fed with data within a <a href="https://www.tensorflow.org/api_docs/python/tf/Session"><code>tf.session</code></a> and at this moment the computation happens for real.</p>
 <p><strong>&mdash; Let&rsquo;s start going through some code &mdash;</strong></p>
 <p>(1) Initialize a new graph first.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> tensorflow <span style="color:#66d9ef">as</span> tf
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> tensorflow <span style="color:#66d9ef">as</span> tf
 </span></span><span style="display:flex;"><span>tf<span style="color:#f92672">.</span>reset_default_graph()
 </span></span><span style="display:flex;"><span>lstm_graph <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Graph()
 </span></span></code></pre></div><p>(2) How the graph works should be defined within its scope.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> lstm_graph<span style="color:#f92672">.</span>as_default():
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> lstm_graph<span style="color:#f92672">.</span>as_default():
 </span></span></code></pre></div><p>(3) Define the data required for computation. Here we need three input variables, all defined as <a href="https://www.tensorflow.org/versions/master/api_docs/python/tf/placeholder"><code>tf.placeholder</code></a> because we don&rsquo;t know what they are at the graph construction stage.</p>
 <ul>
 <li><code>inputs</code>: the training data <em>X</em>, a tensor of shape (# data examples, <code>num_steps</code>, <code>input_size</code>); the number of data examples is unknown, so it is <code>None</code>. In our case, it would be <code>batch_size</code> in training session. Check the <a href="#input_format_example">input format example</a> if confused.</li>
 <li><code>targets</code>: the training label <em>y</em>, a tensor of shape (# data examples, <code>input_size</code>).</li>
 <li><code>learning_rate</code>: a simple float.</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Dimension = (</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Dimension = (</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of data examples, </span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of input in one computation step, </span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of numbers in one input</span>
@@ -429,43 +428,43 @@ $$</p>
 </span></span><span style="display:flex;"><span>    targets <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>float32, [<span style="color:#66d9ef">None</span>, config<span style="color:#f92672">.</span>input_size])
 </span></span><span style="display:flex;"><span>    learning_rate <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>float32, <span style="color:#66d9ef">None</span>)
 </span></span></code></pre></div><p>(4) This function returns one <a href="https://www.tensorflow.org/versions/r1.0/api_docs/python/tf/contrib/rnn/LSTMCell">LSTMCell</a> with or without dropout operation.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_create_one_cell</span>():
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_create_one_cell</span>():
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>LSTMCell(config<span style="color:#f92672">.</span>lstm_size, state_is_tuple<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>)
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> config<span style="color:#f92672">.</span>keep_prob <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">1.0</span>:
 </span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>DropoutWrapper(lstm_cell, output_keep_prob<span style="color:#f92672">=</span>config<span style="color:#f92672">.</span>keep_prob)
 </span></span></code></pre></div><p>(5) Let&rsquo;s stack the cells into multiple layers if needed. <code>MultiRNNCell</code> helps connect sequentially multiple simple cells to compose one cell.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    cell <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>MultiRNNCell(
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    cell <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>MultiRNNCell(
 </span></span><span style="display:flex;"><span>        [_create_one_cell() <span style="color:#66d9ef">for</span> _ <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>num_layers)], 
 </span></span><span style="display:flex;"><span>        state_is_tuple<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>
 </span></span><span style="display:flex;"><span>    ) <span style="color:#66d9ef">if</span> config<span style="color:#f92672">.</span>num_layers <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span> <span style="color:#66d9ef">else</span> _create_one_cell()
 </span></span></code></pre></div><p>(6) <a href="https://www.tensorflow.org/api_docs/python/tf/nn/dynamic_rnn"><code>tf.nn.dynamic_rnn</code></a> constructs a recurrent neural network specified by <code>cell</code> (RNNCell). It returns a pair of (model outpus, state), where the outputs <code>val</code> is of size (<code>batch_size</code>, <code>num_steps</code>, <code>lstm_size</code>) by default. The state refers to the current state of the LSTM cell, not consumed here.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    val, _ <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>nn<span style="color:#f92672">.</span>dynamic_rnn(cell, inputs, dtype<span style="color:#f92672">=</span>tf<span style="color:#f92672">.</span>float32)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    val, _ <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>nn<span style="color:#f92672">.</span>dynamic_rnn(cell, inputs, dtype<span style="color:#f92672">=</span>tf<span style="color:#f92672">.</span>float32)
 </span></span></code></pre></div><p>(7) <a href="https://www.tensorflow.org/api_docs/python/tf/transpose"><code>tf.transpose</code></a> converts the outputs from the dimension (<code>batch_size</code>, <code>num_steps</code>, <code>lstm_size</code>) to (<code>num_steps</code>, <code>batch_size</code>, <code>lstm_size</code>). Then the last output is picked.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># After transpose, val.get_shape() = (num_steps, batch_size, lstm_size)</span>
 </span></span><span style="display:flex;"><span>    val <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>transpose(val, [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">2</span>])
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># last.get_shape() = (batch_size, lstm_size)</span>
 </span></span><span style="display:flex;"><span>    last <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>gather(val, int(val<span style="color:#f92672">.</span>get_shape()[<span style="color:#ae81ff">0</span>]) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>, name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;last_lstm_output&#34;</span>)
 </span></span></code></pre></div><p>(8) Define weights and biases between the hidden and output layers.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    weight <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(tf<span style="color:#f92672">.</span>truncated_normal([config<span style="color:#f92672">.</span>lstm_size, config<span style="color:#f92672">.</span>input_size]))
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    weight <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(tf<span style="color:#f92672">.</span>truncated_normal([config<span style="color:#f92672">.</span>lstm_size, config<span style="color:#f92672">.</span>input_size]))
 </span></span><span style="display:flex;"><span>    bias <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(tf<span style="color:#f92672">.</span>constant(<span style="color:#ae81ff">0.1</span>, shape<span style="color:#f92672">=</span>[config<span style="color:#f92672">.</span>input_size]))
 </span></span><span style="display:flex;"><span>    prediction <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>matmul(last, weight) <span style="color:#f92672">+</span> bias
 </span></span></code></pre></div><p>(9) We use mean square error as the loss metric and <a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf">the RMSPropOptimizer algorithm</a> for gradient descent optimization.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    loss <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>reduce_mean(tf<span style="color:#f92672">.</span>square(prediction <span style="color:#f92672">-</span> targets))
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    loss <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>reduce_mean(tf<span style="color:#f92672">.</span>square(prediction <span style="color:#f92672">-</span> targets))
 </span></span><span style="display:flex;"><span>    optimizer <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>train<span style="color:#f92672">.</span>RMSPropOptimizer(learning_rate)
 </span></span><span style="display:flex;"><span>    minimize <span style="color:#f92672">=</span> optimizer<span style="color:#f92672">.</span>minimize(loss)
 </span></span></code></pre></div><h2 id="start-training-session">Start Training Session<a hidden class="anchor" aria-hidden="true" href="#start-training-session">#</a></h2>
 <p>(1) To start training the graph with real data, we need to start a <a href="https://www.tensorflow.org/api_docs/python/tf/Session"><code>tf.session</code></a> first.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
 </span></span></code></pre></div><p>(2) Initialize the variables as defined.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    tf<span style="color:#f92672">.</span>global_variables_initializer()<span style="color:#f92672">.</span>run()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    tf<span style="color:#f92672">.</span>global_variables_initializer()<span style="color:#f92672">.</span>run()
 </span></span></code></pre></div><p>(0) The learning rates for training epochs should have been precomputed beforehand. The index refers to the epoch index.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>learning_rates_to_use <span style="color:#f92672">=</span> [
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>learning_rates_to_use <span style="color:#f92672">=</span> [
 </span></span><span style="display:flex;"><span>    config<span style="color:#f92672">.</span>init_learning_rate <span style="color:#f92672">*</span> (
 </span></span><span style="display:flex;"><span>        config<span style="color:#f92672">.</span>learning_rate_decay <span style="color:#f92672">**</span> max(float(i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">-</span> config<span style="color:#f92672">.</span>init_epoch), <span style="color:#ae81ff">0.0</span>)
 </span></span><span style="display:flex;"><span>    ) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>max_epoch)]
 </span></span></code></pre></div><p>(3) Each loop below completes one epoch training.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> epoch_step <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>max_epoch):
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> epoch_step <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>max_epoch):
 </span></span><span style="display:flex;"><span>        current_lr <span style="color:#f92672">=</span> learning_rates_to_use[epoch_step]
 </span></span><span style="display:flex;"><span>        
 </span></span><span style="display:flex;"><span>        <span style="color:#75715e"># Check https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py</span>
@@ -479,7 +478,7 @@ $$</p>
 </span></span><span style="display:flex;"><span>            }
 </span></span><span style="display:flex;"><span>            train_loss, _ <span style="color:#f92672">=</span> sess<span style="color:#f92672">.</span>run([loss, minimize], train_data_feed)
 </span></span></code></pre></div><p>(4) Don&rsquo;t forget to save your trained model at the end.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    saver <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>train<span style="color:#f92672">.</span>Saver()
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    saver <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>train<span style="color:#f92672">.</span>Saver()
 </span></span><span style="display:flex;"><span>    saver<span style="color:#f92672">.</span>save(sess, <span style="color:#e6db74">&#34;your_awesome_model_path_and_name&#34;</span>, global_step<span style="color:#f92672">=</span>max_epoch_step)
 </span></span></code></pre></div><p>The complete code is available <a href="https://github.com/lilianweng/stock-rnn/blob/master/build_graph.py">here</a>.</p>
 <h2 id="use-tensorboard">Use TensorBoard<a hidden class="anchor" aria-hidden="true" href="#use-tensorboard">#</a></h2>
@@ -491,12 +490,12 @@ $$</p>
 <li>Methods like <a href="https://www.tensorflow.org/api_docs/python/tf/summary/scalar"><code>tf.summary.scalar</code></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/summary/histogram"><code>tf.summary.histogram</code></a> help track the values of variables in the graph during iterations.</li>
 <li>In the training session, define a log file using <a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter"><code>tf.summary.FileWriter</code></a>.</li>
 </ul>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
 </span></span><span style="display:flex;"><span>    merged_summary <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>summary<span style="color:#f92672">.</span>merge_all()
 </span></span><span style="display:flex;"><span>    writer <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>summary<span style="color:#f92672">.</span>FileWriter(<span style="color:#e6db74">&#34;location_for_keeping_your_log_files&#34;</span>, sess<span style="color:#f92672">.</span>graph)
 </span></span><span style="display:flex;"><span>    writer<span style="color:#f92672">.</span>add_graph(sess<span style="color:#f92672">.</span>graph)
 </span></span></code></pre></div><p>Later, write the training progress and summary results into the file.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>_summary <span style="color:#f92672">=</span> sess<span style="color:#f92672">.</span>run([merged_summary], test_data_feed)
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>_summary <span style="color:#f92672">=</span> sess<span style="color:#f92672">.</span>run([merged_summary], test_data_feed)
 </span></span><span style="display:flex;"><span>writer<span style="color:#f92672">.</span>add_summary(_summary, global_step<span style="color:#f92672">=</span>epoch_step)  <span style="color:#75715e"># epoch_step in range(config.max_epoch)</span>
 </span></span></code></pre></div><figure>
 	<img src="tensorboard1.png"  />
@@ -509,7 +508,7 @@ $$</p>
 <p>The full working code is available in <a href="https://github.com/lilianweng/stock-rnn">github.com/lilianweng/stock-rnn</a>.</p>
 <h1 id="results">Results<a hidden class="anchor" aria-hidden="true" href="#results">#</a></h1>
 <p>I used the following configuration in the experiment.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>num_layers<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>num_layers<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
 </span></span><span style="display:flex;"><span>keep_prob<span style="color:#f92672">=</span><span style="color:#ae81ff">0.8</span>
 </span></span><span style="display:flex;"><span>batch_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">64</span>
 </span></span><span style="display:flex;"><span>init_learning_rate <span style="color:#f92672">=</span> <span style="color:#ae81ff">0.001</span>
@@ -609,7 +608,7 @@ The model code has been updated to be wrapped into a class: <a href="https://git
     </main>
     
 <footer class="footer">
-    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>&copy; 2026 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
