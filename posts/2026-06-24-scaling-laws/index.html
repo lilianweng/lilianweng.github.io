@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Scaling Laws, Carefully | Lil&#39;Log</title>
+<meta name="keywords" content="language-model, foundation, pretraining, transformer, learning-dynamics" />
+<meta name="description" content="Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2026-06-24-scaling-laws/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.8e2f522e170c601ef0b359b6e27078d17e3020e1f4d928afdff4dae588c1e9e4.css" integrity="sha256-ji9SLhcMYB7ws1m24nB40X4wIOH02Siv3/Ta5YjB6eQ=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.199271f351c4b46f0d0536b6e2eb89a4766040c0e8df57f1a695c6570d8a4e0f.js" integrity="sha256-GZJx81HEtG8NBTa24uuJpHZgQMDo31fxppXGVw2KTg8="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2026-06-24-scaling-laws/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( true ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Scaling Laws, Carefully" />
+<meta property="og:description" content="Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2026-06-24-scaling-laws/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2026-06-24T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2026-06-24T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Scaling Laws, Carefully"/>
+<meta name="twitter:description" content="Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Scaling Laws, Carefully",
+      "item": "https://lilianweng.github.io/posts/2026-06-24-scaling-laws/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Scaling Laws, Carefully",
+  "name": "Scaling Laws, Carefully",
+  "description": "Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$.\n",
+  "keywords": [
+    "language-model", "foundation", "pretraining", "transformer", "learning-dynamics"
+  ],
+  "articleBody": "Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$.\nThis predictability makes scaling laws highly valuable in practice. A common workflow is to fit scaling laws on a handful of small runs and then extrapolate to estimate the token and compute requirements for larger models.\nSymbol Note $N$ Model size, measured in parameter count. $D$ Training dataset size, usually measured in token count. $C$ Training compute in FLOPs. As a useful approximation, $C \\approx 6ND$ (Kaplan et al. 2020), where $2ND$ accounts for the forward pass and $4ND$ for backpropagation. $E$ Irreducible loss $L, \\hat{L}(.)$ Test loss / test loss prediction function; can also refer to training loss, since they are strongly correlated. $\\epsilon$ Generalization error. Early days: ML loss predictability The predictability of generalization error with scale had already been investigated before scaling laws became a mainstream concept.\nAmari et al. (1992) derived four types of learning curves using a Bayesian approach and the annealed approximation.\nDeterministic learning algorithm, noiseless data, one unique solution: $\\epsilon \\sim c \\cdot D^{-1}$, where $c$ is some constant. Deterministic learning algorithm, noiseless data, multiple equivalent solutions: $\\epsilon \\sim c \\cdot D^{-2}$; the learning is faster with each new data point, because the model only learns the optimal manifold of parameters, instead of finding the single solution point. Deterministic learning algorithm, noisy data: $\\epsilon \\sim c \\cdot D^{-1/2}$; noises in data make learning harder. Stochastic learning algorithm, noisy data: $\\epsilon \\sim c \\cdot D^{-1} + E$; here the irreducible loss $E$ is the residual error that a stochastic learner cannot reduce further, for example when the model runs out of capacity on large data. All four types of learning curves follow a power law: $$ \\epsilon \\sim c \\cdot D^\\alpha + E $$ where $E$ can be 0 and $\\alpha = -2, -1, -1/2$. Although their theoretical setup is based on a simplified binary classification task, it points in a useful direction for building empirical ML loss prediction models.\nOne of the earliest empirical studies by Hestness et al. (2017) explained the relationship between generalization error, model size and data. For a given training data size, they identified the best-fit model size via grid search and then plotted loss against training dataset size. Across four different domains in deep learning (neural machine translation, image classification, language modeling, and speech recognition), a recurring pattern was observed where:\nGeneralization error scales as a power law across a set of factors (e.g. data size). Model improvements shift the error curve but do not seem to affect the power-law exponent. Interestingly, architecture changes the offset ($E$) of the power-law fit but does not change the exponent ($\\alpha$). The slope of the power law appears to be a property of the problem domain rather than the model architecture. The number of model parameters $N$ needed to fit a dataset of size $D$ also scales as a power law. Learning curves for (Left) Deep-Speech-2 (DS2) and attention speech model and for (Right) DS2 models of various sizes. The losses of small models plateau when training data becomes large. (Image source: Hestness et al. 2017) A conceptual illustration breaks the learning curve into three stages. In the small-data region, when there are not enough learning signals, the model performs only slightly better than random guessing. In the middle (“power-law region”), we observe a power-law relationship between loss, data, and model size. The final irreducible-error region can be attributed to factors such as noise in the data.\nIllustration of power-law learning curve phases. (Image source: Hestness et al. 2017) Rosenfeld et al. (2020) pushed this further by trying to model error as a joint function of both model size $N$ and data size $D$, across a diverse set of architectures (ResNet, WRN, LSTM, Transformer) and optimizers (Adam, SGD variants). Empirically they observed that, holding one axis fixed, the error decays as a power law in the other:\n$$ \\hat{L}(D,N) \\approx \\frac{A}{N^{\\alpha}} + E_N,\\quad \\hat{L}(D,N) \\approx \\frac{B}{D^{\\beta}} + E_D $$ which can be combined into a joint form:\n$$ \\hat{L}(D, N) \\approx \\frac{A}{N^{\\alpha}} + \\frac{B}{D^{\\beta}} + E $$ where $A \u003e 0, B \u003e 0, \\alpha \\geq 0, \\beta \\geq 0$ are scalar constants and $E$ is not dependent on either $N$ or $D$.\nA 3D contour plot of data size, model size and generalization error in log-log-log scale. Blue dots are derived from empirical experiments and the surface is a linear interpolation between blue dots. (Image source: Rosenfeld et al. 2020) Thus, they can build a prediction model in the form of a simple parametric function with $\\boldsymbol{\\theta} = \\langle A, B, E, \\alpha, \\beta \\rangle$ to predict the expected loss for $(D, N)$ \u003e certain thresholds by only training on a set of smaller training configs, $(D, N)$ \u003c certain thresholds.\nFitting the parametric error model on small-scale configurations and extrapolating to larger model/data regimes: (a) Illustration of the experiment setup; Experiment results on (b) ImageNet, (c) WikiText-103 and (d) CIFAR100 Error estimation with three architectures (WRN, VGG, DenseNet) and two optimizers (SGD, Adam). (Image source: Rosenfeld et al. 2020) Side note: These early works lean on classical learning-theory intuition like the VC dimension (the cardinality of the largest set of points a model can shatter) as a proxy for capacity, but in modern deep learning work the VC dimension is often too coarse to explain the behavior and the empirical power laws turned out to be much cleaner and more practical than the worst-case bounds that theory provides.\nScaling Laws in Data-Infinite Region Kaplan et al.’s Scaling Laws Kaplan et al. (2020) popularized the concept of scaling laws in the language modeling community. They found that the cross-entropy test loss $L$ scales as a power law with each of model size $N$ (excluding embedding layers), dataset size $D$, and training compute $C$ across many orders of magnitude. The findings are aligned with early work in the last section, but Kaplan et al. formalized the concept with a focus on Transformer language models and empirical experimentation at a larger scale, with model size ranging from 768M to 1.5B non-embedding parameters and dataset size from 22M to 23B tokens. All training runs in the paper used a learning rate schedule with a 3000 step linear warmup, followed by a cosine decay to zero.\nList of key findings:\nThe loss $L$ scales as a power law with $N$, $D$, and $C$ individually; for optimal performance all three must scale in tandem. Training curves follow predictable power laws whose parameters are roughly independent of model size. Larger models are more sample-efficient, meaning that they reach a given loss with fewer optimization steps and fewer data points than small models. Architectural details (width, aspect ratio, etc.) matter less than sheer scale. Train loss and test loss are positively correlated. (Sounds trivial but this is the foundation for pretraining work. On the other hand, whether pretraining loss improvement transfers to posttraining evaluation needs separate studies.) Given a fixed compute budget, it is more efficient to train a very large model and stop before convergence than to train a smaller model all the way to convergence. This finding is where the Chinchilla scaling laws (the next section) disagree: Kaplan et al. overestimated the optimal model size as their fitted exponent was larger. They summarize the joint dependence on $N$ and $D$ in a single equation:\n$$ \\hat{L}(N,D) = \\left[ \\left(\\frac{a}{N}\\right)^{\\frac{\\alpha}{\\beta}} + \\frac{b}{D} \\right]^{\\beta} $$ A nice consequence of this form is that the extent of overfitting depends predominantly on the ratio $N^{\\alpha / \\beta} / D$, which indicates that the data needs to grow in a specific proportion to the growth of the model size to avoid training being data-limited.\nTest loss as a power law in compute, dataset size, and parameters, spanning many orders of magnitude. (Image source: Kaplan et al. 2020) The most influential and, in hindsight, most contested conclusion was the compute-optimal allocation. Kaplan et al. found $N_\\text{opt} \\propto C^{0.73}$ and concluded that model size should grow faster than dataset size. Concretely, for a 10x increase in compute they suggested scaling the model size by ~5.5x but the training tokens by only ~1.8x. The Chinchilla paper would later overturn this recommendation, arguing that it leaves large models badly undertrained.\nAnother useful analysis in Kaplan et al. approximates the number of training FLOPs needed based on $D$ and $N$. Each multiply-add is counted as ~2 FLOPs.\nParameter and compute estimation for different Transformer architectural components, given the number of layers $n_\\text{layer}$, model width $d_\\text{model}$ (= $d_\\text{embed}$; the notation is inconsistent in the original table), dimension of feed-forward layer $d_\\text{ff}$ (often equivalent to $4 d_\\text{model}$, attention dimension $d_\\text{attn}$ (often equivalent to $d_\\text{model}$), the context length $n_\\text{ctx}$ and the vocabulary size $n_\\text{vocab}$. (Image source: Kaplan et al. 2020) Given a standard config where $d_\\text{attn} = d_\\text{model} = d_\\text{ff}/4$, and excluding embedding layers from $N$ and the per-token forward compute:\n$$ \\begin{align} N \u0026= n_\\text{layer} d_\\text{model} 3 d_\\text{attn} + n_\\text{layer} d_\\text{attn} d_\\text{model} + n_\\text{layer} 2 d_\\text{model} d_\\text{ff} \u0026 \\small{\\text{; no embedding layer}} \\\\ \u0026= 2\\;n_\\text{layer} d_\\text{model}(2d_\\text{attn} + d_\\text{ff}) \u0026 \\\\ \u0026= 12\\;n_\\text{layer} d_\\text{model}^2 \u0026 \\\\ \\\\ C_\\text{fwd} \u0026= 2 n_\\text{layer} (d_\\text{model} 3 d_\\text{attn} + n_\\text{ctx}d_\\text{attn} + d_\\text{attn}d_\\text{embed} + 2 d_\\text{model} d_\\text{ff}) \u0026 \\\\ \u0026= 2 n_\\text{layer} (12 d_\\text{model}^2 + n_\\text{ctx}d_\\text{attn}) \u0026 \\\\ \u0026= 2N + 2 n_\\text{layer}n_\\text{ctx}d_\\text{attn} \u0026 \\\\ \u0026\\approx 2N \\quad\\quad \\small{\\text{; assuming }n_\\text{ctx} \u003c 12 d_\\text{model} \\text{ and the }n_\\text{ctx}\\text{ term is relatively small.}}\\\\ \\end{align} $$ Then we count backward-pass FLOPs as twice the forward-pass FLOPs, because backpropagation runs two matrix multiplications, for gradients with respect to the input activations and the weights, respectively. Thus, in total, the training FLOPs per token are approximately $6N$, and the total FLOPs for training over $D$ tokens are $C \\approx 6ND$.\nChinchilla Scaling Laws The Chinchilla paper (Hoffmann et al. 2022) studied the relationship between the optimal model size $N$ (total parameters, including embeddings) and the number of tokens $D$ under a fixed compute budget $C$ with a more careful experimental design and arrived at a somewhat different answer from Kaplan et al..\nYou should know how chinchilla looks 😊 (Image source: ChatGPT generated) The central question is on the best strategy to allocate resources given a constraint $\\text{FLOPs}(N, D) = C \\approx 6ND$. In other words, when we have only limited FLOPs (a given number of GPUs running for a given period of time), how should we choose between more data tokens and more model parameters?\n$$ N_\\text{opt}(C), D_\\text{opt}(C) = \\operatorname*{arg\\,min}_{\\text{s.t. } \\text{FLOPs}(N,D) = C} \\hat{L}(N, D) $$ The Chinchilla paper presented three neatly designed methods for scaling laws fitting.\nThe empirical experiments scanned over 400 models, with sizes from 70M to over 16B parameters and training tokens from 5B to 500B. The experiments were under the assumption that every training token is unique (the infinite-data regime). All runs used a cosine learning-rate schedule decaying by 10x over the training horizon. Sweeping over model sizes traces out the compute-optimal frontier.\nMethod 1: Fix model sizes, vary the token budget For each parameter count $N$, train several runs with different token budgets, and record the minimal loss achieved per FLOP budget $C$.\nChinchilla Method 1: training loss curves over FLOP budgets for a sweep of model sizes. (Image source: Hoffmann et al. 2022) Method 2: IsoFLOP profiles Fix a compute budget $C$ and plot the final loss against parameter count $N$. Each iso-FLOP curve is roughly a parabola in log-space, and its minimum flags the optimal model size for that compute budget. Then repeating across budgets traces a power-law line in the plot.\nChinchilla Method 2: IsoFLOP parabolas; the minimum of each curve is the compute-optimal model size for that budget. (Image source: Hoffmann et al. 2022) Method 3: Parametric fit Fit the same parametric function as in Rosenfeld et al. (2020) directly,\n$$ \\hat{L}(N, D) = \\frac{A}{N^\\alpha} + \\frac{B}{D^\\beta} + E $$ We can actually get a closed form approximation of optimal $N_\\text{opt}(C), D_\\text{opt}(C)$ by minimizing $\\hat{L}(N, D)$ under the constraint $\\text{FLOPs}(N,D) = C \\approx 6ND$.\nFirst let’s reduce the expression to contain only $N$:\n$$ \\begin{align} \\hat{L}(N) \u0026= A N^{-\\alpha} + B \\Big(\\frac{C}{6}\\Big)^{-\\beta}N^\\beta + E \\\\ \\hat{L}'(N) \u0026= -\\alpha A N^{-\\alpha-1} + \\beta B \\Big(\\frac{C}{6}\\Big)^{-\\beta} N^{\\beta -1} = 0 \u0026 \\small{\\text{; derivative wrt }N\\text{ should be zero.}} \\\\ \\text{Thus}\\quad \u0026 \\alpha A N^{-\\alpha-1} = \\beta B \\Big(\\frac{C}{6}\\Big)^{-\\beta} N^{\\beta -1} \\\\ \u0026 \\alpha A = \\beta B \\Big(\\frac{C}{6}\\Big)^{-\\beta} N^{\\alpha + \\beta} \\\\ \u0026 N_\\text{opt} = \\Big(\\frac{\\alpha A}{\\beta B}\\Big)^{\\frac{1}{\\alpha + \\beta}} \\Big(\\frac{C}{6}\\Big)^{\\frac{\\beta}{\\alpha+\\beta}} \\\\ \u0026 D_\\text{opt} = \\frac{C}{6 N_\\text{opt}} = \\Big(\\frac{\\beta B}{\\alpha A}\\Big)^{\\frac{1}{\\alpha + \\beta}} \\Big(\\frac{C}{6}\\Big)^{\\frac{\\alpha}{\\alpha+\\beta}} \\end{align} $$ When $\\alpha \\approx \\beta$, model size and training tokens should scale at equal rates.\nTo find the optimal $\\boldsymbol{\\theta} = \\langle A, B, E, \\alpha, \\beta\\rangle$, the Chinchilla paper adopts a Huber loss (robust to outliers; $\\delta=10^{-3}$) and the L-BFGS algorithm (good for curve fitting with a small number of parameters).\n$$ \\begin{align} \\min_{A,B,E,\\alpha,\\beta} \\sum_{\\text{runs }\\{i\\}} \\text{Huber}_\\delta (\\log \\hat{L}(N_i, D_i) - \\log L_i) \\\\ \\text{ where }\\text{Huber}_\\delta (x) = \\begin{cases}\\frac{1}{2} x^2 \u0026 \\text{for }\\vert x \\vert \\leq \\delta \\\\ \\delta \\cdot (\\vert x \\vert - \\frac{1}{2}\\delta), \u0026 \\text{otherwise.}\\end{cases} \\end{align} $$ Chinchilla arrives at its answer through three complementary methods whose final results agree with each other, and this is part of why the result was quite convincing.\nThe three methods agree on a compute-optimal frontier where $N_\\text{opt} \\propto C^{0.5}$, but disagree with Kaplan et al. Note that method 3's results are slightly off from the other two, which we will explain later. (Image source: Hoffmann et al. 2022) The plot of the Chinchilla predictions by three different approaches, as well as predictions by Kaplan et al. (2020). All three methods suggest that several mainstream LLMs at the time were undertrained. (Image source: Hoffmann et al. 2022) The claim in the Chinchilla paper that most large models (at the time, ~2022) were undertrained is supported by a famous demonstration: under the same compute budget as Gopher (Rae et al. 2021; 280B parameter count, 300B token budget), they trained Chinchilla (70B parameter count, 1.4T token budget), a model 4x smaller but trained on roughly 4x more tokens and it outperformed Gopher across the board.\nReconciling Kaplan and Chinchilla The Chinchilla scaling laws disagree with Kaplan et al. as follows:\nInstead of “grow the model faster than the data” ($N_\\text{opt} \\propto C^{0.73}$), for every doubling of model size, you should also double the number of training tokens ($N_\\text{opt} \\propto C^{0.5}$). Instead of “train a big model and stop before convergence,” you should train a smaller model on more data. Both papers still agree on the same underlying principle, but they disagree on where the optimal size-vs-token tradeoff lies. Why do they disagree so much?\nDifference 1: Kaplan et al. experimented mostly on small models. Kaplan et al. experimented mostly on smaller models, while the Chinchilla paper’s experiments reached more than 10x larger scales. When we extrapolate in log-log space, a small difference in the fit can result in large differences (See toy simulation).\nDifference 2: Embedding parameter count matters for small models. In the small-parameter regime, embedding parameters are a non-negligible fraction of the total and thus counting them or not matters. Pearce \u0026 Song (2024) did a thorough analysis along this line. Let’s use $N_{\\setminus E}, C_{\\setminus E}$ to denote model size and compute when embedding is excluded and use $N, C$ to count total parameters.\nKaplan et al.: $N^*_{\\setminus E} \\propto C^{0.73}_{\\setminus E}$ (non-embedding) Chinchilla: $N^* \\propto C^{0.50}$ (total) To bridge them, they fit a relationship between total parameters $N_T$ and non-embedding parameters $N_{\\setminus E}$, for some constant $\\omega$:\n$$ N = N_{\\setminus E} + \\omega\\, N_{\\setminus E}^{1/3}. $$ This form has nice properties of being strictly increasing and $\\lim_{N \\to \\infty} N = N_{\\setminus E}$ (because $\\frac{N}{N_{\\setminus E}} = 1 + \\omega {N_{\\setminus E}}^{- \\frac{2}{3}}, \\lim_{N_{\\setminus E} \\to \\infty} \\frac{N}{N_{\\setminus E}} = 1$.\nPlugging this into the Chinchilla laws equation,\n$$ \\begin{align} L(N_{\\setminus E}, C_{\\setminus E}) \u0026= A(N_{\\setminus E} + \\omega\\, N_{\\setminus E}^{1/3})^{-\\alpha} + B \\Big(\\frac{C_{\\setminus E}}{6}\\Big)^{-\\beta} N_{\\setminus E}^\\beta + E \\\\ L'(N_{\\setminus E}, C_{\\setminus E}) \u0026= - \\alpha A (N_{\\setminus E} + \\omega N_{\\setminus E}^{1/3})^{-\\alpha -1}(1 + \\frac{\\omega}{3}N_{\\setminus E}^{-2/3}) + \\beta B \\Big(\\frac{C_{\\setminus E}}{6}\\Big)^{-\\beta} N_{\\setminus E}^{\\beta -1} = 0 \u0026 \\small{\\text{; derivative wrt }N_{\\setminus E}\\text{ should be zero.}} \\\\ \\text{Rearrange to get }\u0026 \\alpha A (N^{*}_{\\setminus E} + \\omega {N^{*}_{\\setminus E}}^{1/3})^{-\\alpha -1}(1 + \\frac{\\omega}{3} {N^{*}_{\\setminus E}}^{-2/3}) = \\beta B \\Big(\\frac{C_{\\setminus E}}{6}\\Big)^{-\\beta} {N^{*}_{\\setminus E}}^{\\beta -1} \\\\ \u0026 6^{-\\beta}\\frac{\\alpha A}{\\beta B} ({N^{*}_{\\setminus E}} + \\omega {N^{*}_{\\setminus E}}^{1/3})^{-\\alpha -1}(1 + \\frac{\\omega}{3}{N^{*}_{\\setminus E}}^{-2/3}) {N^{*}_{\\setminus E}}^{1 - \\beta} = C_{\\setminus E}^{-\\beta} \\\\ \u0026 6 \\Big(\\frac{\\beta B}{\\alpha A}\\Big)^{\\frac{1}{\\beta}} ({N^{*}_{\\setminus E}} + \\omega {N^{*}_{\\setminus E}}^{1/3})^{\\frac{1 + \\alpha}{\\beta}} ({N^{*}_{\\setminus E}} + \\frac{\\omega}{3}{N^{*}_{\\setminus E}}^{1/3})^{-\\frac{1}{\\beta}} {N^{*}_{\\setminus E}} = C_{\\setminus E} \\\\ \\end{align} $$ The relationship between $C_{\\setminus E}$ and $N_{\\setminus E}$ in the above equation is no longer a clean power law. We can only approximate it locally as $N^*_{\\setminus E} \\overset{\\propto}{\\sim} C_{\\setminus E}^g$, where $g$ is a local exponent based on a first-order derivative ($\\overset{\\propto}{\\sim}$) rather than a global power-law exponent, resulting in $g = \\frac{\\mathrm{d} \\log C_{\\setminus E}}{\\mathrm{d} \\log N_{\\setminus E}}$. See the full details of how the exponent $g$ is approximated in Appendix A.1 in Pearce \u0026 Song (2024).\nVisualization of how the local power-law exponent $g$ grows with $C_{\\setminus E}$. (Image source: Pearce \u0026 Song 2024) As shown in the visualization above, as $C_{\\setminus E}$ gets larger, $g$ converges to the Chinchilla estimate. By generating synthetic training curves using above equation, in the range of model size from 768M to 1.5B (as in Kaplan et al.), they estimated that $g$ is close to the Kaplan coefficient of 0.73 in that region.\nWhy power law? Power laws are widely observed across many domains outside AI, such as in Zipf’s law, scale-free networks, urban scaling laws, and many other complex systems. The recurring pattern is that large events are rare, small events are common and the relationship between size and frequency often follows a straight line at log-log scale.\nWhy do LLM scaling laws also have the shape of a power law?\nInspired partly by different domains displaying different exponents (Hestness et al. 2017), one early explanation by Sharma \u0026 Kaplan (2020) hypothesizes that language modeling can be viewed as doing regression on a low-dimensional manifold of data. More model parameters can induce a finer partition of the data manifold and therefore smaller generalization error. In the simplest terms, if a model of effective size $N$ partitions a $d$-dimensional manifold into $O(N)$ regions, the typical linear resolution scales like $\\sim N^{-1/d}$. This has a similar power-law form to the scaling laws above. This theory applies most cleanly in the infinite-data, underfitting regime, but in reality estimating the intrinsic dimension of a data manifold is quite hard.\nA later hypothesis (Michaud et al. 2023, Brill 2024) assumes that knowledge or skills are learned in discrete chunks (“quantized”) and that the frequency distribution of these skills follows a power law. The model learns common skills first and rare skills later, resulting in a smooth power-law decay in loss.\nI only listed two hypotheses here, but there are more studies on explaining the shape of power-law scaling through spectral tails of data, kernel eigenvalues, natural-language statistics, or phase transitions in training dynamics.\nScaling Laws in Data-Limited Region Classic scaling laws assume effectively unlimited unique data, no repetition, and no multi-epoch training. As the model size grows significantly, we are running out of enough high-quality unique tokens. In fact, some arguments about how long scaling in AI can continue are centered on whether we are hitting a “data wall”.\nIt is also worth emphasizing that the dataset behind $D$ is expected to be already cleaned. The pretraining data pipeline is often a large part of an effective pretraining pipeline, with common steps like deduplication (exact and fuzzy), quality filtering, boilerplate removal, safety filtering, PII/copyright masking, benchmark decontamination and careful reweighting of data mix components based on language, quality, content type, etc. Even when two datasets contain the same token count $D$, a high-quality dataset and a dataset of Internet slop can yield drastically different compute efficiency.\nThe study by Hernandez et al. (2022) focused on a controlled version: a mostly-unique dataset with a small fraction of repeated data. Starting from a large dataset, the data mix keeps 90% non-repeated but replaces the remaining 10% with repeats of a tiny portion of the original. By training a Transformer model for 100B tokens, they observed a double-descent phenomenon, that is, the test loss can actually get worse and then better again as a function of how much the repeated data is emphasized, an effect that becomes more pronounced as the repeated fraction grows.\nDouble-descent in the test loss as the repeated fraction increases (90% repeated on the left, 50% on the right). (Image source: Hernandez et al. 2022) The flat or increasing trend in the middle of training is possibly due to memorization of repeated data. Learning curves with such shapes make scaling law fitting less accurate. They also concluded repeated data hurts some OOD evaluation and downstream fine-tuning. However, their data mix is constructed in a more lab-like setup, and repetition in real-world data is often more nuanced (e.g. different data has different levels of repetition, semantic repetition, etc.).\nRather than saying data repetition hurts training, we are more interested in how to fit scaling laws, given that the unique high-quality data is not infinite and we likely have to repeat data during training.\nMuennighoff et al. (2023) took on the research question of how compute should be allocated optimally when model training is data-constrained. Specifically, they empirically studied the impact of data repetition across roughly 400 experiments, 10M–9B parameters, data sizes up to 900B tokens, and up to 1500 epochs. The exact same dataset is repeated each epoch, shuffled between epochs, and evaluated on a held-out test set.\nThe key modeling adjustment is to decompose the total token count $D$ into two parts: (i) the number of unique tokens $U_D$ and (ii) the number of repeats $R_D$ (i.e. num. epochs - 1). Thus we have $D = U_D(1 + R_D)$. With a unique-data budget $D_\\text{uniq}$, by definition $U_D = \\min \\{{ D_\\text{uniq}, D\\}}$ and $R_D = (D / U_D) - 1$. They use the Chinchilla scaling laws to find the optimal model size $U_N$ for fitting $U_D$, and define excess model size via repeats $R_N = (N / U_N) - 1$.\nThey then update the Chinchilla parametric fit (method 3) to use effective (discounted) data $D’$ and model size $N’$ in place of the raw quantities:\n$$ \\hat{L}(N, D) = \\frac{A}{N'^\\alpha} + \\frac{B}{D'^\\beta} + E \\quad\\text{ where } D' = U_D + U_D\\, r_D\\left(1 - \\exp\\!\\left(-\\frac{R_D}{r_D}\\right)\\right). $$ The intuition is that a token’s value decays exponentially as it is repeated. In their modeling, each repetition costs the token a $(1 - 1/r_D)$ fraction of its remaining value, where $r_D$ is a learnable “half-life” parameter. When $R_D = 0$ or $R_D \\ll r_D$, we recover $D’ \\approx D$.\nA symmetric formulation handles excess model size, $N’ = U_N + U_N r_N(1 - \\exp(-R_N / r_N))$, capturing the idea that “larger models overfit more quickly on repeated data” and that “a model can be too large for its dataset.” This component is less intuitive, and I could not find a satisfactory explanation for why model size needs to appear in such a symmetric form as repeated data. Later work by Lovelace et al. (2026) changed this assumption.\nTheir empirical fit finds that excess parameters decay faster in value than repeated data, $r_N \u003c r_D$, so we should allocate more resources on more epochs rather than more model parameters. One weakness of this modeling, as the authors also pointed out, is that it significantly underestimates the final test loss of failing models (i.e. models whose loss increases midway through training), such as models trained for 44 epochs.\nData-constrained scaling under repetition captures the experimental results better than data-unaware fitting; the value of repeated tokens decays exponentially toward a ceiling. The fitting gets worse with more epochs as high repetition causes the test loss to increase midway through training, not depicted in the plot. (Image source: Muennighoff et al. 2023) Most recently, Lovelace et al. (2026) revisited the same problem with a different approach. Rather than modeling overparameterization as a diminishing return on effective model size, Lovelace et al. model the interaction between model size $\\times$ data repetition explicitly. Empirically, they trained about 300 models, spanning 15M to 1B parameters and 50M to 6B unique tokens.\nWhen they plot the fit residual for a fixed model size across a range of data-repetition levels, the observation is intuitive: more epochs cause more damage, and interestingly larger models are more sensitive to repetition. This hints that the loss penalty is likely a function of both model size and data size.\nResiduals of the effective-size fit reveal that overfitting damage grows with both the number of epochs and the model size. (Image source: Lovelace et al. 2026) An explicit overfitting penalty term was introduced and built around the capacity ratio $N / U_D$ (parameter count relative to unique tokens):\n$$ \\hat{L}(N, U_D, R_D) = E + \\frac{A}{N^\\alpha} + \\frac{B}{\\big(U_D (1 + R_D)\\big)^\\beta} + \\color{red}{P \\cdot R_D^\\delta \\cdot \\left(\\frac{N}{U_D}\\right)^\\kappa} $$ where:\n$R_D$ is the repetition count; the scalar $P$ is a learnable parameter; the exponent $\\kappa$ (the 2nd learnable parameter) lets the penalty scale nonlinearly with the capacity ratio $N / U_D$; the separate exponent $\\delta$ (the 3rd learnable parameter) on the repetition count decouples repetition nonlinearity from $\\kappa$. The added term (in red) is a direct overfitting penalty that grows with both how many times you repeat the data and how over-parameterized the model is relative to the unique data available.\nThey also did a case study on how weight decay impacts training with the limited-data constraint and found that strong weight decay reduces the overfitting penalty caused by data repetition.\nStrong weight decay reduces the overfitting penalty from data repetition. (Image source: Lovelace et al. 2026) Both modeling approaches by Muennighoff et al. and Lovelace et al. are constructed from empirical curve fitting, so it is still unclear why data-constrained scaling laws should have exactly these forms and why each free parameter is needed. Curious about more theoretical work along this line.\nTrickiness of Fitting Scaling Laws in Reality Despite its clean form, in practice, scaling law fitting can be surprisingly sensitive to seemingly trivial procedural choices, like how you count parameters, how you round the precision, how you sum or average the loss, etc.\nBecause a scaling law is only fit on the (relatively small, relatively cheap) models that we can afford to train, and the prediction is extrapolated for a model orders of magnitude larger. In such a setup, choices that look like rounding error may lead to wild differences in prediction.\nMeanwhile, scaling-law fitting assumes the only changing factor is scale, which means that the model architecture, optimizer, learning rate schedule, batch ramp, data mix, tokenizer, and other design choices should remain the same. Another underlying assumption is that all these settings should have been carefully tuned, as cases like undertrained models can lead to a different conclusion.\nThe disagreement between results by Kaplan et al. and Chinchilla is one example to showcase the trickiness of scaling laws fitting.\nA second example is a follow-up analysis investigating why Chinchilla method 3 is slightly off from the other two methods. Besiroglu et al. (2024) extracted the raw $(N, D, L)$ data points from Figure 4 of Hoffmann et al. (2022) and re-ran the method 3 parametric fitting. They found a couple of concrete issues:\nA high loss scale in the L-BFGS-B minimizer, caused by averaging Huber-loss values over examples instead of summing them, which led to premature termination of the optimization. The early stopping of loss minimization during both the original fit and bootstrapping produced inconsistent estimates and implausibly narrow confidence intervals. The reported $\\alpha$ and $\\beta$ were rounded to 2 digits of precision, which made the derived $A, B$ look more off than they really were. Toy simulation Here is a toy simulation widget, created by ChatGPT, designed to demonstrate three specific failure modes.\nWe assume the ground truth function is:\n$$ \\hat{L}(N, D) = 482.01 \\cdot N^{-0.3478} + 2085.43 D^{-0.3658} + 1.8172 $$ and thus $N_\\text{opt} \\propto C^{0.5126}, D_\\text{opt} \\propto C^{0.4874}$. This is the estimate from Besiroglu et al. (2024).\nThe simulation plots the loss prediction $\\hat{L}$ vs dataset size $D$, while providing a set of sliders to show case:\nLoss precision: rounding losses from high to low decimal points can change the fitted parameter values. Loss noise: perturbing loss values by only a multiplier of milli-loss (0.001) units leads to different fit. Fit-region sensitivity: fitting only small models, only medium models, or all models gives different apparent scaling laws. Citation Please cite this work as:\nWeng, Lilian. \"Scaling Laws, Carefully\". Lil'Log (Jun 2026). https://lilianweng.github.io/posts/2026-06-24-scaling-laws/ Or use the BibTex citation:\n@article{weng2026scaling, title = {Scaling Laws, Carefully}, author = {Weng, Lilian}, journal = {lilianweng.github.io}, year = {2026}, month = {June}, url = \"https://lilianweng.github.io/posts/2026-06-24-scaling-laws/\" } References [1] S. Amari, N. Fujita, and S. Shinomoto. “Four Types of Learning Curves. Neural Computation.” 4(4):605–618, 1992.\n[2] Hestness et al. “Deep Learning Scaling is Predictable, Empirically.” arXiv preprint arXiv:1712.00409, 2017.\n[3] Rosenfeld et al. “A Constructive Prediction of the Generalization Error Across Scales.” ICLR 2020.\n[4] Kaplan et al. “Scaling Laws for Neural Language Models.” arXiv preprint arXiv:2001.08361, 2020.\n[5] Hoffmann et al. “Training Compute-Optimal Large Language Models.” NeurIPS 2022.\n[6] Pearce and Song. “Reconciling Kaplan and Chinchilla Scaling Laws.” TMLR 2024.\n[7] Bahri et al. “Explaining Neural Scaling Laws.” arXiv preprint arXiv:2102.06701, 2021.\n[8] Sharma and Kaplan. “A Neural Scaling Law from the Dimension of the Data Manifold.” arXiv preprint arXiv:2004.10802, 2020.\n[9] Hernandez et al. “Scaling Laws and Interpretability of Learning from Repeated Data.” arXiv preprint arXiv:2205.10487, 2022.\n[10] Muennighoff et al. “Scaling Data-Constrained Language Models.” NeurIPS 2023.\n[11] Lovelace et al. “Prescriptive Scaling Laws for Data Constrained Training.” arXiv preprint arXiv:2605.01640, 2026.\n[12] Besiroglu et al. “Chinchilla Scaling: A Replication Attempt.” arXiv preprint arXiv:2404.10102, 2024.\n[13] Michaud et al. “The Quantization Model of Neural Scaling” NeurIPS 2023.\n[14] Brill. “Neural Scaling Laws Rooted in the Data Distribution.” arXiv preprint arXiv:2412.07942, 2024.\n[15] Rae et al. “Scaling Language Models: Methods, Analysis \u0026 Insights from Training Gopher.” arXiv preprint arXiv:2112.11446, 2021.\n",
+  "wordCount" : "5110",
+  "inLanguage": "en",
+  "datePublished": "2026-06-24T00:00:00Z",
+  "dateModified": "2026-06-24T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2026-06-24-scaling-laws/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Scaling Laws, Carefully
+    </h1>
+    <div class="post-meta">Date: June 24, 2026  |  Estimated Reading Time: 24 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#early-days-ml-loss-predictability" aria-label="Early days: ML loss predictability">Early days: ML loss predictability</a></li>
+                <li>
+                    <a href="#scaling-laws-in-data-infinite-region" aria-label="Scaling Laws in Data-Infinite Region">Scaling Laws in Data-Infinite Region</a><ul>
+                        
+                <li>
+                    <a href="#kaplan-et-als-scaling-laws" aria-label="Kaplan et al.&rsquo;s Scaling Laws">Kaplan et al.&rsquo;s Scaling Laws</a></li>
+                <li>
+                    <a href="#chinchilla-scaling-laws" aria-label="Chinchilla Scaling Laws">Chinchilla Scaling Laws</a><ul>
+                        
+                <li>
+                    <a href="#method-1-fix-model-sizes-vary-the-token-budget" aria-label="Method 1: Fix model sizes, vary the token budget">Method 1: Fix model sizes, vary the token budget</a></li>
+                <li>
+                    <a href="#method-2-isoflop-profiles" aria-label="Method 2: IsoFLOP profiles">Method 2: IsoFLOP profiles</a></li>
+                <li>
+                    <a href="#method-3-parametric-fit" aria-label="Method 3: Parametric fit">Method 3: Parametric fit</a></li></ul>
+                </li>
+                <li>
+                    <a href="#reconciling-kaplan-and-chinchilla" aria-label="Reconciling Kaplan and Chinchilla">Reconciling Kaplan and Chinchilla</a></li>
+                <li>
+                    <a href="#why-power-law" aria-label="Why power law?">Why power law?</a></li></ul>
+                </li>
+                <li>
+                    <a href="#scaling-laws-in-data-limited-region" aria-label="Scaling Laws in Data-Limited Region">Scaling Laws in Data-Limited Region</a></li>
+                <li>
+                    <a href="#trickiness-of-fitting-scaling-laws-in-reality" aria-label="Trickiness of Fitting Scaling Laws in Reality">Trickiness of Fitting Scaling Laws in Reality</a><ul>
+                        
+                <li>
+                    <a href="#toy-simulation" aria-label="Toy simulation">Toy simulation</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p>Scaling laws are one of the most critical empirical findings in deep learning. The observation is simple in form: the training loss $L$ decreases predictably as we scale up model size $N$, dataset size $D$, and compute $C$, following a power-law curve, which appears as a straight line on a log-log plot. We can view scaling laws as a framework for describing the relationship between compute, loss, model size and data; at its core, it is about how to allocate precious compute optimally between $N$ and $D$.</p>
+<p>This predictability makes scaling laws highly valuable in practice. A common workflow is to fit scaling laws on a handful of small runs and then extrapolate to estimate the token and compute requirements for larger models.</p>
+<table>
+	<thead>
+			<tr>
+					<th>Symbol</th>
+					<th>Note</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>$N$</td>
+					<td>Model size, measured in parameter count.</td>
+			</tr>
+			<tr>
+					<td>$D$</td>
+					<td>Training dataset size, usually measured in token count.</td>
+			</tr>
+			<tr>
+					<td>$C$</td>
+					<td>Training compute in FLOPs. As a useful approximation, $C \approx 6ND$ (<a href="https://arxiv.org/abs/2001.08361">Kaplan et al. 2020</a>), where $2ND$ accounts for the forward pass and $4ND$ for backpropagation.</td>
+			</tr>
+			<tr>
+					<td>$E$</td>
+					<td>Irreducible loss</td>
+			</tr>
+			<tr>
+					<td>$L, \hat{L}(.)$</td>
+					<td>Test loss / test loss prediction function; can also refer to training loss, since they are strongly correlated.</td>
+			</tr>
+			<tr>
+					<td>$\epsilon$</td>
+					<td>Generalization error.</td>
+			</tr>
+	</tbody>
+</table>
+<h1 id="early-days-ml-loss-predictability">Early days: ML loss predictability<a hidden class="anchor" aria-hidden="true" href="#early-days-ml-loss-predictability">#</a></h1>
+<p>The predictability of generalization error with scale had already been investigated before scaling laws became a mainstream concept.</p>
+<p><a href="https://ieeexplore.ieee.org/document/6796972">Amari et al. (1992)</a> derived four types of learning curves using a Bayesian approach and the annealed approximation.</p>
+<ol>
+<li>Deterministic learning algorithm, noiseless data, one unique solution: $\epsilon \sim c \cdot D^{-1}$, where $c$ is some constant.</li>
+<li>Deterministic learning algorithm, noiseless data, multiple equivalent solutions: $\epsilon \sim c \cdot D^{-2}$; the learning is faster with each new data point, because the model only learns the optimal manifold of parameters, instead of finding the single solution point.</li>
+<li>Deterministic learning algorithm, noisy data: $\epsilon \sim c \cdot D^{-1/2}$; noises in data make learning harder.</li>
+<li>Stochastic learning algorithm, noisy data: $\epsilon \sim c \cdot D^{-1} + E$; here the irreducible loss $E$ is the residual error that a stochastic learner cannot reduce further, for example when the model runs out of capacity on large data.
+All four types of learning curves follow a power law:</li>
+</ol>
+<div>
+$$
+\epsilon \sim c \cdot D^\alpha + E
+$$
+</div>
+<p>where $E$ can be 0 and $\alpha = -2, -1, -1/2$. Although their theoretical setup is based on a simplified binary classification task, it points in a useful direction for building empirical ML loss prediction models.</p>
+<p>One of the earliest empirical studies by <a href="https://arxiv.org/abs/1712.00409">Hestness et al. (2017)</a> explained the relationship between generalization error, model size and data. For a given training data size, they identified the best-fit model size via grid search and then plotted loss against training dataset size. Across four different domains in deep learning (neural machine translation, image classification, language modeling, and speech recognition), a recurring pattern was observed where:</p>
+<ul>
+<li>Generalization error scales as a power law across a set of factors (e.g. data size).</li>
+<li>Model improvements shift the error curve but do not seem to affect the power-law exponent.</li>
+<li>Interestingly, architecture changes the offset ($E$) of the power-law fit but does not change the exponent ($\alpha$). The slope of the power law appears to be a property of the problem domain rather than the model architecture.</li>
+<li>The number of model parameters $N$ needed to fit a dataset of size $D$ also scales as a power law.</li>
+</ul>
+<figure>
+    <img src="hestness-1.png" />
+    <figcaption>Learning curves for (Left) Deep-Speech-2 (DS2) and attention speech model and for (Right) DS2 models of various sizes. The losses of small models plateau when training data becomes large. (Image source: Hestness et al. 2017)</figcaption>
+</figure>
+<p>A conceptual illustration breaks the learning curve into three stages. In the small-data region, when there are not enough learning signals, the model performs only slightly better than random guessing. In the middle (&ldquo;power-law region&rdquo;), we observe a power-law relationship between loss, data, and model size. The final irreducible-error region can be attributed to factors such as noise in the data.</p>
+<figure>
+    <img src="hestness-2.png" style="width: 60%;" />
+    <figcaption>Illustration of power-law learning curve phases. (Image source: Hestness et al. 2017)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1909.12673">Rosenfeld et al. (2020)</a> pushed this further by trying to model error as a joint function of both model size $N$ and data size $D$, across a diverse set of architectures (ResNet, WRN, LSTM, Transformer) and optimizers (Adam, SGD variants). Empirically they observed that, holding one axis fixed, the error decays as a power law in the other:</p>
+<div>
+$$
+\hat{L}(D,N) \approx \frac{A}{N^{\alpha}} + E_N,\quad 
+\hat{L}(D,N) \approx \frac{B}{D^{\beta}} + E_D
+$$
+</div>
+<p>which can be combined into a joint form:</p>
+<div>
+$$
+\hat{L}(D, N) \approx \frac{A}{N^{\alpha}} + \frac{B}{D^{\beta}} + E
+$$
+</div>
+<p>where $A &gt; 0, B &gt; 0, \alpha \geq 0, \beta \geq 0$ are scalar constants and $E$ is not dependent on either $N$ or $D$.</p>
+<figure>
+    <img src="rosenfeld-1.png" />
+    <figcaption>A 3D contour plot of data size, model size and generalization error in log-log-log scale. Blue dots are derived from empirical experiments and the surface is a linear interpolation between blue dots. (Image source: Rosenfeld et al. 2020)</figcaption>
+</figure>
+<p>Thus, they can build a prediction model in the form of a simple parametric function with $\boldsymbol{\theta} = \langle A, B, E, \alpha, \beta \rangle$ to predict the expected loss for $(D, N)$ &gt; certain thresholds by only training on a set of smaller training configs, $(D, N)$ &lt; certain thresholds.</p>
+<figure>
+    <img src="rosenfeld-2.png" />
+    <figcaption>Fitting the parametric error model on small-scale configurations and extrapolating to larger model/data regimes: (a) Illustration of the experiment setup; Experiment results on (b) ImageNet, (c) WikiText-103 and (d) CIFAR100 Error estimation with three architectures (WRN, VGG, DenseNet) and two optimizers (SGD, Adam). (Image source: Rosenfeld et al. 2020)</figcaption>
+</figure>
+<p>Side note: These early works lean on classical learning-theory intuition like the <a href="https://en.wikipedia.org/wiki/Vapnik%E2%80%93Chervonenkis_dimension">VC dimension</a> (the cardinality of the largest set of points a model can shatter) as a proxy for capacity, but in modern deep learning work the VC dimension is often too coarse to explain the behavior and the empirical power laws turned out to be much cleaner and more practical than the worst-case bounds that theory provides.</p>
+<h1 id="scaling-laws-in-data-infinite-region">Scaling Laws in Data-Infinite Region<a hidden class="anchor" aria-hidden="true" href="#scaling-laws-in-data-infinite-region">#</a></h1>
+<h2 id="kaplan-et-als-scaling-laws">Kaplan et al.&rsquo;s Scaling Laws<a hidden class="anchor" aria-hidden="true" href="#kaplan-et-als-scaling-laws">#</a></h2>
+<p><a href="https://arxiv.org/abs/2001.08361">Kaplan et al. (2020)</a> popularized the concept of scaling laws in the language modeling community. They found that the cross-entropy test loss $L$ scales as a power law with each of model size $N$ (excluding embedding layers), dataset size $D$, and training compute $C$ across many orders of magnitude. The findings are aligned with early work in the last section, but Kaplan et al. formalized the concept with a focus on Transformer language models and empirical experimentation at a larger scale, with model size ranging from 768M to 1.5B non-embedding parameters and dataset size from 22M to 23B tokens. All training runs in the paper used a learning rate schedule with a 3000 step linear warmup, followed by a cosine decay to zero.</p>
+<p>List of key findings:</p>
+<ul>
+<li>The loss $L$ scales as a power law with $N$, $D$, and $C$ individually; for optimal performance all three must scale in tandem.</li>
+<li>Training curves follow predictable power laws whose parameters are roughly independent of model size.</li>
+<li>Larger models are more sample-efficient, meaning that they reach a given loss with fewer optimization steps and fewer data points than small models.</li>
+<li>Architectural details (width, aspect ratio, etc.) matter less than sheer scale.</li>
+<li>Train loss and test loss are positively correlated. (Sounds trivial but this is the foundation for pretraining work. On the other hand, whether pretraining loss improvement transfers to posttraining evaluation needs separate studies.)</li>
+<li>Given a fixed compute budget, it is more efficient to train a very large model and stop <em>before convergence</em> than to train a smaller model all the way to convergence. <strong>This finding is where the Chinchilla scaling laws (the next section) disagree: Kaplan et al. overestimated the optimal model size as their fitted exponent was larger.</strong></li>
+</ul>
+<p>They summarize the joint dependence on $N$ and $D$ in a single equation:</p>
+<div>
+$$
+\hat{L}(N,D) = \left[ \left(\frac{a}{N}\right)^{\frac{\alpha}{\beta}} + \frac{b}{D} \right]^{\beta}
+$$
+</div>
+<p>A nice consequence of this form is that the extent of overfitting depends predominantly on the ratio $N^{\alpha / \beta} / D$, which indicates that the data needs to grow in a specific proportion to the growth of the model size to avoid training being data-limited.</p>
+<figure>
+    <img src="kaplan-1.png" />
+    <figcaption>Test loss as a power law in compute, dataset size, and parameters, spanning many orders of magnitude. (Image source: Kaplan et al. 2020)</figcaption>
+</figure>
+<p>The most influential and, in hindsight, most contested conclusion was the compute-optimal allocation. Kaplan et al. found $N_\text{opt} \propto C^{0.73}$ and concluded that model size should grow faster than dataset size. Concretely, for a 10x increase in compute they suggested scaling the model size by ~5.5x but the training tokens by only ~1.8x. The Chinchilla paper would later overturn this recommendation, arguing that it leaves large models badly <em>undertrained</em>.</p>
+<p>Another useful analysis in Kaplan et al. approximates the number of training FLOPs needed based on $D$ and $N$. Each multiply-add is counted as ~2 FLOPs.</p>
+<figure>
+    <img src="kaplan-2.png" />
+    <figcaption>Parameter and compute estimation for different Transformer architectural components, given the number of layers $n_\text{layer}$, model width $d_\text{model}$ (= $d_\text{embed}$; the notation is inconsistent in the original table), dimension of feed-forward layer $d_\text{ff}$ (often equivalent to $4 d_\text{model}$, attention dimension $d_\text{attn}$ (often equivalent to $d_\text{model}$), the context length $n_\text{ctx}$ and the vocabulary size $n_\text{vocab}$. (Image source: Kaplan et al. 2020)</figcaption>
+</figure>
+<p>Given a standard config where $d_\text{attn} = d_\text{model} = d_\text{ff}/4$, and excluding embedding layers from $N$ and the per-token forward compute:</p>
+<div>
+$$
+\begin{align}
+N &= n_\text{layer} d_\text{model} 3 d_\text{attn} + n_\text{layer} d_\text{attn} d_\text{model} + n_\text{layer} 2 d_\text{model} d_\text{ff} & \small{\text{; no embedding layer}} \\
+&= 2\;n_\text{layer} d_\text{model}(2d_\text{attn} + d_\text{ff}) & \\
+&= 12\;n_\text{layer} d_\text{model}^2 & \\
+\\
+C_\text{fwd} &= 2 n_\text{layer} (d_\text{model} 3 d_\text{attn} + n_\text{ctx}d_\text{attn} + d_\text{attn}d_\text{embed} + 2 d_\text{model} d_\text{ff}) & \\
+&= 2 n_\text{layer} (12 d_\text{model}^2 + n_\text{ctx}d_\text{attn}) & \\
+&= 2N + 2 n_\text{layer}n_\text{ctx}d_\text{attn} & \\
+&\approx 2N \quad\quad \small{\text{; assuming }n_\text{ctx} < 12 d_\text{model} \text{ and the }n_\text{ctx}\text{ term is relatively small.}}\\
+\end{align}
+$$
+</div>
+<p>Then we count backward-pass FLOPs as twice the forward-pass FLOPs, because backpropagation runs two matrix multiplications, for gradients with respect to the input activations and the weights, respectively. Thus, in total, the training FLOPs per token are approximately $6N$, and the total FLOPs for training over $D$ tokens are $C \approx 6ND$.</p>
+<h2 id="chinchilla-scaling-laws">Chinchilla Scaling Laws<a hidden class="anchor" aria-hidden="true" href="#chinchilla-scaling-laws">#</a></h2>
+<p>The Chinchilla paper (<a href="https://arxiv.org/abs/2203.15556">Hoffmann et al. 2022</a>) studied the relationship between the optimal model size $N$ (total parameters, <em>including</em> embeddings) and the number of tokens $D$ under a <em>fixed</em> compute budget $C$ with a more careful experimental design and arrived at a somewhat different answer from Kaplan et al..</p>
+<figure>
+    <img src="animal.png" />
+    <figcaption>You should know how chinchilla looks 😊 (Image source: ChatGPT generated)</figcaption>
+</figure>
+<p>The central question is on the best strategy to allocate resources given a constraint $\text{FLOPs}(N, D) = C \approx 6ND$. In other words, when we have only limited FLOPs (a given number of GPUs running for a given period of time), how should we choose between more data tokens and more model parameters?</p>
+<div>
+$$
+N_\text{opt}(C), D_\text{opt}(C) = \operatorname*{arg\,min}_{\text{s.t. } \text{FLOPs}(N,D) = C} \hat{L}(N, D)
+$$
+</div>
+<p>The Chinchilla paper presented three neatly designed methods for scaling laws fitting.</p>
+<p>The empirical experiments scanned over 400 models, with sizes from 70M to over 16B parameters and training tokens from 5B to 500B. The experiments were under the assumption that every training token is unique (the infinite-data regime). All runs used a cosine learning-rate schedule decaying by 10x over the training horizon. Sweeping over model sizes traces out the compute-optimal frontier.</p>
+<h3 id="method-1-fix-model-sizes-vary-the-token-budget">Method 1: Fix model sizes, vary the token budget<a hidden class="anchor" aria-hidden="true" href="#method-1-fix-model-sizes-vary-the-token-budget">#</a></h3>
+<p>For each parameter count $N$, train several runs with different token budgets, and record the minimal loss achieved per FLOP budget $C$.</p>
+<figure>
+    <img src="chinchilla-1.png" />
+    <figcaption>Chinchilla Method 1: training loss curves over FLOP budgets for a sweep of model sizes. (Image source: Hoffmann et al. 2022)</figcaption>
+</figure>
+<h3 id="method-2-isoflop-profiles">Method 2: IsoFLOP profiles<a hidden class="anchor" aria-hidden="true" href="#method-2-isoflop-profiles">#</a></h3>
+<p>Fix a compute budget $C$ and plot the final loss against parameter count $N$. Each iso-FLOP curve is roughly a parabola in log-space, and its minimum flags the optimal model size for that compute budget. Then repeating across budgets traces a power-law line in the plot.</p>
+<figure>
+    <img src="chinchilla-2.png" />
+    <figcaption>Chinchilla Method 2: IsoFLOP parabolas; the minimum of each curve is the compute-optimal model size for that budget. (Image source: Hoffmann et al. 2022)</figcaption>
+</figure>
+<h3 id="method-3-parametric-fit">Method 3: Parametric fit<a hidden class="anchor" aria-hidden="true" href="#method-3-parametric-fit">#</a></h3>
+<p><a id="chinchilla-method3"></a>Fit the same parametric function as in <a href="https://arxiv.org/abs/1909.12673">Rosenfeld et al. (2020)</a> directly,</p>
+<div>
+$$
+\hat{L}(N, D) = \frac{A}{N^\alpha} + \frac{B}{D^\beta} + E
+$$
+</div>
+<p>We can actually get a closed form approximation of optimal $N_\text{opt}(C), D_\text{opt}(C)$ by minimizing $\hat{L}(N, D)$ under the constraint $\text{FLOPs}(N,D) = C \approx 6ND$.</p>
+<p>First let&rsquo;s reduce the expression to contain only $N$:</p>
+<div>
+$$
+\begin{align}
+\hat{L}(N) &= A N^{-\alpha} + B \Big(\frac{C}{6}\Big)^{-\beta}N^\beta + E \\
+\hat{L}'(N) &= -\alpha A N^{-\alpha-1} + \beta B \Big(\frac{C}{6}\Big)^{-\beta} N^{\beta -1} = 0 & \small{\text{; derivative wrt }N\text{ should be zero.}} \\
+\text{Thus}\quad & \alpha A N^{-\alpha-1} = \beta B \Big(\frac{C}{6}\Big)^{-\beta} N^{\beta -1} \\
+& \alpha A = \beta B \Big(\frac{C}{6}\Big)^{-\beta} N^{\alpha + \beta} \\
+& N_\text{opt} = \Big(\frac{\alpha A}{\beta B}\Big)^{\frac{1}{\alpha + \beta}} \Big(\frac{C}{6}\Big)^{\frac{\beta}{\alpha+\beta}} \\
+& D_\text{opt} = \frac{C}{6 N_\text{opt}} = \Big(\frac{\beta B}{\alpha A}\Big)^{\frac{1}{\alpha + \beta}} \Big(\frac{C}{6}\Big)^{\frac{\alpha}{\alpha+\beta}}
+\end{align}
+$$
+</div>
+<p>When $\alpha \approx \beta$, model size and training tokens should scale at equal rates.</p>
+<p>To find the optimal $\boldsymbol{\theta} = \langle A, B, E, \alpha, \beta\rangle$, the Chinchilla paper adopts a <a href="https://en.wikipedia.org/wiki/Huber_loss">Huber loss</a> (robust to outliers; $\delta=10^{-3}$) and the <a href="https://en.wikipedia.org/wiki/Limited-memory_BFGS">L-BFGS algorithm</a> (good for curve fitting with a small number of parameters).</p>
+<div>
+$$
+\begin{align}
+\min_{A,B,E,\alpha,\beta} \sum_{\text{runs }\{i\}} \text{Huber}_\delta (\log \hat{L}(N_i, D_i) - \log L_i) \\
+\text{ where }\text{Huber}_\delta (x) = \begin{cases}\frac{1}{2} x^2 & \text{for }\vert x \vert \leq \delta \\ \delta \cdot (\vert x \vert - \frac{1}{2}\delta), & \text{otherwise.}\end{cases}
+\end{align}
+$$
+</div>
+<p>Chinchilla arrives at its answer through three complementary methods whose final results agree with each other, and this is part of why the result was quite convincing.</p>
+<figure>
+    <img src="chinchilla-3.png" style="width: 88%;" />
+    <figcaption>The three methods agree on a compute-optimal frontier where $N_\text{opt} \propto C^{0.5}$, but disagree with Kaplan et al. Note that method 3's results are slightly off from the other two, which we will explain later. (Image source: Hoffmann et al. 2022)</figcaption>
+</figure>
+<figure>
+    <img src="chinchilla-4.png" style="width: 80%;" />
+    <figcaption>The plot of the Chinchilla predictions by three different approaches, as well as predictions by Kaplan et al. (2020). All three methods suggest that several mainstream LLMs at the time were undertrained. (Image source: Hoffmann et al. 2022)</figcaption>
+</figure>
+<p>The claim in the Chinchilla paper that most large models (at the time, ~2022) were undertrained is supported by a famous demonstration: under the same compute budget as Gopher (<a href="https://arxiv.org/abs/2112.11446">Rae et al. 2021</a>; 280B parameter count, 300B token budget), they trained Chinchilla (70B parameter count, 1.4T token budget), a model 4x smaller but trained on roughly 4x more tokens and it outperformed Gopher across the board.</p>
+<h2 id="reconciling-kaplan-and-chinchilla">Reconciling Kaplan and Chinchilla<a hidden class="anchor" aria-hidden="true" href="#reconciling-kaplan-and-chinchilla">#</a></h2>
+<p>The Chinchilla scaling laws disagree with Kaplan et al. as follows:</p>
+<ul>
+<li>Instead of &ldquo;grow the model faster than the data&rdquo; ($N_\text{opt} \propto C^{0.73}$), for every doubling of model size, you should also double the number of training tokens ($N_\text{opt} \propto C^{0.5}$).</li>
+<li>Instead of &ldquo;train a big model and stop before convergence,&rdquo; you should train a smaller model on more data.</li>
+</ul>
+<p>Both papers still agree on the same underlying principle, but they disagree on where the optimal size-vs-token tradeoff lies. Why do they disagree so much?</p>
+<p><strong>Difference 1: Kaplan et al. experimented mostly on small models.</strong>
+Kaplan et al. experimented mostly on smaller models, while the Chinchilla paper&rsquo;s experiments reached more than 10x larger scales. When we extrapolate in log-log space, a small difference in the fit can result in large differences (See <a href="#toy-simulation">toy simulation</a>).</p>
+<p><strong>Difference 2: Embedding parameter count matters for small models.</strong>
+In the small-parameter regime, embedding parameters are a non-negligible fraction of the total and thus counting them or not matters. <a href="https://arxiv.org/abs/2406.12907">Pearce &amp; Song (2024)</a> did a thorough analysis along this line. Let&rsquo;s use $N_{\setminus E}, C_{\setminus E}$ to denote model size and compute when embedding is excluded and use $N, C$ to count total parameters.</p>
+<ul>
+<li>Kaplan et al.: $N^*_{\setminus E} \propto C^{0.73}_{\setminus E}$ (non-embedding)</li>
+<li>Chinchilla: $N^* \propto C^{0.50}$ (total)</li>
+</ul>
+<p>To bridge them, they fit a relationship between total parameters $N_T$ and non-embedding parameters $N_{\setminus E}$, for some constant $\omega$:</p>
+<div>
+$$
+N = N_{\setminus E} + \omega\, N_{\setminus E}^{1/3}.
+$$
+</div>
+<p>This form has nice properties of being strictly increasing and $\lim_{N \to \infty} N = N_{\setminus E}$ (because $\frac{N}{N_{\setminus E}} = 1 + \omega {N_{\setminus E}}^{- \frac{2}{3}}, \lim_{N_{\setminus E} \to \infty} \frac{N}{N_{\setminus E}} = 1$.</p>
+<p>Plugging this into the Chinchilla laws equation,</p>
+<div>
+$$
+\begin{align}
+L(N_{\setminus E}, C_{\setminus E}) &= A(N_{\setminus E} + \omega\, N_{\setminus E}^{1/3})^{-\alpha} + B \Big(\frac{C_{\setminus E}}{6}\Big)^{-\beta} N_{\setminus E}^\beta + E \\
+L'(N_{\setminus E}, C_{\setminus E}) &= - \alpha A (N_{\setminus E} + \omega N_{\setminus E}^{1/3})^{-\alpha -1}(1 + \frac{\omega}{3}N_{\setminus E}^{-2/3}) + \beta B \Big(\frac{C_{\setminus E}}{6}\Big)^{-\beta} N_{\setminus E}^{\beta -1} = 0 & \small{\text{; derivative wrt }N_{\setminus E}\text{ should be zero.}} \\
+\text{Rearrange to get }& \alpha A (N^{*}_{\setminus E} + \omega {N^{*}_{\setminus E}}^{1/3})^{-\alpha -1}(1 + \frac{\omega}{3} {N^{*}_{\setminus E}}^{-2/3}) = \beta B \Big(\frac{C_{\setminus E}}{6}\Big)^{-\beta} {N^{*}_{\setminus E}}^{\beta -1} \\
+& 6^{-\beta}\frac{\alpha A}{\beta B} ({N^{*}_{\setminus E}} + \omega {N^{*}_{\setminus E}}^{1/3})^{-\alpha -1}(1 + \frac{\omega}{3}{N^{*}_{\setminus E}}^{-2/3}) {N^{*}_{\setminus E}}^{1 - \beta} = C_{\setminus E}^{-\beta} \\
+& 6 \Big(\frac{\beta B}{\alpha A}\Big)^{\frac{1}{\beta}} ({N^{*}_{\setminus E}} + \omega {N^{*}_{\setminus E}}^{1/3})^{\frac{1 + \alpha}{\beta}} ({N^{*}_{\setminus E}} + \frac{\omega}{3}{N^{*}_{\setminus E}}^{1/3})^{-\frac{1}{\beta}} {N^{*}_{\setminus E}} = C_{\setminus E} \\
+\end{align}
+$$
+</div>
+<p>The relationship between $C_{\setminus E}$ and $N_{\setminus E}$ in the above equation is no longer a clean power law. We can only approximate it locally as $N^*_{\setminus E} \overset{\propto}{\sim} C_{\setminus E}^g$, where $g$ is a local exponent based on a first-order derivative ($\overset{\propto}{\sim}$) rather than a global power-law exponent, resulting in $g = \frac{\mathrm{d} \log C_{\setminus E}}{\mathrm{d} \log N_{\setminus E}}$. See the full details of how the exponent $g$ is approximated in Appendix A.1 in <a href="https://arxiv.org/abs/2406.12907">Pearce &amp; Song (2024)</a>.</p>
+<figure>
+    <img src="pearce-1.png" style="width: 60%;" />
+    <figcaption>Visualization of how the local power-law exponent $g$ grows with $C_{\setminus E}$. (Image source: Pearce & Song 2024)</figcaption>
+</figure>
+<p>As shown in the visualization above, as $C_{\setminus E}$ gets larger, $g$ converges to the Chinchilla estimate. By generating synthetic training curves using above equation, in the range of model size from 768M to 1.5B (as in Kaplan et al.), they estimated that $g$ is close to the Kaplan coefficient of 0.73 in that region.</p>
+<h2 id="why-power-law">Why power law?<a hidden class="anchor" aria-hidden="true" href="#why-power-law">#</a></h2>
+<p>Power laws are widely observed across many domains outside AI, such as in <a href="https://en.wikipedia.org/wiki/Zipf%27s_law">Zipf&rsquo;s law</a>, <a href="https://en.wikipedia.org/wiki/Scale-free_network">scale-free networks</a>, <a href="https://en.wikipedia.org/wiki/Urban_scaling">urban scaling laws</a>, and many other complex systems. The recurring pattern is that large events are rare, small events are common and the relationship between size and frequency often follows a straight line at log-log scale.</p>
+<p><strong>Why do LLM scaling laws also have the shape of a power law?</strong></p>
+<p>Inspired partly by different domains displaying different exponents (<a href="https://arxiv.org/abs/1712.00409">Hestness et al. 2017</a>), one early explanation by <a href="https://arxiv.org/abs/2004.10802">Sharma &amp; Kaplan (2020)</a> hypothesizes that language modeling can be viewed as doing regression on a low-dimensional manifold of data. More model parameters can induce a finer partition of the data manifold and therefore smaller generalization error. In the simplest terms, if a model of effective size $N$ partitions a $d$-dimensional manifold into $O(N)$ regions, the typical linear resolution scales like $\sim N^{-1/d}$. This has a similar power-law form to the scaling laws above. This theory applies most cleanly in the infinite-data, underfitting regime, but in reality estimating the intrinsic dimension of a data manifold is quite hard.</p>
+<p>A later hypothesis (<a href="https://arxiv.org/abs/2303.13506">Michaud et al. 2023</a>, <a href="https://arxiv.org/abs/2412.07942">Brill 2024</a>) assumes that knowledge or skills are learned in discrete chunks (&ldquo;quantized&rdquo;) and that the frequency distribution of these skills follows a power law. The model learns common skills first and rare skills later, resulting in a smooth power-law decay in loss.</p>
+<p>I only listed two hypotheses here, but there are more studies on explaining the shape of power-law scaling through spectral tails of data, kernel eigenvalues, natural-language statistics, or phase transitions in training dynamics.</p>
+<h1 id="scaling-laws-in-data-limited-region">Scaling Laws in Data-Limited Region<a hidden class="anchor" aria-hidden="true" href="#scaling-laws-in-data-limited-region">#</a></h1>
+<p>Classic scaling laws assume effectively <em>unlimited unique data</em>, no repetition, and no multi-epoch training. As the model size grows significantly, we are running out of enough high-quality unique tokens. In fact, some arguments about how long scaling in AI can continue are centered on whether we are hitting a &ldquo;data wall&rdquo;.</p>
+<p>It is also worth emphasizing that the dataset behind $D$ is expected to be already cleaned. The pretraining data pipeline is often a large part of an effective pretraining pipeline, with common steps like deduplication (exact and fuzzy), quality filtering, boilerplate removal, safety filtering, PII/copyright masking, benchmark decontamination and careful reweighting of data mix components based on language, quality, content type, etc. Even when two datasets contain the same token count $D$, a high-quality dataset and a dataset of Internet slop can yield drastically different compute efficiency.</p>
+<p>The study by <a href="https://arxiv.org/abs/2205.10487">Hernandez et al. (2022)</a> focused on a controlled version: a mostly-unique dataset with a small fraction of repeated data. Starting from a large dataset, the data mix keeps 90% non-repeated but replaces the remaining 10% with repeats of a tiny portion of the original. By training a Transformer model for 100B tokens, they observed a double-descent phenomenon, that is, the test loss can actually get <em>worse</em> and then better again as a function of how much the repeated data is emphasized, an effect that becomes more pronounced as the repeated fraction grows.</p>
+<figure>
+    <img src="hernandez-1.png" />
+    <figcaption>Double-descent in the test loss as the repeated fraction increases (90% repeated on the left, 50% on the right). (Image source: Hernandez et al. 2022)</figcaption>
+</figure>
+<p>The flat or increasing trend in the middle of training is possibly due to memorization of repeated data. Learning curves with such shapes make scaling law fitting less accurate. They also concluded repeated data hurts some OOD evaluation and downstream fine-tuning. However, their data mix is constructed in a more lab-like setup, and repetition in real-world data is often more nuanced (e.g. different data has different levels of repetition, semantic repetition, etc.).</p>
+<p>Rather than saying data repetition hurts training, we are more interested in how to fit scaling laws, given that the unique high-quality data is not infinite and we likely have to repeat data during training.</p>
+<p><a href="https://arxiv.org/abs/2305.16264">Muennighoff et al. (2023)</a> took on the research question of how compute should be allocated optimally when model training is data-constrained. Specifically, they empirically studied the impact of data repetition across roughly 400 experiments, 10M–9B parameters, data sizes up to 900B tokens, and up to 1500 epochs. The exact same dataset is repeated each epoch, shuffled between epochs, and evaluated on a held-out test set.</p>
+<p>The key modeling adjustment is to decompose the total token count $D$ into two parts: (i) the number of unique tokens $U_D$ and (ii) the number of repeats $R_D$ (i.e. num. epochs - 1). Thus we have $D = U_D(1 + R_D)$. With a unique-data budget $D_\text{uniq}$, by definition $U_D = \min \{{ D_\text{uniq}, D\}}$ and $R_D = (D / U_D) - 1$. They use the Chinchilla scaling laws to find the optimal model size $U_N$ for fitting $U_D$, and define excess model size via repeats $R_N = (N / U_N) - 1$.</p>
+<p>They then update the Chinchilla parametric fit (<a href="#chinchilla-method3">method 3</a>) to use effective (discounted) data $D&rsquo;$ and model size $N&rsquo;$ in place of the raw quantities:</p>
+<div>
+$$
+\hat{L}(N, D) = \frac{A}{N'^\alpha} + \frac{B}{D'^\beta} + E
+\quad\text{ where }
+D' = U_D + U_D\, r_D\left(1 - \exp\!\left(-\frac{R_D}{r_D}\right)\right).
+$$
+</div>
+<p>The intuition is that a token&rsquo;s value decays <em>exponentially</em> as it is repeated. In their modeling, each repetition costs the token a $(1 - 1/r_D)$ fraction of its remaining value, where $r_D$ is a learnable &ldquo;half-life&rdquo; parameter. When $R_D = 0$ or $R_D \ll r_D$, we recover $D&rsquo; \approx D$.</p>
+<p>A symmetric formulation handles excess model size, $N&rsquo; = U_N + U_N r_N(1 - \exp(-R_N / r_N))$, capturing the idea that &ldquo;larger models overfit more quickly on repeated data&rdquo; and that &ldquo;a model can be too large for its dataset.&rdquo; This component is less intuitive, and I could not find a satisfactory explanation for why model size needs to appear in such a symmetric form as repeated data. Later work by <a href="https://arxiv.org/abs/2605.01640">Lovelace et al. (2026)</a> changed this assumption.</p>
+<p>Their empirical fit finds that <em>excess parameters decay faster in value than repeated data</em>, $r_N &lt; r_D$, so we should allocate more resources on more epochs rather than more model parameters. One weakness of this modeling, as the authors also pointed out, is that it significantly underestimates the final test loss of failing models (i.e. models whose loss increases midway through training), such as models trained for 44 epochs.</p>
+<figure>
+    <img src="muennighoff-1.png" />
+    <figcaption>Data-constrained scaling under repetition captures the experimental results better than data-unaware fitting; the value of repeated tokens decays exponentially toward a ceiling. The fitting gets worse with more epochs as high repetition causes the test loss to increase midway through training, not depicted in the plot. (Image source: Muennighoff et al. 2023)</figcaption>
+</figure>
+<p>Most recently, <a href="https://arxiv.org/abs/2605.01640">Lovelace et al. (2026)</a> revisited the same problem with a different approach. Rather than modeling overparameterization as a diminishing return on effective model size, Lovelace et al. model the interaction between model size $\times$ data repetition explicitly. Empirically, they trained about 300 models, spanning 15M to 1B parameters and 50M to 6B unique tokens.</p>
+<p>When they plot the fit residual for a fixed model size across a range of data-repetition levels, the observation is intuitive: more epochs cause more damage, and interestingly <em>larger models are more sensitive</em> to repetition. This hints that the loss penalty is likely a function of both model size and data size.</p>
+<figure>
+    <img src="lovelace-1.png" />
+    <figcaption>Residuals of the effective-size fit reveal that overfitting damage grows with both the number of epochs and the model size. (Image source: Lovelace et al. 2026)</figcaption>
+</figure>
+<p>An explicit overfitting penalty term was introduced and built around the <em>capacity ratio</em> $N / U_D$ (parameter count relative to unique tokens):</p>
+<div>
+$$
+\hat{L}(N, U_D, R_D) = E + \frac{A}{N^\alpha} + \frac{B}{\big(U_D (1 + R_D)\big)^\beta} + \color{red}{P \cdot R_D^\delta \cdot \left(\frac{N}{U_D}\right)^\kappa}
+$$
+</div>
+<p>where:</p>
+<ul>
+<li>$R_D$ is the repetition count;</li>
+<li>the scalar $P$ is a learnable parameter;</li>
+<li>the exponent $\kappa$ (the 2nd learnable parameter) lets the penalty scale nonlinearly with the capacity ratio $N / U_D$;</li>
+<li>the separate exponent $\delta$ (the 3rd learnable parameter) on the repetition count decouples repetition nonlinearity from $\kappa$.</li>
+</ul>
+<p>The added term (in red) is a direct overfitting penalty that grows with both how many times you repeat the data and how over-parameterized the model is relative to the unique data available.</p>
+<p>They also did a case study on how weight decay impacts training with the limited-data constraint and found that strong weight decay reduces the overfitting penalty caused by data repetition.</p>
+<figure>
+    <img src="lovelace-2.png" style="width: 85%;" />
+    <figcaption>Strong weight decay reduces the overfitting penalty from data repetition. (Image source: Lovelace et al. 2026)</figcaption>
+</figure>
+<p>Both modeling approaches by Muennighoff et al. and Lovelace et al. are constructed from empirical curve fitting, so it is still unclear why data-constrained scaling laws should have exactly these forms and why each free parameter is needed. Curious about more theoretical work along this line.</p>
+<h1 id="trickiness-of-fitting-scaling-laws-in-reality">Trickiness of Fitting Scaling Laws in Reality<a hidden class="anchor" aria-hidden="true" href="#trickiness-of-fitting-scaling-laws-in-reality">#</a></h1>
+<p>Despite its clean form, in practice, scaling law fitting can be surprisingly sensitive to seemingly trivial procedural choices, like how you count parameters, how you round the precision, how you sum or average the loss, etc.</p>
+<p>Because a scaling law is only fit on the (relatively small, relatively cheap) models that we can afford to train, and the prediction is <em>extrapolated</em> for a model orders of magnitude larger. In such a setup, choices that look like rounding error may lead to wild differences in prediction.</p>
+<p>Meanwhile, scaling-law fitting assumes the only changing factor is <em>scale</em>, which means that the model architecture, optimizer, learning rate schedule, batch ramp, data mix, tokenizer, and other design choices should remain the same. Another underlying assumption is that all these settings should have been carefully tuned, as cases like undertrained models can lead to a different conclusion.</p>
+<p>The disagreement between results by Kaplan et al. and Chinchilla is one example to showcase the trickiness of scaling laws fitting.</p>
+<p><a id="chinchilla-analysis"></a>A second example is a follow-up analysis investigating why Chinchilla <a href="#method-3-parametric-fit">method 3</a> is slightly off from the other two methods. <a href="https://arxiv.org/abs/2404.10102">Besiroglu et al. (2024)</a> extracted the raw $(N, D, L)$ data points from Figure 4 of Hoffmann et al. (2022) and re-ran the method 3 parametric fitting. They found a couple of concrete issues:</p>
+<ul>
+<li>A high loss scale in the L-BFGS-B minimizer, caused by averaging Huber-loss values over examples instead of summing them, which led to premature termination of the optimization. The early stopping of loss minimization during both the original fit and bootstrapping produced inconsistent estimates and implausibly narrow confidence intervals.</li>
+<li>The reported $\alpha$ and $\beta$ were rounded to 2 digits of precision, which made the derived $A, B$ look more off than they really were.</li>
+</ul>
+<h2 id="toy-simulation">Toy simulation<a hidden class="anchor" aria-hidden="true" href="#toy-simulation">#</a></h2>
+<p>Here is a toy simulation widget, created by ChatGPT, designed to demonstrate three specific failure modes.</p>
+<p>We assume the ground truth function is:</p>
+<div>
+$$
+\hat{L}(N, D) = 482.01 \cdot N^{-0.3478} + 2085.43 D^{-0.3658} + 1.8172
+$$
+</div>
+<p>and thus $N_\text{opt} \propto C^{0.5126}, D_\text{opt} \propto C^{0.4874}$. This is the estimate from <a href="https://arxiv.org/abs/2404.10102">Besiroglu et al. (2024)</a>.</p>
+<p>The simulation plots the loss prediction $\hat{L}$ vs dataset size $D$, while providing a set of sliders to show case:</p>
+<ul>
+<li>Loss precision: rounding losses from high to low decimal points can change the fitted parameter values.</li>
+<li>Loss noise: perturbing loss values by only a multiplier of milli-loss (0.001) units leads to different fit.</li>
+<li>Fit-region sensitivity: fitting only small models, only medium models, or all models gives different apparent scaling laws.</li>
+</ul>
+<div class="slw-widget"></div>
+
+<script>
+(() => {
+  const root = document.currentScript.previousElementSibling;
+  const uid = "slw-" + Math.random().toString(36).slice(2);
+
+  root.innerHTML = `
+    <style>
+      .slw-widget {
+        --slw-bg: #ffffff;
+        --slw-border: #d9d9d9;
+        --slw-muted: #666;
+        --slw-text: #222;
+        --slw-grid: #e9e9e9;
+        --slw-fit: #1f77b4;
+        --slw-true: #777;
+        --slw-point: #999;
+        --slw-selected: #d62728;
+        --slw-target: #2ca02c;
+
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+
+        border: 1px solid var(--slw-border);
+        border-radius: 12px;
+        padding: 16px;
+        margin: 1.5rem 0;
+        background: var(--slw-bg);
+        color: var(--slw-text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .slw-title {
+        font-weight: 650;
+        margin-bottom: 4px;
+      }
+
+      .slw-subtitle {
+        color: var(--slw-muted);
+        font-size: 0.92rem;
+        margin-bottom: 14px;
+        line-height: 1.35;
+      }
+
+      .slw-plot-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .slw-plot {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .slw-bottom {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(200px, 245px);
+        gap: 16px;
+        align-items: start;
+        margin-top: 14px;
+      }
+
+      .slw-controls {
+        display: grid;
+        gap: 12px;
+        font-size: 0.88rem;
+      }
+
+      .slw-control label {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .slw-control label span {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .slw-control small {
+        display: block;
+        color: var(--slw-muted);
+        line-height: 1.3;
+        margin-top: 2px;
+      }
+
+      .slw-control input,
+      .slw-control select {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .slw-readout {
+        border-left: 1px solid var(--slw-border);
+        padding-left: 14px;
+        display: grid;
+        gap: 7px;
+        font-variant-numeric: tabular-nums;
+        font-size: 0.75rem;
+      }
+
+      .slw-readout-title {
+        font-weight: 650;
+        margin-bottom: 2px;
+        font-size: 0.88rem;
+      }
+
+      .slw-readout div:not(.slw-readout-title) {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .slw-readout span:first-child {
+        color: var(--slw-muted);
+      }
+
+      .slw-caption {
+        margin-top: 12px;
+        color: var(--slw-muted);
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .slw-widget {
+          --slw-bg: #111;
+          --slw-border: #333;
+          --slw-muted: #aaa;
+          --slw-text: #eee;
+          --slw-grid: #2a2a2a;
+          --slw-point: #aaa;
+          --slw-true: #aaa;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .slw-bottom {
+          grid-template-columns: 1fr;
+        }
+
+        .slw-readout {
+          border-left: none;
+          border-top: 1px solid var(--slw-border);
+          padding-left: 0;
+          padding-top: 12px;
+        }
+      }
+    </style>
+
+    <div class="slw-title">Scaling-law fitting playground</div>
+    <div class="slw-subtitle">
+      Ground truth:
+      <code>L̂(N,D) = 1.8172 + 482.01N<sup>-0.3478</sup> + 2085.43D<sup>-0.3658</sup> + 1.8172</code>.
+      <br/>Thus <code>N<sub>opt</sub> ∝ C<sup>0.5126</sup></code> and
+      <code>D<sub>opt</sub> ∝ C<sup>0.4874</sup></code>.
+    </div>
+
+    <div class="slw-plot-wrap">
+      <svg class="slw-plot" viewBox="0 0 760 380" role="img"></svg>
+    </div>
+
+    <div class="slw-bottom">
+      <div class="slw-controls">
+        <div class="slw-control">
+          <label for="${uid}-region">Fit region</label>
+          <select id="${uid}-region">
+            <option value="small">Small models only</option>
+            <option value="medium">Medium models only</option>
+            <option value="all" selected>All measured models</option>
+          </select>
+          <small>Changing the fitted scale range changes the apparent exponents.</small>
+        </div>
+
+        <div class="slw-control">
+          <label for="${uid}-precision">
+            Loss precision
+            <span><span id="${uid}-precision-value"></span> decimals</span>
+          </label>
+          <input id="${uid}-precision" type="range" min="0" max="4" step="1" value="4">
+          <small>Round observed losses before fitting.</small>
+        </div>
+
+        <div class="slw-control">
+          <label for="${uid}-noise">
+            Loss noise
+            <span id="${uid}-noise-value"></span>
+          </label>
+          <input id="${uid}-noise" type="range" min="-200" max="200" step="5" value="0">
+          <small>Applies a correlated loss-estimation bias across the fitted region.</small>
+        </div>
+
+        <div class="slw-control">
+          <label for="${uid}-target">
+            Extrapolate to
+            <span id="${uid}-target-value"></span>
+          </label>
+          <input id="${uid}-target" type="range" min="11" max="15" step="1" value="15">
+          <small>Prediction is evaluated at <code>D = 20N</code>.</small>
+        </div>
+      </div>
+
+      <div class="slw-readout">
+        <div class="slw-readout-title">Fit result</div>
+        <div><span>Fitted α</span><strong id="${uid}-alpha"></strong></div>
+        <div><span>Fitted β</span><strong id="${uid}-beta"></strong></div>
+        <div><span>Fitted E</span><strong id="${uid}-floor"></strong></div>
+        <div><span>Fitted N<sub>opt</sub> exp.</span><strong id="${uid}-nexp"></strong></div>
+        <div><span>Fitted D<sub>opt</sub> exp.</span><strong id="${uid}-dexp"></strong></div>
+        <div><span>Predicted loss</span><strong id="${uid}-pred"></strong></div>
+        <div><span>True loss</span><strong id="${uid}-true"></strong></div>
+        <div><span>Error</span><strong id="${uid}-error"></strong></div>
+      </div>
+    </div>
+
+    <div class="slw-caption">
+      Red points are used in the fit; gray points are held out. Points at the same model size use different token budgets.
+      The dashed gray curve is the synthetic ground truth.</code>.
+    </div>
+  `;
+
+  const svg = root.querySelector(".slw-plot");
+
+  const regionEl = root.querySelector(`#${uid}-region`);
+  const precisionEl = root.querySelector(`#${uid}-precision`);
+  const noiseEl = root.querySelector(`#${uid}-noise`);
+  const targetEl = root.querySelector(`#${uid}-target`);
+
+  const precisionValueEl = root.querySelector(`#${uid}-precision-value`);
+  const noiseValueEl = root.querySelector(`#${uid}-noise-value`);
+  const targetValueEl = root.querySelector(`#${uid}-target-value`);
+
+  const alphaEl = root.querySelector(`#${uid}-alpha`);
+  const betaEl = root.querySelector(`#${uid}-beta`);
+  const floorEl = root.querySelector(`#${uid}-floor`);
+  const nexpEl = root.querySelector(`#${uid}-nexp`);
+  const dexpEl = root.querySelector(`#${uid}-dexp`);
+  const predEl = root.querySelector(`#${uid}-pred`);
+  const trueEl = root.querySelector(`#${uid}-true`);
+  const errorEl = root.querySelector(`#${uid}-error`);
+
+  function optimalDForN(params, N) {
+    const G = Math.pow(
+      (params.alpha * params.A) / (params.beta * params.B),
+      1 / (params.alpha + params.beta)
+    );
+
+    const a = params.beta / (params.alpha + params.beta);
+    const b = params.alpha / (params.alpha + params.beta);
+
+    const K = Math.pow(N / G, 1 / a);
+
+    return Math.pow(G, -1) * Math.pow(K, b);
+  }
+
+  
+  
+  const TRUE = {
+    gamma1: 1.8172,
+    A: 482.01,
+    B: 2085.43,
+    alpha: 0.3478,
+    beta: 0.3658
+  };
+
+  const TRUE_N_EXP = TRUE.beta / (TRUE.alpha + TRUE.beta);
+  const TRUE_D_EXP = TRUE.alpha / (TRUE.alpha + TRUE.beta);
+
+  const modelSizes = [
+    1e8, 3e8, 7e8,
+    1e9, 3e9, 7e9,
+    1e10, 3e10, 7e10,
+  ];
+  const tokenRatios = [5, 10, 20, 40];
+
+  const points = [];
+
+  for (let ni = 0; ni < modelSizes.length; ni++) {
+    for (let ri = 0; ri < tokenRatios.length; ri++) {
+      const N = modelSizes[ni];
+      const D = tokenRatios[ri] * N;
+
+      points.push({
+        id: `${ni}-${ri}`,
+        nIndex: ni,
+        ratioIndex: ri,
+        N,
+        D,
+        ratio: tokenRatios[ri]
+      });
+    }
+  }
+
+  function trueLoss(N, D) {
+    return (
+      TRUE.gamma1
+      + TRUE.A * Math.pow(N, -TRUE.alpha)
+      + TRUE.B * Math.pow(D, -TRUE.beta)
+    );
+  }
+
+  function log10(x) {
+    return Math.log(x) / Math.LN10;
+  }
+
+  function baseRunNoise(p) {
+    
+    
+    return (
+      0.010 * Math.sin((p.nIndex + 1) * 1.91 + (p.ratioIndex + 1) * 2.67)
+      + 0.004 * ((p.nIndex + p.ratioIndex) % 2 === 0 ? 1 : -1)
+    );
+  }
+
+  function structuredNoiseProfile(p) {
+    const minLogN = log10(modelSizes[0]);
+    const maxLogN = log10(modelSizes[modelSizes.length - 1]);
+
+    const allDs = points.map(q => q.D);
+    const minLogD = log10(Math.min(...allDs));
+    const maxLogD = log10(Math.max(...allDs));
+
+    const n = (log10(p.N) - minLogN) / (maxLogN - minLogN);
+    const d = (log10(p.D) - minLogD) / (maxLogD - minLogD);
+
+    
+    
+    return (
+      1.15 * (n - 0.5)
+      - 0.95 * (d - 0.5)
+      + 0.80 * (n - 0.5) * (d - 0.5)
+      + 0.20 * Math.sin(8 * n + 5 * d)
+    );
+  }
+
+  function rounded(y, decimals) {
+    const f = Math.pow(10, decimals);
+    return Math.round(y * f) / f;
+  }
+
+  function selectedPoints(region) {
+    if (region === "small") {
+      return points.filter(p => p.nIndex <= 3);
+    }
+
+    if (region === "medium") {
+      return points.filter(p => p.nIndex >= 2 && p.nIndex <= 5);
+    }
+
+    return points.slice();
+  }
+
+  function observedPoints(decimals, noiseMilliLoss, selected) {
+    const selectedIds = new Set(selected.map(p => p.id));
+
+    return points.map(p => {
+      const structuredNoise = (noiseMilliLoss / 1000) * structuredNoiseProfile(p);
+
+      const y =
+        trueLoss(p.N, p.D)
+        + baseRunNoise(p)
+        + structuredNoise;
+
+      return {
+        ...p,
+        selected: selectedIds.has(p.id),
+        y: rounded(y, decimals)
+      };
+    });
+  }
+
+  function evaluateFit(data, alpha, beta, gamma) {
+    let Sxx = 0;
+    let Szz = 0;
+    let Sxz = 0;
+    let Sxt = 0;
+    let Szt = 0;
+
+    for (const p of data) {
+      const t = p.y - gamma;
+
+      if (t <= 0) {
+        return null;
+      }
+
+      const x = Math.pow(p.N, -alpha);
+      const z = Math.pow(p.D, -beta);
+
+      Sxx += x * x;
+      Szz += z * z;
+      Sxz += x * z;
+      Sxt += x * t;
+      Szt += z * t;
+    }
+
+    const det = Sxx * Szz - Sxz * Sxz;
+
+    if (!Number.isFinite(det) || Math.abs(det) < 1e-40) {
+      return null;
+    }
+
+    const A = (Sxt * Szz - Szt * Sxz) / det;
+    const B = (Sxx * Szt - Sxz * Sxt) / det;
+
+    if (!Number.isFinite(A) || !Number.isFinite(B) || A <= 0 || B <= 0) {
+      return null;
+    }
+
+    let sse = 0;
+
+    for (const p of data) {
+      const pred =
+        gamma
+        + A * Math.pow(p.N, -alpha)
+        + B * Math.pow(p.D, -beta);
+
+      sse += Math.pow(pred - p.y, 2);
+    }
+
+    return { gamma, A, B, alpha, beta, sse };
+  }
+
+  function searchBox(data, ranges, steps) {
+    let best = null;
+
+    for (let ai = 0; ai < steps.alpha; ai++) {
+      const alpha =
+        ranges.alphaMin
+        + (ranges.alphaMax - ranges.alphaMin) * ai / Math.max(1, steps.alpha - 1);
+
+      for (let bi = 0; bi < steps.beta; bi++) {
+        const beta =
+          ranges.betaMin
+          + (ranges.betaMax - ranges.betaMin) * bi / Math.max(1, steps.beta - 1);
+
+        for (let gi = 0; gi < steps.gamma; gi++) {
+          const gamma =
+            ranges.gammaMin
+            + (ranges.gammaMax - ranges.gammaMin) * gi / Math.max(1, steps.gamma - 1);
+
+          const fit = evaluateFit(data, alpha, beta, gamma);
+
+          if (!fit) continue;
+
+          if (!best || fit.sse < best.sse) {
+            best = fit;
+          }
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function fitScalingLaw(data) {
+    const ys = data.map(p => p.y);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const span = Math.max(maxY - minY, 0.1);
+
+    const gammaMax = minY - 1e-6;
+    const gammaMin = Math.max(0, minY - Math.max(1.2 * span, 6.0));
+
+    let best = searchBox(
+      data,
+      {
+        alphaMin: 0.20,
+        alphaMax: 0.55,
+        betaMin: 0.20,
+        betaMax: 0.55,
+        gammaMin,
+        gammaMax
+      },
+      { alpha: 29, beta: 29, gamma: 45 }
+    );
+
+    if (!best) return null;
+
+    const refinements = [
+      { da: 0.050, db: 0.050, dg: 0.500, steps: { alpha: 25, beta: 25, gamma: 31 } },
+      { da: 0.015, db: 0.015, dg: 0.160, steps: { alpha: 25, beta: 25, gamma: 31 } },
+      { da: 0.004, db: 0.004, dg: 0.040, steps: { alpha: 21, beta: 21, gamma: 25 } }
+    ];
+
+    for (const r of refinements) {
+      const candidate = searchBox(
+        data,
+        {
+          alphaMin: Math.max(0.01, best.alpha - r.da),
+          alphaMax: Math.min(1.20, best.alpha + r.da),
+          betaMin: Math.max(0.01, best.beta - r.db),
+          betaMax: Math.min(1.20, best.beta + r.db),
+          gammaMin: Math.max(0, best.gamma - r.dg),
+          gammaMax: Math.min(gammaMax, best.gamma + r.dg)
+        },
+        r.steps
+      );
+
+      if (candidate && candidate.sse <= best.sse) {
+        best = candidate;
+      }
+    }
+
+    return best;
+  }
+
+  function fittedLoss(fit, N, D) {
+    return (
+      fit.gamma
+      + fit.A * Math.pow(N, -fit.alpha)
+      + fit.B * Math.pow(D, -fit.beta)
+    );
+  }
+
+  function formatPowerOfTen(x) {
+    const e = Math.round(log10(x));
+    const m = x / Math.pow(10, e);
+
+    if (Math.abs(m - 1) < 1e-8) {
+      return `10^${e}`;
+    }
+
+    return `${m.toFixed(1)}×10^${e}`;
+  }
+
+  function fmt(x, digits = 4) {
+    return Number.isFinite(x) ? x.toFixed(digits) : "—";
+  }
+
+  function svgPath(pointsForPath, xScale, yScale) {
+    return pointsForPath
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${xScale(p[0])} ${yScale(p[1])}`)
+      .join(" ");
+  }
+
+  function update() {
+    const region = regionEl.value;
+    const decimals = Number(precisionEl.value);
+    const noise = Number(noiseEl.value);
+    const targetLogN = Number(targetEl.value);
+    const targetN = Math.pow(10, targetLogN);
+    const targetD = optimalDForN(TRUE, targetN);
+
+    const selected = selectedPoints(region);
+    const observed = observedPoints(decimals, noise, selected);
+    const fitData = observed.filter(p => p.selected);
+    const fit = fitScalingLaw(fitData);
+
+    precisionValueEl.textContent = String(decimals);
+    noiseValueEl.textContent = `${noise >= 0 ? "+" : ""}${noise} mL`;
+    targetValueEl.textContent = `N=${formatPowerOfTen(targetN)}`;
+
+    if (!fit) {
+      svg.innerHTML = `<text x="24" y="40">Fit failed. Try more precision, less noise, or a different region.</text>`;
+      return;
+    }
+
+    const predictedTarget = fittedLoss(fit, targetN, targetD);
+    const trueTarget = trueLoss(targetN, targetD);
+    const error = predictedTarget - trueTarget;
+
+    const fittedNExp = fit.beta / (fit.alpha + fit.beta);
+    const fittedDExp = fit.alpha / (fit.alpha + fit.beta);
+
+    alphaEl.textContent = fmt(fit.alpha, 4);
+    betaEl.textContent = fmt(fit.beta, 4);
+    floorEl.textContent = fmt(fit.gamma, 4);
+    nexpEl.textContent = `${fmt(fittedNExp, 4)} / true ${fmt(TRUE_N_EXP, 4)}`;
+    dexpEl.textContent = `${fmt(fittedDExp, 4)} / true ${fmt(TRUE_D_EXP, 4)}`;
+    predEl.textContent = fmt(predictedTarget, 4);
+    trueEl.textContent = fmt(trueTarget, 4);
+    errorEl.textContent = `${error >= 0 ? "+" : ""}${fmt(error, 4)}`;
+
+    const W = 760;
+    const H = 380;
+    const m = { left: 58, right: 24, top: 24, bottom: 52 };
+
+    const xMin = log10(Math.min(...modelSizes));
+    const xMax = Math.max(targetLogN, log10(Math.max(...modelSizes)));
+
+    const sample = [];
+    const steps = 180;
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const logN = xMin + t * (xMax - xMin);
+      const N = Math.pow(10, logN);
+      const D = optimalDForN(TRUE, N);
+
+      sample.push({ N, D });
+    }
+
+    const trueCurve = sample.map(p => [p.N, trueLoss(p.N, p.D)]);
+    const fitCurve = sample.map(p => [p.N, fittedLoss(fit, p.N, p.D)]);
+
+    const allY = [
+      ...observed.map(p => p.y),
+      ...trueCurve.map(p => p[1]),
+      ...fitCurve.map(p => p[1]),
+      predictedTarget,
+      trueTarget
+    ].filter(Number.isFinite);
+
+    let yMin = Math.min(...allY);
+    let yMax = Math.max(...allY);
+    const yPad = 0.08 * (yMax - yMin || 1);
+
+    yMin -= yPad;
+    yMax += yPad;
+
+    const xScale = N => {
+      const x = log10(N);
+      return m.left + (x - xMin) / (xMax - xMin) * (W - m.left - m.right);
+    };
+
+    const yScale = y => {
+      return H - m.bottom - (y - yMin) / (yMax - yMin) * (H - m.top - m.bottom);
+    };
+
+    const xTicks = [];
+    const xTickStep = xMax - xMin > 7 ? 2 : 1;
+
+    for (let e = Math.ceil(xMin); e <= Math.floor(xMax); e += xTickStep) {
+      xTicks.push(Math.pow(10, e));
+    }
+
+    const yTicks = [];
+
+    for (let i = 0; i <= 4; i++) {
+      yTicks.push(yMin + (i / 4) * (yMax - yMin));
+    }
+
+    const truePath = svgPath(trueCurve, xScale, yScale);
+    const fitPath = svgPath(fitCurve, xScale, yScale);
+
+    const pointSvg = observed.map(p => {
+      const fill = p.selected ? "var(--slw-selected)" : "var(--slw-point)";
+      const opacity = p.selected ? 1 : 0.45;
+
+      
+      const jitter = (p.ratioIndex - 1.5) * 0.018;
+      const jitteredN = p.N * Math.pow(10, jitter);
+
+      return `
+        <circle
+          cx="${xScale(jitteredN)}"
+          cy="${yScale(p.y)}"
+          r="${p.selected ? 4.5 : 3.8}"
+          fill="${fill}"
+          opacity="${opacity}"
+        >
+          <title>N=${p.N.toExponential(1)}, D=${p.D.toExponential(1)}, observed loss=${p.y}</title>
+        </circle>
+      `;
+    }).join("");
+
+    svg.innerHTML = `
+      <rect x="0" y="0" width="${W}" height="${H}" fill="transparent"></rect>
+
+      ${yTicks.map(y => `
+        <line
+          x1="${m.left}"
+          x2="${W - m.right}"
+          y1="${yScale(y)}"
+          y2="${yScale(y)}"
+          stroke="var(--slw-grid)"
+        />
+        <text
+          x="${m.left - 8}"
+          y="${yScale(y) + 4}"
+          text-anchor="end"
+          font-size="11"
+          fill="var(--slw-muted)"
+        >${y.toFixed(2)}</text>
+      `).join("")}
+
+      ${xTicks.map(N => `
+        <line
+          x1="${xScale(N)}"
+          x2="${xScale(N)}"
+          y1="${m.top}"
+          y2="${H - m.bottom}"
+          stroke="var(--slw-grid)"
+        />
+        <text
+          x="${xScale(N)}"
+          y="${H - m.bottom + 20}"
+          text-anchor="middle"
+          font-size="11"
+          fill="var(--slw-muted)"
+        >${formatPowerOfTen(N)}</text>
+      `).join("")}
+
+      <line
+        x1="${m.left}"
+        x2="${W - m.right}"
+        y1="${H - m.bottom}"
+        y2="${H - m.bottom}"
+        stroke="var(--slw-muted)"
+      />
+
+      <line
+        x1="${m.left}"
+        x2="${m.left}"
+        y1="${m.top}"
+        y2="${H - m.bottom}"
+        stroke="var(--slw-muted)"
+      />
+
+      <text
+        x="${(W + m.left - m.right) / 2}"
+        y="${H - 14}"
+        text-anchor="middle"
+        font-size="12"
+        fill="var(--slw-muted)"
+      >model size N, log scale</text>
+
+      <text
+        x="14"
+        y="${(H + m.top - m.bottom) / 2}"
+        transform="rotate(-90 14 ${(H + m.top - m.bottom) / 2})"
+        text-anchor="middle"
+        font-size="12"
+        fill="var(--slw-muted)"
+      >loss</text>
+
+      <path
+        d="${truePath}"
+        fill="none"
+        stroke="var(--slw-true)"
+        stroke-width="2"
+        stroke-dasharray="5 5"
+      />
+
+      <path
+        d="${fitPath}"
+        fill="none"
+        stroke="var(--slw-fit)"
+        stroke-width="2.5"
+      />
+
+      ${pointSvg}
+
+      <line
+        x1="${xScale(targetN)}"
+        x2="${xScale(targetN)}"
+        y1="${m.top}"
+        y2="${H - m.bottom}"
+        stroke="var(--slw-target)"
+        stroke-width="1.5"
+        stroke-dasharray="4 4"
+      />
+
+      <circle
+        cx="${xScale(targetN)}"
+        cy="${yScale(predictedTarget)}"
+        r="5"
+        fill="var(--slw-fit)"
+      >
+        <title>Fitted extrapolation: ${predictedTarget.toFixed(4)}</title>
+      </circle>
+
+      <circle
+        cx="${xScale(targetN)}"
+        cy="${yScale(trueTarget)}"
+        r="5"
+        fill="var(--slw-target)"
+      >
+        <title>True synthetic loss: ${trueTarget.toFixed(4)}</title>
+      </circle>
+
+      <g transform="translate(${m.left + 8}, ${m.top + 8})">
+        <rect
+          x="0"
+          y="0"
+          width="250"
+          height="88"
+          rx="8"
+          fill="var(--slw-bg)"
+          stroke="var(--slw-border)"
+          opacity="0.92"
+        ></rect>
+
+        <line x1="10" x2="34" y1="17" y2="17" stroke="var(--slw-true)" stroke-width="2" stroke-dasharray="5 5"></line>
+        <text x="42" y="21" font-size="12" fill="var(--slw-muted)">ground truth</text>
+
+        <line x1="10" x2="34" y1="39" y2="39" stroke="var(--slw-fit)" stroke-width="2.5"></line>
+        <text x="42" y="43" font-size="12" fill="var(--slw-muted)">fitted scaling law</text>
+
+        <circle cx="22" cy="61" r="4" fill="var(--slw-selected)"></circle>
+        <text x="42" y="65" font-size="12" fill="var(--slw-muted)">points used in fit</text>
+
+        <circle cx="22" cy="79" r="4" fill="var(--slw-point)" opacity="0.45"></circle>
+        <text x="42" y="83" font-size="12" fill="var(--slw-muted)">held-out measured points</text>
+      </g>
+    `;
+  }
+
+  let pending = false;
+
+  function scheduleUpdate() {
+    if (pending) return;
+
+    pending = true;
+
+    window.requestAnimationFrame(() => {
+      pending = false;
+      update();
+    });
+  }
+
+  [regionEl, precisionEl, noiseEl, targetEl].forEach(el => {
+    el.addEventListener("input", scheduleUpdate);
+    el.addEventListener("change", scheduleUpdate);
+  });
+
+  update();
+})();
+</script>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Please cite this work as:</p>
+<pre tabindex="0"><code>Weng, Lilian. &#34;Scaling Laws, Carefully&#34;. Lil&#39;Log (Jun 2026). https://lilianweng.github.io/posts/2026-06-24-scaling-laws/
+</code></pre><p>Or use the BibTex citation:</p>
+<pre tabindex="0"><code>@article{weng2026scaling,
+ title = {Scaling Laws, Carefully},
+ author = {Weng, Lilian},
+ journal = {lilianweng.github.io},
+ year = {2026},
+ month = {June},
+ url = &#34;https://lilianweng.github.io/posts/2026-06-24-scaling-laws/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] S. Amari, N. Fujita, and S. Shinomoto. <a href="https://ieeexplore.ieee.org/document/6796972">&ldquo;Four Types of Learning Curves. Neural Computation.&rdquo;</a> 4(4):605–618, 1992.</p>
+<p>[2] Hestness et al. <a href="https://arxiv.org/abs/1712.00409">&ldquo;Deep Learning Scaling is Predictable, Empirically.&rdquo;</a> arXiv preprint arXiv:1712.00409, 2017.</p>
+<p>[3] Rosenfeld et al. <a href="https://arxiv.org/abs/1909.12673">&ldquo;A Constructive Prediction of the Generalization Error Across Scales.&rdquo;</a> ICLR 2020.</p>
+<p>[4] Kaplan et al. <a href="https://arxiv.org/abs/2001.08361">&ldquo;Scaling Laws for Neural Language Models.&rdquo;</a> arXiv preprint arXiv:2001.08361, 2020.</p>
+<p>[5] Hoffmann et al. <a href="https://arxiv.org/abs/2203.15556">&ldquo;Training Compute-Optimal Large Language Models.&rdquo;</a> NeurIPS 2022.</p>
+<p>[6] Pearce and Song. <a href="https://arxiv.org/abs/2406.12907">&ldquo;Reconciling Kaplan and Chinchilla Scaling Laws.&rdquo;</a> TMLR 2024.</p>
+<p>[7] Bahri et al. <a href="https://arxiv.org/abs/2102.06701">&ldquo;Explaining Neural Scaling Laws.&rdquo;</a> arXiv preprint arXiv:2102.06701, 2021.</p>
+<p>[8] Sharma and Kaplan. <a href="https://arxiv.org/abs/2004.10802">&ldquo;A Neural Scaling Law from the Dimension of the Data Manifold.&rdquo;</a> arXiv preprint arXiv:2004.10802, 2020.</p>
+<p>[9] Hernandez et al. <a href="https://arxiv.org/abs/2205.10487">&ldquo;Scaling Laws and Interpretability of Learning from Repeated Data.&rdquo;</a> arXiv preprint arXiv:2205.10487, 2022.</p>
+<p>[10] Muennighoff et al. <a href="https://arxiv.org/abs/2305.16264">&ldquo;Scaling Data-Constrained Language Models.&rdquo;</a> NeurIPS 2023.</p>
+<p>[11] Lovelace et al. <a href="https://arxiv.org/abs/2605.01640">&ldquo;Prescriptive Scaling Laws for Data Constrained Training.&rdquo;</a> arXiv preprint arXiv:2605.01640, 2026.</p>
+<p>[12] Besiroglu et al. <a href="https://arxiv.org/abs/2404.10102">&ldquo;Chinchilla Scaling: A Replication Attempt.&rdquo;</a> arXiv preprint arXiv:2404.10102, 2024.</p>
+<p>[13] Michaud et al. <a href="https://arxiv.org/abs/2303.13506">&ldquo;The Quantization Model of Neural Scaling&rdquo;</a> NeurIPS 2023.</p>
+<p>[14] Brill. <a href="https://arxiv.org/abs/2412.07942">&ldquo;Neural Scaling Laws Rooted in the Data Distribution.&rdquo;</a> arXiv preprint arXiv:2412.07942, 2024.</p>
+<p>[15] Rae et al. <a href="https://arxiv.org/abs/2112.11446">&ldquo;Scaling Language Models: Methods, Analysis &amp; Insights from Training Gopher.&rdquo;</a> arXiv preprint arXiv:2112.11446, 2021.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/pretraining/">Pretraining</a></li>
+      <li><a href="https://lilianweng.github.io/tags/transformer/">Transformer</a></li>
+      <li><a href="https://lilianweng.github.io/tags/learning-dynamics/">Learning-Dynamics</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="https://lilianweng.github.io/posts/2025-05-01-thinking/">
+    <span class="title"> »</span>
+    <br>
+    <span>Why We Think</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on twitter"
+        href="https://twitter.com/intent/tweet/?text=Scaling%20Laws%2c%20Carefully&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f&amp;hashtags=language-model%2cfoundation%2cpretraining%2ctransformer%2clearning-dynamics">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f&amp;title=Scaling%20Laws%2c%20Carefully&amp;summary=Scaling%20Laws%2c%20Carefully&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f&title=Scaling%20Laws%2c%20Carefully">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on whatsapp"
+        href="https://api.whatsapp.com/send?text=Scaling%20Laws%2c%20Carefully%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Scaling Laws, Carefully on telegram"
+        href="https://telegram.me/share/url?text=Scaling%20Laws%2c%20Carefully&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2026-06-24-scaling-laws%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2026 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
