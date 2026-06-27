@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Object Detection Part 4: Fast Detection Models | Lil&#39;Log</title>
+<meta name="keywords" content="object-detection, object-recognition, vision-model" />
+<meta name="description" content="
+In Part 3, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Object Detection Part 4: Fast Detection Models" />
+<meta property="og:description" content="
+In Part 3, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2018-12-27T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2018-12-27T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Object Detection Part 4: Fast Detection Models"/>
+<meta name="twitter:description" content="
+In Part 3, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Object Detection Part 4: Fast Detection Models",
+      "item": "https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Object Detection Part 4: Fast Detection Models",
+  "name": "Object Detection Part 4: Fast Detection Models",
+  "description": " In Part 3, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family.\n",
+  "keywords": [
+    "object-detection", "object-recognition", "vision-model"
+  ],
+  "articleBody": " In Part 3, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family.\nLinks to all the posts in the series: [Part 1] [Part 2] [Part 3] [Part 4].\nTwo-stage vs One-stage Detectors Models in the R-CNN family are all region-based. The detection happens in two stages: (1) First, the model proposes a set of regions of interests by select search or regional proposal network. The proposed regions are sparse as the potential bounding box candidates can be infinite. (2) Then a classifier only processes the region candidates.\nThe other different approach skips the region proposal stage and runs detection directly over a dense sampling of possible locations. This is how a one-stage object detection algorithm works. This is faster and simpler, but might potentially drag down the performance a bit.\nAll the models introduced in this post are one-stage detectors.\nYOLO: You Only Look Once The YOLO model (“You Only Look Once”; Redmon et al., 2016) is the very first attempt at building a fast real-time object detector. Because YOLO does not undergo the region proposal step and only predicts over a limited number of bounding boxes, it is able to do inference super fast.\nWorkflow Pre-train a CNN network on image classification task.\nSplit an image into $S \\times S$ cells. If an object’s center falls into a cell, that cell is “responsible” for detecting the existence of that object. Each cell predicts (a) the location of $B$ bounding boxes, (b) a confidence score, and (c) a probability of object class conditioned on the existence of an object in the bounding box.\nThe coordinates of bounding box are defined by a tuple of 4 values, (center x-coord, center y-coord, width, height) — $(x, y, w, h)$, where $x$ and $y$ are set to be offset of a cell location. Moreover, $x$, $y$, $w$ and $h$ are normalized by the image width and height, and thus all between (0, 1]. A confidence score indicates the likelihood that the cell contains an object: Pr(containing an object) x IoU(pred, truth); where Pr = probability and IoU = interaction under union. If the cell contains an object, it predicts a probability of this object belonging to every class $C_i, i=1, \\dots, K$: Pr(the object belongs to the class C_i | containing an object). At this stage, the model only predicts one set of class probabilities per cell, regardless of the number of bounding boxes, $B$. In total, one image contains $S \\times S \\times B$ bounding boxes, each box corresponding to 4 location predictions, 1 confidence score, and K conditional probabilities for object classification. The total prediction values for one image is $S \\times S \\times (5B + K)$, which is the tensor shape of the final conv layer of the model. The final layer of the pre-trained CNN is modified to output a prediction tensor of size $S \\times S \\times (5B + K)$.\nThe workflow of YOLO model. (Image source: original paper) Network Architecture The base model is similar to GoogLeNet with inception module replaced by 1x1 and 3x3 conv layers. The final prediction of shape $S \\times S \\times (5B + K)$ is produced by two fully connected layers over the whole conv feature map.\nThe network architecture of YOLO. Loss Function The loss consists of two parts, the localization loss for bounding box offset prediction and the classification loss for conditional class probabilities. Both parts are computed as the sum of squared errors. Two scale parameters are used to control how much we want to increase the loss from bounding box coordinate predictions ($\\lambda_\\text{coord}$) and how much we want to decrease the loss of confidence score predictions for boxes without objects ($\\lambda_\\text{noobj}$). Down-weighting the loss contributed by background boxes is important as most of the bounding boxes involve no instance. In the paper, the model sets $\\lambda_\\text{coord} = 5$ and $\\lambda_\\text{noobj} = 0.5$.\n$$ \\begin{aligned} \\mathcal{L}_\\text{loc} \u0026= \\lambda_\\text{coord} \\sum_{i=0}^{S^2} \\sum_{j=0}^B \\mathbb{1}_{ij}^\\text{obj} [(x_i - \\hat{x}_i)^2 + (y_i - \\hat{y}_i)^2 + (\\sqrt{w_i} - \\sqrt{\\hat{w}_i})^2 + (\\sqrt{h_i} - \\sqrt{\\hat{h}_i})^2 ] \\\\ \\mathcal{L}_\\text{cls} \u0026= \\sum_{i=0}^{S^2} \\sum_{j=0}^B \\big( \\mathbb{1}_{ij}^\\text{obj} + \\lambda_\\text{noobj} (1 - \\mathbb{1}_{ij}^\\text{obj})\\big) (C_{ij} - \\hat{C}_{ij})^2 + \\sum_{i=0}^{S^2} \\sum_{c \\in \\mathcal{C}} \\mathbb{1}_i^\\text{obj} (p_i(c) - \\hat{p}_i(c))^2\\\\ \\mathcal{L} \u0026= \\mathcal{L}_\\text{loc} + \\mathcal{L}_\\text{cls} \\end{aligned} $$ NOTE: In the original YOLO paper, the loss function uses $C_i$ instead of $C_{ij}$ as confidence score. I made the correction based on my own understanding, since every bounding box should have its own confidence score. Please kindly let me if you do not agree. Many thanks.\nwhere,\n$\\mathbb{1}_i^\\text{obj}$: An indicator function of whether the cell i contains an object. $\\mathbb{1}_{ij}^\\text{obj}$: It indicates whether the j-th bounding box of the cell i is “responsible” for the object prediction (see Fig. 3). $C_{ij}$: The confidence score of cell i, Pr(containing an object) * IoU(pred, truth). $\\hat{C}_{ij}$: The predicted confidence score. $\\mathcal{C}$: The set of all classes. $p_i(c)$: The conditional probability of whether cell i contains an object of class $c \\in \\mathcal{C}$. $\\hat{p}_i(c)$: The predicted conditional class probability. At one location, in cell i, the model proposes B bounding box candidates and the one that has highest overlap with the ground truth is the \"responsible\" predictor. The loss function only penalizes classification error if an object is present in that grid cell, $\\mathbb{1}_i^\\text{obj} = 1$. It also only penalizes bounding box coordinate error if that predictor is “responsible” for the ground truth box, $\\mathbb{1}_{ij}^\\text{obj} = 1$.\nAs a one-stage object detector, YOLO is super fast, but it is not good at recognizing irregularly shaped objects or a group of small objects due to a limited number of bounding box candidates.\nSSD: Single Shot MultiBox Detector The Single Shot Detector (SSD; Liu et al, 2016) is one of the first attempts at using convolutional neural network’s pyramidal feature hierarchy for efficient detection of objects of various sizes.\nImage Pyramid SSD uses the VGG-16 model pre-trained on ImageNet as its base model for extracting useful image features. On top of VGG16, SSD adds several conv feature layers of decreasing sizes. They can be seen as a pyramid representation of images at different scales. Intuitively large fine-grained feature maps at earlier levels are good at capturing small objects and small coarse-grained feature maps can detect large objects well. In SSD, the detection happens in every pyramidal layer, targeting at objects of various sizes.\nThe model architecture of SSD. Workflow Unlike YOLO, SSD does not split the image into grids of arbitrary size but predicts offset of predefined anchor boxes (this is called “default boxes” in the paper) for every location of the feature map. Each box has a fixed size and position relative to its corresponding cell. All the anchor boxes tile the whole feature map in a convolutional manner.\nFeature maps at different levels have different receptive field sizes. The anchor boxes on different levels are rescaled so that one feature map is only responsible for objects at one particular scale. For example, in Fig. 5 the dog can only be detected in the 4x4 feature map (higher level) while the cat is just captured by the 8x8 feature map (lower level).\nThe SSD framework. (a) The training data contains images and ground truth boxes for every object. (b) In a fine-grained feature maps (8 x 8), the anchor boxes of different aspect ratios correspond to smaller area of the raw input. (c) In a coarse-grained feature map (4 x 4), the anchor boxes cover larger area of the raw input. (Image source: original paper) The width, height and the center location of an anchor box are all normalized to be (0, 1). At a location $(i, j)$ of the $\\ell$-th feature layer of size $m \\times n$, $i=1,\\dots,n, j=1,\\dots,m$, we have a unique linear scale proportional to the layer level and 5 different box aspect ratios (width-to-height ratios), in addition to a special scale (why we need this? the paper didn’t explain. maybe just a heuristic trick) when the aspect ratio is 1. This gives us 6 anchor boxes in total per feature cell.\n$$ \\begin{aligned} \\text{level index: } \u0026\\ell = 1, \\dots, L \\\\ \\text{scale of boxes: } \u0026s_\\ell = s_\\text{min} + \\frac{s_\\text{max} - s_\\text{min}}{L - 1} (\\ell - 1) \\\\ \\text{aspect ratio: } \u0026r \\in \\{1, 2, 3, 1/2, 1/3\\}\\\\ \\text{additional scale: } \u0026 s'_\\ell = \\sqrt{s_\\ell s_{\\ell + 1}} \\text{ when } r = 1 \\text{thus, 6 boxes in total.}\\\\ \\text{width: } \u0026w_\\ell^r = s_\\ell \\sqrt{r} \\\\ \\text{height: } \u0026h_\\ell^r = s_\\ell / \\sqrt{r} \\\\ \\text{center location: } \u0026 (x^i_\\ell, y^j_\\ell) = (\\frac{i+0.5}{m}, \\frac{j+0.5}{n}) \\end{aligned} $$ An example of how the anchor box size is scaled up with the layer index $\\ell$ for $L=6, s\\_\\text{min} = 0.2, s\\_\\text{max} = 0.9$. Only the boxes of aspect ratio $r=1$ are illustrated. At every location, the model outputs 4 offsets and $c$ class probabilities by applying a $3 \\times 3 \\times p$ conv filter (where $p$ is the number of channels in the feature map) for every one of $k$ anchor boxes. Therefore, given a feature map of size $m \\times n$, we need $kmn(c+4)$ prediction filters.\nLoss Function Same as YOLO, the loss function is the sum of a localization loss and a classification loss.\n$\\mathcal{L} = \\frac{1}{N}(\\mathcal{L}_\\text{cls} + \\alpha \\mathcal{L}_\\text{loc})$\nwhere $N$ is the number of matched bounding boxes and $\\alpha$ balances the weights between two losses, picked by cross validation.\nThe localization loss is a smooth L1 loss between the predicted bounding box correction and the true values. The coordinate correction transformation is same as what R-CNN does in bounding box regression.\n$$ \\begin{aligned} \\mathcal{L}_\\text{loc} \u0026= \\sum_{i,j} \\sum_{m\\in\\{x, y, w, h\\}} \\mathbb{1}_{ij}^\\text{match} L_1^\\text{smooth}(d_m^i - t_m^j)^2\\\\ L_1^\\text{smooth}(x) \u0026= \\begin{cases} 0.5 x^2 \u0026 \\text{if } \\vert x \\vert \u003c 1\\\\ \\vert x \\vert - 0.5 \u0026 \\text{otherwise} \\end{cases} \\\\ t^j_x \u0026= (g^j_x - p^i_x) / p^i_w \\\\ t^j_y \u0026= (g^j_y - p^i_y) / p^i_h \\\\ t^j_w \u0026= \\log(g^j_w / p^i_w) \\\\ t^j_h \u0026= \\log(g^j_h / p^i_h) \\end{aligned} $$ where $\\mathbb{1}_{ij}^\\text{match}$ indicates whether the $i$-th bounding box with coordinates $(p^i_x, p^i_y, p^i_w, p^i_h)$ is matched to the $j$-th ground truth box with coordinates $(g^j_x, g^j_y, g^j_w, g^j_h)$ for any object. $d^i_m, m\\in\\{x, y, w, h\\}$ are the predicted correction terms. See this for how the transformation works.\nThe classification loss is a softmax loss over multiple classes (softmax_cross_entropy_with_logits in tensorflow):\n$$ \\mathcal{L}_\\text{cls} = -\\sum_{i \\in \\text{pos}} \\mathbb{1}_{ij}^k \\log(\\hat{c}_i^k) - \\sum_{i \\in \\text{neg}} \\log(\\hat{c}_i^0)\\text{, where }\\hat{c}_i^k = \\text{softmax}(c_i^k) $$ where $\\mathbb{1}_{ij}^k$ indicates whether the $i$-th bounding box and the $j$-th ground truth box are matched for an object in class $k$. $\\text{pos}$ is the set of matched bounding boxes ($N$ items in total) and $\\text{neg}$ is the set of negative examples. SSD uses hard negative mining to select easily misclassified negative examples to construct this $\\text{neg}$ set: Once all the anchor boxes are sorted by objectiveness confidence score, the model picks the top candidates for training so that neg:pos is at most 3:1.\nYOLOv2 / YOLO9000 YOLOv2 (Redmon \u0026 Farhadi, 2017) is an enhanced version of YOLO. YOLO9000 is built on top of YOLOv2 but trained with joint dataset combining the COCO detection dataset and the top 9000 classes from ImageNet.\nYOLOv2 Improvement A variety of modifications are applied to make YOLO prediction more accurate and faster, including:\n1. BatchNorm helps: Add batch norm on all the convolutional layers, leading to significant improvement over convergence.\n2. Image resolution matters: Fine-tuning the base model with high resolution images improves the detection performance.\n3. Convolutional anchor box detection: Rather than predicts the bounding box position with fully-connected layers over the whole feature map, YOLOv2 uses convolutional layers to predict locations of anchor boxes, like in faster R-CNN. The prediction of spatial locations and class probabilities are decoupled. Overall, the change leads to a slight decrease in mAP, but an increase in recall.\n4. K-mean clustering of box dimensions: Different from faster R-CNN that uses hand-picked sizes of anchor boxes, YOLOv2 runs k-mean clustering on the training data to find good priors on anchor box dimensions. The distance metric is designed to rely on IoU scores:\n$$ \\text{dist}(x, c_i) = 1 - \\text{IoU}(x, c_i), i=1,\\dots,k $$ where $x$ is a ground truth box candidate and $c_i$ is one of the centroids. The best number of centroids (anchor boxes) $k$ can be chosen by the elbow method.\nThe anchor boxes generated by clustering provide better average IoU conditioned on a fixed number of boxes.\n5. Direct location prediction: YOLOv2 formulates the bounding box prediction in a way that it would not diverge from the center location too much. If the box location prediction can place the box in any part of the image, like in regional proposal network, the model training could become unstable.\nGiven the anchor box of size $(p_w, p_h)$ at the grid cell with its top left corner at $(c_x, c_y)$, the model predicts the offset and the scale, $(t_x, t_y, t_w, t_h)$ and the corresponding predicted bounding box $b$ has center $(b_x, b_y)$ and size $(b_w, b_h)$. The confidence score is the sigmoid ($\\sigma$) of another output $t_o$.\n$$ \\begin{aligned} b_x \u0026= \\sigma(t_x) + c_x\\\\ b_y \u0026= \\sigma(t_y) + c_y\\\\ b_w \u0026= p_w e^{t_w}\\\\ b_h \u0026= p_h e^{t_h}\\\\ \\text{Pr}(\\text{object}) \u0026\\cdot \\text{IoU}(b, \\text{object}) = \\sigma(t_o) \\end{aligned} $$ YOLOv2 bounding box location prediction. (Image source: original paper) 6. Add fine-grained features: YOLOv2 adds a passthrough layer to bring fine-grained features from an earlier layer to the last output layer. The mechanism of this passthrough layer is similar to identity mappings in ResNet to extract higher-dimensional features from previous layers. This leads to 1% performance increase.\n7. Multi-scale training: In order to train the model to be robust to input images of different sizes, a new size of input dimension is randomly sampled every 10 batches. Since conv layers of YOLOv2 downsample the input dimension by a factor of 32, the newly sampled size is a multiple of 32.\n8. Light-weighted base model: To make prediction even faster, YOLOv2 adopts a light-weighted base model, DarkNet-19, which has 19 conv layers and 5 max-pooling layers. The key point is to insert avg poolings and 1x1 conv filters between 3x3 conv layers.\nYOLO9000: Rich Dataset Training Because drawing bounding boxes on images for object detection is much more expensive than tagging images for classification, the paper proposed a way to combine small object detection dataset with large ImageNet so that the model can be exposed to a much larger number of object categories. The name of YOLO9000 comes from the top 9000 classes in ImageNet. During joint training, if an input image comes from the classification dataset, it only backpropagates the classification loss.\nThe detection dataset has much fewer and more general labels and, moreover, labels cross multiple datasets are often not mutually exclusive. For example, ImageNet has a label “Persian cat” while in COCO the same image would be labeled as “cat”. Without mutual exclusiveness, it does not make sense to apply softmax over all the classes.\nIn order to efficiently merge ImageNet labels (1000 classes, fine-grained) with COCO/PASCAL (\u003c 100 classes, coarse-grained), YOLO9000 built a hierarchical tree structure with reference to WordNet so that general labels are closer to the root and the fine-grained class labels are leaves. In this way, “cat” is the parent node of “Persian cat”.\nThe WordTree hierarchy merges labels from COCO and ImageNet. Blue nodes are COCO labels and red nodes are ImageNet labels. (Image source: original paper) To predict the probability of a class node, we can follow the path from the node to the root:\nPr(\"persian cat\" | contain a \"physical object\") = Pr(\"persian cat\" | \"cat\") Pr(\"cat\" | \"animal\") Pr(\"animal\" | \"physical object\") Pr(contain a \"physical object\") # confidence score. Note that Pr(contain a \"physical object\") is the confidence score, predicted separately in the bounding box detection pipeline. The path of conditional probability prediction can stop at any step, depending on which labels are available.\nRetinaNet The RetinaNet (Lin et al., 2018) is a one-stage dense object detector. Two crucial building blocks are featurized image pyramid and the use of focal loss.\nFocal Loss One issue for object detection model training is an extreme imbalance between background that contains no object and foreground that holds objects of interests. Focal loss is designed to assign more weights on hard, easily misclassified examples (i.e. background with noisy texture or partial object) and to down-weight easy examples (i.e. obviously empty background).\nStarting with a normal cross entropy loss for binary classification,\n$$ \\text{CE}(p, y) = -y\\log p - (1-y)\\log(1-p) $$ where $y \\in \\{0, 1\\}$ is a ground truth binary label, indicating whether a bounding box contains a object, and $p \\in [0, 1]$ is the predicted probability of objectiveness (aka confidence score).\nFor notational convenience,\n$$ \\text{let } p_t = \\begin{cases} p \u0026 \\text{if } y = 1\\\\ 1-p \u0026 \\text{otherwise} \\end{cases}, \\text{then } \\text{CE}(p, y)=\\text{CE}(p_t) = -\\log p_t $$ Easily classified examples with large $p_t \\gg 0.5$, that is, when $p$ is very close to 0 (when y=0) or 1 (when y=1), can incur a loss with non-trivial magnitude. Focal loss explicitly adds a weighting factor $(1-p_t)^\\gamma, \\gamma \\geq 0$ to each term in cross entropy so that the weight is small when $p_t$ is large and therefore easy examples are down-weighted.\n$$ \\text{FL}(p_t) = -(1-p_t)^\\gamma \\log p_t $$ The focal loss focuses less on easy examples with a factor of $(1-p\\_t)^\\gamma$. (Image source: original paper) For a better control of the shape of the weighting function (see Fig. 10.), RetinaNet uses an $\\alpha$-balanced variant of the focal loss, where $\\alpha=0.25, \\gamma=2$ works the best.\n$$ \\text{FL}(p_t) = -\\alpha (1-p_t)^\\gamma \\log p_t $$ The plot of focal loss weights $\\alpha (1-p\\_t)^\\gamma$ as a function of $p\\_t$, given different values of $\\alpha$ and $\\gamma$. Featurized Image Pyramid The featurized image pyramid (Lin et al., 2017) is the backbone network for RetinaNet. Following the same approach by image pyramid in SSD, featurized image pyramids provide a basic vision component for object detection at different scales.\nThe key idea of feature pyramid network is demonstrated in The base structure contains a sequence of pyramid levels, each corresponding to one network stage. One stage contains multiple convolutional layers of the same size and the stage sizes are scaled down by a factor of 2. Let’s denote the last layer of the $i$-th stage as $C_i$.\nThe illustration of the featurized image pyramid module. (Replot based on figure 3 in FPN paper) Two pathways connect conv layers:\nBottom-up pathway is the normal feedforward computation. Top-down pathway goes in the inverse direction, adding coarse but semantically stronger feature maps back into the previous pyramid levels of a larger size via lateral connections. First, the higher-level features are upsampled spatially coarser to be 2x larger. For image upscaling, the paper used nearest neighbor upsampling. While there are many image upscaling algorithms such as using deconv, adopting another image scaling method might or might not improve the performance of RetinaNet. The larger feature map undergoes a 1x1 conv layer to reduce the channel dimension. Finally, these two feature maps are merged by element-wise addition. The lateral connections only happen at the last layer in stages, denoted as $\\{C_i\\}$, and the process continues until the finest (largest) merged feature map is generated. The prediction is made out of every merged map after a 3x3 conv layer, $\\{P_i\\}$. According to ablation studies, the importance rank of components of the featurized image pyramid design is as follows: 1x1 lateral connection \u003e detect object across multiple layers \u003e top-down enrichment \u003e pyramid representation (compared to only check the finest layer).\nModel Architecture The featurized pyramid is constructed on top of the ResNet architecture. Recall that ResNet has 5 conv blocks (= network stages / pyramid levels). The last layer of the $i$-th pyramid level, $C_i$, has resolution $2^i$ lower than the raw input dimension.\nRetinaNet utilizes feature pyramid levels $P_3$ to $P_7$:\n$P_3$ to $P_5$ are computed from the corresponding ResNet residual stage from $C_3$ to $C_5$. They are connected by both top-down and bottom-up pathways. $P_6$ is obtained via a 3×3 stride-2 conv on top of $C_5$ $P_7$ applies ReLU and a 3×3 stride-2 conv on $P_6$. Adding higher pyramid levels on ResNet improves the performance for detecting large objects.\nSame as in SSD, detection happens in all pyramid levels by making a prediction out of every merged feature map. Because predictions share the same classifier and the box regressor, they are all formed to have the same channel dimension d=256.\nThere are A=9 anchor boxes per level:\nThe base size corresponds to areas of $32^2$ to $512^2$ pixels on $P_3$ to $P_7$ respectively. There are three size ratios, $\\{2^0, 2^{1/3}, 2^{2/3}\\}$. For each size, there are three aspect ratios {1/2, 1, 2}. As usual, for each anchor box, the model outputs a class probability for each of $K$ classes in the classification subnet and regresses the offset from this anchor box to the nearest ground truth object in the box regression subnet. The classification subnet adopts the focal loss introduced above.\nThe RetinaNet model architecture uses a FPN backbone on top of ResNet. (Image source: the FPN paper) YOLOv3 YOLOv3 is created by applying a bunch of design tricks on YOLOv2. The changes are inspired by recent advances in the object detection world.\nHere are a list of changes:\n1. Logistic regression for confidence scores: YOLOv3 predicts an confidence score for each bounding box using logistic regression, while YOLO and YOLOv2 uses sum of squared errors for classification terms (see the loss function above). Linear regression of offset prediction leads to a decrease in mAP.\n2. No more softmax for class prediction: When predicting class confidence, YOLOv3 uses multiple independent logistic classifier for each class rather than one softmax layer. This is very helpful especially considering that one image might have multiple labels and not all the labels are guaranteed to be mutually exclusive.\n3. Darknet + ResNet as the base model: The new Darknet-53 still relies on successive 3x3 and 1x1 conv layers, just like the original dark net architecture, but has residual blocks added.\n4. Multi-scale prediction: Inspired by image pyramid, YOLOv3 adds several conv layers after the base feature extractor model and makes prediction at three different scales among these conv layers. In this way, it has to deal with many more bounding box candidates of various sizes overall.\n5. Skip-layer concatenation: YOLOv3 also adds cross-layer connections between two prediction layers (except for the output layer) and earlier finer-grained feature maps. The model first up-samples the coarse feature maps and then merges it with the previous features by concatenation. The combination with finer-grained information makes it better at detecting small objects.\nInterestingly, focal loss does not help YOLOv3, potentially it might be due to the usage of $\\lambda_\\text{noobj}$ and $\\lambda_\\text{coord}$ — they increase the loss from bounding box location predictions and decrease the loss from confidence predictions for background boxes.\nOverall YOLOv3 performs better and faster than SSD, and worse than RetinaNet but 3.8x faster.\nThe comparison of various fast object detection models on speed and mAP performance. (Image source: focal loss paper with additional labels from the YOLOv3 paper.) Cited as:\n@article{weng2018detection4, title = \"Object Detection Part 4: Fast Detection Models\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2018\", url = \"https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/\" } Reference [1] Joseph Redmon, et al. “You only look once: Unified, real-time object detection.” CVPR 2016.\n[2] Joseph Redmon and Ali Farhadi. “YOLO9000: Better, Faster, Stronger.” CVPR 2017.\n[3] Joseph Redmon, Ali Farhadi. “YOLOv3: An incremental improvement.”.\n[4] Wei Liu et al. “SSD: Single Shot MultiBox Detector.” ECCV 2016.\n[5] Tsung-Yi Lin, et al. “Feature Pyramid Networks for Object Detection.” CVPR 2017.\n[6] Tsung-Yi Lin, et al. “Focal Loss for Dense Object Detection.” IEEE transactions on pattern analysis and machine intelligence, 2018.\n[7] “What’s new in YOLO v3?” by Ayoosh Kathuria on “Towards Data Science”, Apr 23, 2018.\n",
+  "wordCount" : "4011",
+  "inLanguage": "en",
+  "datePublished": "2018-12-27T00:00:00Z",
+  "dateModified": "2018-12-27T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Object Detection Part 4: Fast Detection Models
+    </h1>
+    <div class="post-meta">Date: December 27, 2018  |  Estimated Reading Time: 19 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#two-stage-vs-one-stage-detectors" aria-label="Two-stage vs One-stage Detectors">Two-stage vs One-stage Detectors</a></li>
+                <li>
+                    <a href="#yolo-you-only-look-once" aria-label="YOLO: You Only Look Once">YOLO: You Only Look Once</a><ul>
+                        
+                <li>
+                    <a href="#workflow" aria-label="Workflow">Workflow</a></li>
+                <li>
+                    <a href="#network-architecture" aria-label="Network Architecture">Network Architecture</a></li>
+                <li>
+                    <a href="#loss-function" aria-label="Loss Function">Loss Function</a></li></ul>
+                </li>
+                <li>
+                    <a href="#ssd-single-shot-multibox-detector" aria-label="SSD: Single Shot MultiBox Detector">SSD: Single Shot MultiBox Detector</a><ul>
+                        
+                <li>
+                    <a href="#image-pyramid" aria-label="Image Pyramid">Image Pyramid</a></li>
+                <li>
+                    <a href="#workflow-1" aria-label="Workflow">Workflow</a></li>
+                <li>
+                    <a href="#loss-function-1" aria-label="Loss Function">Loss Function</a></li></ul>
+                </li>
+                <li>
+                    <a href="#yolov2--yolo9000" aria-label="YOLOv2 / YOLO9000">YOLOv2 / YOLO9000</a><ul>
+                        
+                <li>
+                    <a href="#yolov2-improvement" aria-label="YOLOv2 Improvement">YOLOv2 Improvement</a></li>
+                <li>
+                    <a href="#yolo9000-rich-dataset-training" aria-label="YOLO9000: Rich Dataset Training">YOLO9000: Rich Dataset Training</a></li></ul>
+                </li>
+                <li>
+                    <a href="#retinanet" aria-label="RetinaNet">RetinaNet</a><ul>
+                        
+                <li>
+                    <a href="#focal-loss" aria-label="Focal Loss">Focal Loss</a></li>
+                <li>
+                    <a href="#featurized-image-pyramid" aria-label="Featurized Image Pyramid">Featurized Image Pyramid</a></li>
+                <li>
+                    <a href="#model-architecture" aria-label="Model Architecture">Model Architecture</a></li></ul>
+                </li>
+                <li>
+                    <a href="#yolov3" aria-label="YOLOv3">YOLOv3</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Part 4 of the "Object Detection for Dummies" series focuses on one-stage models for fast detection, including SSD, RetinaNet, and models in the YOLO family. These models skip the explicit region proposal stage but apply the detection directly on dense sampled areas. -->
+<p>In <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">Part 3</a>, we have reviewed models in the R-CNN family. All of them are region-based object detection algorithms. They can achieve high accuracy but could be too slow for certain applications such as autonomous driving. In Part 4, we only focus on fast object detection models, including SSD, RetinaNet, and models in the YOLO family.</p>
+<p>Links to all the posts in the series:
+[<a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/">Part 1</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">Part 2</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">Part 3</a>]
+[<a href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/">Part 4</a>].</p>
+<h1 id="two-stage-vs-one-stage-detectors">Two-stage vs One-stage Detectors<a hidden class="anchor" aria-hidden="true" href="#two-stage-vs-one-stage-detectors">#</a></h1>
+<p>Models in the R-CNN family are all region-based. The detection happens in two stages: (1) First, the model proposes a set of regions of interests by select search or regional proposal network. The proposed regions are sparse as the potential bounding box candidates can be infinite. (2) Then a classifier only processes the region candidates.</p>
+<p>The other different approach skips the region proposal stage and runs detection directly over a dense sampling of possible locations. This is how a one-stage object detection algorithm works. This is faster and simpler, but might potentially drag down the performance a bit.</p>
+<p>All the models introduced in this post are one-stage detectors.</p>
+<h1 id="yolo-you-only-look-once">YOLO: You Only Look Once<a hidden class="anchor" aria-hidden="true" href="#yolo-you-only-look-once">#</a></h1>
+<p>The <strong>YOLO</strong> model (<strong>&ldquo;You Only Look Once&rdquo;</strong>; <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf">Redmon et al., 2016</a>) is the very first attempt at building a fast real-time object detector. Because YOLO does not undergo the region proposal step and only predicts over a limited number of bounding boxes, it is able to do inference super fast.</p>
+<h2 id="workflow">Workflow<a hidden class="anchor" aria-hidden="true" href="#workflow">#</a></h2>
+<ol>
+<li>
+<p><strong>Pre-train</strong> a CNN network on image classification task.</p>
+</li>
+<li>
+<p>Split an image into $S \times S$ cells. If an object&rsquo;s center falls into a cell, that cell is &ldquo;responsible&rdquo; for detecting the existence of that object. Each cell predicts (a) the location of $B$ bounding boxes, (b) a confidence score, and (c) a probability of object class conditioned on the existence of an object in the bounding box.</p>
+<ul>
+<li>The <strong>coordinates</strong> of bounding box are defined by a tuple of 4 values, (center x-coord, center y-coord, width, height) &mdash; $(x, y, w, h)$, where $x$ and $y$ are set to be offset of a cell location. Moreover, $x$, $y$, $w$ and $h$ are normalized by the image width and height, and thus all between (0, 1].</li>
+<li>A <strong>confidence score</strong> indicates the likelihood that the cell contains an object: <code>Pr(containing an object) x IoU(pred, truth)</code>; where <code>Pr</code> = probability and <code>IoU</code> = interaction under union.</li>
+<li>If the cell contains an object, it predicts a <strong>probability</strong> of this object belonging to every class $C_i, i=1, \dots, K$: <code>Pr(the object belongs to the class C_i | containing an object)</code>. At this stage, the model only predicts one set of class probabilities per cell, regardless of the number of bounding boxes, $B$.</li>
+<li>In total, one image contains $S \times S \times B$ bounding boxes, each box corresponding to 4 location predictions, 1 confidence score, and K conditional probabilities for object classification. The total prediction values for one image is $S \times S \times (5B + K)$, which is the tensor shape of the final conv layer of the model.</li>
+</ul>
+</li>
+<li>
+<p>The final layer of the pre-trained CNN is modified to output a prediction tensor of size $S \times S \times (5B + K)$.</p>
+</li>
+</ol>
+<figure>
+	<img src="yolo.png"  />
+	<figcaption>The workflow of YOLO model. (Image source: <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf" target="_blank">original paper</a>)</figcaption>
+</figure>
+<h2 id="network-architecture">Network Architecture<a hidden class="anchor" aria-hidden="true" href="#network-architecture">#</a></h2>
+<p>The base model is similar to <a href="https://www.cs.unc.edu/~wliu/papers/GoogLeNet.pdf">GoogLeNet</a> with inception module replaced by 1x1 and 3x3 conv layers. The final prediction of shape $S \times S \times (5B + K)$ is produced by two fully connected layers over the whole conv feature map.</p>
+<figure>
+	<img src="yolo-network-architecture.png"  />
+	<figcaption>The network architecture of YOLO.</figcaption>
+</figure>
+<h2 id="loss-function">Loss Function<a hidden class="anchor" aria-hidden="true" href="#loss-function">#</a></h2>
+<p>The loss consists of two parts, the <em>localization loss</em> for bounding box offset prediction and the <em>classification loss</em> for conditional class probabilities. Both parts are computed as the sum of squared errors. Two scale parameters are used to control how much we want to increase the loss from bounding box coordinate predictions ($\lambda_\text{coord}$) and how much we want to decrease the loss of confidence score predictions for boxes without objects ($\lambda_\text{noobj}$). Down-weighting the loss contributed by background boxes is important as most of the bounding boxes involve no instance. In the paper, the model sets $\lambda_\text{coord} = 5$ and $\lambda_\text{noobj} = 0.5$.</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{loc} &= \lambda_\text{coord} \sum_{i=0}^{S^2} \sum_{j=0}^B \mathbb{1}_{ij}^\text{obj} [(x_i - \hat{x}_i)^2 + (y_i - \hat{y}_i)^2 + (\sqrt{w_i} - \sqrt{\hat{w}_i})^2 + (\sqrt{h_i} - \sqrt{\hat{h}_i})^2 ] \\
+\mathcal{L}_\text{cls}  &= \sum_{i=0}^{S^2} \sum_{j=0}^B \big( \mathbb{1}_{ij}^\text{obj} + \lambda_\text{noobj} (1 - \mathbb{1}_{ij}^\text{obj})\big) (C_{ij} - \hat{C}_{ij})^2 + \sum_{i=0}^{S^2} \sum_{c \in \mathcal{C}} \mathbb{1}_i^\text{obj} (p_i(c) - \hat{p}_i(c))^2\\
+\mathcal{L} &= \mathcal{L}_\text{loc} + \mathcal{L}_\text{cls}
+\end{aligned}
+$$
+</div>
+<blockquote>
+<p>NOTE: In the original YOLO paper, the loss function uses $C_i$ instead of $C_{ij}$ as confidence score. I made the correction based on my own understanding, since every bounding box should have its own confidence score. Please kindly let me if you do not agree. Many thanks.</p>
+</blockquote>
+<p>where,</p>
+<ul>
+<li>$\mathbb{1}_i^\text{obj}$: An indicator function of whether the cell i contains an object.</li>
+<li>$\mathbb{1}_{ij}^\text{obj}$: It indicates whether the j-th bounding box of the cell i is &ldquo;responsible&rdquo; for the object prediction (see Fig. 3).</li>
+<li>$C_{ij}$: The confidence score of cell i, <code>Pr(containing an object) * IoU(pred, truth)</code>.</li>
+<li>$\hat{C}_{ij}$: The predicted confidence score.</li>
+<li>$\mathcal{C}$: The set of all classes.</li>
+<li>$p_i(c)$: The conditional probability of whether cell i contains an object of class $c \in \mathcal{C}$.</li>
+<li>$\hat{p}_i(c)$: The predicted conditional class probability.</li>
+</ul>
+<figure>
+	<img src="yolo-responsible-predictor.png" style="width: 85%;"  />
+	<figcaption>At one location, in cell i, the model proposes B bounding box candidates and the one that has highest overlap with the ground truth is the "responsible" predictor.</figcaption>
+</figure>
+<p>The loss function only penalizes classification error if an object is present in that grid cell, $\mathbb{1}_i^\text{obj} = 1$. It also only penalizes bounding box coordinate error if that predictor is &ldquo;responsible&rdquo; for the ground truth box, $\mathbb{1}_{ij}^\text{obj} = 1$.</p>
+<p>As a one-stage object detector, YOLO is super fast, but it is not good at recognizing irregularly shaped objects or a group of small objects due to a limited number of bounding box candidates.</p>
+<h1 id="ssd-single-shot-multibox-detector">SSD: Single Shot MultiBox Detector<a hidden class="anchor" aria-hidden="true" href="#ssd-single-shot-multibox-detector">#</a></h1>
+<p>The <strong>Single Shot Detector</strong> (<strong>SSD</strong>; <a href="https://arxiv.org/abs/1512.02325">Liu et al, 2016</a>) is one of the first attempts at using convolutional neural network&rsquo;s pyramidal feature hierarchy for efficient detection of objects of various sizes.</p>
+<h2 id="image-pyramid">Image Pyramid<a hidden class="anchor" aria-hidden="true" href="#image-pyramid">#</a></h2>
+<p>SSD uses the <a href="https://arxiv.org/abs/1409.1556">VGG-16</a> model pre-trained on ImageNet as its base model for extracting useful image features.
+On top of VGG16, SSD adds several conv feature layers of decreasing sizes. They can be seen as a <em>pyramid representation</em> of images at different scales. Intuitively large fine-grained feature maps at earlier levels are good at capturing small objects and small coarse-grained feature maps can detect large objects well. In SSD, the detection happens in every pyramidal layer, targeting at objects of various sizes.</p>
+<figure>
+	<img src="SSD-architecture.png"  />
+	<figcaption>The model architecture of SSD.</figcaption>
+</figure>
+<h2 id="workflow-1">Workflow<a hidden class="anchor" aria-hidden="true" href="#workflow-1">#</a></h2>
+<p>Unlike YOLO, SSD does not split the image into grids of arbitrary size but predicts offset of predefined <em>anchor boxes</em> (this is called &ldquo;default boxes&rdquo; in the paper) for every location of the feature map. Each box has a fixed size and position relative to its corresponding cell. All the anchor boxes tile the whole feature map in a convolutional manner.</p>
+<p>Feature maps at different levels have different receptive field sizes. The anchor boxes on different levels are rescaled so that one feature map is only responsible for objects at one particular scale. For example, in Fig. 5 the dog can only be detected in the 4x4 feature map (higher level) while the cat is just captured by the 8x8 feature map (lower level).</p>
+<figure>
+	<img src="SSD-framework.png"  />
+	<figcaption>The SSD framework. (a) The training data contains images and ground truth boxes for every object. (b) In a fine-grained feature maps (8 x 8), the anchor boxes of different aspect ratios correspond to smaller area of the raw input. (c) In a coarse-grained feature map (4 x 4), the anchor boxes cover larger area of the raw input. (Image source: <a href="https://arxiv.org/abs/1512.02325" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>The width, height and the center location of an anchor box are all normalized to be (0, 1). At a location $(i, j)$ of the $\ell$-th feature layer of size $m \times n$, $i=1,\dots,n, j=1,\dots,m$, we have a unique linear scale proportional to the layer level and 5 different box aspect ratios (width-to-height ratios), in addition to a special scale (why we need this? the paper didn’t explain. maybe just a heuristic trick) when the aspect ratio is 1. This gives us 6 anchor boxes in total per feature cell.</p>
+<div>
+$$
+\begin{aligned}
+\text{level index: } &\ell = 1, \dots, L \\
+\text{scale of boxes: } &s_\ell = s_\text{min} + \frac{s_\text{max} - s_\text{min}}{L - 1} (\ell - 1) \\
+\text{aspect ratio: } &r \in \{1, 2, 3, 1/2, 1/3\}\\
+\text{additional scale: } & s'_\ell = \sqrt{s_\ell s_{\ell + 1}} \text{ when } r = 1 \text{thus, 6 boxes in total.}\\
+\text{width: } &w_\ell^r = s_\ell \sqrt{r} \\
+\text{height: } &h_\ell^r = s_\ell / \sqrt{r} \\
+\text{center location: } & (x^i_\ell, y^j_\ell) = (\frac{i+0.5}{m}, \frac{j+0.5}{n})
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="SSD-box-scales.png"  />
+	<figcaption>An example of how the anchor box size is scaled up with the layer index $\ell$ for $L=6, s\_\text{min} = 0.2, s\_\text{max} = 0.9$. Only the boxes of aspect ratio $r=1$ are illustrated.</figcaption>
+</figure>
+<p>At every location, the model outputs 4 offsets and $c$ class probabilities by applying a $3 \times 3 \times p$ conv filter (where $p$ is the number of channels in the feature map) for every one of $k$ anchor boxes. Therefore, given a feature map of size $m \times n$, we need $kmn(c+4)$ prediction filters.</p>
+<h2 id="loss-function-1">Loss Function<a hidden class="anchor" aria-hidden="true" href="#loss-function-1">#</a></h2>
+<p>Same as YOLO, the loss function is the sum of a localization loss and a classification loss.</p>
+<p>$\mathcal{L} = \frac{1}{N}(\mathcal{L}_\text{cls} + \alpha \mathcal{L}_\text{loc})$</p>
+<p>where $N$ is the number of matched bounding boxes and $\alpha$ balances the weights between two losses, picked by cross validation.</p>
+<p>The <em>localization loss</em> is a <a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf">smooth L1 loss</a> between the predicted bounding box correction and the true values. The coordinate correction transformation is same as what <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/#r-cnn">R-CNN</a> does in <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/#bounding-box-regression">bounding box regression</a>.</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{loc} &= \sum_{i,j} \sum_{m\in\{x, y, w, h\}} \mathbb{1}_{ij}^\text{match}
+ L_1^\text{smooth}(d_m^i - t_m^j)^2\\
+L_1^\text{smooth}(x) &= \begin{cases}
+    0.5 x^2             & \text{if } \vert x \vert < 1\\
+    \vert x \vert - 0.5 & \text{otherwise}
+\end{cases} \\
+t^j_x &= (g^j_x - p^i_x) / p^i_w \\
+t^j_y &= (g^j_y - p^i_y) / p^i_h \\
+t^j_w &= \log(g^j_w / p^i_w) \\
+t^j_h &= \log(g^j_h / p^i_h)
+\end{aligned}
+$$
+</div>
+<p>where $\mathbb{1}_{ij}^\text{match}$ indicates whether the $i$-th bounding box with coordinates $(p^i_x, p^i_y, p^i_w, p^i_h)$ is matched to the $j$-th ground truth box with coordinates $(g^j_x, g^j_y, g^j_w, g^j_h)$ for any object. $d^i_m, m\in\{x, y, w, h\}$ are the predicted correction terms. See <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/#bounding-box-regression">this</a> for how the transformation works.</p>
+<p>The <em>classification loss</em> is a softmax loss over multiple classes (<a href="https://www.tensorflow.org/api_docs/python/tf/nn/softmax_cross_entropy_with_logits">softmax_cross_entropy_with_logits</a> in tensorflow):</p>
+<div>
+$$
+\mathcal{L}_\text{cls} = -\sum_{i \in \text{pos}} \mathbb{1}_{ij}^k \log(\hat{c}_i^k) - \sum_{i \in \text{neg}} \log(\hat{c}_i^0)\text{, where }\hat{c}_i^k = \text{softmax}(c_i^k)
+$$
+</div>
+<p>where $\mathbb{1}_{ij}^k$ indicates whether the $i$-th bounding box and the $j$-th ground truth box are matched for an object in class $k$. $\text{pos}$ is the set of matched bounding boxes ($N$ items in total) and  $\text{neg}$ is the set of negative examples. SSD uses <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/#common-tricks">hard negative mining</a> to select easily misclassified negative examples to construct this $\text{neg}$ set: Once all the anchor boxes are sorted by objectiveness confidence score, the model picks the top candidates for training so that neg:pos is at most 3:1.</p>
+<h1 id="yolov2--yolo9000">YOLOv2 / YOLO9000<a hidden class="anchor" aria-hidden="true" href="#yolov2--yolo9000">#</a></h1>
+<p><strong>YOLOv2</strong> (<a href="https://arxiv.org/abs/1612.08242">Redmon &amp; Farhadi, 2017</a>) is an enhanced version of YOLO. <strong>YOLO9000</strong> is built on top of YOLOv2 but trained with joint dataset combining the COCO detection dataset and the top 9000 classes from ImageNet.</p>
+<h2 id="yolov2-improvement">YOLOv2 Improvement<a hidden class="anchor" aria-hidden="true" href="#yolov2-improvement">#</a></h2>
+<p>A variety of modifications are applied to make YOLO prediction more accurate and faster, including:</p>
+<p><strong>1. BatchNorm helps</strong>: Add <em>batch norm</em> on all the convolutional layers, leading to significant improvement over convergence.</p>
+<p><strong>2. Image resolution matters</strong>: Fine-tuning the base model with <em>high resolution</em> images improves the detection performance.</p>
+<p><strong>3. Convolutional anchor box detection</strong>: Rather than predicts the bounding box position with fully-connected layers over the whole feature map, YOLOv2 uses <em>convolutional layers</em> to predict locations of <em>anchor boxes</em>, like in faster R-CNN. The prediction of spatial locations and class probabilities are decoupled. Overall, the change leads to a slight decrease in mAP, but an increase in recall.</p>
+<p><strong>4. K-mean clustering of box dimensions</strong>: Different from faster R-CNN that uses hand-picked sizes of anchor boxes, YOLOv2 runs k-mean clustering on the training data to find good priors on anchor box dimensions. The distance metric is designed to <em>rely on IoU scores</em>:</p>
+<div>
+$$
+\text{dist}(x, c_i) = 1 - \text{IoU}(x, c_i), i=1,\dots,k
+$$
+</div>
+<p>where $x$ is a ground truth box candidate and $c_i$ is one of the centroids. The best number of centroids (anchor boxes) $k$ can be chosen by the <a href="https://en.wikipedia.org/wiki/Elbow_method_(clustering)">elbow method</a>.</p>
+<p>The anchor boxes generated by clustering provide better average IoU conditioned on a fixed number of boxes.</p>
+<p><strong>5. Direct location prediction</strong>: YOLOv2 formulates the bounding box prediction in a way that it would <em>not diverge</em> from the center location too much. If the box location prediction can place the box in any part of the image, like in regional proposal network, the model training could become unstable.</p>
+<p>Given the anchor box of size $(p_w, p_h)$ at the grid cell with its top left corner at $(c_x, c_y)$, the model predicts the offset and the scale, $(t_x, t_y, t_w, t_h)$ and the corresponding predicted bounding box $b$ has center $(b_x, b_y)$ and size $(b_w, b_h)$. The confidence score is the sigmoid ($\sigma$) of another output $t_o$.</p>
+<div>
+$$
+\begin{aligned}
+b_x &= \sigma(t_x) + c_x\\
+b_y &= \sigma(t_y) + c_y\\
+b_w &= p_w e^{t_w}\\
+b_h &= p_h e^{t_h}\\
+\text{Pr}(\text{object}) &\cdot \text{IoU}(b, \text{object}) = \sigma(t_o)
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="yolov2-loc-prediction.png" style="width: 50%;"  />
+	<figcaption>YOLOv2 bounding box location prediction. (Image source: <a href="https://arxiv.org/abs/1612.08242" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p><strong>6. Add fine-grained features</strong>: YOLOv2 adds a passthrough layer to bring <em>fine-grained features</em> from an earlier layer to the last output layer. The mechanism of this passthrough layer is similar to <em>identity mappings in ResNet</em> to extract higher-dimensional features from previous layers. This leads to 1% performance increase.</p>
+<p><strong>7. Multi-scale training</strong>: In order to train the model to be robust to input images of different sizes, a <em>new size</em> of input dimension is <em>randomly sampled</em> every 10 batches. Since conv layers of YOLOv2 downsample the input dimension by a factor of 32, the newly sampled size is a multiple of 32.</p>
+<p><strong>8. Light-weighted base model</strong>: To make prediction even faster, YOLOv2 adopts a light-weighted base model, DarkNet-19, which has 19 conv layers and 5 max-pooling layers. The key point is to insert avg poolings and 1x1 conv filters between 3x3 conv layers.</p>
+<h2 id="yolo9000-rich-dataset-training">YOLO9000: Rich Dataset Training<a hidden class="anchor" aria-hidden="true" href="#yolo9000-rich-dataset-training">#</a></h2>
+<p>Because drawing bounding boxes on images for object detection is much more expensive than tagging images for classification, the paper proposed a way to combine small object detection dataset with large ImageNet so that the model can be exposed to a much larger number of object categories. The name of YOLO9000 comes from the top 9000 classes in ImageNet. During joint training, if an input image comes from the classification dataset, it only backpropagates the classification loss.</p>
+<p>The detection dataset has much fewer and more general labels and, moreover, labels cross multiple datasets are often not mutually exclusive. For example, ImageNet has a label “Persian cat” while in COCO the same image would be labeled as “cat”. Without mutual exclusiveness, it does not make sense to apply softmax over all the classes.</p>
+<p>In order to efficiently merge ImageNet labels (1000 classes, fine-grained) with COCO/PASCAL (&lt; 100 classes, coarse-grained), YOLO9000 built a hierarchical tree structure with reference to <a href="https://wordnet.princeton.edu/">WordNet</a> so that general labels are closer to the root and the fine-grained class labels are leaves. In this way, &ldquo;cat&rdquo; is the parent node of &ldquo;Persian cat&rdquo;.</p>
+<figure>
+	<img src="word-tree.png" style="width:100%;"  />
+	<figcaption>The WordTree hierarchy merges labels from COCO and ImageNet. Blue nodes are COCO labels and red nodes are ImageNet labels. (Image source: <a href="https://arxiv.org/abs/1612.08242" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>To predict the probability of a class node, we can follow the path from the node to the root:</p>
+<pre tabindex="0"><code>Pr(&#34;persian cat&#34; | contain a &#34;physical object&#34;) 
+= Pr(&#34;persian cat&#34; | &#34;cat&#34;) 
+  Pr(&#34;cat&#34; | &#34;animal&#34;) 
+  Pr(&#34;animal&#34; | &#34;physical object&#34;) 
+  Pr(contain a &#34;physical object&#34;)    # confidence score.
+</code></pre><p>Note that <code>Pr(contain a &quot;physical object&quot;)</code> is the confidence score, predicted separately in the bounding box detection pipeline. The path of conditional probability prediction can stop at any step, depending on which labels are available.</p>
+<h1 id="retinanet">RetinaNet<a hidden class="anchor" aria-hidden="true" href="#retinanet">#</a></h1>
+<p>The <strong>RetinaNet</strong> (<a href="https://arxiv.org/abs/1708.02002">Lin et al., 2018</a>) is a one-stage dense object detector. Two crucial building blocks are <em>featurized image pyramid</em> and the use of <em>focal loss</em>.</p>
+<h2 id="focal-loss">Focal Loss<a hidden class="anchor" aria-hidden="true" href="#focal-loss">#</a></h2>
+<p>One issue for object detection model training is an extreme imbalance between background that contains no object and foreground that holds objects of interests. <strong>Focal loss</strong> is designed to assign more weights on hard, easily misclassified examples (i.e. background with noisy texture or partial object) and to down-weight easy examples (i.e. obviously empty background).</p>
+<p>Starting with a normal cross entropy loss for binary classification,</p>
+<div>
+$$
+\text{CE}(p, y) = -y\log p - (1-y)\log(1-p)
+$$
+</div>
+<p>where $y \in \{0, 1\}$ is a ground truth binary label, indicating whether a bounding box contains a object, and $p \in [0, 1]$ is the predicted probability of objectiveness (aka confidence score).</p>
+<p>For notational convenience,</p>
+<div>
+$$
+\text{let } p_t = \begin{cases}
+p    & \text{if } y = 1\\
+1-p  & \text{otherwise}
+\end{cases},
+\text{then } \text{CE}(p, y)=\text{CE}(p_t) = -\log p_t
+$$
+</div>
+<p>Easily classified examples with large $p_t \gg 0.5$, that is, when $p$ is very close to 0 (when y=0) or 1 (when y=1), can incur a loss with non-trivial magnitude. Focal loss explicitly adds a weighting factor $(1-p_t)^\gamma, \gamma \geq 0$ to each term in cross entropy so that the weight is small when $p_t$ is large and therefore easy examples are down-weighted.</p>
+<div>
+$$
+\text{FL}(p_t) = -(1-p_t)^\gamma \log p_t
+$$
+</div>
+<figure>
+	<img src="focal-loss.png" style="width:65%;"  />
+	<figcaption>The focal loss focuses less on easy examples with a factor of $(1-p\_t)^\gamma$. (Image source: <a href="https://arxiv.org/abs/1708.02002" target="_blank">original paper</a>)</figcaption>
+</figure>
+<p>For a better control of the shape of the weighting function (see Fig. 10.), RetinaNet uses an $\alpha$-balanced variant of the focal loss, where $\alpha=0.25, \gamma=2$ works the best.</p>
+<div>
+$$
+\text{FL}(p_t) = -\alpha (1-p_t)^\gamma \log p_t
+$$
+</div>
+<figure>
+	<img src="focal-loss-weights.png" style="width:90%;"  />
+	<figcaption>The plot of focal loss weights $\alpha (1-p\_t)^\gamma$ as a function of $p\_t$, given different values of $\alpha$ and $\gamma$.</figcaption>
+</figure>
+<h2 id="featurized-image-pyramid">Featurized Image Pyramid<a hidden class="anchor" aria-hidden="true" href="#featurized-image-pyramid">#</a></h2>
+<p>The <strong>featurized image pyramid</strong> (<a href="https://arxiv.org/abs/1612.03144">Lin et al., 2017</a>) is the backbone network for RetinaNet. Following the same approach by <a href="#image-pyramid">image pyramid</a> in SSD, featurized image pyramids provide a basic vision component for object detection at different scales.</p>
+<p>The key idea of feature pyramid network is demonstrated in The base structure contains a sequence of <em>pyramid levels</em>, each corresponding to one network <em>stage</em>. One stage contains multiple convolutional layers of the same size and the stage sizes are scaled down by a factor of 2. Let&rsquo;s denote the last layer of the $i$-th stage as $C_i$.</p>
+<figure>
+	<img src="featurized-image-pyramid.png" style="width:100%;"  />
+	<figcaption>The illustration of the featurized image pyramid module. (Replot based on figure 3 in <a href="https://arxiv.org/abs/1612.03144" target="_blank">FPN paper</a>)</figcaption>
+</figure>
+<p>Two pathways connect conv layers:</p>
+<ul>
+<li><strong>Bottom-up pathway</strong> is the normal feedforward computation.</li>
+<li><strong>Top-down pathway</strong> goes in the inverse direction, adding coarse but semantically stronger feature maps back into the previous pyramid levels of a larger size via lateral connections.
+<ul>
+<li>First, the higher-level features are upsampled spatially coarser to be 2x larger. For image upscaling, the paper used nearest neighbor upsampling. While there are many <a href="https://en.wikipedia.org/wiki/Image_scaling#Algorithms">image upscaling algorithms</a> such as using <a href="https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose">deconv</a>, adopting another image scaling method might or might not improve the performance of RetinaNet.</li>
+<li>The larger feature map undergoes a 1x1 conv layer to reduce the channel dimension.</li>
+<li>Finally, these two feature maps are merged by element-wise addition.
+<br/>
+<br/>
+The lateral connections only happen at the last layer in stages, denoted as $\{C_i\}$, and the process continues until the finest (largest) merged feature map is generated. The prediction is made out of every merged map after a 3x3 conv layer, $\{P_i\}$.</li>
+</ul>
+</li>
+</ul>
+<p>According to ablation studies, the importance rank of components of the featurized image pyramid design is as follows: <strong>1x1 lateral connection</strong> &gt; detect object across multiple layers  &gt; top-down enrichment &gt; pyramid representation (compared to only check the finest layer).</p>
+<h2 id="model-architecture">Model Architecture<a hidden class="anchor" aria-hidden="true" href="#model-architecture">#</a></h2>
+<p>The featurized pyramid is constructed on top of the ResNet architecture. Recall that <a href="TBA">ResNet</a> has 5 conv blocks (= network stages / pyramid levels). The last layer of the $i$-th pyramid level, $C_i$, has resolution $2^i$ lower than the raw input dimension.</p>
+<p>RetinaNet utilizes feature pyramid levels $P_3$ to $P_7$:</p>
+<ul>
+<li>$P_3$ to $P_5$ are computed from the corresponding ResNet residual stage from $C_3$ to $C_5$. They are connected by both top-down and bottom-up pathways.</li>
+<li>$P_6$ is obtained via a 3×3 stride-2 conv on top of $C_5$</li>
+<li>$P_7$ applies ReLU and a 3×3 stride-2 conv on $P_6$.</li>
+</ul>
+<p>Adding higher pyramid levels on ResNet improves the performance for detecting large objects.</p>
+<p>Same as in SSD, detection happens in all pyramid levels by making a prediction out of every merged feature map. Because predictions share the same classifier and the box regressor, they are all formed to have the same channel dimension d=256.</p>
+<p>There are A=9 anchor boxes per level:</p>
+<ul>
+<li>The base size corresponds to areas of $32^2$ to $512^2$ pixels on $P_3$ to $P_7$ respectively. There are three size ratios, $\{2^0, 2^{1/3}, 2^{2/3}\}$.</li>
+<li>For each size, there are three aspect ratios {1/2, 1, 2}.</li>
+</ul>
+<p>As usual, for each anchor box, the model outputs a class probability for each of $K$ classes in the classification subnet and regresses the offset from this anchor box to the nearest ground truth object in the box regression subnet. The classification subnet adopts the focal loss introduced above.</p>
+<figure>
+	<img src="retina-net.png" style="width:100%;"  />
+	<figcaption>The RetinaNet model architecture uses a <a href="https://arxiv.org/abs/1612.03144" target="_blank">FPN</a> backbone on top of ResNet. (Image source: the <a href="https://arxiv.org/abs/1612.03144" target="_blank">FPN</a> paper)</figcaption>
+</figure>
+<h1 id="yolov3">YOLOv3<a hidden class="anchor" aria-hidden="true" href="#yolov3">#</a></h1>
+<p><a href="https://pjreddie.com/media/files/papers/YOLOv3.pdf">YOLOv3</a> is created by applying a bunch of design tricks on YOLOv2. The changes are inspired by recent advances in the object detection world.</p>
+<p>Here are a list of changes:</p>
+<p><strong>1. Logistic regression for confidence scores</strong>: YOLOv3 predicts an confidence score for each bounding box using <em>logistic regression</em>, while YOLO and YOLOv2 uses sum of squared errors for classification terms (see the <a href="#loss-function">loss function</a> above). Linear regression of offset prediction leads to a decrease in mAP.</p>
+<p><strong>2. No more softmax for class prediction</strong>: When predicting class confidence, YOLOv3 uses <em>multiple independent logistic classifier</em> for each class rather than one softmax layer. This is very helpful especially considering that one image might have multiple labels and not all the labels are guaranteed to be mutually exclusive.</p>
+<p><strong>3. Darknet + ResNet as the base model</strong>: The new Darknet-53 still relies on successive 3x3 and 1x1 conv layers, just like the original dark net architecture, but has residual blocks added.</p>
+<p><strong>4. Multi-scale prediction</strong>: Inspired by image pyramid, YOLOv3 adds several conv layers after the base feature extractor model and makes prediction at three different scales among these conv layers. In this way, it has to deal with many more bounding box candidates of various sizes overall.</p>
+<p><strong>5. Skip-layer concatenation</strong>: YOLOv3 also adds cross-layer connections between two prediction layers (except for the output layer) and earlier finer-grained feature maps. The model first up-samples the coarse feature maps and then merges it with the previous features by concatenation. The combination with finer-grained information makes it better at detecting small objects.</p>
+<p>Interestingly, focal loss does not help YOLOv3, potentially it might be due to the usage of $\lambda_\text{noobj}$ and $\lambda_\text{coord}$ &mdash; they increase the loss from bounding box location predictions and decrease the loss from confidence predictions for background boxes.</p>
+<p>Overall YOLOv3 performs better and faster than SSD, and worse than RetinaNet but 3.8x faster.</p>
+<figure>
+	<img src="yolov3-perf.png" style="width:80%;"  />
+	<figcaption>The comparison of various fast object detection models on speed and mAP performance. (Image source: <a href="https://arxiv.org/abs/1708.02002" target="_blank">focal loss</a> paper with additional labels from the <a href="https://pjreddie.com/media/files/papers/YOLOv3.pdf" target="_blank">YOLOv3</a> paper.)</figcaption>
+</figure>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2018detection4,
+  title   = &#34;Object Detection Part 4: Fast Detection Models&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2018&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Joseph Redmon, et al. <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf">&ldquo;You only look once: Unified, real-time object detection.&rdquo;</a> CVPR 2016.</p>
+<p>[2] Joseph Redmon and Ali Farhadi. <a href="http://openaccess.thecvf.com/content_cvpr_2017/papers/Redmon_YOLO9000_Better_Faster_CVPR_2017_paper.pdf">&ldquo;YOLO9000: Better, Faster, Stronger.&rdquo;</a> CVPR 2017.</p>
+<p>[3] Joseph Redmon, Ali Farhadi. <a href="https://pjreddie.com/media/files/papers/YOLOv3.pdf">&ldquo;YOLOv3: An incremental improvement.&rdquo;</a>.</p>
+<p>[4] Wei Liu et al. <a href="https://arxiv.org/abs/1512.02325">&ldquo;SSD: Single Shot MultiBox Detector.&rdquo;</a> ECCV 2016.</p>
+<p>[5] Tsung-Yi Lin, et al. <a href="https://arxiv.org/abs/1612.03144">&ldquo;Feature Pyramid Networks for Object Detection.&rdquo;</a> CVPR 2017.</p>
+<p>[6] Tsung-Yi Lin, et al. <a href="https://arxiv.org/abs/1708.02002">&ldquo;Focal Loss for Dense Object Detection.&rdquo;</a> IEEE transactions on pattern analysis and machine intelligence, 2018.</p>
+<p>[7] <a href="https://towardsdatascience.com/yolo-v3-object-detection-53fb7d3bfe6b">&ldquo;What&rsquo;s new in YOLO v3?&rdquo;</a> by  Ayoosh Kathuria on &ldquo;Towards Data Science&rdquo;, Apr 23, 2018.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/object-detection/">Object-Detection</a></li>
+      <li><a href="https://lilianweng.github.io/tags/object-recognition/">Object-Recognition</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-model/">Vision-Model</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2019-01-31-lm/">
+    <span class="title">« </span>
+    <br>
+    <span>Generalized Language Models</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/">
+    <span class="title"> »</span>
+    <br>
+    <span>Meta-Learning: Learning to Learn Fast</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on twitter"
+        href="https://twitter.com/intent/tweet/?text=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f&amp;hashtags=object-detection%2cobject-recognition%2cvision-model">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f&amp;title=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models&amp;summary=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f&title=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on whatsapp"
+        href="https://api.whatsapp.com/send?text=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection Part 4: Fast Detection Models on telegram"
+        href="https://telegram.me/share/url?text=Object%20Detection%20Part%204%3a%20Fast%20Detection%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-12-27-object-recognition-part-4%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Predict Stock Prices Using RNN: Part 1 | Lil&#39;Log</title>
+<meta name="keywords" content="tutorial, rnn, tensorflow" />
+<meta name="description" content="
+This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don&rsquo;t know what is recurrent neural network or LSTM cell, feel free to check my previous post.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Predict Stock Prices Using RNN: Part 1" />
+<meta property="og:description" content="
+This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don&rsquo;t know what is recurrent neural network or LSTM cell, feel free to check my previous post." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2017-07-08T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-07-08T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Predict Stock Prices Using RNN: Part 1"/>
+<meta name="twitter:description" content="
+This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don&rsquo;t know what is recurrent neural network or LSTM cell, feel free to check my previous post."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Predict Stock Prices Using RNN: Part 1",
+      "item": "https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Predict Stock Prices Using RNN: Part 1",
+  "name": "Predict Stock Prices Using RNN: Part 1",
+  "description": " This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don\u0026rsquo;t know what is recurrent neural network or LSTM cell, feel free to check my previous post.\n",
+  "keywords": [
+    "tutorial", "rnn", "tensorflow"
+  ],
+  "articleBody": " This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in github.com/lilianweng/stock-rnn. If you don’t know what is recurrent neural network or LSTM cell, feel free to check my previous post.\nOne thing I would like to emphasize that because my motivation for writing this post is more on demonstrating how to build and train an RNN model in Tensorflow and less on solve the stock prediction problem, I didn’t try hard on improving the prediction outcomes. You are more than welcome to take my code as a reference point and add more stock prediction related ideas to improve it. Enjoy!\nOverview of Existing Tutorials There are many tutorials on the Internet, like:\nA noob’s guide to implementing RNN-LSTM using Tensorflow TensorFlow RNN Tutorial LSTM by Example using Tensorflow How to build a Recurrent Neural Network in TensorFlow RNNs in Tensorflow, a Practical Guide and Undocumented Features Sequence prediction using recurrent neural networks(LSTM) with TensorFlow Anyone Can Learn To Code an LSTM-RNN in Python How to do time series prediction using RNNs, TensorFlow and Cloud ML Engine Despite all these existing tutorials, I still want to write a new one mainly for three reasons:\nEarly tutorials cannot cope with the new version any more, as Tensorflow is still under development and changes on API interfaces are being made fast. Many tutorials use synthetic data in the examples. Well, I would like to play with the real world data. Some tutorials assume that you have known something about Tensorflow API beforehand, which makes the reading a bit difficult. After reading a bunch of examples, I would like to suggest taking the official example on Penn Tree Bank (PTB) dataset as your starting point. The PTB example showcases a RNN model in a pretty and modular design pattern, but it might prevent you from easily understanding the model structure. Hence, here I will build up the graph in a very straightforward manner.\nThe Goal I will explain how to build an RNN model with LSTM cells to predict the prices of S\u0026P500 index. The dataset can be downloaded from Yahoo! Finance ^GSPC. In the following example, I used S\u0026P 500 data from Jan 3, 1950 (the maximum date that Yahoo! Finance is able to trace back to) to Jun 23, 2017. The dataset provides several price points per day. For simplicity, we will only use the daily close prices for prediction. Meanwhile, I will demonstrate how to use TensorBoard for easily debugging and model tracking.\nAs a quick recap: the recurrent neural network (RNN) is a type of artificial neural network with self-loop in its hidden layer(s), which enables RNN to use the previous state of the hidden neuron(s) to learn the current state given the new input. RNN is good at processing sequential data. Long short-term memory (LSTM) cell is a specially designed working unit that helps RNN better memorize the long-term context.\nFor more information in depth, please read my previous post or this awesome post.\nData Preparation The stock prices is a time series of length $N$, defined as $p_0, p_1, \\dots, p_{N-1}$ in which $p_i$ is the close price on day $i$, $0 \\le i \u003c N$. Imagine that we have a sliding window of a fixed size $w$ (later, we refer to this as input_size) and every time we move the window to the right by size $w$, so that there is no overlap between data in all the sliding windows.\nThe S\u0026P 500 prices in time. We use content in one sliding windows to make prediction for the next, while there is no overlap between two consecutive windows. The RNN model we are about to build has LSTM cells as basic hidden units. We use values from the very beginning in the first sliding window $W_0$ to the window $W_t$ at time $t$:\n$$ \\begin{aligned} W_0 \u0026= (p_0, p_1, \\dots, p_{w-1}) \\\\ W_1 \u0026= (p_w, p_{w+1}, \\dots, p_{2w-1}) \\\\ \\dots \\\\ W_t \u0026= (p_{tw}, p_{tw+1}, \\dots, p_{(t+1)w-1}) \\end{aligned} $$ to predict the prices in the following window $w_{t+1}$:\n$$ W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \\dots, p_{(t+2)w-1}) $$\nEssentially we try to learn an approximation function, $f(W_0, W_1, \\dots, W_t) \\approx W_{t+1}$.\nFig. 2 The unrolled version of RNN. Considering how back propagation through time (BPTT) works, we usually train RNN in a “unrolled” version so that we don’t have to do propagation computation too far back and save the training complication.\nHere is the explanation on num_steps from Tensorflow’s tutorial:\nBy design, the output of a recurrent neural network (RNN) depends on arbitrarily distant inputs. Unfortunately, this makes backpropagation computation difficult. In order to make the learning process tractable, it is common practice to create an “unrolled” version of the network, which contains a fixed number (num_steps) of LSTM inputs and outputs. The model is then trained on this finite approximation of the RNN. This can be implemented by feeding inputs of length num_steps at a time and performing a backward pass after each such input block.\nThe sequence of prices are first split into non-overlapped small windows. Each contains input_size numbers and each is considered as one independent input element. Then any num_steps consecutive input elements are grouped into one training input, forming an “un-rolled” version of RNN for training on Tensorfow. The corresponding label is the input element right after them.\nFor instance, if input_size=3 and num_steps=2, my first few training examples would look like:\n$$ \\begin{aligned} \\text{Input}_1 \u0026= [[p_0, p_1, p_2], [p_3, p_4, p_5]]\\quad\\text{Label}_1 = [p_6, p_7, p_8] \\\\ \\text{Input}_2 \u0026= [[p_3, p_4, p_5], [p_6, p_7, p_8]]\\quad\\text{Label}_2 = [p_9, p_{10}, p_{11}] \\\\ \\text{Input}_3 \u0026= [[p_6, p_7, p_8], [p_9, p_{10}, p_{11}]]\\quad\\text{Label}_3 = [p_{12}, p_{13}, p_{14}] \\end{aligned} $$ Here is the key part for formatting the data:\nseq = [np.array(seq[i * self.input_size: (i + 1) * self.input_size]) for i in range(len(seq) // self.input_size)] # Split into groups of `num_steps` X = np.array([seq[i: i + self.num_steps] for i in range(len(seq) - self.num_steps)]) y = np.array([seq[i + self.num_steps] for i in range(len(seq) - self.num_steps)]) The complete code of data formatting is here.\nTrain / Test Split Since we always want to predict the future, we take the latest 10% of data as the test data.\nNormalization The S\u0026P 500 index increases in time, bringing about the problem that most values in the test set are out of the scale of the train set and thus the model has to predict some numbers it has never seen before. Sadly and unsurprisingly, it does a tragic job. See Fig. 3 A very sad example when the RNN model have to predict numbers out of the scale of the training data.\nTo solve the out-of-scale issue, I normalize the prices in each sliding window. The task becomes predicting the relative change rates instead of the absolute values. In a normalized sliding window $W’_t$ at time $t$, all the values are divided by the last unknown price—the last price in $W_{t-1}$:\n$$ W’_t = (\\frac{p_{tw}}{p_{tw-1}}, \\frac{p_{tw+1}}{p_{tw-1}}, \\dots, \\frac{p_{(t+1)w-1}}{p_{tw-1}}) $$\nHere is a data archive stock-data-lilianweng.tar.gz of S \u0026 P 500 stock prices I crawled up to Jul, 2017. Feel free to play with it :)\nModel Construction Definitions lstm_size: number of units in one LSTM layer. num_layers: number of stacked LSTM layers. keep_prob: percentage of cell units to keep in the dropout operation. init_learning_rate: the learning rate to start with. learning_rate_decay: decay ratio in later training epochs. init_epoch: number of epochs using the constant init_learning_rate. max_epoch: total number of epochs in training input_size: size of the sliding window / one training data point batch_size: number of data points to use in one mini-batch. The LSTM model has num_layers stacked LSTM layer(s) and each layer contains lstm_size number of LSTM cells. Then a dropout mask with keep probability keep_prob is applied to the output of every LSTM cell. The goal of dropout is to remove the potential strong dependency on one dimension so as to prevent overfitting.\nThe training requires max_epoch epochs in total; an epoch is a single full pass of all the training data points. In one epoch, the training data points are split into mini-batches of size batch_size. We send one mini-batch to the model for one BPTT learning. The learning rate is set to init_learning_rate during the first init_epoch epochs and then decay by $\\times$ learning_rate_decay during every succeeding epoch.\n# Configuration is wrapped in one object for easy tracking and passing. class RNNConfig(): input_size=1 num_steps=30 lstm_size=128 num_layers=1 keep_prob=0.8 batch_size = 64 init_learning_rate = 0.001 learning_rate_decay = 0.99 init_epoch = 5 max_epoch = 50 config = RNNConfig() Define Graph A tf.Graph is not attached to any real data. It defines the flow of how to process the data and how to run the computation. Later, this graph can be fed with data within a tf.session and at this moment the computation happens for real.\n— Let’s start going through some code —\n(1) Initialize a new graph first.\nimport tensorflow as tf tf.reset_default_graph() lstm_graph = tf.Graph() (2) How the graph works should be defined within its scope.\nwith lstm_graph.as_default(): (3) Define the data required for computation. Here we need three input variables, all defined as tf.placeholder because we don’t know what they are at the graph construction stage.\ninputs: the training data X, a tensor of shape (# data examples, num_steps, input_size); the number of data examples is unknown, so it is None. In our case, it would be batch_size in training session. Check the input format example if confused. targets: the training label y, a tensor of shape (# data examples, input_size). learning_rate: a simple float. # Dimension = ( # number of data examples, # number of input in one computation step, # number of numbers in one input # ) # We don't know the number of examples beforehand, so it is None. inputs = tf.placeholder(tf.float32, [None, config.num_steps, config.input_size]) targets = tf.placeholder(tf.float32, [None, config.input_size]) learning_rate = tf.placeholder(tf.float32, None) (4) This function returns one LSTMCell with or without dropout operation.\ndef _create_one_cell(): return tf.contrib.rnn.LSTMCell(config.lstm_size, state_is_tuple=True) if config.keep_prob \u003c 1.0: return tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=config.keep_prob) (5) Let’s stack the cells into multiple layers if needed. MultiRNNCell helps connect sequentially multiple simple cells to compose one cell.\ncell = tf.contrib.rnn.MultiRNNCell( [_create_one_cell() for _ in range(config.num_layers)], state_is_tuple=True ) if config.num_layers \u003e 1 else _create_one_cell() (6) tf.nn.dynamic_rnn constructs a recurrent neural network specified by cell (RNNCell). It returns a pair of (model outpus, state), where the outputs val is of size (batch_size, num_steps, lstm_size) by default. The state refers to the current state of the LSTM cell, not consumed here.\nval, _ = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32) (7) tf.transpose converts the outputs from the dimension (batch_size, num_steps, lstm_size) to (num_steps, batch_size, lstm_size). Then the last output is picked.\n# Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size) # After transpose, val.get_shape() = (num_steps, batch_size, lstm_size) val = tf.transpose(val, [1, 0, 2]) # last.get_shape() = (batch_size, lstm_size) last = tf.gather(val, int(val.get_shape()[0]) - 1, name=\"last_lstm_output\") (8) Define weights and biases between the hidden and output layers.\nweight = tf.Variable(tf.truncated_normal([config.lstm_size, config.input_size])) bias = tf.Variable(tf.constant(0.1, shape=[config.input_size])) prediction = tf.matmul(last, weight) + bias (9) We use mean square error as the loss metric and the RMSPropOptimizer algorithm for gradient descent optimization.\nloss = tf.reduce_mean(tf.square(prediction - targets)) optimizer = tf.train.RMSPropOptimizer(learning_rate) minimize = optimizer.minimize(loss) Start Training Session (1) To start training the graph with real data, we need to start a tf.session first.\nwith tf.Session(graph=lstm_graph) as sess: (2) Initialize the variables as defined.\ntf.global_variables_initializer().run() (0) The learning rates for training epochs should have been precomputed beforehand. The index refers to the epoch index.\nlearning_rates_to_use = [ config.init_learning_rate * ( config.learning_rate_decay ** max(float(i + 1 - config.init_epoch), 0.0) ) for i in range(config.max_epoch)] (3) Each loop below completes one epoch training.\nfor epoch_step in range(config.max_epoch): current_lr = learning_rates_to_use[epoch_step] # Check https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py # if you are curious to know what is StockDataSet and how generate_one_epoch() # is implemented. for batch_X, batch_y in stock_dataset.generate_one_epoch(config.batch_size): train_data_feed = { inputs: batch_X, targets: batch_y, learning_rate: current_lr } train_loss, _ = sess.run([loss, minimize], train_data_feed) (4) Don’t forget to save your trained model at the end.\nsaver = tf.train.Saver() saver.save(sess, \"your_awesome_model_path_and_name\", global_step=max_epoch_step) The complete code is available here.\nUse TensorBoard Building the graph without visualization is like drawing in the dark, very obscure and error-prone. Tensorboard provides easy visualization of the graph structure and the learning process. Check out this hand-on tutorial, only 20 min, but it is very practical and showcases several live demos.\nBrief Summary\nUse with [tf.name_scope](https://www.tensorflow.org/api_docs/python/tf/name_scope)(\"your_awesome_module_name\"): to wrap elements working on the similar goal together. Many tf.* methods accepts name= argument. Assigning a customized name can make your life much easier when reading the graph. Methods like tf.summary.scalar and tf.summary.histogram help track the values of variables in the graph during iterations. In the training session, define a log file using tf.summary.FileWriter. with tf.Session(graph=lstm_graph) as sess: merged_summary = tf.summary.merge_all() writer = tf.summary.FileWriter(\"location_for_keeping_your_log_files\", sess.graph) writer.add_graph(sess.graph) Later, write the training progress and summary results into the file.\n_summary = sess.run([merged_summary], test_data_feed) writer.add_summary(_summary, global_step=epoch_step) # epoch_step in range(config.max_epoch) Fig. 4a The RNN graph built by the example code. The \"train\" module has been \"removed from the main graph\", as it is not a real part of the model during the prediction time. Fig. 4b Click the \"output_layer\" module to expand it and check the structure in details. The full working code is available in github.com/lilianweng/stock-rnn.\nResults I used the following configuration in the experiment.\nnum_layers=1 keep_prob=0.8 batch_size = 64 init_learning_rate = 0.001 learning_rate_decay = 0.99 init_epoch = 5 max_epoch = 100 num_steps=30 (Thanks to Yury for cathcing a bug that I had in the price normalization. Instead of using the last price of the previous time window, I ended up with using the last price in the same window. The following plots have been corrected.)\nOverall predicting the stock prices is not an easy task. Especially after normalization, the price trends look very noisy.\nFig. 5a Predictoin results for the last 200 days in test data. Model is trained with input_size=1 and lstm_size=32. Fig. 5b Predictoin results for the last 200 days in test data. Model is trained with input_size=1 and lstm_size=128. Fig. 5c Predictoin results for the last 200 days in test data. Model is trained with input_size=5, lstm_size=128 and max_epoch=75 (instead of 50). The example code in this tutorial is available in github.com/lilianweng/stock-rnn:scripts.\n(Updated on Sep 14, 2017) The model code has been updated to be wrapped into a class: LstmRNN. The model training can be triggered by main.py, such as:\npython main.py --stock_symbol=SP500 --train --input_size=1 --lstm_size=128 ",
+  "wordCount" : "2414",
+  "inLanguage": "en",
+  "datePublished": "2017-07-08T00:00:00Z",
+  "dateModified": "2017-07-08T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Predict Stock Prices Using RNN: Part 1
+    </h1>
+    <div class="post-meta">Date: July 8, 2017  |  Estimated Reading Time: 12 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#overview-of-existing-tutorials" aria-label="Overview of Existing Tutorials">Overview of Existing Tutorials</a></li>
+                <li>
+                    <a href="#the-goal" aria-label="The Goal">The Goal</a></li>
+                <li>
+                    <a href="#data-preparation" aria-label="Data Preparation">Data Preparation</a><ul>
+                        
+                <li>
+                    <a href="#train--test-split" aria-label="Train / Test Split">Train / Test Split</a></li>
+                <li>
+                    <a href="#normalization" aria-label="Normalization">Normalization</a></li></ul>
+                </li>
+                <li>
+                    <a href="#model-construction" aria-label="Model Construction">Model Construction</a><ul>
+                        
+                <li>
+                    <a href="#definitions" aria-label="Definitions">Definitions</a></li>
+                <li>
+                    <a href="#define-graph" aria-label="Define Graph">Define Graph</a></li>
+                <li>
+                    <a href="#start-training-session" aria-label="Start Training Session">Start Training Session</a></li>
+                <li>
+                    <a href="#use-tensorboard" aria-label="Use TensorBoard">Use TensorBoard</a></li></ul>
+                </li>
+                <li>
+                    <a href="#results" aria-label="Results">Results</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- This post is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. Part 1 focuses on the prediction of S&P 500 index. The full working code is available in [lilianweng/stock-rnn](https://github.com/lilianweng/stock-rnn). -->
+<p>This is a tutorial for how to build a recurrent neural network using Tensorflow to predict stock market prices. The full working code is available in <a href="https://github.com/lilianweng/stock-rnn">github.com/lilianweng/stock-rnn</a>. If you don&rsquo;t know what is recurrent neural network or LSTM cell, feel free to check <a href="https://lilianweng.github.io/posts/2017-06-21-overview/#recurrent-neural-network">my previous post</a>.</p>
+<blockquote>
+<p><em>One thing I would like to emphasize that because my motivation for writing this post is more on demonstrating how to build and train an RNN model in Tensorflow and less on solve the stock prediction problem, I didn&rsquo;t try hard on improving the prediction outcomes. You are more than welcome to take my <a href="https://github.com/lilianweng/stock-rnn">code</a> as a reference point and add more stock prediction related ideas to improve it. Enjoy!</em></p>
+</blockquote>
+<h1 id="overview-of-existing-tutorials">Overview of Existing Tutorials<a hidden class="anchor" aria-hidden="true" href="#overview-of-existing-tutorials">#</a></h1>
+<p>There are many tutorials on the Internet, like:</p>
+<ul>
+<li><a href="http://monik.in/a-noobs-guide-to-implementing-rnn-lstm-using-tensorflow/">A noob&rsquo;s guide to implementing RNN-LSTM using Tensorflow</a></li>
+<li><a href="https://svds.com/tensorflow-rnn-tutorial/">TensorFlow RNN Tutorial</a></li>
+<li><a href="https://medium.com/towards-data-science/lstm-by-example-using-tensorflow-feb0c1968537">LSTM by Example using Tensorflow</a></li>
+<li><a href="https://medium.com/@erikhallstrm/hello-world-rnn-83cd7105b767">How to build a Recurrent Neural Network in TensorFlow</a></li>
+<li><a href="http://www.wildml.com/2016/08/rnns-in-tensorflow-a-practical-guide-and-undocumented-features/">RNNs in Tensorflow, a Practical Guide and Undocumented Features</a></li>
+<li><a href="http://mourafiq.com/2016/05/15/predicting-sequences-using-rnn-in-tensorflow.html">Sequence prediction using recurrent neural networks(LSTM) with TensorFlow</a></li>
+<li><a href="https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/">Anyone Can Learn To Code an LSTM-RNN in Python</a></li>
+<li><a href="https://medium.com/google-cloud/how-to-do-time-series-prediction-using-rnns-and-tensorflow-and-cloud-ml-engine-2ad2eeb189e8">How to do time series prediction using RNNs, TensorFlow and Cloud ML Engine</a></li>
+</ul>
+<p>Despite all these existing tutorials, I still want to write a new one mainly for three reasons:</p>
+<ol>
+<li>Early tutorials cannot cope with the new version any more, as Tensorflow is still under development and changes on API interfaces are being made fast.</li>
+<li>Many tutorials use synthetic data in the examples. Well, I would like to play with the real world data.</li>
+<li>Some tutorials assume that you have known something about Tensorflow API beforehand, which makes the reading a bit difficult.</li>
+</ol>
+<p>After reading a bunch of examples, I would like to suggest taking the <a href="https://github.com/tensorflow/models/tree/master/tutorials/rnn/ptb">official example</a> on Penn Tree Bank (PTB) dataset as your starting point. The PTB example showcases a RNN model in a pretty and modular design pattern, but it might prevent you from easily understanding the model structure. Hence, here I will build up the graph in a very straightforward manner.</p>
+<h1 id="the-goal">The Goal<a hidden class="anchor" aria-hidden="true" href="#the-goal">#</a></h1>
+<p>I will explain how to build an RNN model with LSTM cells to predict the prices of S&amp;P500 index. The dataset can be downloaded from <a href="https://finance.yahoo.com/quote/%5EGSPC/history?p=%5EGSPC">Yahoo! Finance ^GSPC</a>. In the following example, I used S&amp;P 500 data from Jan 3, 1950 (the maximum date that Yahoo! Finance is able to trace back to) to Jun 23, 2017. The dataset provides several price points per day. For simplicity, we will only use the daily <strong>close prices</strong> for prediction. Meanwhile, I will demonstrate how to use <a href="https://www.tensorflow.org/get_started/summaries_and_tensorboard">TensorBoard</a> for easily debugging and model tracking.</p>
+<p>As a quick recap: the recurrent neural network (RNN) is a type of artificial neural network with self-loop in its hidden layer(s), which enables RNN to use the previous state of the hidden neuron(s) to learn the current state given the new input. RNN is good at processing sequential data. Long short-term memory (LSTM) cell is a specially designed working unit that helps RNN better memorize the long-term context.</p>
+<p>For more information in depth, please read <a href="https://lilianweng.github.io/posts/2017-06-21-overview/#recurrent-neural-network">my previous post</a> or <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">this awesome post</a>.</p>
+<h1 id="data-preparation">Data Preparation<a hidden class="anchor" aria-hidden="true" href="#data-preparation">#</a></h1>
+<p>The stock prices is a time series of length $N$, defined as $p_0, p_1, \dots, p_{N-1}$ in which $p_i$ is the close price on day $i$, $0 \le i &lt; N$. Imagine that we have a sliding window of a fixed size $w$ (later, we refer to this as <code>input_size</code>) and every time we move the window to the right by size $w$, so that there is no overlap between data in all the sliding windows.</p>
+<figure>
+	<img src="sliding_window_time_series.svg" style="width: 600px; max-width: 100%;"  />
+	<figcaption>The S&P 500 prices in time. We use content in one sliding windows to make prediction for the next, while there is no overlap between two consecutive windows.</figcaption>
+</figure>
+<p>The RNN model we are about to build has LSTM cells as basic hidden units. We use values from the very beginning in the first sliding window $W_0$ to the window $W_t$ at time $t$:</p>
+<div>
+$$
+\begin{aligned}
+W_0 &= (p_0, p_1, \dots, p_{w-1}) \\
+W_1 &= (p_w, p_{w+1}, \dots, p_{2w-1}) \\
+\dots \\
+W_t &= (p_{tw}, p_{tw+1}, \dots, p_{(t+1)w-1})
+\end{aligned}
+$$
+</div>
+<p>to predict the prices in the following window $w_{t+1}$:</p>
+<p>$$
+W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \dots, p_{(t+2)w-1})
+$$</p>
+<p>Essentially we try to learn an approximation function, $f(W_0, W_1, \dots, W_t) \approx W_{t+1}$.</p>
+<figure>
+	<img src="unrolled_RNN.png" style="width: 550px; max-width: 100%;"  />
+	<figcaption>Fig. 2 The unrolled version of RNN.</figcaption>
+</figure>
+<p>Considering how <a href="https://en.wikipedia.org/wiki/Backpropagation_through_time">back propagation through time (BPTT)</a> works, we usually train RNN in a “unrolled” version so that we don&rsquo;t have to do propagation computation too far back and save the training complication.</p>
+<p>Here is the explanation on <code>num_steps</code> from <a href="tensorflow.org/tutorials/recurrent">Tensorflow&rsquo;s tutorial</a>:</p>
+<blockquote>
+<p>By design, the output of a recurrent neural network (RNN) depends on arbitrarily distant inputs. Unfortunately, this makes backpropagation computation difficult. In order to make the learning process tractable, it is common practice to create an &ldquo;unrolled&rdquo; version of the network, which contains a fixed number (<code>num_steps</code>) of LSTM inputs and outputs. The model is then trained on this finite approximation of the RNN. This can be implemented by feeding inputs of length <code>num_steps</code> at a time and performing a backward pass after each such input block.</p>
+</blockquote>
+<p>The sequence of prices are first split into non-overlapped small windows. Each contains <code>input_size</code> numbers and each is considered as one independent input element. Then any <code>num_steps</code> consecutive input elements are grouped into one training input, forming an <strong>&ldquo;un-rolled&rdquo;</strong> version of RNN for training on Tensorfow. The corresponding label is the input element right after them.</p>
+<p><a id="input_format_example"></a>For instance, if <code>input_size=3</code> and <code>num_steps=2</code>, my first few training examples would look like:</p>
+<div>
+$$
+\begin{aligned}
+\text{Input}_1 &= [[p_0, p_1, p_2], [p_3, p_4, p_5]]\quad\text{Label}_1 = [p_6, p_7, p_8] \\
+\text{Input}_2 &= [[p_3, p_4, p_5], [p_6, p_7, p_8]]\quad\text{Label}_2 = [p_9, p_{10}, p_{11}] \\
+\text{Input}_3 &= [[p_6, p_7, p_8], [p_9, p_{10}, p_{11}]]\quad\text{Label}_3 = [p_{12}, p_{13}, p_{14}] 
+\end{aligned}
+$$
+</div>
+<p>Here is the key part for formatting the data:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>seq <span style="color:#f92672">=</span> [np<span style="color:#f92672">.</span>array(seq[i <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size: (i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> self<span style="color:#f92672">.</span>input_size]) 
+</span></span><span style="display:flex;"><span>       <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(seq) <span style="color:#f92672">//</span> self<span style="color:#f92672">.</span>input_size)]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Split into groups of `num_steps`</span>
+</span></span><span style="display:flex;"><span>X <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([seq[i: i <span style="color:#f92672">+</span> self<span style="color:#f92672">.</span>num_steps] <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(seq) <span style="color:#f92672">-</span> self<span style="color:#f92672">.</span>num_steps)])
+</span></span><span style="display:flex;"><span>y <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>array([seq[i <span style="color:#f92672">+</span> self<span style="color:#f92672">.</span>num_steps] <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(seq) <span style="color:#f92672">-</span> self<span style="color:#f92672">.</span>num_steps)])
+</span></span></code></pre></div><p>The complete code of data formatting is <a href="https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py">here</a>.</p>
+<h2 id="train--test-split">Train / Test Split<a hidden class="anchor" aria-hidden="true" href="#train--test-split">#</a></h2>
+<p>Since we always want to predict the future, we take the <strong>latest 10%</strong> of data as the test data.</p>
+<h2 id="normalization">Normalization<a hidden class="anchor" aria-hidden="true" href="#normalization">#</a></h2>
+<p>The S&amp;P 500 index increases in time, bringing about the problem that most values in the test set are out of the scale of the train set and thus the model has to <em>predict some numbers it has never seen before</em>. Sadly and unsurprisingly, it does a tragic job. See <figure>
+<img src="a_sad_example_stock_prediction.png" style="width: 400px; max-width: 100%;"  />
+<figcaption>Fig. 3 A very sad example when the RNN model have to predict numbers out of the scale of the training data.</figcaption></p>
+</figure>
+<p>To solve the out-of-scale issue, I normalize the prices in each sliding window. The task becomes predicting the relative change rates instead of the absolute values. In a normalized sliding window $W&rsquo;_t$ at time $t$, all the values are divided by the last unknown price&mdash;the last price in $W_{t-1}$:</p>
+<p>$$
+W&rsquo;_t = (\frac{p_{tw}}{p_{tw-1}}, \frac{p_{tw+1}}{p_{tw-1}}, \dots, \frac{p_{(t+1)w-1}}{p_{tw-1}})
+$$</p>
+<p>Here is a data archive <a href="https://drive.google.com/open?id=1QKVkiwgCNJsdQMEsfoi6KpqoPgc4O6DD">stock-data-lilianweng.tar.gz</a> of S &amp; P 500 stock prices I crawled up to Jul, 2017. Feel free to play with it :)</p>
+<h1 id="model-construction">Model Construction<a hidden class="anchor" aria-hidden="true" href="#model-construction">#</a></h1>
+<h2 id="definitions">Definitions<a hidden class="anchor" aria-hidden="true" href="#definitions">#</a></h2>
+<ul>
+<li><code>lstm_size</code>: number of units in one LSTM layer.</li>
+<li><code>num_layers</code>: number of stacked LSTM layers.</li>
+<li><code>keep_prob</code>: percentage of cell units to keep in the <a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf">dropout</a> operation.</li>
+<li><code>init_learning_rate</code>: the learning rate to start with.</li>
+<li><code>learning_rate_decay</code>: decay ratio in later training epochs.</li>
+<li><code>init_epoch</code>: number of epochs using the constant <code>init_learning_rate</code>.</li>
+<li><code>max_epoch</code>: total number of epochs in training</li>
+<li><code>input_size</code>: size of the sliding window / one training data point</li>
+<li><code>batch_size</code>: number of data points to use in one mini-batch.</li>
+</ul>
+<p>The LSTM model has <code>num_layers</code> stacked LSTM layer(s) and each layer contains <code>lstm_size</code> number of LSTM cells. Then a <a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf">dropout</a> mask with keep probability <code>keep_prob</code> is applied to the output of every LSTM cell. The goal of dropout is to remove the potential strong dependency on one dimension so as to prevent overfitting.</p>
+<p>The training requires <code>max_epoch</code> epochs in total; an <a href="http://www.fon.hum.uva.nl/praat/manual/epoch.html">epoch</a> is a single full pass of all the training data points. In one epoch, the training data points are split into mini-batches of size <code>batch_size</code>. We send one mini-batch to the model for one BPTT learning. The learning rate is set to <code>init_learning_rate</code> during the first <code>init_epoch</code> epochs and then decay by $\times$ <code>learning_rate_decay</code> during every succeeding epoch.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Configuration is wrapped in one object for easy tracking and passing.</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">RNNConfig</span>():
+</span></span><span style="display:flex;"><span>    input_size<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>    num_steps<span style="color:#f92672">=</span><span style="color:#ae81ff">30</span>
+</span></span><span style="display:flex;"><span>    lstm_size<span style="color:#f92672">=</span><span style="color:#ae81ff">128</span>
+</span></span><span style="display:flex;"><span>    num_layers<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>    keep_prob<span style="color:#f92672">=</span><span style="color:#ae81ff">0.8</span>
+</span></span><span style="display:flex;"><span>    batch_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">64</span>
+</span></span><span style="display:flex;"><span>    init_learning_rate <span style="color:#f92672">=</span> <span style="color:#ae81ff">0.001</span>
+</span></span><span style="display:flex;"><span>    learning_rate_decay <span style="color:#f92672">=</span> <span style="color:#ae81ff">0.99</span>
+</span></span><span style="display:flex;"><span>    init_epoch <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>    max_epoch <span style="color:#f92672">=</span> <span style="color:#ae81ff">50</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>config <span style="color:#f92672">=</span> RNNConfig()
+</span></span></code></pre></div><h2 id="define-graph">Define Graph<a hidden class="anchor" aria-hidden="true" href="#define-graph">#</a></h2>
+<p>A <a href="https://www.tensorflow.org/api_docs/python/tf/Graph"><code>tf.Graph</code></a> is not attached to any real data. It defines the flow of how to process the data and how to run the computation. Later, this graph can be fed with data within a <a href="https://www.tensorflow.org/api_docs/python/tf/Session"><code>tf.session</code></a> and at this moment the computation happens for real.</p>
+<p><strong>&mdash; Let&rsquo;s start going through some code &mdash;</strong></p>
+<p>(1) Initialize a new graph first.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> tensorflow <span style="color:#66d9ef">as</span> tf
+</span></span><span style="display:flex;"><span>tf<span style="color:#f92672">.</span>reset_default_graph()
+</span></span><span style="display:flex;"><span>lstm_graph <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Graph()
+</span></span></code></pre></div><p>(2) How the graph works should be defined within its scope.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> lstm_graph<span style="color:#f92672">.</span>as_default():
+</span></span></code></pre></div><p>(3) Define the data required for computation. Here we need three input variables, all defined as <a href="https://www.tensorflow.org/versions/master/api_docs/python/tf/placeholder"><code>tf.placeholder</code></a> because we don&rsquo;t know what they are at the graph construction stage.</p>
+<ul>
+<li><code>inputs</code>: the training data <em>X</em>, a tensor of shape (# data examples, <code>num_steps</code>, <code>input_size</code>); the number of data examples is unknown, so it is <code>None</code>. In our case, it would be <code>batch_size</code> in training session. Check the <a href="#input_format_example">input format example</a> if confused.</li>
+<li><code>targets</code>: the training label <em>y</em>, a tensor of shape (# data examples, <code>input_size</code>).</li>
+<li><code>learning_rate</code>: a simple float.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Dimension = (</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of data examples, </span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of input in one computation step, </span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">#     number of numbers in one input</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># )</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># We don&#39;t know the number of examples beforehand, so it is None.</span>
+</span></span><span style="display:flex;"><span>    inputs <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>float32, [<span style="color:#66d9ef">None</span>, config<span style="color:#f92672">.</span>num_steps, config<span style="color:#f92672">.</span>input_size])
+</span></span><span style="display:flex;"><span>    targets <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>float32, [<span style="color:#66d9ef">None</span>, config<span style="color:#f92672">.</span>input_size])
+</span></span><span style="display:flex;"><span>    learning_rate <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>placeholder(tf<span style="color:#f92672">.</span>float32, <span style="color:#66d9ef">None</span>)
+</span></span></code></pre></div><p>(4) This function returns one <a href="https://www.tensorflow.org/versions/r1.0/api_docs/python/tf/contrib/rnn/LSTMCell">LSTMCell</a> with or without dropout operation.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">_create_one_cell</span>():
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>LSTMCell(config<span style="color:#f92672">.</span>lstm_size, state_is_tuple<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> config<span style="color:#f92672">.</span>keep_prob <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">1.0</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>DropoutWrapper(lstm_cell, output_keep_prob<span style="color:#f92672">=</span>config<span style="color:#f92672">.</span>keep_prob)
+</span></span></code></pre></div><p>(5) Let&rsquo;s stack the cells into multiple layers if needed. <code>MultiRNNCell</code> helps connect sequentially multiple simple cells to compose one cell.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    cell <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>contrib<span style="color:#f92672">.</span>rnn<span style="color:#f92672">.</span>MultiRNNCell(
+</span></span><span style="display:flex;"><span>        [_create_one_cell() <span style="color:#66d9ef">for</span> _ <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>num_layers)], 
+</span></span><span style="display:flex;"><span>        state_is_tuple<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>    ) <span style="color:#66d9ef">if</span> config<span style="color:#f92672">.</span>num_layers <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span> <span style="color:#66d9ef">else</span> _create_one_cell()
+</span></span></code></pre></div><p>(6) <a href="https://www.tensorflow.org/api_docs/python/tf/nn/dynamic_rnn"><code>tf.nn.dynamic_rnn</code></a> constructs a recurrent neural network specified by <code>cell</code> (RNNCell). It returns a pair of (model outpus, state), where the outputs <code>val</code> is of size (<code>batch_size</code>, <code>num_steps</code>, <code>lstm_size</code>) by default. The state refers to the current state of the LSTM cell, not consumed here.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    val, _ <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>nn<span style="color:#f92672">.</span>dynamic_rnn(cell, inputs, dtype<span style="color:#f92672">=</span>tf<span style="color:#f92672">.</span>float32)
+</span></span></code></pre></div><p>(7) <a href="https://www.tensorflow.org/api_docs/python/tf/transpose"><code>tf.transpose</code></a> converts the outputs from the dimension (<code>batch_size</code>, <code>num_steps</code>, <code>lstm_size</code>) to (<code>num_steps</code>, <code>batch_size</code>, <code>lstm_size</code>). Then the last output is picked.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#75715e"># Before transpose, val.get_shape() = (batch_size, num_steps, lstm_size)</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># After transpose, val.get_shape() = (num_steps, batch_size, lstm_size)</span>
+</span></span><span style="display:flex;"><span>    val <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>transpose(val, [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">2</span>])
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># last.get_shape() = (batch_size, lstm_size)</span>
+</span></span><span style="display:flex;"><span>    last <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>gather(val, int(val<span style="color:#f92672">.</span>get_shape()[<span style="color:#ae81ff">0</span>]) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>, name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;last_lstm_output&#34;</span>)
+</span></span></code></pre></div><p>(8) Define weights and biases between the hidden and output layers.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    weight <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(tf<span style="color:#f92672">.</span>truncated_normal([config<span style="color:#f92672">.</span>lstm_size, config<span style="color:#f92672">.</span>input_size]))
+</span></span><span style="display:flex;"><span>    bias <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>Variable(tf<span style="color:#f92672">.</span>constant(<span style="color:#ae81ff">0.1</span>, shape<span style="color:#f92672">=</span>[config<span style="color:#f92672">.</span>input_size]))
+</span></span><span style="display:flex;"><span>    prediction <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>matmul(last, weight) <span style="color:#f92672">+</span> bias
+</span></span></code></pre></div><p>(9) We use mean square error as the loss metric and <a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf">the RMSPropOptimizer algorithm</a> for gradient descent optimization.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    loss <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>reduce_mean(tf<span style="color:#f92672">.</span>square(prediction <span style="color:#f92672">-</span> targets))
+</span></span><span style="display:flex;"><span>    optimizer <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>train<span style="color:#f92672">.</span>RMSPropOptimizer(learning_rate)
+</span></span><span style="display:flex;"><span>    minimize <span style="color:#f92672">=</span> optimizer<span style="color:#f92672">.</span>minimize(loss)
+</span></span></code></pre></div><h2 id="start-training-session">Start Training Session<a hidden class="anchor" aria-hidden="true" href="#start-training-session">#</a></h2>
+<p>(1) To start training the graph with real data, we need to start a <a href="https://www.tensorflow.org/api_docs/python/tf/Session"><code>tf.session</code></a> first.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
+</span></span></code></pre></div><p>(2) Initialize the variables as defined.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    tf<span style="color:#f92672">.</span>global_variables_initializer()<span style="color:#f92672">.</span>run()
+</span></span></code></pre></div><p>(0) The learning rates for training epochs should have been precomputed beforehand. The index refers to the epoch index.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>learning_rates_to_use <span style="color:#f92672">=</span> [
+</span></span><span style="display:flex;"><span>    config<span style="color:#f92672">.</span>init_learning_rate <span style="color:#f92672">*</span> (
+</span></span><span style="display:flex;"><span>        config<span style="color:#f92672">.</span>learning_rate_decay <span style="color:#f92672">**</span> max(float(i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">-</span> config<span style="color:#f92672">.</span>init_epoch), <span style="color:#ae81ff">0.0</span>)
+</span></span><span style="display:flex;"><span>    ) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>max_epoch)]
+</span></span></code></pre></div><p>(3) Each loop below completes one epoch training.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> epoch_step <span style="color:#f92672">in</span> range(config<span style="color:#f92672">.</span>max_epoch):
+</span></span><span style="display:flex;"><span>        current_lr <span style="color:#f92672">=</span> learning_rates_to_use[epoch_step]
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># Check https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># if you are curious to know what is StockDataSet and how generate_one_epoch() </span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># is implemented.</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> batch_X, batch_y <span style="color:#f92672">in</span> stock_dataset<span style="color:#f92672">.</span>generate_one_epoch(config<span style="color:#f92672">.</span>batch_size):
+</span></span><span style="display:flex;"><span>            train_data_feed <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>                inputs: batch_X, 
+</span></span><span style="display:flex;"><span>                targets: batch_y, 
+</span></span><span style="display:flex;"><span>                learning_rate: current_lr
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            train_loss, _ <span style="color:#f92672">=</span> sess<span style="color:#f92672">.</span>run([loss, minimize], train_data_feed)
+</span></span></code></pre></div><p>(4) Don&rsquo;t forget to save your trained model at the end.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    saver <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>train<span style="color:#f92672">.</span>Saver()
+</span></span><span style="display:flex;"><span>    saver<span style="color:#f92672">.</span>save(sess, <span style="color:#e6db74">&#34;your_awesome_model_path_and_name&#34;</span>, global_step<span style="color:#f92672">=</span>max_epoch_step)
+</span></span></code></pre></div><p>The complete code is available <a href="https://github.com/lilianweng/stock-rnn/blob/master/build_graph.py">here</a>.</p>
+<h2 id="use-tensorboard">Use TensorBoard<a hidden class="anchor" aria-hidden="true" href="#use-tensorboard">#</a></h2>
+<p>Building the graph without visualization is like drawing in the dark, very obscure and error-prone. <a href="https://github.com/tensorflow/tensorboard">Tensorboard</a> provides easy visualization of the graph structure and the learning process. Check out this <a href="https://youtu.be/eBbEDRsCmv4">hand-on tutorial</a>, only 20 min, but it is very practical and showcases several live demos.</p>
+<p><strong>Brief Summary</strong></p>
+<ul>
+<li>Use <code>with [tf.name_scope](https://www.tensorflow.org/api_docs/python/tf/name_scope)(&quot;your_awesome_module_name&quot;):</code> to wrap elements working on the similar goal together.</li>
+<li>Many <code>tf.*</code> methods accepts <code>name=</code> argument. Assigning a customized name can make your life much easier when reading the graph.</li>
+<li>Methods like <a href="https://www.tensorflow.org/api_docs/python/tf/summary/scalar"><code>tf.summary.scalar</code></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/summary/histogram"><code>tf.summary.histogram</code></a> help track the values of variables in the graph during iterations.</li>
+<li>In the training session, define a log file using <a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter"><code>tf.summary.FileWriter</code></a>.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> tf<span style="color:#f92672">.</span>Session(graph<span style="color:#f92672">=</span>lstm_graph) <span style="color:#66d9ef">as</span> sess:
+</span></span><span style="display:flex;"><span>    merged_summary <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>summary<span style="color:#f92672">.</span>merge_all()
+</span></span><span style="display:flex;"><span>    writer <span style="color:#f92672">=</span> tf<span style="color:#f92672">.</span>summary<span style="color:#f92672">.</span>FileWriter(<span style="color:#e6db74">&#34;location_for_keeping_your_log_files&#34;</span>, sess<span style="color:#f92672">.</span>graph)
+</span></span><span style="display:flex;"><span>    writer<span style="color:#f92672">.</span>add_graph(sess<span style="color:#f92672">.</span>graph)
+</span></span></code></pre></div><p>Later, write the training progress and summary results into the file.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>_summary <span style="color:#f92672">=</span> sess<span style="color:#f92672">.</span>run([merged_summary], test_data_feed)
+</span></span><span style="display:flex;"><span>writer<span style="color:#f92672">.</span>add_summary(_summary, global_step<span style="color:#f92672">=</span>epoch_step)  <span style="color:#75715e"># epoch_step in range(config.max_epoch)</span>
+</span></span></code></pre></div><figure>
+	<img src="tensorboard1.png"  />
+	<figcaption>Fig. 4a The RNN graph built by the example code. The "train" module has been "removed from the main graph", as it is not a real part of the model during the prediction time.</figcaption>
+</figure>
+<figure>
+	<img src="tensorboard2.png"  />
+	<figcaption>Fig. 4b Click the "output_layer" module to expand it and check the structure in details.</figcaption>
+</figure>
+<p>The full working code is available in <a href="https://github.com/lilianweng/stock-rnn">github.com/lilianweng/stock-rnn</a>.</p>
+<h1 id="results">Results<a hidden class="anchor" aria-hidden="true" href="#results">#</a></h1>
+<p>I used the following configuration in the experiment.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>num_layers<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>keep_prob<span style="color:#f92672">=</span><span style="color:#ae81ff">0.8</span>
+</span></span><span style="display:flex;"><span>batch_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">64</span>
+</span></span><span style="display:flex;"><span>init_learning_rate <span style="color:#f92672">=</span> <span style="color:#ae81ff">0.001</span>
+</span></span><span style="display:flex;"><span>learning_rate_decay <span style="color:#f92672">=</span> <span style="color:#ae81ff">0.99</span>
+</span></span><span style="display:flex;"><span>init_epoch <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>max_epoch <span style="color:#f92672">=</span> <span style="color:#ae81ff">100</span>
+</span></span><span style="display:flex;"><span>num_steps<span style="color:#f92672">=</span><span style="color:#ae81ff">30</span>
+</span></span></code></pre></div><p>(Thanks to Yury for cathcing a bug that I had in the price normalization. Instead of using the last price of the previous time window, I ended up with using the last price in the same window. The following plots have been corrected.)</p>
+<p>Overall predicting the stock prices is not an easy task. Especially after normalization, the price trends look very noisy.</p>
+<figure>
+	<img src="rnn_input1_lstm32.png" style="width: 500px;"  />
+	<figcaption>Fig. 5a Predictoin results for the last 200 days in test data. Model is trained with input_size=1 and lstm_size=32.</figcaption>
+</figure>
+<figure>
+	<img src="rnn_input1_lstm128.png" style="width: 500px;"  />
+	<figcaption>Fig. 5b Predictoin results for the last 200 days in test data. Model is trained with input_size=1 and lstm_size=128.</figcaption>
+</figure>
+<figure>
+	<img src="rnn_input5_lstm128.png" style="width: 500px;"  />
+	<figcaption>Fig. 5c Predictoin results for the last 200 days in test data. Model is trained with input_size=5, lstm_size=128 and max_epoch=75 (instead of 50).</figcaption>
+</figure>
+<p>The example code in this tutorial is available in <a href="https://github.com/lilianweng/stock-rnn/tree/master/scripts">github.com/lilianweng/stock-rnn:scripts</a>.</p>
+<p><span style="color: red;">(Updated on Sep 14, 2017)</span>
+The model code has been updated to be wrapped into a class: <a href="https://github.com/lilianweng/stock-rnn/blob/master/model_rnn.py">LstmRNN</a>. The model training can be triggered by <a href="https://github.com/lilianweng/stock-rnn/blob/master/main.py">main.py</a>, such as:</p>
+<pre tabindex="0"><code>python main.py --stock_symbol=SP500 --train --input_size=1 --lstm_size=128
+</code></pre>
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/tutorial/">Tutorial</a></li>
+      <li><a href="https://lilianweng.github.io/tags/rnn/">Rnn</a></li>
+      <li><a href="https://lilianweng.github.io/tags/tensorflow/">Tensorflow</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2017-07-22-stock-rnn-part-2/">
+    <span class="title">« </span>
+    <br>
+    <span>Predict Stock Prices Using RNN: Part 2</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-06-21-overview/">
+    <span class="title"> »</span>
+    <br>
+    <span>An Overview of Deep Learning for Curious People</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on twitter"
+        href="https://twitter.com/intent/tweet/?text=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f&amp;hashtags=tutorial%2crnn%2ctensorflow">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f&amp;title=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201&amp;summary=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f&title=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on whatsapp"
+        href="https://api.whatsapp.com/send?text=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Predict Stock Prices Using RNN: Part 1 on telegram"
+        href="https://telegram.me/share/url?text=Predict%20Stock%20Prices%20Using%20RNN%3a%20Part%201&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-07-08-stock-rnn-part-1%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

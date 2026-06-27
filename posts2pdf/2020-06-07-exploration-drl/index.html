@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Exploration Strategies in Deep Reinforcement Learning | Lil&#39;Log</title>
+<meta name="keywords" content="reinforcement-learning, exploration, long-read" />
+<meta name="description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Exploration Strategies in Deep Reinforcement Learning" />
+<meta property="og:description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-06-07T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2020-06-07T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Exploration Strategies in Deep Reinforcement Learning"/>
+<meta name="twitter:description" content="
+[Updated on 2020-06-17: Add &ldquo;exploration via disagreement&rdquo; in the &ldquo;Forward Dynamics&rdquo; section.
+Exploitation versus exploration is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Exploration Strategies in Deep Reinforcement Learning",
+      "item": "https://lilianweng.github.io/posts/2020-06-07-exploration-drl/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Exploration Strategies in Deep Reinforcement Learning",
+  "name": "Exploration Strategies in Deep Reinforcement Learning",
+  "description": " [Updated on 2020-06-17: Add \u0026ldquo;exploration via disagreement\u0026rdquo; in the \u0026ldquo;Forward Dynamics\u0026rdquo; section.\nExploitation versus exploration is a critical topic in Reinforcement Learning. We\u0026rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.\n",
+  "keywords": [
+    "reinforcement-learning", "exploration", "long-read"
+  ],
+  "articleBody": " [Updated on 2020-06-17: Add “exploration via disagreement” in the “Forward Dynamics” section.\nExploitation versus exploration is a critical topic in Reinforcement Learning. We’d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern RL algorithms that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.\nI would like to discuss several common exploration strategies in Deep RL here. As this is a very big topic, my post by no means can cover all the important subtopics. I plan to update it periodically and keep further enriching the content gradually in time.\nClassic Exploration Strategies As a quick recap, let’s first go through several classic exploration algorithms that work out pretty well in the multi-armed bandit problem or simple tabular RL.\nEpsilon-greedy: The agent does random exploration occasionally with probability $\\epsilon$ and takes the optimal action most of the time with probability $1-\\epsilon$. Upper confidence bounds: The agent selects the greediest action to maximize the upper confidence bound $\\hat{Q}_t(a) + \\hat{U}_t(a)$, where $\\hat{Q}_t(a)$ is the average rewards associated with action $a$ up to time $t$ and $\\hat{U}_t(a)$ is a function reversely proportional to how many times action $a$ has been taken. See here for more details. Boltzmann exploration: The agent draws actions from a boltzmann distribution (softmax) over the learned Q values, regulated by a temperature parameter $\\tau$. Thompson sampling: The agent keeps track of a belief over the probability of optimal actions and samples from this distribution. See here for more details. The following strategies could be used for better exploration in deep RL training when neural networks are used for function approximation:\nEntropy loss term: Add an entropy term $H(\\pi(a \\vert s))$ into the loss function, encouraging the policy to take diverse actions. Noise-based Exploration: Add noise into the observation, action or even parameter space (Fortunato, et al. 2017, Plappert, et al. 2017). Key Exploration Problems Good exploration becomes especially hard when the environment rarely provides rewards as feedback or the environment has distracting noise. Many exploration strategies are proposed to solve one or both of the following problems.\nThe Hard-Exploration Problem The “hard-exploration” problem refers to exploration in an environment with very sparse or even deceptive reward. It is difficult because random exploration in such scenarios can rarely discover successful states or obtain meaningful feedback.\nMontezuma’s Revenge is a concrete example for the hard-exploration problem. It remains as a few challenging games in Atari for DRL to solve. Many papers use Montezuma’s Revenge to benchmark their results.\nThe Noisy-TV Problem The “Noisy-TV” problem started as a thought experiment in Burda, et al (2018). Imagine that an RL agent is rewarded with seeking novel experience, a TV with uncontrollable \u0026 unpredictable random noise outputs would be able to attract the agent’s attention forever. The agent obtains new rewards from noisy TV consistently, but it fails to make any meaningful progress and becomes a “couch potato”.\nAn agent is rewarded with novel experience in the experiment. If a maze has a noisy TC set up, the agent would be attracted and stop moving in the maze. (Image source: OpenAI Blog: \"Reinforcement Learning with Prediction-Based Rewards\") Intrinsic Rewards as Exploration Bonuses One common approach to better exploration, especially for solving the hard-exploration problem, is to augment the environment reward with an additional bonus signal to encourage extra exploration. The policy is thus trained with a reward composed of two terms, $r_t = r^e_t + \\beta r^i_t$, where $\\beta$ is a hyperparameter adjusting the balance between exploitation and exploration.\n$r^e_t$ is an extrinsic reward from the environment at time $t$, defined according to the task in hand. $r^i_t$ is an intrinsic exploration bonus at time $t$. This intrinsic reward is somewhat inspired by intrinsic motivation in psychology (Oudeyer \u0026 Kaplan, 2008). Exploration driven by curiosity might be an important way for children to grow and learn. In other words, exploratory activities should be rewarding intrinsically in the human mind to encourage such behavior. The intrinsic rewards could be correlated with curiosity, surprise, familiarity of the state, and many other factors.\nSame ideas can be applied to RL algorithms. In the following sections, methods of bonus-based exploration rewards are roughly grouped into two categories:\nDiscovery of novel states Improvement of the agent’s knowledge about the environment. Count-based Exploration If we consider intrinsic rewards as rewarding conditions that surprise us, we need a way to measure whether a state is novel or appears often. One intuitive way is to count how many times a state has been encountered and to assign a bonus accordingly. The bonus guides the agent’s behavior to prefer rarely visited states to common states. This is known as the count-based exploration method.\nLet $N_n(s)$ be the empirical count function that tracks the real number of visits of a state $s$ in the sequence of $s_{1:n}$. Unfortunately, using $N_n(s)$ for exploration directly is not practical, because most of the states would have $N_n(s)=0$, especially considering that the state space is often continuous or high-dimensional. We need an non-zero count for most states, even when they haven’t been seen before.\nCounting by Density Model Bellemare, et al. (2016) used a density model to approximate the frequency of state visits and a novel algorithm for deriving a pseudo-count from this density model. Let’s first define a conditional probability over the state space, $\\rho_n(s) = \\rho(s \\vert s_{1:n})$ as the probability of the $(n+1)$-th state being $s$ given the first $n$ states are $s_{1:n}$. To measure this empirically, we can simply use $N_n(s)/n$.\nLet’s also define a recoding probability of a state $s$ as the probability assigned by the density model to $s$ after observing a new occurrence of $s$, $\\rho’_n(s) = \\rho(s \\vert s_{1:n}s)$.\nThe paper introduced two concepts to better regulate the density model, a pseudo-count function $\\hat{N}_n(s)$ and a pseudo-count total $\\hat{n}$. As they are designed to imitate an empirical count function, we would have:\n$$ \\rho_n(s) = \\frac{\\hat{N}_n(s)}{\\hat{n}} \\leq \\rho'_n(s) = \\frac{\\hat{N}_n(s) + 1}{\\hat{n} + 1} $$ The relationship between $\\rho_n(x)$ and $\\rho’_n(x)$ requires the density model to be learning-positive: for all $s_{1:n} \\in \\mathcal{S}^n$ and all $s \\in \\mathcal{S}$, $\\rho_n(s) \\leq \\rho’_n(s)$. In other words, After observing one instance of $s$, the density model’s prediction of that same $s$ should increase. Apart from being learning-positive, the density model should be trained completely online with non-randomized mini-batches of experienced states, so naturally we have $\\rho’_n = \\rho_{n+1}$.\nThe pseudo-count can be computed from $\\rho_n(s)$ and $\\rho’_n(s)$ after solving the above linear system:\n$$ \\hat{N}_n(s) = \\hat{n} \\rho_n(s) = \\frac{\\rho_n(s)(1 - \\rho'_n(s))}{\\rho'_n(s) - \\rho_n(s)} $$ Or estimated by the prediction gain (PG):\n$$ \\hat{N}_n(s) \\approx (e^{\\text{PG}_n(s)} - 1)^{-1} = (e^{\\log \\rho'_n(s) - \\log \\rho(s)} - 1)^{-1} $$ A common choice of a count-based intrinsic bonus is $r^i_t = N(s_t, a_t)^{-1/2}$ (as in MBIE-EB; Strehl \u0026 Littman, 2008). The pseudo-count-based exploration bonus is shaped in a similar form, $r^i_t = \\big(\\hat{N}_n(s_t, a_t) + 0.01 \\big)^{-1/2}$.\nExperiments in Bellemare et al., (2016) adopted a simple CTS (Context Tree Switching) density model to estimate pseudo-counts. The CTS model takes as input a 2D image and assigns to it a probability according to the product of location-dependent L-shaped filters, where the prediction of each filter is given by a CTS algorithm trained on past images. The CTS model is simple but limited in expressiveness, scalability, and data efficiency. In a following-up paper, Georg Ostrovski, et al. (2017) improved the approach by training a PixelCNN (van den Oord et al., 2016) as the density model.\nThe density model can also be a Gaussian Mixture Model as in Zhao \u0026 Tresp (2018). They used a variational GMM to estimate the density of trajectories (e.g. concatenation of a sequence of states) and its predicted probabilities to guide prioritization in experience replay in off-policy setting.\nCounting after Hashing Another idea to make it possible to count high-dimensional states is to map states into hash codes so that the occurrences of states become trackable (Tang et al. 2017). The state space is discretized with a hash function $\\phi: \\mathcal{S} \\mapsto \\mathbb{Z}^k$. An exploration bonus $r^{i}: \\mathcal{S} \\mapsto \\mathbb{R}$ is added to the reward function, defined as $r^{i}(s) = {N(\\phi(s))}^{-1/2}$, where $N(\\phi(s))$ is an empirical count of occurrences of $\\phi(s)$.\nTang et al. (2017) proposed to use Locality-Sensitive Hashing (LSH) to convert continuous, high-dimensional data to discrete hash codes. LSH is a popular class of hash functions for querying nearest neighbors based on certain similarity metrics. A hashing scheme $x \\mapsto h(x)$ is locality-sensitive if it preserves the distancing information between data points, such that close vectors obtain similar hashes while distant vectors have very different ones. (See how LSH is used in Transformer improvement if interested.) SimHash is a type of computationally efficient LSH and it measures similarity by angular distance:\n$$ \\phi(s) = \\text{sgn}(A g(s)) \\in \\{-1, 1\\}^k $$ where $A \\in \\mathbb{R}^{k \\times D}$ is a matrix with each entry drawn i.i.d. from a standard Gaussian and $g: \\mathcal{S} \\mapsto \\mathbb{R}^D$ is an optional preprocessing function. The dimension of binary codes is $k$, controlling the granularity of the state space discretization. A higher $k$ leads to higher granularity and fewer collisions.\nAlgorithm of count-based exploration through hashing high-dimensional states by SimHash. (Image source: Tang et al. 2017) For high-dimensional images, SimHash may not work well on the raw pixel level. Tang et al. (2017) designed an autoencoder (AE) which takes as input states $s$ to learn hash codes. It has one special dense layer composed of $k$ sigmoid functions as the latent state in the middle and then the sigmoid activation values $b(s)$ of this layer are binarized by rounding to their closest binary numbers $\\lfloor b(s)\\rceil \\in \\{0, 1\\}^D$ as the binary hash codes for state $s$. The AE loss over $n$ states includes two terms:\n$$ \\mathcal{L}(\\{s_n\\}_{n=1}^N) = \\underbrace{-\\frac{1}{N} \\sum_{n=1}^N \\log p(s_n)}_\\text{reconstruction loss} + \\underbrace{\\frac{1}{N} \\frac{\\lambda}{K} \\sum_{n=1}^N\\sum_{i=1}^k \\min \\big \\{ (1-b_i(s_n))^2, b_i(s_n)^2 \\big\\}}_\\text{sigmoid activation being closer to binary} $$ One problem with this approach is that dissimilar inputs $s_i, s_j$ may be mapped to identical hash codes but the AE still reconstructs them perfectly. One can imagine replacing the bottleneck layer $b(s)$ with the hash codes $\\lfloor b(s)\\rceil$, but then gradients cannot be back-propagated through the rounding function. Injecting uniform noise could mitigate this effect, as the AE has to learn to push the latent variable far apart to counteract the noise.\nPrediction-based Exploration The second category of intrinsic exploration bonuses are rewarded for improvement of the agent’s knowledge about the environment. The agent’s familiarity with the environment dynamics can be estimated through a prediction model. This idea of using a prediction model to measure curiosity was actually proposed quite a long time ago (Schmidhuber, 1991).\nForward Dynamics Learning a forward dynamics prediction model is a great way to approximate how much knowledge our model has obtained about the environment and the task MDPs. It captures an agent’s capability of predicting the consequence of its own behavior, $f: (s_t, a_t) \\mapsto s_{t+1}$. Such a model cannot be perfect (e.g. due to partial observation), the error $e(s_t, a_t) = | f(s_t, a_t) - s_{t+1} |^2_2$ can be used for providing intrinsic exploration rewards. The higher the prediction error, the less familiar we are with that state. The faster the error rate drops, the more learning progress signals we acquire.\nIntelligent Adaptive Curiosity (IAC; Oudeyer, et al. 2007) sketched an idea of using a forward dynamics prediction model to estimate learning progress and assigned intrinsic exploration reward accordingly.\nIAC relies on a memory which stores all the experiences encountered by the robot, $M=\\{(s_t, a_t, s_{t+1})\\}$ and a forward dynamics model $f$. IAC incrementally splits the state space (i.e. sensorimotor space in the context of robotics, as discussed in the paper) into separate regions based on the transition samples, using a process similar to how a decision tree is split: The split happens when the number of samples is larger than a threshold, and the variance of states in each leaf should be minimal. Each tree node is characterized by its exclusive set of samples and has its own forward dynamics predictor $f$, named “expert”.\nThe prediction error $e_t$ of an expert is pushed into a list associated with each region. The learning progress is then measured as the difference between the mean error rate of a moving window with offset $\\tau$ and the current moving window. The intrinsic reward is defined for tracking the learning progress: $r^i_t = \\frac{1}{k}\\sum_{i=0}^{k-1}(e_{t-i-\\tau} - e_{t-i})$, where $k$ is the moving window size. So the larger prediction error rate decrease we can achieve, the higher intrinsic reward we would assign to the agent. In other words, the agent is encouraged to take actions to quickly learn about the environment.\nArchitecture of the IAC (Intelligent Adaptive Curiosity) module: the intrinsic reward is assigned w.r.t the learning progress in reducing prediction error of the dynamics model. (Image source: Oudeyer, et al. 2007) Stadie et al. (2015) trained a forward dynamics model in the encoding space defined by $\\phi$, $f_\\phi: (\\phi(s_t), a_t) \\mapsto \\phi(s_{t+1})$. The model’s prediction error at time $T$ is normalized by the maximum error up to time $t$, $\\bar{e}_t = \\frac{e_t}{\\max_{i \\leq t} e_i}$, so it is always between 0 and 1. The intrinsic reward is defined accordingly: $r^i_t = (\\frac{\\bar{e}_t(s_t, a_t)}{t \\cdot C})$, where $C \u003e 0$ is a decay constant.\nEncoding the state space via $\\phi(.)$ is necessary, as experiments in the paper have shown that a dynamics model trained directly on raw pixels has very poor behavior — assigning same exploration bonuses to all the states. In Stadie et al. (2015), the encoding function $\\phi$ is learned via an autocoder (AE) and $\\phi(.)$ is one of the output layers in AE. The AE can be statically trained using a set of images collected by a random agent, or dynamically trained together with the policy where the early frames are gathered using $\\epsilon$-greedy exploration.\nInstead of autoencoder, Intrinsic Curiosity Module (ICM; Pathak, et al., 2017) learns the state space encoding $\\phi(.)$ with a self-supervised inverse dynamics model. Predicting the next state given the agent’s own action is not easy, especially considering that some factors in the environment cannot be controlled by the agent or do not affect the agent. ICM believes that a good state feature space should exclude such factors because they cannot influence the agent’s behavior and thus the agent has no incentive for learning them. By learning an inverse dynamics model $g: (\\phi(s_t), \\phi(s_{t+1})) \\mapsto a_t$, the feature space only captures those changes in the environment related to the actions of our agent, and ignores the rest.\nGiven a forward model $f$, an inverse dynamics model $g$ and an observation $(s_t, a_t, s_{t+1})$:\n$$ g_{\\psi_I}(\\phi(s_t), \\phi(s_{t+1})) = \\hat{a}_t \\quad f_{\\psi_F}(\\phi(s_t), a_t) = \\hat{\\phi}(s_{t+1}) \\quad r_t^i = \\| \\hat{\\phi}(s_{t+1}) - \\phi(s_{t+1}) \\|_2^2 $$ Such $\\phi(.)$ is expected to be robust to uncontrollable aspects of the environment.\nICM (Intrinsic Curiosity Module) assigns the forward dynamics prediction error to the agent as the intrinsic reward. This dynamics model operates in a state encoding space learned through an inverse dynamics model to exclude environmental factors that do not affect the agent's behavior. (Image source: Pathak, et al. 2017) Burda, Edwards \u0026 Pathak, et al. (2018) did a set of large-scale comparison experiments on purely curiosity-driven learning, meaning that only intrinsic rewards are provided to the agent. In this study, the reward is $r_t = r^i_t = | f(s_t, a_t) - \\phi(s_{t+1})|_2^2$. A good choice of $\\phi$ is crucial to learning forward dynamics, which is expected to be compact, sufficient and stable, making the prediction task more tractable and filtering out irrelevant observation.\nIn comparison of 4 encoding functions:\nRaw image pixels: No encoding, $\\phi(x) = x$. Random features (RF): Each state is compressed through a fixed random neural network. VAE: The probabilistic encoder is used for encoding, $\\phi(x) = q(z \\vert x)$. Inverse dynamic features (IDF): The same feature space as used in ICM. All the experiments have the reward signals normalized by a running estimation of standard deviation of the cumulative returns. And all the experiments are running in an infinite horizon setting to avoid “done” flag leaking information.\nThe mean reward in different games when training with only curiosity signals, generated by different state encoding functions. (Image source: Burda, Edwards \u0026 Pathak, et al. 2018) Interestingly random features turn out to be quite competitive, but in feature transfer experiments (i.e. train an agent in Super Mario Bros level 1-1 and then test it in another level), learned IDF features can generalize better.\nThey also compared RF and IDF in an environment with a noisy TV on. Unsurprisingly the noisy TV drastically slows down the learning and extrinsic rewards are much lower in time.\nExperiments using RF and IDF feature encoding in an environment with noisy TV on or off. The plot tracks extrinsic reward per episode as the training progresses. (Image source: Burda, Edwards \u0026 Pathak, et al. 2018) The forward dynamics optimization can be modeled via variational inference as well. VIME (short for “Variational information maximizing exploration”; Houthooft, et al. 2017) is an exploration strategy based on maximization of information gain about the agent’s belief of environment dynamics. How much additional information has been obtained about the forward dynamics can be measured as the reduction in entropy.\nLet $\\mathcal{P}$ be the environment transition function, $p(s_{t+1}\\vert s_t, a_t; \\theta)$ be the forward prediction model, parameterized by $\\theta \\in \\Theta$, and $\\xi_t = \\{s_1, a_1, \\dots, s_t\\}$ be the trajectory history. We would like to reduce the entropy after taking a new action and observing the next state, which is to maximize the following:\n$$ \\begin{aligned} \u0026\\sum_t H(\\Theta \\vert \\xi_t, a_t) - H(\\Theta \\vert S_{t+1}, \\xi_t, a_t) \\\\ =\u0026 I(\\Theta; S_{t+1} \\vert \\xi_t, a_t) \\quad \\scriptstyle{\\text{; because } I(X; Y) = I(X) - I(X \\vert Y)} \\\\ =\u0026 \\mathbb{E}_{s_{t+1} \\sim \\mathcal{P}(.\\vert\\xi_t,a_t)} [D_\\text{KL}(p(\\theta \\vert \\xi_t, a_t, s_{t+1}) \\| p(\\theta \\vert \\xi_t, a_t))] \\quad \\scriptstyle{\\text{; because } I(X; Y) = \\mathbb{E}_Y [D_\\text{KL} (p_{X \\vert Y} \\| p_X)]} \\\\ =\u0026 \\mathbb{E}_{s_{t+1} \\sim \\mathcal{P}(.\\vert\\xi_t,a_t)} [D_\\text{KL}(p(\\theta \\vert \\xi_t, a_t, s_{t+1}) \\| p(\\theta \\vert \\xi_t))] \\quad \\scriptstyle{\\text{; because } \\theta \\text{ does not depend on } a_t} \\end{aligned} $$ While taking expectation over the new possible states, the agent is expected to take a new action to increase the KL divergence (“information gain”) between its new belief over the prediction model to the old one. This term can be added into the reward function as an intrinsic reward: $r^i_t = D_\\text{KL} [p(\\theta \\vert \\xi_t, a_t, s_{t+1}) | p(\\theta \\vert \\xi_t))]$.\nHowever, computing the posterior $p(\\theta \\vert \\xi_t, a_t, s_{t+1})$ is generally intractable.\n$$ \\begin{aligned} p(\\theta \\vert \\xi_t, a_t, s_{t+1}) \u0026= \\frac{p(\\theta \\vert \\xi_t, a_t) p(s_{t+1} \\vert \\xi_t, a_t; \\theta)}{p(s_{t+1}\\vert\\xi_t, a_t)} \\\\ \u0026= \\frac{p(\\theta \\vert \\xi_t) p(s_{t+1} \\vert \\xi_t, a_t; \\theta)}{p(s_{t+1}\\vert\\xi_t, a_t)} \u0026 \\scriptstyle{\\text{; because action doesn't affect the belief.}} \\\\ \u0026= \\frac{\\color{red}{p(\\theta \\vert \\xi_t)} p(s_{t+1} \\vert \\xi_t, a_t; \\theta)}{\\int_\\Theta p(s_{t+1}\\vert\\xi_t, a_t; \\theta) \\color{red}{p(\\theta \\vert \\xi_t)} d\\theta} \u0026 \\scriptstyle{\\text{; red part is hard to compute directly.}} \\end{aligned} $$ Since it is difficult to compute $p(\\theta\\vert\\xi_t)$ directly, a natural choice is to approximate it with an alternative distribution $q_\\phi(\\theta)$. With variational lower bound, we know the maximization of $q_\\phi(\\theta)$ is equivalent to maximizing $p(\\xi_t\\vert\\theta)$ and minimizing $D_\\text{KL}[q_\\phi(\\theta) | p(\\theta)]$.\nUsing the approximation distribution $q$, the intrinsic reward becomes:\n$$ r^i_t = D_\\text{KL} [q_{\\phi_{t+1}}(\\theta) \\| q_{\\phi_t}(\\theta))] $$ where $\\phi_{t+1}$ represents $q$’s parameters associated with the new relief after seeing $a_t$ and $s_{t+1}$. When used as an exploration bonus, it is normalized by division by the moving median of this KL divergence value.\nHere the dynamics model is parameterized as a Bayesian neural network (BNN), as it maintains a distribution over its weights. The BNN weight distribution $q_\\phi(\\theta)$ is modeled as a fully factorized Gaussian with $\\phi = \\{\\mu, \\sigma\\}$ and we can easily sample $\\theta \\sim q_\\phi(.)$. After applying a second-order Taylor expansion, the KL term $D_\\text{KL}[q_{\\phi + \\lambda \\Delta\\phi}(\\theta) | q_{\\phi}(\\theta)]$ can be estimated using Fisher Information Matrix $\\mathbf{F}_\\phi$, which is easy to compute, because $q_\\phi$ is factorized Gaussian and thus the covariance matrix is only a diagonal matrix. See more details in the paper, especially section 2.3-2.5.\nAll the methods above depend on a single prediction model. If we have multiple such models, we could use the disagreement among models to set the exploration bonus (Pathak, et al. 2019). High disagreement indicates low confidence in prediction and thus requires more exploration. Pathak, et al. (2019) proposed to train a set of forward dynamics models and to use the variance over the ensemble of model outputs as $r_t^i$. Precisely, they encode the state space with random feature and learn 5 models in the ensemble.\nIllustration of training architecture for self-supervised exploration via disagreement. (Image source: Pathak, et al. 2019) Because $r^i_t$ is differentiable, the intrinsic reward in the model could be directly optimized through gradient descent so as to inform the policy agent to change actions. This differentiable exploration approach is very efficient but limited by having a short exploration horizon.\nRandom Networks But, what if the prediction task is not about the environment dynamics at all? It turns out when the prediction is for a random task, it still can help exploration.\nDORA (short for “Directed Outreaching Reinforcement Action-Selection”; Fox \u0026 Choshen, et al. 2018) is a novel framework that injects exploration signals based on a newly introduced, task-independent MDP. The idea of DORA depends on two parallel MDPs:\nOne is the original task MDP; The other is an identical MDP but with no reward attached: Rather, every state-action pair is designed to have value 0. The Q-value learned for the second MDP is called E-value. If the model cannot perfectly predict E-value to be zero, it is still missing information. Initially E-value is assigned with value 1. Such positive initialization can encourage directed exploration for better E-value prediction. State-action pairs with high E-value estimation don’t have enough information gathered yet, at least not enough to exclude their high E-values. To some extent, the logarithm of E-values can be considered as a generalization of visit counters.\nWhen using a neural network to do function approximation for E-value, another value head is added to predict E-value and it is simply expected to predict zero. Given a predicted E-value $E(s_t, a_t)$, the exploration bonus is $r^i_t = \\frac{1}{\\sqrt{-\\log E(s_t, a_t)}}$.\nSimilar to DORA, Random Network Distillation (RND; Burda, et al. 2018) introduces a prediction task independent of the main task. The RND exploration bonus is defined as the error of a neural network $\\hat{f}(s_t)$ predicting features of the observations given by a fixed randomly initialized neural network $f(s_t)$. The motivation is that given a new state, if similar states have been visited many times in the past, the prediction should be easier and thus has lower error. The exploration bonus is $r^i(s_t) = |\\hat{f}(s_t; \\theta) - f(s_t) |_2^2$.\nHow RND (Random Network Distillation) works for providing an intrinsic reward. The features $O_{i+1} \\mapsto f_{i+1}$ are generated by a fixed random neural network. (Image source: OpenAI Blog: \"Reinforcement Learning with Prediction-Based Rewards\") Two factors are important in RND experiments:\nNon-episodic setting results in better exploration, especially when not using any extrinsic rewards. It means that the return is not truncated at “Game over” and intrinsic return can spread across multiple episodes. Normalization is important since the scale of the reward is tricky to adjust given a random neural network as a prediction target. The intrinsic reward is normalized by division by a running estimate of the standard deviations of the intrinsic return. The RND setup works well for resolving the hard-exploration problem. For example, maximizing the RND exploration bonus consistently finds more than half of the rooms in Montezuma’s Revenge.\nPhysical Properties Different from games in simulators, some RL applications like Robotics need to understand objects and intuitive reasoning in the physical world. Some prediction tasks require the agent to perform a sequence of interactions with the environment and to observe the corresponding consequences, such as estimating some hidden properties in physics (e.g. mass, friction, etc).\nMotivated by such ideas, Denil, et al. (2017) found that DRL agents can learn to perform necessary exploration to discover such hidden properties. Precisely they considered two experiments:\n“Which is heavier?” — The agent has to interact with the blocks and infer which one is heavier. “Towers” — The agent needs to infer how many rigid bodies a tower is composed of by knocking it down. The agent in the experiments first goes through an exploration phase to interact with the environment and to collect information. Once the exploration phase ends, the agent is asked to output a labeling action to answer the question. Then a positive reward is assigned to the agent if the answer is correct; otherwise a negative one is assigned. Because the answer requires a decent amount of interactions with items in the scene, the agent has to learn to efficiently play around so as to figure out the physics and the correct answer. The exploration naturally happens.\nIn their experiments, the agent is able to learn in both tasks with performance varied by the difficulty of the task. Although the paper didn’t use the physics prediction task to provide intrinsic reward bonus along with extrinsic reward associated with another learning task, rather it focused on the exploration tasks themselves. I do enjoy the idea of encouraging sophisticated exploration behavior by predicting hidden physics properties in the environment.\nMemory-based Exploration Reward-based exploration suffers from several drawbacks:\nFunction approximation is slow to catch up. Exploration bonus is non-stationary. Knowledge fading, meaning that states cease to be novel and cannot provide intrinsic reward signals in time. Methods in this section rely on external memory to resolve disadvantages of reward bonus-based exploration.\nEpisodic Memory As mentioned above, RND is better running in an non-episodic setting, meaning the prediction knowledge is accumulated across multiple episodes. The exploration strategy, Never Give Up (NGU; Badia, et al. 2020a), combines an episodic novelty module that can rapidly adapt within one episode with RND as a lifelong novelty module.\nPrecisely, the intrinsic reward in NGU consists of two exploration bonuses from two modules, within one episode and across multiple episodes, respectively.\nThe short-term per-episode reward is provided by an episodic novelty module. It contains an episodic memory $M$, a dynamically-sized slot-based memory, and an IDF (inverse dynamics features) embedding function $\\phi$, same as the feature encoding in ICM\nAt every step the current state embedding $\\phi(s_t)$ is added into $M$.\nThe intrinsic bonus is determined by comparing how similar the current observation is to the content of $M$. A larger difference results in a larger bonus.\n$$ r^\\text{episodic}_t \\approx \\frac{1}{\\sqrt{\\sum_{\\phi_i \\in N_k} K(\\phi(x_t), \\phi_i)} + c} $$ where $K(x, y)$ is a kernel function for measuring the distance between two samples. $N_k$ is a set of $k$ nearest neighbors in $M$ according to $K(., .)$. $c$ is a small constant to keep the denominator non-zero. In the paper, $K(x, y)$ is configured to be the inverse kernel:\n$$ K(x, y) = \\frac{\\epsilon}{\\frac{d^2(x, y)}{d^2_m} + \\epsilon} $$ where $d(.,.)$ is Euclidean distance between two samples and $d_m$ is a running average of the squared Euclidean distance of the k-th nearest neighbors for better robustness. $\\epsilon$ is a small constant.\nThe architecture of NGU's embedding function (left) and reward generator (right). (Image source: Badia, et al. 2020a) The long-term across-episode novelty relies on RND prediction error in life-long novelty module. The exploration bonus is $\\alpha_t = 1 + \\frac{e^\\text{RND}(s_t) - \\mu_e}{\\sigma_e}$ where $\\mu_e$ and $\\sigma_e$ are running mean and std dev for RND error $e^\\text{RND}(s_t)$.\nHowever in the conclusion section of the RND paper, I noticed the following statement:\n“We find that the RND exploration bonus is sufficient to deal with local exploration, i.e. exploring the consequences of short-term decisions, like whether to interact with a particular object, or avoid it. However global exploration that involves coordinated decisions over long time horizons is beyond the reach of our method. \"\nAnd this confuses me a bit how RND can be used as a good life-long novelty bonus provider. If you know why, feel free to leave a comment below.\nThe final combined intrinsic reward is $r^i_t = r^\\text{episodic}_t \\cdot \\text{clip}(\\alpha_t, 1, L)$, where $L$ is a constant maximum reward scalar.\nThe design of NGU enables it to have two nice properties:\nRapidly discourages revisiting the same state within the same episode; Slowly discourages revisiting states that have been visited many times across episodes. Later, built on top of NGU, DeepMind proposed “Agent57” (Badia, et al. 2020b), the first deep RL agent that outperforms the standard human benchmark on all 57 Atari games. Two major improvements in Agent57 over NGU are:\nA population of policies are trained in Agent57, each equipped with a different exploration parameter pair $\\{(\\beta_j, \\gamma_j)\\}_{j=1}^N$. Recall that given $\\beta_j$, the reward is constructed as $r_{j,t} = r_t^e + \\beta_j r^i_t$ and $\\gamma_j$ is the reward discounting factor. It is natural to expect policies with higher $\\beta_j$ and lower $\\gamma_j$ to make more progress early in training, while the opposite would be expected as training progresses. A meta-controller (sliding-window UCB bandit algorithm) is trained to select which policies should be prioritized. The second improvement is a new parameterization of Q-value function that decomposes the contributions of the intrinsic and extrinsic rewards in a similar form as the bundled reward: $Q(s, a; \\theta_j) = Q(s, a; \\theta_j^e) + \\beta_j Q(s, a; \\theta_j^i)$. During training, $Q(s, a; \\theta_j^e)$ and $Q(s, a; \\theta_j^i)$ are optimized separately with rewards $r_j^e$ and $r_j^i$, respectively. A pretty cool illustration of techniques developed in time since DQN in 2015, eventually leading to Agent57. (Image source: DeepMind Blog: \"Agent57: Outperforming the human Atari benchmark\") Instead of using the Euclidean distance to measure closeness of states in episodic memory, Savinov, et al. (2019) took the transition between states into consideration and proposed a method to measure the number of steps needed to visit one state from other states in memory, named Episodic Curiosity (EC) module. The novelty bonus depends on reachability between states.\nAt the beginning of each episode, the agent starts with an empty episodic memory $M$. At every step, the agent compares the current state with saved states in memory to determine novelty bonus: If the current state is novel (i.e., takes more steps to reach from observations in memory than a threshold), the agent gets a bonus. The current state is added into the episodic memory if the novelty bonus is high enough. (Imagine that if all the states were added into memory, any new state could be added within 1 step.) Repeat 1-3 until the end of this episode. The nodes in the graph are states, the edges are possible transitions. The blue nodes are states in memory. The green nodes are reachable from the memory within $k = 2$ steps (not novel). The orange nodes are further away, so they are considered as novel states. (Image source: Savinov, et al. 2019) In order to estimate reachability between states, we need to access the transition graph, which is unfortunately not entirely known. Thus, Savinov, et al. (2019) trained a siamese neural network to predict how many steps separate two states. It contains one embedding network $\\phi: \\mathcal{S} \\mapsto \\mathbb{R}^n$ to first encode the states to feature vectors and then one comparator network $C: \\mathbb{R}^n \\times \\mathbb{R}^n \\mapsto [0, 1]$ to output a binary label on whether two states are close enough (i.e., reachable within $k$ steps) in the transition graph, $C(\\phi(s_i), \\phi(s_j)) \\mapsto [0, 1]$.\nAn episodic memory buffer $M$ stores embeddings of some past observations within the same episode. A new observation will be compared with existing state embeddings via $C$ and the results are aggregated (e.g. max, 90th percentile) to provide a reachability score $C^M(\\phi(s_t))$. The exploration bonus is $r^i_t = \\big(C’ - C^M(f(s_t))\\big)$, where $C’$ is a predefined threshold for determining the sign of the reward (e.g. $C’=0.5$ works well for fixed-duration episodes). High bonus is awarded to new states when they are not easily reachable from states in the memory buffer.\nThey claimed that the EC module can overcome the noisy-TV problem.\nThe architecture of episodic curiosity (EC) module for intrinsic reward generation. (Image source: Savinov, et al. 2019) Direct Exploration Go-Explore (Ecoffet, et al., 2019) is an algorithm aiming to solve the “hard-exploration” problem. It is composed of the following two phases.\nPhase 1 (“Explore until solved”) feels quite like Dijkstra’s algorithm for finding shortest paths in a graph. Indeed, no neural network is involved in phase 1. By maintaining a memory of interesting states as well as trajectories leading to them, the agent can go back (given a simulator is deterministic) to promising states and continue doing random exploration from there. The state is mapped into a short discretized code (named “cell”) in order to be memorized. The memory is updated if a new state appears or a better/shorter trajectory is found. When selecting which past states to return to, the agent might select one in the memory uniformly or according to heuristics like recency, visit count, count of neighbors in the memory, etc. This process is repeated until the task is solved and at least one solution trajectory is found.\nThe above found high-performance trajectories would not work well on evaluation envs with any stochasticity. Thus, Phase 2 (“Robustification”) is needed to robustify the solution via imitation learning. They adopted Backward Algorithm, in which the agent is started near the last state in the trajectory and then runs RL optimization from there.\nOne important note in phase 1 is: In order to go back to a state deterministically without exploration, Go-Explore depends on a resettable and deterministic simulator, which is a big disadvantage.\nTo make the algorithm more generally useful to environments with stochasticity, an enhanced version of Go-Explore (Ecoffet, et al., 2020), named policy-based Go-Explore was proposed later.\nInstead of resetting the simulator state effortlessly, the policy-based Go-Explore learns a goal-conditioned policy and uses that to access a known state in memory repeatedly. The goal-conditioned policy is trained to follow the best trajectory that previously led to the selected states in memory. They include a Self-Imitation Learning (SIL; Oh, et al. 2018) loss to help extract as much information as possible from successful trajectories. Also, they found sampling from policy works better than random actions when the agent returns to promising states to continue exploration. Another improvement in policy-based Go-Explore is to make the downscaling function of images to cells adjustable. It is optimized so that there would be neither too many nor too few cells in the memory. An overview of the Go-Explore algorithm. (Image source: Ecoffet, et al., 2020) After vanilla Go-Explore, Yijie Guo, et al. (2019) proposed DTSIL (Diverse Trajectory-conditioned Self-Imitation Learning), which shared a similar idea as policy-based Go-Explore above. DTSIL maintains a memory of diverse demonstrations collected during training and uses them to train a trajectory-conditioned policy via SIL. They prioritize trajectories that end with a rare state during sampling.\nAlgorithm of DTSIL (Diverse Trajectory-conditioned Self-Imitation Learning). (Image source: Yijie Guo, et al. 2019) The similar approach is also seen in Guo, et al. (2019). The main idea is to store goals with high uncertainty in memory so that later the agent can revisit these goal states with a goal-conditioned policy repeatedly. In each episode, the agent flips a coin (probability 0.5) to decide whether it will act greedily w.r.t. the policy or do directed exploration by sampling goals from the memory.\nDifferent components in directed exploration with function approximation. (Image source: Guo, et al. 2019) The uncertainty measure of a state can be something simple like count-based bonuses or something complex like density or bayesian models. The paper trained a forward dynamics model and took its prediction error as the uncertainty metric.\nQ-Value Exploration Inspired by Thompson sampling, Bootstrapped DQN (Osband, et al. 2016) introduces a notion of uncertainty in Q-value approximation in classic DQN by using the bootstrapping method. Bootstrapping is to approximate a distribution by sampling with replacement from the same population multiple times and then aggregate the results.\nMultiple Q-value heads are trained in parallel but each only consumes a bootstrapped sub-sampled set of data and each has its own corresponding target network. All the Q-value heads share the same backbone network.\nThe algorithm of Bootstrapped DQN. (Image source: Osband, et al. 2016) At the beginning of one episode, one Q-value head is sampled uniformly and acts for collecting experience data in this episode. Then a binary mask is sampled from the masking distribution $m \\sim \\mathcal{M}$ and decides which heads can use this data for training. The choice of masking distribution $\\mathcal{M}$ determines how bootstrapped samples are generated; For example,\nIf $\\mathcal{M}$ is an independent Bernoulli distribution with $p=0.5$, this corresponds to the double-or-nothing bootstrap. If $\\mathcal{M}$ always returns an all-one mask, the algorithm reduces to an ensemble method. However, this kind of exploration is still restricted, because uncertainty introduced by bootstrapping fully relies on the training data. It is better to inject some prior information independent of the data. This “noisy” prior is expected to drive the agent to keep exploring when the reward is sparse. The algorithm of adding random prior into bootstrapped DQN for better exploration (Osband, et al. 2018) depends on Bayesian linear regression. The core idea of Bayesian regression is: We can “generate posterior samples by training on noisy versions of the data, together with some random regularization”.\nLet $\\theta$ be the Q function parameter and $\\theta^-$ for the target Q, the loss function using a randomized prior function $p$ is:\n$$ \\mathcal{L}(\\theta, \\theta^{-}, p, \\mathcal{D}; \\gamma) = \\sum_{t\\in\\mathcal{D}}\\Big( r_t + \\gamma \\max_{a'\\in\\mathcal{A}} (\\underbrace{Q_{\\theta^-} + p)}_\\text{target Q}(s'_t, a') - \\underbrace{(Q_\\theta + p)}_\\text{Q to optimize}(s_t, a_t) \\Big)^2 $$ Varitional Options Options are policies with termination conditions. There are a large set of options available in the search space and they are independent of an agent’s intentions. By explicitly including intrinsic options into modeling, the agent can obtain intrinsic rewards for exploration.\nVIC (short for “Variational Intrinsic Control”; Gregor, et al. 2017) is such a framework for providing the agent with intrinsic exploration bonuses based on modeling options and learning policies conditioned on options. Let $\\Omega$ represent an option which starts from $s_0$ and ends at $s_f$. An environment probability distribution $p^J(s_f \\vert s_0, \\Omega)$ defines where an option $\\Omega$ terminates given a starting state $s_0$. A controllability distribution $p^C(\\Omega \\vert s_0)$ defines the probability distribution of options we can sample from. And by definition we have $p(s_f, \\Omega \\vert s_0) = p^J(s_f \\vert s_0, \\Omega) p^C(\\Omega \\vert s_0)$.\nWhile choosing options, we would like to achieve two goals:\nAchieve a diverse set of the final states from $s_0$ ⇨ Maximization of $H(s_f \\vert s_0)$. Know precisely which state a given option $\\Omega$ can end with ⇨ Minimization of $H(s_f \\vert s_0, \\Omega)$. Combining them, we get mutual information $I(\\Omega; s_f \\vert s_0)$ to maximize:\n$$ \\begin{aligned} I(\\Omega; s_f \\vert s_0) \u0026= H(s_f \\vert s_0) - H(s_f \\vert s_0, \\Omega) \\\\ \u0026= - \\sum_{s_f} p(s_f \\vert s_0) \\log p(s_f \\vert s_0) + \\sum_{s_f, \\Omega} p(s_f, \\Omega \\vert s_0) \\log \\frac{p(s_f, \\Omega \\vert s_0)}{p^C(\\Omega \\vert s_0)} \\\\ \u0026= - \\sum_{s_f} p(s_f \\vert s_0) \\log p(s_f \\vert s_0) + \\sum_{s_f, \\Omega} p^J(s_f \\vert s_0, \\Omega) p^C(\\Omega \\vert s_0) \\log p^J(s_f \\vert s_0, \\Omega) \\\\ \\end{aligned} $$ Because mutual information is symmetric, we can switch $s_f$ and $\\Omega$ in several places without breaking the equivalence. Also because $p(\\Omega \\vert s_0, s_f)$ is difficult to observe, let us replace it with an approximation distribution $q$. According to the variational lower bound, we would have $I(\\Omega; s_f \\vert s_0) \\geq I^{VB}(\\Omega; s_f \\vert s_0)$.\n$$ \\begin{aligned} I(\\Omega; s_f \\vert s_0) \u0026= I(s_f; \\Omega \\vert s_0) \\\\ \u0026= - \\sum_{\\Omega} p(\\Omega \\vert s_0) \\log p(\\Omega \\vert s_0) + \\sum_{s_f, \\Omega} p^J(s_f \\vert s_0, \\Omega) p^C(\\Omega \\vert s_0) \\log \\color{red}{p(\\Omega \\vert s_0, s_f)}\\\\ I^{VB}(\\Omega; s_f \\vert s_0) \u0026= - \\sum_{\\Omega} p(\\Omega \\vert s_0) \\log p(\\Omega \\vert s_0) + \\sum_{s_f, \\Omega} p^J(s_f \\vert s_0, \\Omega) p^C(\\Omega \\vert s_0) \\log \\color{red}{q(\\Omega \\vert s_0, s_f)} \\\\ I(\\Omega; s_f \\vert s_0) \u0026\\geq I^{VB}(\\Omega; s_f \\vert s_0) \\end{aligned} $$ The algorithm for VIC (Variational Intrinsic Control). (Image source: Gregor, et al. 2017) Here $\\pi(a \\vert \\Omega, s)$ can be optimized with any RL algorithm. The option inference function $q(\\Omega \\vert s_0, s_f)$ is doing supervised learning. The prior $p^C$ is updated so that it tends to choose $\\Omega$ with higher rewards. Note that $p^C$ can also be fixed (e.g. a Gaussian). Various $\\Omega$ will result in different behavior through learning. Additionally, Gregor, et al. (2017) observed that it is difficult to make VIC with explicit options work in practice with function approximation and therefore they also proposed another version of VIC with implicit options.\nDifferent from VIC which models $\\Omega$ conditioned only on the start and end states, VALOR (short for “Variational Auto-encoding Learning of Options by Reinforcement”; Achiam, et al. 2018) relies on the whole trajectory to extract the option context $c$, which is sampled from a fixed Gaussian distribution. In VALOR:\nA policy acts as an encoder, translating contexts from a noise distribution into trajectories A decoder attempts to recover the contexts from the trajectories, and rewards the policies for making contexts easier to distinguish. The decoder never sees the actions during training, so the agent has to interact with the environment in a way that facilitates communication with the decoder for better prediction. Also, the decoder recurrently takes in a sequence of steps in one trajectory to better model the correlation between timesteps. The decoder of VALOR is a biLSTM which takes $N = 11$ equally spaced observations from one trajectory as inputs. (Image source: Achiam, et al. 2018) DIAYN (“Diversity is all you need”; Eysenbach, et al. 2018) has the idea lying in the same direction, although with a different name — DIAYN models the policies conditioned on a latent skill variable. See my previous post for more details.\nCitation Cited as:\nWeng, Lilian. (Jun 2020). Exploration strategies in deep reinforcement learning. Lil’Log. https://lilianweng.github.io/posts/2020-06-07-exploration-drl/.\nOr\n@article{weng2020exploration, title = \"Exploration Strategies in Deep Reinforcement Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2020\", month = \"Jun\", url = \"https://lilianweng.github.io/posts/2020-06-07-exploration-drl/\" } Reference [1] Pierre-Yves Oudeyer \u0026 Frederic Kaplan. “How can we define intrinsic motivation?” Conf. on Epigenetic Robotics, 2008.\n[2] Marc G. Bellemare, et al. “Unifying Count-Based Exploration and Intrinsic Motivation”. NIPS 2016.\n[3] Georg Ostrovski, et al. “Count-Based Exploration with Neural Density Models”. PMLR 2017.\n[4] Rui Zhao \u0026 Volker Tresp. “Curiosity-Driven Experience Prioritization via Density Estimation”. NIPS 2018.\n[5] Haoran Tang, et al. \"#Exploration: A Study of Count-Based Exploration for Deep Reinforcement Learning”. NIPS 2017.\n[6] Jürgen Schmidhuber. “A possibility for implementing curiosity and boredom in model-building neural controllers” 1991.\n[7] Pierre-Yves Oudeyer, et al. “Intrinsic Motivation Systems for Autonomous Mental Development” IEEE Transactions on Evolutionary Computation, 2007.\n[8] Bradly C. Stadie, et al. “Incentivizing Exploration In Reinforcement Learning With Deep Predictive Models”. ICLR 2016.\n[9] Deepak Pathak, et al. “Curiosity-driven Exploration by Self-supervised Prediction”. CVPR 2017.\n[10] Yuri Burda, Harri Edwards \u0026 Deepak Pathak, et al. “Large-Scale Study of Curiosity-Driven Learning”. arXiv 1808.04355 (2018).\n[11] Joshua Achiam \u0026 Shankar Sastry. “Surprise-Based Intrinsic Motivation for Deep Reinforcement Learning” NIPS 2016 Deep RL Workshop.\n[12] Rein Houthooft, et al. “VIME: Variational information maximizing exploration”. NIPS 2016.\n[13] Leshem Choshen, Lior Fox \u0026 Yonatan Loewenstein. “DORA the explorer: Directed outreaching reinforcement action-selection”. ICLR 2018\n[14] Yuri Burda, et al. “Exploration by Random Network Distillation” ICLR 2019.\n[15] OpenAI Blog: “Reinforcement Learning with Prediction-Based Rewards” Oct, 2018.\n[16] Misha Denil, et al. “Learning to Perform Physics Experiments via Deep Reinforcement Learning”. ICLR 2017.\n[17] Ian Osband, et al. “Deep Exploration via Bootstrapped DQN”. NIPS 2016.\n[18] Ian Osband, John Aslanides \u0026 Albin Cassirer. “Randomized Prior Functions for Deep Reinforcement Learning”. NIPS 2018.\n[19] Karol Gregor, Danilo Jimenez Rezende \u0026 Daan Wierstra. “Variational Intrinsic Control”. ICLR 2017.\n[20] Joshua Achiam, et al. “Variational Option Discovery Algorithms”. arXiv 1807.10299 (2018).\n[21] Benjamin Eysenbach, et al. “Diversity is all you need: Learning skills without a reward function.”. ICLR 2019.\n[22] Adrià Puigdomènech Badia, et al. “Never Give Up (NGU): Learning Directed Exploration Strategies” ICLR 2020.\n[23] Adrià Puigdomènech Badia, et al. “Agent57: Outperforming the Atari Human Benchmark”. arXiv 2003.13350 (2020).\n[24] DeepMind Blog: “Agent57: Outperforming the human Atari benchmark” Mar 2020.\n[25] Nikolay Savinov, et al. “Episodic Curiosity through Reachability” ICLR 2019.\n[26] Adrien Ecoffet, et al. “Go-Explore: a New Approach for Hard-Exploration Problems”. arXiv 1901.10995 (2019).\n[27] Adrien Ecoffet, et al. “First return then explore”. arXiv 2004.12919 (2020).\n[28] Junhyuk Oh, et al. “Self-Imitation Learning”. ICML 2018.\n[29] Yijie Guo, et al. “Self-Imitation Learning via Trajectory-Conditioned Policy for Hard-Exploration Tasks”. arXiv 1907.10247 (2019).\n[30] Zhaohan Daniel Guo \u0026 Emma Brunskill. “Directed Exploration for Reinforcement Learning”. arXiv 1906.07805 (2019).\n[31] Deepak Pathak, et al. “Self-Supervised Exploration via Disagreement.” ICML 2019.\n",
+  "wordCount" : "7494",
+  "inLanguage": "en",
+  "datePublished": "2020-06-07T00:00:00Z",
+  "dateModified": "2020-06-07T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2020-06-07-exploration-drl/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Exploration Strategies in Deep Reinforcement Learning
+    </h1>
+    <div class="post-meta">Date: June 7, 2020  |  Estimated Reading Time: 36 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#classic-exploration-strategies" aria-label="Classic Exploration Strategies">Classic Exploration Strategies</a></li>
+                <li>
+                    <a href="#key-exploration-problems" aria-label="Key Exploration Problems">Key Exploration Problems</a><ul>
+                        
+                <li>
+                    <a href="#the-hard-exploration-problem" aria-label="The Hard-Exploration Problem">The Hard-Exploration Problem</a></li>
+                <li>
+                    <a href="#the-noisy-tv-problem" aria-label="The Noisy-TV Problem">The Noisy-TV Problem</a></li></ul>
+                </li>
+                <li>
+                    <a href="#intrinsic-rewards-as-exploration-bonuses" aria-label="Intrinsic Rewards as Exploration Bonuses">Intrinsic Rewards as Exploration Bonuses</a><ul>
+                        
+                <li>
+                    <a href="#count-based-exploration" aria-label="Count-based Exploration">Count-based Exploration</a><ul>
+                        
+                <li>
+                    <a href="#counting-by-density-model" aria-label="Counting by Density Model">Counting by Density Model</a></li>
+                <li>
+                    <a href="#counting-after-hashing" aria-label="Counting after Hashing">Counting after Hashing</a></li></ul>
+                </li>
+                <li>
+                    <a href="#prediction-based-exploration" aria-label="Prediction-based Exploration">Prediction-based Exploration</a><ul>
+                        
+                <li>
+                    <a href="#forward-dynamics" aria-label="Forward Dynamics">Forward Dynamics</a></li>
+                <li>
+                    <a href="#random-networks" aria-label="Random Networks">Random Networks</a></li>
+                <li>
+                    <a href="#physical-properties" aria-label="Physical Properties">Physical Properties</a></li></ul>
+                </li></ul>
+                </li>
+                <li>
+                    <a href="#memory-based-exploration" aria-label="Memory-based Exploration">Memory-based Exploration</a><ul>
+                        
+                <li>
+                    <a href="#episodic-memory" aria-label="Episodic Memory">Episodic Memory</a></li>
+                <li>
+                    <a href="#direct-exploration" aria-label="Direct Exploration">Direct Exploration</a></li></ul>
+                </li>
+                <li>
+                    <a href="#q-value-exploration" aria-label="Q-Value Exploration">Q-Value Exploration</a></li>
+                <li>
+                    <a href="#varitional-options" aria-label="Varitional Options">Varitional Options</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Exploitation versus exploration is a critical topic in reinforcement learning. This post introduces several common approaches for better exploration in Deep RL. -->
+<p><span class="update">[Updated on 2020-06-17: Add <a href="#exploration-via-disagreement">&ldquo;exploration via disagreement&rdquo;</a> in the &ldquo;Forward Dynamics&rdquo; <a href="#forward-dynamics">section</a>.</span></p>
+<p><a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/">Exploitation versus exploration</a> is a critical topic in Reinforcement Learning. We&rsquo;d like the RL agent to find the best solution as fast as possible. However, in the meantime, committing to solutions too quickly without enough exploration sounds pretty bad, as it could lead to local minima or total failure. Modern <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/">RL</a> <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/">algorithms</a> that optimize for the best returns can achieve good exploitation quite efficiently, while exploration remains more like an open topic.</p>
+<p>I would like to discuss several common exploration strategies in Deep RL here. As this is a very big topic, my post by no means can cover all the important subtopics. I plan to update it periodically and keep further enriching the content gradually in time.</p>
+<h1 id="classic-exploration-strategies">Classic Exploration Strategies<a hidden class="anchor" aria-hidden="true" href="#classic-exploration-strategies">#</a></h1>
+<p>As a quick recap, let&rsquo;s first go through several classic exploration algorithms that work out pretty well in the multi-armed bandit problem or simple tabular RL.</p>
+<ul>
+<li><strong>Epsilon-greedy</strong>: The agent does random exploration occasionally with probability $\epsilon$ and takes the optimal action most of the time with probability $1-\epsilon$.</li>
+<li><strong>Upper confidence bounds</strong>: The agent selects the greediest action to maximize the upper confidence bound $\hat{Q}_t(a) + \hat{U}_t(a)$, where $\hat{Q}_t(a)$ is the average rewards associated with action $a$ up to time $t$ and $\hat{U}_t(a)$ is a function reversely proportional to how many times action $a$ has been taken. See <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#upper-confidence-bounds">here</a> for more details.</li>
+<li><strong>Boltzmann exploration</strong>: The agent draws actions from a <a href="https://en.wikipedia.org/wiki/Boltzmann_distribution">boltzmann distribution</a> (softmax) over the learned Q values, regulated by a temperature parameter $\tau$.</li>
+<li><strong>Thompson sampling</strong>: The agent keeps track of a belief over the probability of optimal actions and samples from this distribution. See <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#thompson-sampling">here</a> for more details.</li>
+</ul>
+<p>The following strategies could be used for better exploration in deep RL training when neural networks are used for function approximation:</p>
+<ul>
+<li><strong>Entropy loss term</strong>: Add an entropy term $H(\pi(a \vert s))$ into the loss function, encouraging the policy to take diverse actions.</li>
+<li><strong>Noise-based Exploration</strong>: Add noise into the observation, action or even parameter space (<a href="https://arxiv.org/abs/1706.10295">Fortunato, et al. 2017</a>, <a href="https://arxiv.org/abs/1706.01905">Plappert, et al. 2017</a>).</li>
+</ul>
+<h1 id="key-exploration-problems">Key Exploration Problems<a hidden class="anchor" aria-hidden="true" href="#key-exploration-problems">#</a></h1>
+<p>Good exploration becomes especially hard when the environment rarely provides rewards as feedback or the environment has distracting noise. Many exploration strategies are proposed to solve one or both of the following problems.</p>
+<h2 id="the-hard-exploration-problem">The Hard-Exploration Problem<a hidden class="anchor" aria-hidden="true" href="#the-hard-exploration-problem">#</a></h2>
+<p>The &ldquo;hard-exploration&rdquo; problem refers to exploration in an environment with very sparse or even deceptive reward. It is difficult because random exploration in such scenarios can rarely discover successful states or obtain meaningful feedback.</p>
+<p><a href="https://en.wikipedia.org/wiki/Montezuma%27s_Revenge_(video_game)">Montezuma&rsquo;s Revenge</a> is a concrete example for the hard-exploration problem. It remains as a few challenging games in Atari for DRL to solve. Many papers use Montezuma&rsquo;s Revenge to benchmark their results.</p>
+<h2 id="the-noisy-tv-problem">The Noisy-TV Problem<a hidden class="anchor" aria-hidden="true" href="#the-noisy-tv-problem">#</a></h2>
+<p>The &ldquo;Noisy-TV&rdquo; problem started as a thought experiment in <a href="https://arxiv.org/abs/1810.12894">Burda, et al (2018)</a>. Imagine that an RL agent is rewarded with seeking novel experience, a TV with uncontrollable &amp; unpredictable random noise outputs would be able to attract the agent&rsquo;s attention forever. The agent obtains new rewards from noisy TV consistently, but it fails to make any meaningful progress and becomes a &ldquo;couch potato&rdquo;.</p>
+<figure>
+	<img src="the-noisy-TV-problem.gif" style="width: 100%;"  />
+	<figcaption>An agent is rewarded with novel experience in the experiment. If a maze has a noisy TC set up, the agent would be attracted and stop moving in the maze. (Image source: OpenAI Blog: <a href="https://openai.com/blog/reinforcement-learning-with-prediction-based-rewards/" target="_blank">"Reinforcement Learning with Prediction-Based Rewards"</a>)</figcaption>
+</figure>
+<h1 id="intrinsic-rewards-as-exploration-bonuses">Intrinsic Rewards as Exploration Bonuses<a hidden class="anchor" aria-hidden="true" href="#intrinsic-rewards-as-exploration-bonuses">#</a></h1>
+<p>One common approach to better exploration, especially for solving the <a href="#the-hard-exploration-problem">hard-exploration</a> problem, is to augment the environment reward with an additional bonus signal to encourage extra exploration. The policy is thus trained with a reward composed of two terms, $r_t = r^e_t + \beta r^i_t$, where $\beta$ is a hyperparameter adjusting the balance between exploitation and exploration.</p>
+<ul>
+<li>$r^e_t$ is an <em>extrinsic</em> reward from the environment at time $t$, defined according to the task in hand.</li>
+<li>$r^i_t$ is an <em>intrinsic</em> exploration bonus at time $t$.</li>
+</ul>
+<p>This intrinsic reward is somewhat inspired by <em>intrinsic motivation</em> in psychology (<a href="https://www.researchgate.net/profile/Pierre-Yves_Oudeyer/publication/29614795_How_can_we_define_intrinsic_motivation/links/09e415107f1b4c8041000000/How-can-we-define-intrinsic-motivation.pdf">Oudeyer &amp; Kaplan, 2008</a>). Exploration driven by curiosity might be an important way for children to grow and learn. In other words, exploratory activities should be rewarding intrinsically in the human mind to encourage such behavior. The intrinsic rewards could be correlated with curiosity, surprise, familiarity of the state, and many other factors.</p>
+<p>Same ideas can be applied to RL algorithms. In the following sections, methods of bonus-based exploration rewards are roughly grouped into two categories:</p>
+<ol>
+<li>Discovery of novel states</li>
+<li>Improvement of the agent&rsquo;s knowledge about the environment.</li>
+</ol>
+<h2 id="count-based-exploration">Count-based Exploration<a hidden class="anchor" aria-hidden="true" href="#count-based-exploration">#</a></h2>
+<p>If we consider intrinsic rewards as rewarding conditions that surprise us, we need a way to measure whether a state is novel or appears often. One intuitive way is to count how many times a state has been encountered and to assign a bonus accordingly. The bonus guides the agent&rsquo;s behavior to prefer rarely visited states to common states. This is known as the <strong>count-based exploration</strong> method.</p>
+<p>Let $N_n(s)$ be the <em>empirical count</em> function that tracks the real number of visits of a state $s$ in the sequence of $s_{1:n}$. Unfortunately, using $N_n(s)$ for exploration directly is not practical, because most of the states would have $N_n(s)=0$, especially considering that the state space is often continuous or high-dimensional. We need an non-zero count for most states, even when they haven&rsquo;t been seen before.</p>
+<h3 id="counting-by-density-model">Counting by Density Model<a hidden class="anchor" aria-hidden="true" href="#counting-by-density-model">#</a></h3>
+<p><a href="https://arxiv.org/abs/1606.01868">Bellemare, et al. (2016)</a> used a <strong>density model</strong> to approximate the frequency of state visits and a novel algorithm for deriving a <em>pseudo-count</em> from this density model. Let&rsquo;s first define a conditional probability over the state space, $\rho_n(s) = \rho(s \vert s_{1:n})$ as the probability of the $(n+1)$-th state being $s$ given the first $n$ states are $s_{1:n}$. To measure this empirically, we can simply use $N_n(s)/n$.</p>
+<p>Let&rsquo;s also define a <em>recoding probability</em> of a state $s$ as the probability assigned by the density model to $s$ <em>after observing a new occurrence of</em> $s$, $\rho&rsquo;_n(s) = \rho(s \vert s_{1:n}s)$.</p>
+<p>The paper introduced two concepts to better regulate the density model, a <em>pseudo-count</em> function $\hat{N}_n(s)$ and a <em>pseudo-count total</em> $\hat{n}$. As they are designed to imitate an empirical count function, we would have:</p>
+<div>
+$$
+\rho_n(s) = \frac{\hat{N}_n(s)}{\hat{n}} \leq \rho'_n(s) = \frac{\hat{N}_n(s) + 1}{\hat{n} + 1}
+$$
+</div>
+<p>The relationship between $\rho_n(x)$ and $\rho&rsquo;_n(x)$ requires the density model to be <em>learning-positive</em>:  for all $s_{1:n} \in \mathcal{S}^n$ and all $s \in \mathcal{S}$, $\rho_n(s) \leq \rho&rsquo;_n(s)$. In other words, After observing one instance of $s$, the density model&rsquo;s prediction of that same $s$ should increase. Apart from being learning-positive, the density model should be trained completely <em>online</em> with non-randomized mini-batches of experienced states, so naturally we have $\rho&rsquo;_n = \rho_{n+1}$.</p>
+<p>The pseudo-count can be computed from $\rho_n(s)$ and $\rho&rsquo;_n(s)$ after solving the above linear system:</p>
+<div>
+$$
+\hat{N}_n(s) = \hat{n} \rho_n(s) = \frac{\rho_n(s)(1 - \rho'_n(s))}{\rho'_n(s) - \rho_n(s)} 
+$$
+</div>
+<p>Or estimated by the <em>prediction gain (PG)</em>:</p>
+<div>
+$$
+\hat{N}_n(s) \approx (e^{\text{PG}_n(s)} - 1)^{-1} = (e^{\log \rho'_n(s) - \log \rho(s)} - 1)^{-1}
+$$
+</div>
+<p>A common choice of a count-based intrinsic bonus is $r^i_t = N(s_t, a_t)^{-1/2}$ (as in MBIE-EB; <a href="https://www.ics.uci.edu/~dechter/courses/ics-295/fall-2019/papers/2008-littman-aij-main.pdf">Strehl &amp; Littman, 2008</a>). The pseudo-count-based exploration bonus is shaped in a similar form, $r^i_t = \big(\hat{N}_n(s_t, a_t) + 0.01 \big)^{-1/2}$.</p>
+<p>Experiments in <a href="https://arxiv.org/abs/1606.01868">Bellemare et al., (2016)</a> adopted a simple <a href="http://proceedings.mlr.press/v32/bellemare14.html">CTS</a> (Context Tree Switching) density model to estimate pseudo-counts. The CTS model takes as input a 2D image and assigns to it a probability according to the product of location-dependent L-shaped filters, where the prediction of each filter is given by a CTS algorithm trained on past images. The CTS model is simple but limited in expressiveness, scalability, and data efficiency. In a following-up paper, <a href="https://arxiv.org/abs/1703.01310">Georg Ostrovski, et al. (2017)</a> improved the approach by training a PixelCNN (<a href="https://arxiv.org/abs/1606.05328">van den Oord et al., 2016</a>) as the density model.</p>
+<p>The density model can also be a Gaussian Mixture Model as in <a href="https://arxiv.org/abs/1902.08039">Zhao &amp; Tresp (2018)</a>. They used a variational GMM to estimate the density of trajectories (e.g. concatenation of a sequence of states) and its predicted probabilities to guide prioritization in experience replay in off-policy setting.</p>
+<h3 id="counting-after-hashing">Counting after Hashing<a hidden class="anchor" aria-hidden="true" href="#counting-after-hashing">#</a></h3>
+<p>Another idea to make it possible to count high-dimensional states is to map states into <strong>hash codes</strong> so that the occurrences of states become trackable (<a href="https://arxiv.org/abs/1611.04717">Tang et al. 2017</a>). The state space is discretized with a hash function $\phi: \mathcal{S} \mapsto \mathbb{Z}^k$. An exploration bonus $r^{i}: \mathcal{S} \mapsto \mathbb{R}$ is added to the reward function, defined as $r^{i}(s) = {N(\phi(s))}^{-1/2}$, where $N(\phi(s))$ is an empirical count of occurrences of $\phi(s)$.</p>
+<p><a href="https://arxiv.org/abs/1611.04717">Tang et al. (2017)</a> proposed to use <em>Locality-Sensitive Hashing</em> (<a href="https://en.wikipedia.org/wiki/Locality-sensitive_hashing"><em>LSH</em></a>) to convert continuous, high-dimensional data to discrete hash codes. LSH is a popular class of hash functions for querying nearest neighbors based on certain similarity metrics. A hashing scheme $x \mapsto h(x)$ is locality-sensitive if it preserves the distancing information between data points, such that close vectors obtain similar hashes while distant vectors have very different ones. (See how LSH is used in <a href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/#LSH">Transformer improvement</a> if interested.) <a href="https://www.cs.princeton.edu/courses/archive/spr04/cos598B/bib/CharikarEstim.pdf">SimHash</a> is a type of computationally efficient LSH and it measures similarity by angular distance:</p>
+<div>
+$$
+\phi(s) = \text{sgn}(A g(s)) \in \{-1, 1\}^k
+$$
+</div>
+<p>where $A \in \mathbb{R}^{k \times D}$ is a matrix with each entry drawn i.i.d. from a standard Gaussian and $g: \mathcal{S} \mapsto \mathbb{R}^D$ is an optional preprocessing function. The dimension of binary codes is $k$, controlling the granularity of the state space discretization. A higher $k$ leads to higher granularity and fewer collisions.</p>
+<figure>
+	<img src="count-hashing-exploration.png" style="width: 100%;"  />
+	<figcaption>Algorithm of count-based exploration through hashing high-dimensional states by SimHash. (Image source: <a href="https://arxiv.org/abs/1611.04717" target="_blank">Tang et al. 2017</a>)</figcaption>
+</figure>
+<p>For high-dimensional images, SimHash may not work well on the raw pixel level. <a href="https://arxiv.org/abs/1611.04717">Tang et al. (2017)</a> designed an autoencoder (AE) which takes as input states $s$ to learn hash codes. It has one special dense layer composed of $k$ sigmoid functions as the latent state in the middle and then the sigmoid activation values $b(s)$ of this layer are binarized by rounding to their closest binary numbers $\lfloor b(s)\rceil \in \{0, 1\}^D$ as the binary hash codes for state $s$. The AE loss over $n$ states includes two terms:</p>
+<div>
+$$
+\mathcal{L}(\{s_n\}_{n=1}^N) = \underbrace{-\frac{1}{N} \sum_{n=1}^N \log p(s_n)}_\text{reconstruction loss} + \underbrace{\frac{1}{N} \frac{\lambda}{K} \sum_{n=1}^N\sum_{i=1}^k \min \big \{ (1-b_i(s_n))^2, b_i(s_n)^2 \big\}}_\text{sigmoid activation being closer to binary}
+$$
+</div>
+<p>One problem with this approach is that dissimilar inputs $s_i, s_j$ may be mapped to identical hash codes but the AE still reconstructs them perfectly. One can imagine replacing the bottleneck layer $b(s)$ with the hash codes $\lfloor b(s)\rceil$, but then gradients cannot be back-propagated through the rounding function. Injecting uniform noise could mitigate this effect, as the AE has to learn to push the latent variable far apart to counteract the noise.</p>
+<h2 id="prediction-based-exploration">Prediction-based Exploration<a hidden class="anchor" aria-hidden="true" href="#prediction-based-exploration">#</a></h2>
+<p>The second category of intrinsic exploration bonuses are rewarded for improvement of the agent&rsquo;s knowledge about the environment. The agent&rsquo;s familiarity with the environment dynamics can be estimated through a prediction model. This idea of using a prediction model to measure <em>curiosity</em> was actually proposed quite a long time ago (<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.45.957">Schmidhuber, 1991</a>).</p>
+<h3 id="forward-dynamics">Forward Dynamics<a hidden class="anchor" aria-hidden="true" href="#forward-dynamics">#</a></h3>
+<p>Learning a <strong>forward dynamics prediction model</strong> is a great way to approximate how much knowledge our model has obtained about the environment and the task MDPs. It captures an agent&rsquo;s capability of predicting the consequence of its own behavior, $f: (s_t, a_t) \mapsto s_{t+1}$. Such a model cannot be perfect (e.g. due to partial observation), the error $e(s_t, a_t) = | f(s_t, a_t) - s_{t+1} |^2_2$ can be used for providing intrinsic exploration rewards. The higher the prediction error, the less familiar we are with that state.  The faster the error rate drops, the more learning progress signals we acquire.</p>
+<p><em>Intelligent Adaptive Curiosity</em> (<strong>IAC</strong>; <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.177.7661&amp;rep=rep1&amp;type=pdf">Oudeyer, et al. 2007</a>) sketched an idea of using a forward dynamics prediction model to estimate learning progress and assigned intrinsic exploration reward accordingly.</p>
+<p>IAC relies on a memory which stores all the experiences encountered by the robot, $M=\{(s_t, a_t, s_{t+1})\}$ and a forward dynamics model $f$. IAC incrementally splits the state space (i.e. sensorimotor space in the context of robotics, as discussed in the paper) into separate regions based on the transition samples, using a process similar to how a decision tree is split: The split happens when the number of samples is larger than a threshold, and the variance of states in each leaf should be minimal. Each tree node is characterized by its exclusive set of samples and has its own forward dynamics predictor $f$, named &ldquo;expert&rdquo;.</p>
+<p>The prediction error $e_t$ of an expert is pushed into a list associated with each region. The <em>learning progress</em> is then measured as the difference between the mean error rate of a moving window with offset $\tau$ and the current moving window. The intrinsic reward is defined for tracking the learning progress: $r^i_t = \frac{1}{k}\sum_{i=0}^{k-1}(e_{t-i-\tau} - e_{t-i})$, where $k$ is the moving window size. So the larger prediction error rate decrease we can achieve, the higher intrinsic reward we would assign to the agent. In other words, the agent is encouraged to take actions to quickly learn about the environment.</p>
+<figure>
+	<img src="IAC.png" style="width: 75%;"  />
+	<figcaption>Architecture of the IAC (Intelligent Adaptive Curiosity) module: the intrinsic reward is assigned w.r.t the learning progress in reducing prediction error of the dynamics model. (Image source: <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.177.7661&rep=rep1&type=pdf)" target="_blank">Oudeyer, et al. 2007</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1507.00814">Stadie et al. (2015)</a> trained a forward dynamics model in the encoding space defined by $\phi$, $f_\phi: (\phi(s_t), a_t) \mapsto \phi(s_{t+1})$. The model&rsquo;s prediction error at time $T$ is normalized by the maximum error up to time $t$, $\bar{e}_t = \frac{e_t}{\max_{i \leq t} e_i}$, so it is always between 0 and 1. The intrinsic reward is defined accordingly: $r^i_t = (\frac{\bar{e}_t(s_t, a_t)}{t \cdot C})$, where $C &gt; 0$ is a decay constant.</p>
+<p>Encoding the state space via $\phi(.)$ is necessary, as experiments in the paper have shown that a dynamics model trained directly on raw pixels has <em>very poor</em> behavior &mdash; assigning same exploration bonuses to all the states. In <a href="https://arxiv.org/abs/1507.00814">Stadie et al. (2015)</a>, the encoding function $\phi$ is learned via an autocoder (AE) and $\phi(.)$ is one of the output layers in AE. The AE can be statically trained using a set of images collected by a random agent, or dynamically trained together with the policy where the early frames are gathered using <a href="#classic-exploration-strategies">$\epsilon$-greedy</a> exploration.</p>
+<p><a id="ICM"></a>Instead of autoencoder, <em>Intrinsic Curiosity Module</em> (<strong>ICM</strong>; <a href="https://arxiv.org/abs/1705.05363">Pathak, et al., 2017</a>) learns the state space encoding $\phi(.)$ with a self-supervised <strong>inverse dynamics</strong> model. Predicting the next state given the agent&rsquo;s own action is not easy, especially considering that some factors in the environment cannot be controlled by the agent or do not affect the agent. ICM believes that a good state feature space should exclude such factors because <em>they cannot influence the agent&rsquo;s behavior and thus the agent has no incentive for learning them</em>. By learning an inverse dynamics model $g: (\phi(s_t), \phi(s_{t+1})) \mapsto a_t$, the feature space only captures those changes in the environment related to the actions of our agent, and ignores the rest.</p>
+<p>Given a forward model $f$, an inverse dynamics model $g$ and an observation $(s_t, a_t, s_{t+1})$:</p>
+<div>
+$$
+g_{\psi_I}(\phi(s_t), \phi(s_{t+1})) = \hat{a}_t \quad
+f_{\psi_F}(\phi(s_t), a_t) = \hat{\phi}(s_{t+1}) \quad
+r_t^i = \| \hat{\phi}(s_{t+1}) - \phi(s_{t+1}) \|_2^2
+$$
+</div>
+<p>Such $\phi(.)$ is expected to be robust to uncontrollable aspects of the environment.</p>
+<figure>
+	<img src="ICM.png" style="width: 100%;"  />
+	<figcaption>ICM (Intrinsic Curiosity Module) assigns the forward dynamics prediction error to the agent as the intrinsic reward. This dynamics model operates in a state encoding space learned through an inverse dynamics model to exclude environmental factors that do not affect the agent's behavior. (Image source: <a href="https://arxiv.org/abs/1705.05363" target="_blank">Pathak, et al. 2017</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1808.04355">Burda, Edwards &amp; Pathak, et al. (2018)</a> did a set of large-scale comparison experiments on purely curiosity-driven learning, meaning that only intrinsic rewards are provided to the agent. In this study, the reward is $r_t = r^i_t = | f(s_t, a_t) - \phi(s_{t+1})|_2^2$. A good choice of $\phi$ is crucial to learning forward dynamics, which is expected to be <em>compact</em>, <em>sufficient</em> and <em>stable</em>, making the prediction task more tractable and filtering out irrelevant observation.</p>
+<p>In comparison of 4 encoding functions:</p>
+<ol>
+<li>Raw image pixels: No encoding, $\phi(x) = x$.</li>
+<li><a id="random-feature"></a>Random features (RF): Each state is compressed through a fixed random neural network.</li>
+<li><a href="https://lilianweng.github.io/posts/2018-08-12-vae/#vae-variational-autoencoder">VAE</a>: The probabilistic encoder is used for encoding, $\phi(x) = q(z \vert x)$.</li>
+<li>Inverse dynamic features (IDF): The same feature space as used in <a href="#ICM">ICM</a>.</li>
+</ol>
+<p>All the experiments have the reward signals normalized by a running estimation of standard deviation of the cumulative returns. And all the experiments are running in an infinite horizon setting to avoid &ldquo;done&rdquo; flag leaking information.</p>
+<figure>
+	<img src="large-scale-curiosity-learning.png" style="width: 100%;"  />
+	<figcaption>The mean reward in different games when training with only curiosity signals, generated by different state encoding functions. (Image source: <a href="https://arxiv.org/abs/1808.04355" target="_blank">Burda, Edwards & Pathak, et al. 2018</a>)</figcaption>
+</figure>
+<p>Interestingly <em>random features</em> turn out to be quite competitive, but in feature transfer experiments (i.e. train an agent in Super Mario Bros level 1-1 and then test it in another level), learned IDF features can generalize better.</p>
+<p>They also compared RF and IDF in an environment with a <a href="#the-noisy-tv-problem">noisy TV</a> on. Unsurprisingly the noisy TV drastically slows down the learning and extrinsic rewards are much lower in time.</p>
+<figure>
+	<img src="noisy-TV-experiment.png" style="width: 60%;"  />
+	<figcaption>Experiments using RF and IDF feature encoding in an environment with noisy TV on or off. The plot tracks extrinsic reward per episode as the training progresses. (Image source: <a href="https://arxiv.org/abs/1808.04355" target="_blank">Burda, Edwards & Pathak, et al. 2018</a>)</figcaption>
+</figure>
+<p>The forward dynamics optimization can be modeled via variational inference as well. <strong>VIME</strong> (short for <em>&ldquo;Variational information maximizing exploration&rdquo;</em>; <a href="https://arxiv.org/abs/1605.09674">Houthooft, et al. 2017</a>) is an exploration strategy based on maximization of <em>information gain</em> about the agent&rsquo;s belief of environment dynamics. How much additional information has been obtained about the forward dynamics can be measured as the reduction in entropy.</p>
+<p>Let $\mathcal{P}$ be the environment transition function, $p(s_{t+1}\vert s_t, a_t; \theta)$ be the forward prediction model, parameterized by $\theta \in \Theta$, and $\xi_t = \{s_1, a_1, \dots, s_t\}$ be the trajectory history. We would like to reduce the entropy after taking a new action and observing the next state, which is to maximize the following:</p>
+<div>
+$$
+\begin{aligned}
+&\sum_t H(\Theta \vert \xi_t, a_t) - H(\Theta \vert S_{t+1}, \xi_t, a_t) \\
+=& I(\Theta; S_{t+1} \vert \xi_t, a_t) \quad \scriptstyle{\text{; because } I(X; Y) = I(X) - I(X \vert Y)} \\
+=& \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t, a_t))] \quad \scriptstyle{\text{; because } I(X; Y) = \mathbb{E}_Y [D_\text{KL} (p_{X \vert Y} \| p_X)]} \\
+=& \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t))] \quad \scriptstyle{\text{; because } \theta \text{ does not depend on } a_t}
+\end{aligned}
+$$
+</div>
+<p>While taking expectation over the new possible states, the agent is expected to take a new action to increase the KL divergence (<em>&ldquo;information gain&rdquo;</em>) between its new belief over the prediction model to the old one. This term can be added into the reward function as an intrinsic reward: $r^i_t = D_\text{KL} [p(\theta \vert \xi_t, a_t, s_{t+1}) | p(\theta \vert \xi_t))]$.</p>
+<p>However, computing the posterior $p(\theta \vert \xi_t, a_t, s_{t+1})$ is generally intractable.</p>
+<div>
+$$
+\begin{aligned}
+p(\theta \vert \xi_t, a_t, s_{t+1}) 
+&= \frac{p(\theta \vert \xi_t, a_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} \\
+&= \frac{p(\theta \vert \xi_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} & \scriptstyle{\text{; because action doesn't affect the belief.}} \\
+&= \frac{\color{red}{p(\theta \vert \xi_t)} p(s_{t+1} \vert \xi_t, a_t; \theta)}{\int_\Theta p(s_{t+1}\vert\xi_t, a_t; \theta) \color{red}{p(\theta \vert \xi_t)} d\theta} & \scriptstyle{\text{; red part is hard to compute directly.}}
+\end{aligned}
+$$
+</div>
+<p>Since it is difficult to compute $p(\theta\vert\xi_t)$ directly, a natural choice is to approximate it with an alternative distribution $q_\phi(\theta)$. With variational lower bound, we know the maximization of $q_\phi(\theta)$ is equivalent to maximizing $p(\xi_t\vert\theta)$ and minimizing $D_\text{KL}[q_\phi(\theta) | p(\theta)]$.</p>
+<p>Using the approximation distribution $q$, the intrinsic reward becomes:</p>
+<div>
+$$
+r^i_t = D_\text{KL} [q_{\phi_{t+1}}(\theta) \| q_{\phi_t}(\theta))]
+$$
+</div>
+<p>where $\phi_{t+1}$ represents $q$&rsquo;s parameters associated with the new relief after seeing $a_t$ and $s_{t+1}$. When used as an exploration bonus, it is normalized by division by the moving median of this KL divergence value.</p>
+<p>Here the dynamics model is parameterized as a <a href="https://link.springer.com/book/10.1007/978-1-4612-0745-0">Bayesian neural network</a> (BNN), as it maintains a distribution over its weights. The BNN weight distribution $q_\phi(\theta)$ is modeled as a fully <em>factorized</em> Gaussian with $\phi = \{\mu, \sigma\}$ and we can easily sample $\theta \sim q_\phi(.)$. After applying a second-order Taylor expansion, the KL term $D_\text{KL}[q_{\phi + \lambda \Delta\phi}(\theta) | q_{\phi}(\theta)]$ can be estimated using <a href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/#estimation-using-fisher-information-matrix">Fisher Information Matrix</a> $\mathbf{F}_\phi$, which is easy to compute, because $q_\phi$ is factorized Gaussian and thus the covariance matrix is only a diagonal matrix. See more details in <a href="https://arxiv.org/abs/1605.09674">the paper</a>, especially section 2.3-2.5.</p>
+<p><a id="exploration-via-disagreement"></a>All the methods above depend on a single prediction model. If we have multiple such models, we could use the disagreement among models to set the exploration bonus (<a href="https://arxiv.org/abs/1906.04161">Pathak, et al. 2019</a>). High disagreement indicates low confidence in prediction and thus requires more exploration. <a href="https://arxiv.org/abs/1906.04161">Pathak, et al. (2019)</a> proposed to train a set of forward dynamics models and to use the variance over the ensemble of model outputs as $r_t^i$. Precisely, they encode the state space with <a href="#random-feature">random feature</a> and learn 5 models in the  ensemble.</p>
+<figure>
+	<img src="exploration-via-disagreement.png" style="width: 100%;"  />
+	<figcaption>Illustration of training architecture for self-supervised exploration via disagreement. (Image source: <a href="https://arxiv.org/abs/1906.04161" target="_blank">Pathak, et al. 2019</a>)</figcaption>
+</figure>
+<p>Because $r^i_t$ is differentiable, the intrinsic reward in the model could be directly optimized through gradient descent so as to inform the policy agent to change actions. This differentiable exploration approach is very efficient but limited by having a short exploration horizon.</p>
+<h3 id="random-networks">Random Networks<a hidden class="anchor" aria-hidden="true" href="#random-networks">#</a></h3>
+<p>But, what if the prediction task is not about the environment dynamics at all? It turns out when the prediction is for a random task, it still can help exploration.</p>
+<p><strong>DORA</strong> (short for <em>&ldquo;Directed Outreaching Reinforcement Action-Selection&rdquo;</em>; <a href="https://arxiv.org/abs/1804.04012">Fox &amp; Choshen, et al. 2018</a>) is a novel framework that injects exploration signals based on a newly introduced, <strong>task-independent</strong> MDP. The idea of DORA depends on two parallel MDPs:</p>
+<ul>
+<li>One is the original task MDP;</li>
+<li>The other is an identical MDP but with <em>no reward attached</em>: Rather, every state-action pair is designed to have value 0. The Q-value learned for the second MDP is called <em>E-value</em>. If the model cannot perfectly predict E-value to be zero, it is still missing information.</li>
+</ul>
+<p>Initially E-value is assigned with value 1. Such positive initialization can encourage directed exploration for better E-value prediction. State-action pairs with high E-value estimation don&rsquo;t have enough information gathered yet, at least not enough to exclude their high E-values. To some extent, the logarithm of E-values can be considered as a generalization of <em>visit counters</em>.</p>
+<p>When using a neural network to do function approximation for E-value, another value head is added to predict E-value and it is simply expected to predict zero. Given a predicted E-value $E(s_t, a_t)$, the exploration bonus is $r^i_t = \frac{1}{\sqrt{-\log E(s_t, a_t)}}$.</p>
+<p><a id="RND"></a>Similar to DORA, <strong>Random Network Distillation</strong> (<strong>RND</strong>; <a href="https://arxiv.org/abs/1810.12894">Burda, et al. 2018</a>) introduces a prediction task <em>independent of the main task</em>. The RND exploration bonus is defined as the error of a neural network $\hat{f}(s_t)$ predicting features of the observations given by a <em>fixed randomly initialized</em> neural network $f(s_t)$. The motivation is that given a new state, if similar states have been visited many times in the past, the prediction should be easier and thus has lower error. The exploration bonus is $r^i(s_t) = |\hat{f}(s_t; \theta) - f(s_t) |_2^2$.</p>
+<figure>
+	<img src="RND.png" style="width: 100%;"  />
+	<figcaption>How RND (Random Network Distillation) works for providing an intrinsic reward. The features $O_{i+1} \mapsto f_{i+1}$ are generated by a fixed random neural network. (Image source: OpenAI Blog: <a href="https://openai.com/blog/reinforcement-learning-with-prediction-based-rewards/" target="_blank">"Reinforcement Learning with Prediction-Based Rewards"</a>)</figcaption>
+</figure>
+<p>Two factors are important in RND experiments:</p>
+<ol>
+<li>Non-episodic setting results in better exploration, especially when not using any extrinsic rewards. It means that the return is not truncated at &ldquo;Game over&rdquo; and intrinsic return can spread across multiple episodes.</li>
+<li>Normalization is important since the scale of the reward is tricky to adjust given a random neural network as a prediction target. The intrinsic reward is normalized by division by a running estimate of the standard deviations of the intrinsic return.</li>
+</ol>
+<p>The RND setup works well for resolving the hard-exploration problem. For example, maximizing the RND exploration bonus consistently finds more than half of the rooms in Montezuma&rsquo;s Revenge.</p>
+<h3 id="physical-properties">Physical Properties<a hidden class="anchor" aria-hidden="true" href="#physical-properties">#</a></h3>
+<p>Different from games in simulators, some RL applications like Robotics need to understand objects and intuitive reasoning in the physical world. Some prediction tasks require the agent to perform a sequence of interactions with the environment and to observe the corresponding consequences, such as estimating some hidden properties in physics (e.g. mass, friction, etc).</p>
+<p>Motivated by such ideas, <a href="https://arxiv.org/abs/1611.01843">Denil, et al. (2017)</a> found that DRL agents can learn to perform necessary exploration to discover such hidden properties. Precisely they considered two experiments:</p>
+<ol>
+<li><em>&ldquo;Which is heavier?&rdquo;</em> &mdash; The agent has to interact with the blocks and infer which one is heavier.</li>
+<li><em>&ldquo;Towers&rdquo;</em> &mdash; The agent needs to infer how many rigid bodies a tower is composed of by knocking it down.</li>
+</ol>
+<p>The agent in the experiments first goes through an exploration phase to interact with the environment and to collect information. Once the exploration phase ends, the agent is asked to output a <em>labeling</em> action to answer the question. Then a positive reward is assigned to the agent if the answer is correct; otherwise a negative one is assigned. Because the answer requires a decent amount of interactions with items in the scene, the agent has to learn to efficiently play around so as to figure out the physics and the correct answer. The exploration naturally happens.</p>
+<p>In their experiments, the agent is able to learn in both tasks with performance varied by the difficulty of the task. Although the paper didn&rsquo;t use the physics prediction task to provide intrinsic reward bonus along with extrinsic reward associated with another learning task, rather it focused on the exploration tasks themselves. I do enjoy the idea of encouraging sophisticated exploration behavior by predicting hidden physics properties in the environment.</p>
+<h1 id="memory-based-exploration">Memory-based Exploration<a hidden class="anchor" aria-hidden="true" href="#memory-based-exploration">#</a></h1>
+<p>Reward-based exploration suffers from several drawbacks:</p>
+<ul>
+<li>Function approximation is slow to catch up.</li>
+<li>Exploration bonus is non-stationary.</li>
+<li>Knowledge fading, meaning that states cease to be novel and cannot provide intrinsic reward signals in time.</li>
+</ul>
+<p>Methods in this section rely on external memory to resolve disadvantages of reward bonus-based exploration.</p>
+<h2 id="episodic-memory">Episodic Memory<a hidden class="anchor" aria-hidden="true" href="#episodic-memory">#</a></h2>
+<p>As mentioned above, <a href="#RND">RND</a> is better running in an non-episodic setting, meaning the prediction knowledge is accumulated across multiple episodes. The exploration strategy, <strong>Never Give Up</strong> (<strong>NGU</strong>; <a href="https://arxiv.org/abs/2002.06038">Badia, et al. 2020a</a>), combines an episodic novelty module that can rapidly adapt within one episode with RND as a lifelong novelty module.</p>
+<p>Precisely, the intrinsic reward in NGU consists of two exploration bonuses from two modules,  <em>within one episode</em> and <em>across multiple episodes</em>, respectively.</p>
+<p>The short-term per-episode reward is provided by an <em>episodic novelty module</em>. It contains an episodic memory $M$, a dynamically-sized slot-based memory, and an IDF (inverse dynamics features) embedding function $\phi$, same as the feature encoding in <a href="#ICM">ICM</a></p>
+<ol>
+<li>
+<p>At every step the current state embedding $\phi(s_t)$ is added into $M$.</p>
+</li>
+<li>
+<p>The intrinsic bonus is determined by comparing how similar the current observation is to the content of $M$. A larger difference results in a larger bonus.</p>
+ <div>
+ $$
+ r^\text{episodic}_t \approx \frac{1}{\sqrt{\sum_{\phi_i \in N_k} K(\phi(x_t), \phi_i)} + c}
+ $$
+ </div>
+<p>where $K(x, y)$ is a kernel function for measuring the distance between two samples. $N_k$ is a set of $k$ nearest neighbors in $M$ according to $K(., .)$.  $c$ is a small constant to keep the denominator non-zero. In the paper, $K(x, y)$ is configured to be the inverse kernel:</p>
+ <div>
+ $$
+ K(x, y) = \frac{\epsilon}{\frac{d^2(x, y)}{d^2_m} + \epsilon}
+ $$
+ </div>
+<p>where $d(.,.)$ is Euclidean distance between two samples and $d_m$ is a running average of the squared Euclidean distance of the k-th nearest neighbors for better robustness. $\epsilon$ is a small constant.</p>
+</li>
+</ol>
+<figure>
+	<img src="NGU.png" style="width: 100%;"  />
+	<figcaption>The architecture of NGU's embedding function (left) and reward generator (right). (Image source: <a href="https://arxiv.org/abs/2002.06038" target="_blank">Badia, et al. 2020a</a>)</figcaption>
+</figure>
+<p>The long-term across-episode novelty relies on RND prediction error in <em>life-long novelty module</em>. The exploration bonus is $\alpha_t = 1 + \frac{e^\text{RND}(s_t) - \mu_e}{\sigma_e}$ where $\mu_e$ and $\sigma_e$ are running mean and std dev for RND error $e^\text{RND}(s_t)$.</p>
+<blockquote>
+<p>However in the conclusion section of the <a href="https://arxiv.org/abs/1810.12894">RND paper</a>, I noticed the following statement:</p>
+<p>&ldquo;We find that the RND exploration bonus is sufficient to deal with local exploration, i.e. exploring the consequences of short-term decisions, like whether to interact with a particular object, or avoid it. However global exploration that involves coordinated decisions over long time horizons is beyond the reach of our method. &quot;</p>
+<p>And this confuses me a bit how RND can be used as a good life-long novelty bonus provider. If you know why, feel free to leave a comment below.</p>
+</blockquote>
+<p>The final combined intrinsic reward is $r^i_t = r^\text{episodic}_t \cdot \text{clip}(\alpha_t, 1, L)$, where $L$ is a constant maximum reward scalar.</p>
+<p>The design of NGU enables it to have two nice properties:</p>
+<ol>
+<li><em>Rapidly discourages</em> revisiting the same state <em>within</em> the same episode;</li>
+<li><em>Slowly discourages</em> revisiting states that have been visited many times <em>across</em> episodes.</li>
+</ol>
+<p>Later, built on top of NGU, DeepMind proposed &ldquo;Agent57&rdquo; (<a href="https://arxiv.org/abs/2003.13350">Badia, et al. 2020b</a>), the first deep RL agent that outperforms the standard human benchmark on <em>all</em> 57 Atari games. Two major improvements in Agent57 over NGU are:</p>
+<ol>
+<li>A <em>population</em> of policies are trained in Agent57, each equipped with a different exploration parameter pair $\{(\beta_j, \gamma_j)\}_{j=1}^N$. Recall that given $\beta_j$, the reward is constructed as $r_{j,t} = r_t^e + \beta_j r^i_t$ and $\gamma_j$ is the reward discounting factor. It is natural to expect policies with higher $\beta_j$ and lower $\gamma_j$ to make more progress early in training, while the opposite would be expected as training progresses. A meta-controller (<a href="https://arxiv.org/pdf/0805.3415.pdf">sliding-window UCB bandit algorithm</a>) is trained to select which policies should be prioritized.</li>
+<li>The second improvement is a new parameterization of Q-value function that decomposes the contributions of the intrinsic and extrinsic rewards in a similar form as the bundled reward: $Q(s, a; \theta_j) = Q(s, a; \theta_j^e) + \beta_j Q(s, a; \theta_j^i)$. During training, $Q(s, a; \theta_j^e)$ and $Q(s, a; \theta_j^i)$ are optimized separately with rewards $r_j^e$ and $r_j^i$, respectively.</li>
+</ol>
+<figure>
+	<img src="agent57.png" style="width: 70%;"  />
+	<figcaption>A pretty cool illustration of techniques developed in time since DQN in 2015, eventually leading to Agent57. (Image source: DeepMind Blog: <a href="https://deepmind.com/blog/article/Agent57-Outperforming-the-human-Atari-benchmark" target="_blank">"Agent57: Outperforming the human Atari benchmark"</a>)</figcaption>
+</figure>
+<p>Instead of using the Euclidean distance to measure closeness of states in episodic memory, <a href="https://arxiv.org/abs/1810.02274">Savinov, et al. (2019)</a> took the transition between states into consideration and proposed a method to measure the number of steps needed to visit one state from other states in memory, named <strong>Episodic Curiosity (EC)</strong> module. The novelty bonus depends on reachability between states.</p>
+<ol>
+<li>At the beginning of each episode, the agent starts with an empty episodic memory $M$.</li>
+<li>At every step, the agent compares the current state with saved states in memory to determine novelty bonus: If the current state is novel (i.e., takes more steps to reach from observations in memory than a threshold), the agent gets a bonus.</li>
+<li>The current state is added into the episodic memory if the novelty bonus is high enough. (Imagine that if all the states were added into memory, any new state could be added within 1 step.)</li>
+<li>Repeat 1-3 until the end of this episode.</li>
+</ol>
+<figure>
+	<img src="transition-graph.png" style="width: 70%;"  />
+	<figcaption>The nodes in the graph are states, the edges are possible transitions. The blue nodes are states in memory. The green nodes are reachable from the memory within $k = 2$ steps (not novel). The orange nodes are further away, so they are considered as novel states. (Image source: <a href="https://arxiv.org/abs/1810.02274" target="_blank">Savinov, et al. 2019</a>)</figcaption>
+</figure>
+<p>In order to estimate reachability between states, we need to access the transition graph, which is unfortunately not entirely known. Thus, <a href="https://arxiv.org/abs/1810.02274">Savinov, et al. (2019)</a> trained a <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/#convolutional-siamese-neural-network">siamese</a> neural network to predict how many steps separate two states. It contains one embedding network $\phi: \mathcal{S} \mapsto \mathbb{R}^n$ to first encode the states to feature vectors and then one comparator network $C: \mathbb{R}^n \times \mathbb{R}^n \mapsto [0, 1]$ to output a binary label on whether two states are close enough (i.e., reachable within $k$ steps) in the transition graph, $C(\phi(s_i), \phi(s_j)) \mapsto [0, 1]$.</p>
+<p>An episodic memory buffer $M$ stores embeddings of some past observations within the same episode. A new observation will be compared with existing state embeddings via $C$ and the results are aggregated (e.g. max, 90th percentile) to provide a reachability score $C^M(\phi(s_t))$. The exploration bonus is $r^i_t = \big(C&rsquo; - C^M(f(s_t))\big)$, where $C&rsquo;$ is a predefined threshold for determining the sign of the reward (e.g. $C&rsquo;=0.5$ works well for fixed-duration episodes). High bonus is awarded to new states when they are not easily reachable from states in the memory buffer.</p>
+<p>They claimed that the EC module can overcome the <a href="#the-noisy-tv-problem">noisy-TV</a> problem.</p>
+<figure>
+	<img src="episodic-memory-overview.png" style="width: 100%;"  />
+	<figcaption>The architecture of episodic curiosity (EC) module for intrinsic reward generation.  (Image source: <a href="https://arxiv.org/abs/1810.02274" target="_blank">Savinov, et al. 2019</a>)</figcaption>
+</figure>
+<h2 id="direct-exploration">Direct Exploration<a hidden class="anchor" aria-hidden="true" href="#direct-exploration">#</a></h2>
+<p><strong>Go-Explore</strong> (<a href="https://arxiv.org/abs/1901.10995">Ecoffet, et al., 2019</a>) is an algorithm aiming to solve the &ldquo;hard-exploration&rdquo; problem. It is composed of the following two phases.</p>
+<p><strong>Phase 1 (&ldquo;Explore until solved&rdquo;)</strong> feels quite like <a href="https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm">Dijkstra&rsquo;s algorithm</a> for finding shortest paths in a graph. Indeed, no neural network is involved in phase 1. By maintaining a memory of interesting states as well as trajectories leading to them, the agent can go back (given a simulator is <em>deterministic</em>) to promising states and continue doing <em>random</em> exploration from there. The state is mapped into a short discretized code (named &ldquo;cell&rdquo;) in order to be memorized. The memory is updated if a new state appears or a better/shorter trajectory is found. When selecting which past states to return to, the agent might select one in the memory uniformly or according to heuristics like recency, visit count, count of neighbors in the memory, etc. This process is repeated until the task is solved and at least one solution trajectory is found.</p>
+<p>The above found high-performance trajectories would not work well on evaluation envs with any stochasticity. Thus, <strong>Phase 2 (&ldquo;Robustification&rdquo;)</strong> is needed to robustify the solution via imitation learning. They adopted <a href="https://arxiv.org/abs/1812.03381">Backward Algorithm</a>, in which the agent is started near the last state in the trajectory and then runs RL optimization from there.</p>
+<p>One important note in phase 1 is: In order to go back to a state deterministically without exploration, Go-Explore depends on a resettable and deterministic simulator, which is a big disadvantage.</p>
+<p>To make the algorithm more generally useful to environments with stochasticity, an enhanced version of Go-Explore (<a href="https://arxiv.org/abs/2004.12919">Ecoffet, et al., 2020</a>), named <strong>policy-based Go-Explore</strong> was proposed later.</p>
+<ul>
+<li>Instead of resetting the simulator state effortlessly, the policy-based Go-Explore learns a <em>goal-conditioned policy</em> and uses that to access a known state in memory repeatedly. The goal-conditioned policy is trained to follow the best trajectory that previously led to the selected states in memory. They include a <strong>Self-Imitation Learning</strong> (<strong>SIL</strong>; <a href="https://arxiv.org/abs/1806.05635">Oh, et al. 2018</a>) loss to help extract as much information as possible from successful trajectories.</li>
+<li>Also, they found sampling from policy works better than random actions when the agent returns to promising states to continue exploration.</li>
+<li>Another improvement in policy-based Go-Explore is to make the downscaling function of images to cells adjustable. It is optimized so that there would be neither too many nor too few cells in the memory.</li>
+</ul>
+<figure>
+	<img src="policy-based-Go-Explore.png" style="width: 65%;"  />
+	<figcaption>An overview of the Go-Explore algorithm. (Image source: <a href="https://arxiv.org/abs/2004.12919" target="_blank">Ecoffet, et al., 2020</a>)</figcaption>
+</figure>
+<p>After vanilla Go-Explore, <a href="https://arxiv.org/abs/1907.10247">Yijie Guo, et al. (2019)</a> proposed <strong>DTSIL</strong> (Diverse Trajectory-conditioned Self-Imitation Learning), which shared a similar idea as policy-based Go-Explore above. DTSIL maintains a memory of diverse demonstrations collected during training and uses them to train a trajectory-conditioned policy via <a href="https://arxiv.org/abs/1806.05635">SIL</a>. They prioritize trajectories that end with a rare state during sampling.</p>
+<figure>
+	<img src="DTSIL-algo.png" style="width: 100%;"  />
+	<figcaption>Algorithm of DTSIL (Diverse Trajectory-conditioned Self-Imitation Learning). (Image source: <a href="https://arxiv.org/abs/1907.10247" target="_blank">Yijie Guo, et al. 2019</a>)</figcaption>
+</figure>
+<p>The similar approach is also seen in <a href="https://arxiv.org/abs/1906.07805">Guo, et al. (2019)</a>. The main idea is to store goals with <em>high uncertainty</em> in memory so that later the agent can revisit these goal states with a goal-conditioned policy repeatedly. In each episode, the agent flips a coin (probability 0.5) to decide whether it will act greedily w.r.t. the policy or do directed exploration by sampling goals from the memory.</p>
+<figure>
+	<img src="directed-exploration.png" style="width: 60%;"  />
+	<figcaption>Different components in directed exploration with function approximation. (Image source: <a href="https://arxiv.org/abs/1906.07805" target="_blank">Guo, et al. 2019</a>)</figcaption>
+</figure>
+<p>The uncertainty measure of a state can be something simple like count-based bonuses or something complex like density or bayesian models. The paper trained a forward dynamics model and took its prediction error as the uncertainty metric.</p>
+<h1 id="q-value-exploration">Q-Value Exploration<a hidden class="anchor" aria-hidden="true" href="#q-value-exploration">#</a></h1>
+<p>Inspired by <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#thompson-sampling">Thompson sampling</a>, <strong>Bootstrapped DQN</strong> (<a href="https://arxiv.org/abs/1602.04621">Osband, et al. 2016</a>) introduces a notion of uncertainty in Q-value approximation in classic <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#deep-q-network">DQN</a> by using the <a href="https://en.wikipedia.org/wiki/Bootstrapping_(statistics)">bootstrapping</a> method. Bootstrapping is to approximate a distribution by sampling with replacement from the same population multiple times and then aggregate the results.</p>
+<p>Multiple Q-value heads are trained in parallel but each only consumes a bootstrapped sub-sampled set of data and each has its own corresponding target network. All the Q-value heads share the same backbone network.</p>
+<figure>
+	<img src="bootstrapped-DQN-algo.png" style="width: 100%;"  />
+	<figcaption>The algorithm of Bootstrapped DQN. (Image source: <a href="https://arxiv.org/abs/1602.04621" target="_blank">Osband, et al. 2016</a>)</figcaption>
+</figure>
+<p>At the beginning of one episode, one Q-value head is sampled uniformly and acts for collecting experience data in this episode. Then a binary mask is sampled from the masking distribution $m \sim \mathcal{M}$ and decides which heads can use this data for training. The choice of masking distribution $\mathcal{M}$ determines how bootstrapped samples are generated; For example,</p>
+<ul>
+<li>If $\mathcal{M}$ is an independent Bernoulli distribution with $p=0.5$, this corresponds to the double-or-nothing bootstrap.</li>
+<li>If $\mathcal{M}$ always returns an all-one mask, the algorithm reduces to an ensemble method.</li>
+</ul>
+<p>However, this kind of exploration is still restricted, because uncertainty introduced by bootstrapping fully relies on the training data. It is better to inject some prior information independent of the data. This &ldquo;noisy&rdquo; prior is expected to drive the agent to keep exploring when the reward is sparse. The algorithm of adding random prior into bootstrapped DQN for better exploration (<a href="https://arxiv.org/abs/1806.03335">Osband, et al. 2018</a>) depends on Bayesian linear regression. The core idea of Bayesian regression is: We can <em>&ldquo;generate posterior samples by training on noisy versions of the data, together with some random regularization&rdquo;</em>.</p>
+<p>Let $\theta$ be the Q function parameter and $\theta^-$ for the target Q, the loss function using a randomized prior function $p$ is:</p>
+<div>
+$$
+\mathcal{L}(\theta, \theta^{-}, p, \mathcal{D}; \gamma) = \sum_{t\in\mathcal{D}}\Big( r_t + \gamma \max_{a'\in\mathcal{A}} (\underbrace{Q_{\theta^-} + p)}_\text{target Q}(s'_t, a') - \underbrace{(Q_\theta + p)}_\text{Q to optimize}(s_t, a_t) \Big)^2
+$$
+</div>
+<h1 id="varitional-options">Varitional Options<a hidden class="anchor" aria-hidden="true" href="#varitional-options">#</a></h1>
+<p>Options are policies with termination conditions. There are a large set of options available in the search space and they are independent of an agent&rsquo;s intentions. By explicitly including intrinsic options into modeling, the agent can obtain intrinsic rewards for exploration.</p>
+<p><strong>VIC</strong> (short for <em>&ldquo;Variational Intrinsic Control&rdquo;</em>; <a href="https://arxiv.org/abs/1611.07507">Gregor, et al. 2017</a>) is such a framework for providing the agent with intrinsic exploration bonuses based on modeling options and learning policies conditioned on options. Let $\Omega$ represent an option which starts from $s_0$ and ends at $s_f$. An environment probability distribution $p^J(s_f \vert s_0, \Omega)$ defines where an option $\Omega$ terminates given a starting state $s_0$. A controllability distribution $p^C(\Omega \vert s_0)$ defines the probability distribution of options we can sample from. And by definition we have $p(s_f, \Omega \vert s_0) = p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0)$.</p>
+<p>While choosing options, we would like to achieve two goals:</p>
+<ul>
+<li>Achieve a diverse set of the final states from $s_0$ ⇨ Maximization of $H(s_f \vert s_0)$.</li>
+<li>Know precisely which state a given option $\Omega$ can end with ⇨ Minimization of $H(s_f \vert s_0, \Omega)$.</li>
+</ul>
+<p>Combining them, we get mutual information $I(\Omega; s_f \vert s_0)$ to maximize:</p>
+<div>
+$$
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&= H(s_f \vert s_0) - H(s_f \vert s_0, \Omega) \\
+&= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p(s_f, \Omega \vert s_0) \log \frac{p(s_f, \Omega \vert s_0)}{p^C(\Omega \vert s_0)} \\
+&= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log p^J(s_f \vert s_0, \Omega) \\
+\end{aligned}
+$$
+</div>
+<p>Because mutual information is symmetric, we can switch $s_f$ and $\Omega$ in several places without breaking the equivalence. Also because $p(\Omega \vert s_0, s_f)$ is difficult to observe, let us replace it with an approximation distribution $q$. According to the variational lower bound, we would have $I(\Omega; s_f \vert s_0) \geq I^{VB}(\Omega; s_f \vert s_0)$.</p>
+<div>
+$$
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&= I(s_f; \Omega \vert s_0) \\
+&= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{p(\Omega \vert s_0, s_f)}\\
+I^{VB}(\Omega; s_f \vert s_0)
+&= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{q(\Omega \vert s_0, s_f)} \\
+I(\Omega; s_f \vert s_0) &\geq I^{VB}(\Omega; s_f \vert s_0)
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="VIC-explicit-options.png" style="width: 100%;"  />
+	<figcaption>The algorithm for VIC (Variational Intrinsic Control). (Image source: <a href="https://arxiv.org/abs/1611.07507" target="_blank">Gregor, et al. 2017</a>)</figcaption>
+</figure>
+<p>Here $\pi(a \vert \Omega, s)$ can be optimized with any RL algorithm. The option inference function $q(\Omega \vert s_0, s_f)$ is doing supervised learning. The prior $p^C$ is updated so that it tends to choose $\Omega$ with higher rewards. Note that $p^C$ can also be fixed (e.g. a Gaussian). Various $\Omega$ will result in different behavior through learning. Additionally, <a href="https://arxiv.org/abs/1611.07507">Gregor, et al. (2017)</a> observed that it is difficult to make VIC with explicit options work in practice with function approximation and therefore they also proposed another version of VIC with implicit options.</p>
+<p>Different from VIC which models $\Omega$ conditioned only on the start and end states, <strong>VALOR</strong> (short for <em>&ldquo;Variational Auto-encoding Learning of Options by Reinforcement&rdquo;</em>; <a href="https://arxiv.org/abs/1807.10299">Achiam, et al. 2018</a>) relies on the whole trajectory to extract the option context $c$, which is sampled from a fixed Gaussian distribution. In VALOR:</p>
+<ul>
+<li>A policy acts as an encoder, translating contexts from a noise distribution into trajectories</li>
+<li>A decoder attempts to recover the contexts from the trajectories, and rewards the policies for making contexts easier to distinguish. The decoder never sees the actions during training, so the agent has to interact with the environment in a way that facilitates communication with the decoder for better prediction. Also, the decoder recurrently takes in a sequence of steps in one trajectory to better model the correlation between timesteps.</li>
+</ul>
+<figure>
+	<img src="VALOR-decoder.png" style="width: 50%;"  />
+	<figcaption>The decoder of VALOR is a biLSTM which takes $N = 11$ equally spaced observations from one trajectory as inputs. (Image source: <a href="https://arxiv.org/abs/1807.10299" target="_blank">Achiam, et al. 2018</a>)</figcaption>
+</figure>
+<p>DIAYN (&ldquo;Diversity is all you need&rdquo;; <a href="https://arxiv.org/abs/1802.06070">Eysenbach, et al. 2018</a>) has the idea lying in the same direction, although with a different name &mdash; DIAYN models the policies conditioned on a latent <em>skill</em> variable. See my <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#learning-with-random-rewards">previous post</a> for more details.</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Jun 2020). Exploration strategies in deep reinforcement learning. Lil&rsquo;Log. https://lilianweng.github.io/posts/2020-06-07-exploration-drl/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2020exploration,
+  title   = &#34;Exploration Strategies in Deep Reinforcement Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2020&#34;,
+  month   = &#34;Jun&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2020-06-07-exploration-drl/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Pierre-Yves Oudeyer &amp; Frederic Kaplan. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.567.6524&amp;rep=rep1&amp;type=pdf">&ldquo;How can we define intrinsic motivation?&rdquo;</a> Conf. on Epigenetic Robotics, 2008.</p>
+<p>[2] Marc G. Bellemare, et al. <a href="https://arxiv.org/abs/1606.01868">&ldquo;Unifying Count-Based Exploration and Intrinsic Motivation&rdquo;</a>. NIPS 2016.</p>
+<p>[3] Georg Ostrovski, et al. <a href="https://arxiv.org/abs/1703.01310">&ldquo;Count-Based Exploration with Neural Density Models&rdquo;</a>. PMLR 2017.</p>
+<p>[4] Rui Zhao &amp; Volker Tresp. <a href="https://arxiv.org/abs/1902.08039">&ldquo;Curiosity-Driven Experience Prioritization via
+Density Estimation&rdquo;</a>. NIPS 2018.</p>
+<p>[5] Haoran Tang, et al. <a href="https://arxiv.org/abs/1611.04717">&quot;#Exploration: A Study of Count-Based Exploration for Deep Reinforcement Learning&rdquo;</a>. NIPS 2017.</p>
+<p>[6] Jürgen Schmidhuber. <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.45.957">&ldquo;A possibility for implementing curiosity and boredom in model-building neural controllers&rdquo;</a> 1991.</p>
+<p>[7] Pierre-Yves Oudeyer, et al. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.177.7661&amp;rep=rep1&amp;type=pdf">&ldquo;Intrinsic Motivation Systems for Autonomous Mental Development&rdquo;</a> IEEE Transactions on Evolutionary Computation, 2007.</p>
+<p>[8] Bradly C. Stadie, et al. <a href="https://arxiv.org/abs/1507.00814">&ldquo;Incentivizing Exploration In Reinforcement Learning With Deep Predictive Models&rdquo;</a>. ICLR 2016.</p>
+<p>[9] Deepak Pathak, et al. <a href="https://arxiv.org/abs/1705.05363">&ldquo;Curiosity-driven Exploration by Self-supervised Prediction&rdquo;</a>. CVPR 2017.</p>
+<p>[10] Yuri Burda, Harri Edwards &amp; Deepak Pathak, et al. <a href="https://arxiv.org/abs/1808.04355">&ldquo;Large-Scale Study of Curiosity-Driven Learning&rdquo;</a>. arXiv 1808.04355 (2018).</p>
+<p>[11] Joshua Achiam &amp; Shankar Sastry. <a href="https://arxiv.org/abs/1703.01732">&ldquo;Surprise-Based Intrinsic Motivation for Deep Reinforcement Learning&rdquo;</a> NIPS 2016 Deep RL Workshop.</p>
+<p>[12] Rein Houthooft, et al. <a href="https://arxiv.org/abs/1605.09674">&ldquo;VIME: Variational information maximizing exploration&rdquo;</a>. NIPS 2016.</p>
+<p>[13] Leshem Choshen, Lior Fox &amp; Yonatan Loewenstein. <a href="https://arxiv.org/abs/1804.04012">&ldquo;DORA the explorer: Directed outreaching reinforcement action-selection&rdquo;</a>. ICLR 2018</p>
+<p>[14] Yuri Burda, et al. <a href="https://arxiv.org/abs/1810.12894">&ldquo;Exploration by Random Network Distillation&rdquo;</a> ICLR 2019.</p>
+<p>[15] OpenAI Blog: <a href="https://openai.com/blog/reinforcement-learning-with-prediction-based-rewards/">&ldquo;Reinforcement Learning with
+Prediction-Based Rewards&rdquo;</a> Oct, 2018.</p>
+<p>[16] Misha Denil, et al. <a href="https://arxiv.org/abs/1611.01843">&ldquo;Learning to Perform Physics Experiments via Deep Reinforcement Learning&rdquo;</a>. ICLR 2017.</p>
+<p>[17] Ian Osband, et al. <a href="https://arxiv.org/abs/1602.04621">&ldquo;Deep Exploration via Bootstrapped DQN&rdquo;</a>. NIPS 2016.</p>
+<p>[18] Ian Osband, John Aslanides &amp; Albin Cassirer. <a href="https://arxiv.org/abs/1806.03335">&ldquo;Randomized Prior Functions for Deep Reinforcement Learning&rdquo;</a>. NIPS 2018.</p>
+<p>[19] Karol Gregor, Danilo Jimenez Rezende &amp; Daan Wierstra. <a href="https://arxiv.org/abs/1611.07507">&ldquo;Variational Intrinsic Control&rdquo;</a>. ICLR 2017.</p>
+<p>[20] Joshua Achiam, et al. <a href="https://arxiv.org/abs/1807.10299">&ldquo;Variational Option Discovery Algorithms&rdquo;</a>. arXiv 1807.10299 (2018).</p>
+<p>[21] Benjamin Eysenbach, et al. <a href="https://arxiv.org/abs/1802.06070">&ldquo;Diversity is all you need: Learning skills without a reward function.&rdquo;</a>. ICLR 2019.</p>
+<p>[22] Adrià Puigdomènech Badia, et al. <a href="https://arxiv.org/abs/2002.06038">&ldquo;Never Give Up (NGU): Learning Directed Exploration Strategies&rdquo;</a> ICLR 2020.</p>
+<p>[23] Adrià Puigdomènech Badia, et al.  <a href="https://arxiv.org/abs/2003.13350">&ldquo;Agent57: Outperforming the Atari Human Benchmark&rdquo;</a>. arXiv 2003.13350 (2020).</p>
+<p>[24] DeepMind Blog: <a href="https://deepmind.com/blog/article/Agent57-Outperforming-the-human-Atari-benchmark">&ldquo;Agent57: Outperforming the human Atari benchmark&rdquo;</a> Mar 2020.</p>
+<p>[25] Nikolay Savinov, et al. <a href="https://arxiv.org/abs/1810.02274">&ldquo;Episodic Curiosity through Reachability&rdquo;</a> ICLR 2019.</p>
+<p>[26] Adrien Ecoffet, et al. <a href="https://arxiv.org/abs/1901.10995">&ldquo;Go-Explore: a New Approach for Hard-Exploration Problems&rdquo;</a>. arXiv 1901.10995 (2019).</p>
+<p>[27] Adrien Ecoffet, et al. <a href="https://arxiv.org/abs/2004.12919">&ldquo;First return then explore&rdquo;</a>. arXiv 2004.12919 (2020).</p>
+<p>[28] Junhyuk Oh, et al. <a href="https://arxiv.org/abs/1806.05635">&ldquo;Self-Imitation Learning&rdquo;</a>. ICML 2018.</p>
+<p>[29] Yijie Guo, et al. <a href="https://arxiv.org/abs/1907.10247">&ldquo;Self-Imitation Learning via Trajectory-Conditioned Policy for Hard-Exploration Tasks&rdquo;</a>. arXiv 1907.10247 (2019).</p>
+<p>[30] Zhaohan Daniel Guo &amp; Emma Brunskill. <a href="https://arxiv.org/abs/1906.07805">&ldquo;Directed Exploration for Reinforcement Learning&rdquo;</a>. arXiv 1906.07805 (2019).</p>
+<p>[31] Deepak Pathak, et al. <a href="https://arxiv.org/abs/1906.04161">“Self-Supervised Exploration via Disagreement.”</a> ICML 2019.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/exploration/">Exploration</a></li>
+      <li><a href="https://lilianweng.github.io/tags/long-read/">Long-Read</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2020-08-06-nas/">
+    <span class="title">« </span>
+    <br>
+    <span>Neural Architecture Search</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/">
+    <span class="title"> »</span>
+    <br>
+    <span>The Transformer Family</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f&amp;hashtags=reinforcement-learning%2cexploration%2clong-read">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f&amp;title=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning&amp;summary=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f&title=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Exploration Strategies in Deep Reinforcement Learning on telegram"
+        href="https://telegram.me/share/url?text=Exploration%20Strategies%20in%20Deep%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-06-07-exploration-drl%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

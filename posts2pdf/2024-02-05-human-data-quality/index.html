@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Thinking about High-Quality Human Data | Lil&#39;Log</title>
+<meta name="keywords" content="data, data-quality, human-ai" />
+<meta name="description" content="[Special thank you to Ian Kivlichan for many useful pointers (E.g. the 100&#43; year old Nature paper &ldquo;Vox populi&rdquo;) and nice feedback. 🙏 ]
+High-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or RLHF labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (Sambasivan et al. 2021).">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2024-02-05-human-data-quality/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2024-02-05-human-data-quality/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Thinking about High-Quality Human Data" />
+<meta property="og:description" content="[Special thank you to Ian Kivlichan for many useful pointers (E.g. the 100&#43; year old Nature paper &ldquo;Vox populi&rdquo;) and nice feedback. 🙏 ]
+High-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or RLHF labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (Sambasivan et al. 2021)." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2024-02-05-human-data-quality/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2024-02-05T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2024-02-05T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Thinking about High-Quality Human Data"/>
+<meta name="twitter:description" content="[Special thank you to Ian Kivlichan for many useful pointers (E.g. the 100&#43; year old Nature paper &ldquo;Vox populi&rdquo;) and nice feedback. 🙏 ]
+High-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or RLHF labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (Sambasivan et al. 2021)."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Thinking about High-Quality Human Data",
+      "item": "https://lilianweng.github.io/posts/2024-02-05-human-data-quality/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Thinking about High-Quality Human Data",
+  "name": "Thinking about High-Quality Human Data",
+  "description": "[Special thank you to Ian Kivlichan for many useful pointers (E.g. the 100+ year old Nature paper \u0026ldquo;Vox populi\u0026rdquo;) and nice feedback. 🙏 ]\nHigh-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or RLHF labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (Sambasivan et al. 2021).\n",
+  "keywords": [
+    "data", "data-quality", "human-ai"
+  ],
+  "articleBody": "[Special thank you to Ian Kivlichan for many useful pointers (E.g. the 100+ year old Nature paper “Vox populi”) and nice feedback. 🙏 ]\nHigh-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or RLHF labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (Sambasivan et al. 2021).\nTwo directions to approach high data quality. Human Raters ↔ Data Quality Collecting human data involve a set of operation steps and every step contributes to the data quality:\nTask design: Design task workflow to improve clarity and reduce complexity. Detailed guidelines are helpful but very long and complicated guidelines demand a decent amount of training to be useful. Select and train a pool of raters: Select annotators with matched skillset and consistency. Training sessions are necessary. After onboarding, regular feedback and calibration sessions are also needed. Collect and aggregate data. This is the stage where more ML techniques can be applied to clean, filter and smartly aggregate data to identify the true labels. Quality assurance refers to a set of actions that allow one to improve quality by acting on the quality attributes identified in the quality model. (Image source: Daniel et al. 2018) The Wisdom of the Crowd Vox populi (originally “Vox populi, vox Dei”), a Latin phrase, means the voice of people. A short paper named was the same name was published in 1907 on Nature. It tracked an event at an annual exhibition where a fat ox was selected and people would guess the weight of the ox in order to win a prize if the guess is close to the real number. The middlemost estimate was treated as “the vox populi” and ended up being very close to the true value. The author concluded “This result is, I think, more creditable to the trustworthiness of a democratic judgment than might have been expected.” This is probably the earliest mention of how crowdsourcing (“the wisdom of the crowd”) would work out.\nAlmost 100 years later, Callison-Burch (2009) did an early study on using Amazon Mechanical Turk (AMT) to run non-expert human evaluation on Machine Translation (MT) tasks and even to rely on non-experts to create new gold reference translations. The setup for human evaluation was simple: Each turker is shown a source sentence, a reference translation, and 5 translations from 5 MT systems. They are asked to rank 5 translations from best to worst. Each task is completed by 5 turkers.\nUnsurprisingly, there are spammers producing low quality annotation to only optimize the volume. So when measuring the agreement between experts and non-experts, different weighting schemes need to be applied to downweight the contribution of spammers: (1) “weighted by experts”: using agreement rate with experts on a gold set of 10 examples; (2) “weighted by non-experts”: relying on agreement rate with the rest of turkers on the whole dataset.\nIn a harder task, non-expert human annotators were asked to create new gold reference translations. Callison-Burch designed the task in two stages, where the first stage created new translations with reference to MT outputs and the second one filtered translations that may seem to be gerated by a MT system. The correlation between experts’ and crowdsourced translations is higher than that between expert and MT system outputs.\n(Left) The agreement rate is measured by comparing each pair of translation sentences (\"A \u003e B\", \"A=B\", \"A \u003c B\") and thus chance agreement is 1/3. The upper bound is set by the expert-expert agreement rate. (Right) Comparison of BLEU score between translations from different sources. LCD (Linguistic Data Consortium) translators provide expert translations. (Image source: Callison-Burch 2009) Rater Agreement We often think of annotation as targeting a single ground truth and try to evaluate quality against one gold answer with consistent standards. A common practice for finding reliable ground truth labels is to collect multiple labels from multiple raters. Assuming that each rater performs at a different level of quality, we can use a weighted average of annotations but weighted by a proficiency score. This score is often approximated by how often one rater agrees with others.\nMajority Voting: Taking the majority vote is the simplest way of aggregation, equivalent to taking the mode of a set of labels. In this setting, every annotator is contributing equally.\nRaw agreement (Tratz \u0026 Hovy, 2010): Raw agreement counts the percentage of other people agreeing with them. This is indirectly correlated to majority vote, because all members of the majority class are expected to get higher inter-annotator agreement rate.\nCohen’s Kappa (Landis \u0026 Koch, 1977): Cohen’s kappa measures the inter-rater agreement in the form of $\\kappa = (p_o - p_e) / (1 - p_c)$, where $p_o$ is the raw agreement rate and $p_e$ is the agreement by chance. Cohen’s kappa has a correction term for agreeing by chance, but this correction may be overestimated if one label is more prevalent.\nProbabilistic Graph Modeling: There is a body of work relying on probabilistic graph modeling to model different factors within annotation decisions, e.g. difficulty of the task, task latent topics, rater bias, rater confidence, and then predict the true labels accordingly. Zheng et al. (2017) compared 17 algorithms on truth inference in crowdsourcing and most of them are probabilistic graph models.\nMACE (Multi-Annotator Competence Estimation; Hovy et al. 2013) is an early example of using graph modeling to estimate the likelihood of someone acting like a “spammer” by providing random labels. Unsurprisingly in cases when the incentive is misaligned, some annotators may behave as “spammers” to optimize the volume of tasks completed for higher pay. The goal of MACE is to identify spammers. Given a task $i$ and an annotator $j$, $T_i$ is the true label, $A_{ij}$ is the assigned label and $S_{ij}$ models the probability of annotator $j$ spamming. Then the generative process can be represented as belows. The parameter $\\theta_j$ defines the trustworthiness of the annotator $j$ (probability of not spamming) and the parameter $\\xi_j$ defines how an annotator behaves when they are spamming. $$ \\begin{align} \u0026 \\text{for } i = 1 \\dots N : \\\\ \u0026 \\quad T_i \\sim \\text{Uniform} \\\\ \u0026 \\quad \\text{for } j = 1 \\dots M : \\\\ \u0026 \\quad \\quad S_{ij} \\sim \\text{Bernoulli}(1 - \\theta_j) \\\\ \u0026 \\quad \\quad \\text{if } S_{ij} = 0 : \\\\ \u0026 \\quad \\quad \\quad A_{ij} = T_i \\\\ \u0026 \\quad \\quad \\text{else } : \\\\ \u0026 \\quad \\quad \\quad A_{ij} \\sim \\text{Multinomial}(\\xi_j) \\\\ \\end{align} $$ Then we can learn $\\theta, \\xi$ to maximize the observed data, in the form of the marginal data likelihood, where $A$ is the matrix of annotations, $S$ is the matrix of competence indicators and $T$ is the matrix of true labels:\n$$ P(A; \\theta, \\xi) = \\sum_{T, S} \\big[ \\prod_{i=1}^N P(T_i) \\cdot \\prod_{j=1}^M P(S_{ij}; \\theta_j) \\cdot P(A_{ij} \\vert S_{ij}, T_i; \\xi_j) \\big] $$ Either EM (Expectation–maximization) or VB (Variational Bayes) can be applied to maximize the above marginal likelihood. During EM optimization, at M-step, a fixed value $\\delta$ is added to the fractional counts before normalizing. During VB training, they applied symmetric Beta priors on $\\theta_j$ and symmetric Dirichlet priors on $\\xi_j$. When recovering the correct answers, we can take majority vote weighted by the annotators’ $\\theta$ estimates.\nRater Disagreement \u0026 Two Paradigms The aggregation process described above depends on an assumption that there exists one underlying gold answer and thus we can evaluate annotators’ performance accordingly. However, in many topics, especially in safety, social, or cultural areas, people can disagree and often this disagreement is valid and then it comes down to how much we want to apply a strict rule versus embracing diversity.\nAroyo \u0026 Welty (2015) discussed a set of “myths” in the practice of human annotation collection and found all of them somewhat inaccurate, key findings including:\nOften there is more than one correct interpretation for some samples. We need diverse perspectives via e.g. having multiple people to review annotation quality. Disagreement is not always bad. We should reduce disagreements caused by errors or poorly designed process but other disagreements can give us rich information. If it is caused by a task not well defined, we should enhance the instruction. However, a more detailed guideline does not resolve innate diversity among opinions. Experts may not always be better than lay people, but they would have a big gap in terms of considering what’s important. Ground truth annotations can change in time, especially those related to timely events or news. Later, Rottger et al. (2021) formulated the difference into two contrasting paradigms for data annotation for subjective NLP tasks.\nDescriptive Prescriptive Definition Encourage annotator subjectivity, trying to model many beliefs. Discourage annotator subjectivity, trying to consistently apply one belief. Pros - Can help to identify which entries are more subjective;\n- Embrace diversity\n- More aligned with standard NLP setup. - Easier to do QC by measuring disagreement or doing label aggregation.\nCons - Metrics like rater disagreement cannot be used to measure data quality or annotator performance; - Cannot be used for training models that are optimized for outputting one preset behavior.\n- Expensive and challenging to create high-quality annotation guidelines, which can never be perfect, in practice;\n- Training annotators to get familiar with guideline in order to apply it properly is also challenging;\n- Cannot capture an interpretable diversity of beliefs or consistently encode one specific belief.\nThe descriptive paradigm allows us to understand a number of important effects as well as to account for different perspectives. For example, annotator identity (e.g. African American, LGBTQ) is found to be a statistically significant factor in how they would label identify-related content as toxic (Goyal et al. 2022). Topics can be another main driver for diverse opinions. Wang et al. (2023) studied the human evaluation process of safety of an AI conversation system and compared results between labels by Trust \u0026 Safety (T\u0026S) professionals and crowdsourcing annotators. They intentionally collected rich metadata associated with crowd annotators like demographic or behavior information. Comparing T\u0026S expert labels and crowd annotations, they found that agreement rates vary across semantic topics and the level of severity:\nAgreement rate differs a lot across different topics; ranging from 0.96 on violence/gory to 0.25 on personal topics. Agreement rates are higher on “extreme” and “benign” conversations, given four label options marking “benign”, “debatable”, “moderate” to “extreme”. Correlations between non-expert and expert annotations vary a lot across topics. (Image source: Wang et al. 2023) Zhang et al. (2023) proposed a taxonomy of rater disagreement to analyze the root causes. Among the listed causes, disagreement due to stochastic errors or inconsistency on the individual level should be avoided. In cases when a rater gives different labels to the same task when asked multiple times, some of those are most likely caused by human errors. Based on this intuition, the disagreement deconvolution method (Gordon et al. 2021) disentangles stable opinions from errors by anchoring each individual’s opinion to their own primary label and thus encouraging intra-rater consistency.\nA taxonomy of causes for rater disagreement. (Image source: Zhang et al. 2023) Disagreement deconvolution relies on probabilistic graph modeling:\nEstimate how often an annotator returns non-primary labels, $p_\\text{flip}$ Per sample, get an adjusted label distribution $p^*$ of primary labels based on $p_\\text{flip}$ Sample from $p^*$ as a new test set. Measure performance metrics against the new test set. Given $C$-category classification, the sampling process of the generative model is stated as follows:\n$$ \\begin{aligned} y^*\\mid x \u0026\\sim \\text{Categorial}([C], p^*(y\\mid x)) \\\\ y_\\text{other}\\mid y^* \u0026\\sim \\text{Categorial}([C]\\setminus\\{y^*\\}, \\frac{1}{C-1}) \\\\ z_\\text{flip} \\mid x \u0026\\sim \\text{Bernoulli}(p_\\text{flip}(x)) \\\\ y\\mid y^*, y_\\text{other}, z_\\text{flip} \u0026= y^* (1 - z_\\text{flip}) + y_\\text{other} z_\\text{flip} \\end{aligned} $$ Given the true $p(y\\mid x)$ and $p_\\text{flip}$ that can be estimated from the data, we would update the label distribution of primary labels:\n$$ p^*(y\\mid x) = \\frac{p(y\\mid x) - \\frac{p_\\text{flip}(x)}{C-1}}{1 - \\frac{C \\cdot p_\\text{flip}(x)}{C - 1}} $$ A new test set sampled from $p^*(y \\mid x)$ represents the primary labels with individual inconsistency noise removed. It can be used for evaluation, as a noise-free test set.\nTo capture systematic disagreement among annotators when learning to predict labels, Davani et al. (2021) experimented with a multi-annotator model where predicting each annotator’s labels is treated as one sub-task. Say, the classification task is defined on an annotated dataset $D=(X, A, Y)$, where $X$ is the text instances, $A$ is the set of annotators and $Y$ is the annotation matrix, $y_{ij} \\in Y$ represents a binary label assigned by $a_j \\in A$ to the sample $x_i \\in X$. The majority vote for $x_i$ is denoted as $\\bar{y}_{i,}$. The experiment is to train a classification head on top of a pre-trained BERT model and compares 4 setups:\nBaseline: Directly predict the majority vote $\\bar{y}_i$, not using the full annotation matrix $Y$. Ensemble: Train one model per annotator separately to predict $y_{ij}$ and then the results are aggregated by majority vote. Multi-label: Learn to predict $\\vert A \\vert$ labels to represent all annotators’ labels per sample $\\langle y_{i1}, \\dots, y_{i\\vert A \\vert} \\rangle$, with a shared MLP layer and then outputs are aggregated. Multi-task: Similar to multi-label, but each annotator’s prediction head is learned from a separated MLP layer, such that we allocate extra compute to learn the difference among annotators. Experiment results on the GHC (Gab Hate Corpus) dataset showed that the multi-task model achieves the best F1 score and also can naturally provide prediction uncertainty estimation, correlated with annotation disagreement.\nIllustration of different architectures for modeling multiple annotators' labels. (Image source: Davani et al. 2021) Jury Learning (Gordon et al. 2022) mimics the jury process by modeling the different annotators’ labeling behavior conditioned on their characteristics. Starting with a dataset with labels and demographic characteristics of each labeler, we train a model to learn to predict labels made by every individual annotator, each as a potential juror. At decision time, practitioners can specify the composition of a group of jurors to determine a sampling strategy. The final decision is made by aggregating labels from jurors from multiple trials.\nIllustration of how jury learning works. (Image source: Gordon et al. 2022) The jury learning model is a DCN (Deep \u0026 Cross network) , commonly for recommendation use case, that is jointly trained to learn comment embedding, annotator embedding and group (annotator’s characteristics) embedding. The text content is processed by a pre-trained BERT, which is also jointly fine-tuned but for a shorter period to avoid overfitting.\nDCN model architecture for jury learning. (Image source: Gordon et al. 2022) Their experiment runs on the toxicity diversity dataset and compares jury learning with a baseline model which is a fine-tuned BERT to predict individual annotator’s label without using metadata. Performance is measured in MAE (mean absolute error). Jury learning consistently outperforms the annotator-agnostic baseline on the full test set as well as each group segment.\nExperiment results comparing an annotator-agnostic baseline with jury learning. (Image source: Gordon et al. 2022) Data Quality ↔ Model Training Once a dataset is constructed, many methods can help identify mislabels according to the training dynamics. Note that we only focus on methods to find and exclude data points with potentially incorrect labels, not about how to train a model with noisy data.\nInfluence Functions Influence functions is a classic technique from robust statistics (Hampel, 1974) to measure the effect of training data points by describing how the model parameters change as we upweight a training point by an infinitesimal amount. Koh \u0026 Liang (2017) introduced the concept to be applied to deep neural networks.\nGiven $n$ data samples in the train set, $z_i = (x_i, y_i)$ for $i =1, \\dots, n$, The model parameter $\\theta$ is optimized to minimize a loss: $\\hat{\\theta} = \\arg\\min_{\\theta \\in \\Theta} \\frac{1}{n}\\sum_{i=1}^n \\mathcal{L}(z_i, \\theta)$. The change of model parameters after we remove a single data point $z$ is denoted as $\\hat{\\theta}_{-z} - \\hat{\\theta}$ where $\\hat{\\theta}_{-z} = \\arg\\min_{\\theta \\in \\Theta} \\frac{1}{n} \\sum_{z_i \\neq z} \\mathcal{L}(z_i, \\theta)$. However, computing this literally for every sample is too expensive. One way to approximate this is to compute the parameter change given a small upweight $\\epsilon$ on $z$. By definition, the influence of upweighting $z$ by $\\epsilon$ is given by:\n$$ \\mathcal{I}_{\\text{up,params}}(z) = \\frac{d\\hat{\\theta}_{\\epsilon,z}}{d\\epsilon}\\bigg\\vert_{\\epsilon=0}=-\\mathbf{H}^{-1}_{\\hat{\\theta}} \\nabla_\\theta \\mathcal{L}(z, \\hat{\\theta}) $$ where $\\hat{\\theta}_{\\epsilon,z} = \\arg\\min_{\\theta \\in \\Theta} \\frac{1}{n}\\sum_{i=1}^n \\mathcal{L}(z_i, \\theta) + \\epsilon L(z, \\theta)$ and $\\mathbf{H}^{-1}_{\\hat{\\theta}} = \\frac{1}{n}\\sum_{i=1}^n \\nabla^2_\\theta \\mathcal{L}(z_i, \\hat{\\theta})$. Removing a data point $x$ is equivalent to upweighting it by $\\epsilon = -\\frac{1}{n}$ and therefore $\\hat{\\theta}_{-z} - \\hat{\\theta} \\approx -\\frac{1}{n} \\mathcal{I}_{\\text{up,params}}(z)$.\nThe influence of upweighting $z$ on the loss at a test point $z_\\text{test}$ is given by applying the chain rule:\n$$ \\begin{aligned} \\mathcal{I}_{\\text{up,loss}}(z, z_\\text{test}) \u0026= \\frac{d \\mathcal{L}(z_\\text{test}, \\hat{\\theta}_{\\epsilon,z})}{d\\epsilon}\\bigg\\vert_{\\epsilon=0} \\\\ \u0026= \\nabla_\\theta \\mathcal{L}(z_\\text{test}, \\hat{\\theta})^\\top \\frac{d \\hat{\\theta}_{\\epsilon,z}}{d\\epsilon}\\bigg\\vert_{\\epsilon=0} \\\\ \u0026= - \\nabla_\\theta \\mathcal{L}(z_\\text{test}, \\hat{\\theta})^\\top \\mathbf{H}^{-1}_{\\hat{\\theta}} \\nabla_\\theta \\mathcal{L}(z, \\hat{\\theta}) \\end{aligned} $$ Using the influence function we can measure the effect of a single data point on model parameters and loss function in closed forms. It can help approximate leave-one-out retraining without actually running all the retraining. To identify mislabeled data, we can measure $\\mathcal{I}_\\text{up,loss}(z_i, z_i)$, approximating the prediction error on $z_i$ if $z_i$ is removed from the training set.\nInfluence functions values match leave-one-out training results on 10-class MNIST. (Image source: Kohn \u0026 Liang, 2017) Given the closed form, influence functions is still hard to be scaled up because the inverse Hessian vector product is hard to compute. Grosse et al. (2023) experimented with the EK-FAC (Eigenvalue-corrected Kronecker-Factored Approximate Curvature; George et al. 2018) approximation instead.\nPrediction Changes during Training Another branch of methods are to track the changes of model prediction during training to identify cases which seem hard to be learned. Data Maps (Swayamdipta et al. 2020) tracks two attributes of model behavior dynamics during training to analyze the quality of dataset:\nConfidence: The model’s confidence in the true label, defined as the mean model probability of the true label across epochs. They also used a coarse-grained metric, “correctness”, defined as the fraction of times when the model predicts the correct label across epochs. Variability: The variation of the confidence, defined as the standard deviation of model probability of the true label across epochs. Data map for SNLI training set, based on a RoBERTa classifier. (Image source: Swayamdipta et al. 2020) Hard-to-learn (low confidence, low variability) samples are more likely to be mislabeled. They ran an experiment on WinoGrande dataset with 1% flipped label data. After retraining, flipped instances move to the lower confidence and slightly higher variability regions, indicating that the hard-to-learn regions contains mislabeled samples. Given this, we can train a classifier on equal numbers of label flipped and clean samples using only the confidence score (unsure why the paper didn’t use both confidence and variability as features). This simple noise classifier then can be used on the original dataset to identify potentially mislabeled instances.\nData points originally with high confidence and low variability scores moved to low confidence, slightly higher variability regions after labels get flipped. (Image source: Swayamdipta et al. 2020) However, we should not consider all hard-to-learn samples to be incorrect. In fact, the paper hypothesizes that ambiguous (high variability) and hard-to-learn (low confidence, low variability) samples are more informative for learning. Experiments showed that they are good for OOD generalization, giving better results on OOD eval, even in comparison to 100% training set.\nTo investigate whether neural networks have a tendency to forget previously learned information, Toneva et al. (2019) designed an experiment: They track the model prediction for each sample during the training process and count the transitions for each sample from being classified correctly to incorrectly or vice-versa. Then samples can be categorized accordingly,\nForgettable (redundant) samples: If the class label changes across training epochs. Unforgettable samples: If the class label assignment is consistent across training epochs. Those samples are never forgotten once learned. They found that there are a large number of unforgettable examples that are never forgotten once learnt. Examples with noisy labels or images with “uncommon” features (visually complicated to classify) are among the most forgotten examples. The experiments empirically validated that unforgettable examples can be safely removed without compromising model performance.\nIn the implementation, the forgetting event is only counted when a sample is included in the current training batch; that is, they compute forgetting across presentations of the same example in subsequent mini-batches. The number of forgetting events per sample is quite stable across different seeds and forgettable examples have a small tendency to be first-time learned later in the training. The forgetting events are also found to be transferable throughout the training period and between architectures.\nPleiss, et al. (2020) developed a method named AUM (Area under the Margin) to spot wrong labels based on such an assumption: Say, a BIRD image is mistakenly marked as DOG. The gradient update would encourage generalization from other BIRD images to this BIRD image, while the DOG label provides an incorrect supervised signal to encourage the update to go another way. Hence, there exists tension between generalization and (wrong) prediction in gradient update signals.\nGiven a classification dataset $(\\mathbf{x}, y) \\in \\mathcal{D}_\\text{train}$, let $z^{(t)}_i(\\mathbf{x}) \\in \\mathbb{R}$ be the logit corresponding to class $i$ at epoch $t$. The margin at epoch $t$ is the difference between the assigned logit and the next largest logit:\n$$ M^{(t)}(\\mathbf{x}, y) = z_y^{(t)}(\\mathbf{x}) - \\max_{i \\neq y} z^{(t)}_i(\\mathbf{x}),\\quad \\text{AUM}(\\mathbf{x}, y) = \\frac{1}{T} \\sum^T_{t=1} M^{(t)}(\\mathbf{x}, y) $$ A negative margin indicates a wrong prediction and a large positive margin suggests high confidence in a correct prediction. The hypothesis is that mislabeled samples would have a smaller margin than correct samples due to the tension of generalization via SGD triggered by other samples.\nIn order to determine the threshold, they insert fake data, named “threshold samples”, to determine the threshold:\nCreate a subset of threshold samples $\\mathcal{D}_\\text{thr}$. If there are $N$ training samples for $C$ classes, we randomly sample $N/(C+1)$ samples and switch all their labels to a fake new class $C+1$. Merge threshold samples into the original dataset: $\\mathcal{D}’ = { (\\mathbf{x}, C+1): \\mathbf{x} \\in \\mathcal{D}_\\text{thr}} \\cup (\\mathcal{D} \\setminus\\mathcal{D}_\\text{thr})$; Train the model on $\\mathcal{D}’$ and measure AUM of all the data; Compute the threshold $\\alpha$ as the 99th percentile of AUM of threshold samples; Identify mislabeled data using $\\alpha$ a threshold: ${(\\mathbf{x}, y) \\in \\mathcal{D} \\setminus \\mathcal{D}_\\text{thr}: \\text{AUM}_{\\mathbf{x}, y} \\leq \\alpha}$ How the AUM of threshold samples help separate out mislabeled samples. (Image source: Pleiss et al. 2020) Test error on CIFAR 10/100 with randomly mislabeled samples, comparing different methods for data filter or noisy data training. (Image source: Pleiss et al. 2020) Noisy Cross-Validation The NCV (Noisy Cross-Validation) method (Chen et al. 2019) divides the dataset into half at random, and then identifies data samples as “clean” if its label matches the predicted label provided by the model that is only trained on the other half of the dataset. Clean samples are expected to be more trustworthy. INCV (Iterative Noisy Cross-Validation) runs NCV iteratively where more clean samples are added into the trusted candidate set $\\mathcal{C}$ and more noisy samples are removed.\nAlgorithm of INCV (iterative noisy cross-validation). (Image source: Chen et al. 2019) Citation Cited as:\nWeng, Lilian. (Feb 2024). “Thinking about High-Quality Human Data”. Lil’Log. https://lilianweng.github.io/posts/2024-02-05-human-data-quality/.\nOr\n@article{weng2024humandata, title = \"Thinking about High-Quality Human Data\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2024\", month = \"Feb\", url = \"https://lilianweng.github.io/posts/2024-02-05-human-data-quality/\" } References [1] Francis Galton “Vox populi” Nature 75, 450-451 (1907).\n[2] Sambasivan et al. “Everyone wants to do the model work, not the data work”: Data Cascades in High-Stakes AI\" CHI 2021\n[3] Chris Callison-Burch. “Fast, Cheap, and Creative: Evaluating Translation Quality Using Amazon’s Mechanical Turk” EMNLP 2009\n[4] Rottger et al. “Two Contrasting Data Annotation Paradigms for Subjective NLP Tasks” NAACL 2022.\n[5] Aroyo \u0026 Welty “Truth Is a Lie: Crowd Truth and the Seven Myths of Human Annotation” AI Magazine 36.1: 15-24 (2015).\n[6] Hovy et al. “Learning Whom to Trust with MACE” NAACL-HLT 2013.\n[7] Wang et al. “All that Agrees Is Not Gold: Evaluating Ground Truth Labels and Dialogue Content for Safety” 2023.\n[8] Zhang et al. “A Taxonomy of Rater Disagreements: Surveying Challenges \u0026 Opportunities from the Perspective of Annotating Online Toxicity” arXiv preprint arXiv:2311.04345 (2023).\n[9] Davani et al. “Dealing with disagreements: Looking beyond the majority vote in subjective annotations” ACL 2022.\n[10] Gordon et al. “Jury Learning: Integrating Dissenting Voices into Machine Learning Models” CHI 2022.\n[11] Gordon et al. “The Disagreement Deconvolution: Bringing Machine Learning Performance Metrics In Line With Reality” CHI 2021\n[12] Daniel et al. 2018 “Quality Control in Crowdsourcing: A Survey of Quality Attributes, Assessment Techniques, and Assurance Actions” ACM Computing Surveys (CSUR), 51(1), 1-40 (2018).\n[13] Koh \u0026 Liang. “Understanding Black-box Predictions via Influence Functions” ICML 2017.\n[14] Grosse et al. “Studying Large Language Model Generalization with Influence Functions” arXiv preprint arXiv:2308.03296 (2023).\n[15] Swayamdipta et al. “Dataset Cartography: Mapping and Diagnosing Datasets with Training Dynamics” EMNLP 2020.\n[16] Toneva, et al. “An Empirical Study of Example Forgetting during Deep Neural Network Learning” ICLR 2019.\n[17] Pleiss, et al. “Identifying Mislabeled Data using the Area Under the Margin Ranking” NeuriPS 2020.\n[18] Chen et al. “Understanding and utilizing deep neural networks trained with noisy labels” ICML 2019.\n",
+  "wordCount" : "4242",
+  "inLanguage": "en",
+  "datePublished": "2024-02-05T00:00:00Z",
+  "dateModified": "2024-02-05T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2024-02-05-human-data-quality/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Thinking about High-Quality Human Data
+    </h1>
+    <div class="post-meta">Date: February 5, 2024  |  Estimated Reading Time: 20 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#human-raters--data-quality" aria-label="Human Raters ↔ Data Quality">Human Raters ↔ Data Quality</a><ul>
+                        
+                <li>
+                    <a href="#the-wisdom-of-the-crowd" aria-label="The Wisdom of the Crowd">The Wisdom of the Crowd</a></li>
+                <li>
+                    <a href="#rater-agreement" aria-label="Rater Agreement">Rater Agreement</a></li>
+                <li>
+                    <a href="#rater-disagreement--two-paradigms" aria-label="Rater Disagreement &amp; Two Paradigms">Rater Disagreement &amp; Two Paradigms</a></li></ul>
+                </li>
+                <li>
+                    <a href="#data-quality--model-training" aria-label="Data Quality ↔ Model Training">Data Quality ↔ Model Training</a><ul>
+                        
+                <li>
+                    <a href="#influence-functions" aria-label="Influence Functions">Influence Functions</a></li>
+                <li>
+                    <a href="#prediction-changes-during-training" aria-label="Prediction Changes during Training">Prediction Changes during Training</a></li>
+                <li>
+                    <a href="#noisy-cross-validation" aria-label="Noisy Cross-Validation">Noisy Cross-Validation</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p><span class="update">[Special thank you to <a href="https://scholar.google.com/citations?user=FRBObOwAAAAJ&amp;hl=en">Ian Kivlichan</a> for many useful pointers (E.g. the 100+ year old Nature paper &ldquo;Vox populi&rdquo;) and nice feedback. 🙏 ]</span><br/></p>
+<p>High-quality data is the fuel for modern data deep learning model training. Most of the task-specific labeled data comes from human annotation, such as classification task or <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#rl-fine-tuning-with-human-preferences">RLHF</a> labeling (which can be constructed as classification format) for LLM alignment training. Lots of ML techniques in the post can help with data quality, but fundamentally human data collection involves attention to details and careful execution. The community knows the value of high quality data, but somehow we have this subtle impression that “Everyone wants to do the model work, not the data work” (<a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445518">Sambasivan et al. 2021</a>).</p>
+<figure>
+	<img src="overview.png" style="width: 70%;"  />
+	<figcaption>Two directions to approach high data quality.</figcaption>
+</figure>
+<h1 id="human-raters--data-quality">Human Raters ↔ Data Quality<a hidden class="anchor" aria-hidden="true" href="#human-raters--data-quality">#</a></h1>
+<p>Collecting human data involve a set of operation steps and every step contributes to the data quality:</p>
+<ol>
+<li>Task design: Design task workflow to improve clarity and reduce complexity. Detailed guidelines are helpful but very long and complicated guidelines demand a decent amount of training to be useful.</li>
+<li>Select and train a pool of raters: Select annotators with matched skillset and consistency. Training sessions are necessary. After onboarding, regular feedback and calibration sessions are also needed.</li>
+<li>Collect and aggregate data. This is the stage where more ML techniques can be applied to clean, filter and smartly aggregate data to identify the true labels.</li>
+</ol>
+<figure>
+	<img src="qualit_assurance.png"  />
+	<figcaption>Quality assurance refers to a set of actions that allow one to improve quality by acting on the quality attributes identified in the quality model. (Image source: <a href="https://arxiv.org/abs/1801.02546" target="_blank">Daniel et al. 2018</a>)</figcaption>
+</figure>
+<h2 id="the-wisdom-of-the-crowd">The Wisdom of the Crowd<a hidden class="anchor" aria-hidden="true" href="#the-wisdom-of-the-crowd">#</a></h2>
+<p><a href="https://en.wikipedia.org/wiki/Vox_populi">Vox populi</a> (originally &ldquo;Vox populi, vox Dei&rdquo;), a Latin phrase, means the voice of people. A short paper named was the same name was published in 1907 on Nature. It tracked an event at an annual exhibition where a fat ox was selected and people would guess the weight of the ox in order to win a prize if the guess is close to the real number. The middlemost estimate was treated as &ldquo;the vox populi&rdquo; and ended up being very close to the true value. The author concluded <em>&ldquo;This result is, I think, more creditable to the trustworthiness of a democratic judgment than might have been expected.&rdquo;</em> This is probably the earliest mention of how crowdsourcing (&ldquo;the wisdom of the crowd&rdquo;) would work out.</p>
+<p>Almost 100 years later, <a href="https://aclanthology.org/D09-1030/">Callison-Burch (2009)</a> did an early study on using Amazon Mechanical Turk (AMT) to run non-expert human evaluation on Machine Translation (MT) tasks and even to rely on non-experts to create new gold reference translations. The setup for human evaluation was simple: Each turker is shown a source sentence, a reference translation, and 5 translations from 5 MT systems. They are asked to rank 5 translations from best to worst. Each task is completed by 5 turkers.</p>
+<p>Unsurprisingly, there are spammers producing low quality annotation to only optimize the volume. So when measuring the agreement between experts and non-experts, different weighting schemes need to be applied to downweight the contribution of spammers: (1) &ldquo;weighted by experts&rdquo;: using agreement rate with experts on a gold set of 10 examples; (2) &ldquo;weighted by non-experts&rdquo;: relying on agreement rate with the rest of turkers on the whole dataset.</p>
+<p>In a harder task, non-expert human annotators were asked to create new gold reference translations. Callison-Burch designed the task in two stages, where the first stage created new translations with reference to MT outputs and the second one filtered translations that may seem to be gerated by a MT system. The correlation between experts&rsquo; and crowdsourced translations is higher than that between expert and MT system outputs.</p>
+<figure>
+	<img src="AMT_exp.png" style="width: 100%;"   />
+	<figcaption>(Left) The agreement rate is measured by comparing each pair of translation sentences ("A > B", "A=B", "A < B") and thus chance agreement is 1/3. The upper bound is set by the expert-expert agreement rate. (Right) Comparison of BLEU score between translations from different sources. LCD (Linguistic Data Consortium) translators provide expert translations. (Image source: <a href="https://aclanthology.org/D09-1030/" target="_blank">Callison-Burch 2009</a>)</figcaption>
+</figure>
+<h2 id="rater-agreement">Rater Agreement<a hidden class="anchor" aria-hidden="true" href="#rater-agreement">#</a></h2>
+<p>We often think of annotation as targeting a single ground truth and try to evaluate quality against one gold answer with consistent standards. A common practice for finding reliable ground truth labels is to collect multiple labels from multiple raters. Assuming that each rater performs at a different level of quality, we can use a weighted average of annotations but weighted by a proficiency score. This score is often approximated by how often one rater agrees with others.</p>
+<p><strong>Majority Voting</strong>: Taking the majority vote is the simplest way of aggregation, equivalent to taking the <a href="https://en.wikipedia.org/wiki/Mode_(statistics)">mode</a> of a set of labels. In this setting, every annotator is contributing equally.</p>
+<p><strong>Raw agreement</strong> (<a href="https://aclanthology.org/P10-1070/">Tratz &amp; Hovy, 2010</a>): Raw agreement counts the percentage of other people agreeing with them. This is indirectly correlated to majority vote, because all members of the majority class are expected to get higher inter-annotator agreement rate.</p>
+<p><strong>Cohen&rsquo;s Kappa</strong> (<a href="https://www.jstor.org/stable/2529310">Landis &amp; Koch, 1977</a>): Cohen&rsquo;s kappa measures the inter-rater agreement in the form of $\kappa = (p_o - p_e) / (1 - p_c)$, where $p_o$ is the raw agreement rate and $p_e$ is the agreement by chance. Cohen&rsquo;s kappa has a correction term for agreeing by chance, but this correction may be overestimated if one label is more prevalent.</p>
+<p><strong>Probabilistic Graph Modeling</strong>: There is a body of work relying on <a href="https://en.wikipedia.org/wiki/Graphical_model">probabilistic graph modeling</a> to model different factors within annotation decisions, e.g. difficulty of the task, task latent topics, rater bias, rater confidence, and then predict the true labels accordingly. <a href="https://dl.acm.org/doi/abs/10.14778/3055540.3055547">Zheng et al. (2017)</a>  compared 17 algorithms on truth inference in crowdsourcing and most of them are probabilistic graph models.</p>
+<ul>
+<li><strong>MACE</strong> (Multi-Annotator Competence Estimation; <a href="https://aclanthology.org/N13-1132">Hovy et al. 2013</a>) is an early example of using graph modeling to estimate the likelihood of someone acting like a &ldquo;spammer&rdquo; by providing random labels. Unsurprisingly in cases when the incentive is misaligned, some annotators may behave as &ldquo;spammers&rdquo; to optimize the volume of tasks completed for higher pay. The goal of MACE is to identify spammers. Given a task $i$ and an annotator $j$, $T_i$ is the true label, $A_{ij}$ is the assigned label and $S_{ij}$ models the probability of annotator $j$ spamming. Then the generative process can be represented as belows. The parameter $\theta_j$ defines the trustworthiness of the annotator $j$ (probability of not spamming) and the parameter $\xi_j$  defines how an annotator behaves when they are spamming.</li>
+</ul>
+<div>
+$$
+\begin{align}
+& \text{for } i = 1 \dots N : \\
+& \quad T_i \sim \text{Uniform} \\
+& \quad \text{for } j = 1 \dots M : \\
+& \quad \quad S_{ij} \sim \text{Bernoulli}(1 - \theta_j) \\
+& \quad \quad \text{if } S_{ij} = 0 : \\
+& \quad \quad \quad A_{ij} = T_i \\
+& \quad \quad \text{else } : \\
+& \quad \quad \quad A_{ij} \sim \text{Multinomial}(\xi_j) \\
+\end{align}
+$$
+</div>
+<p>Then we can learn $\theta, \xi$ to maximize the observed data, in the form of the marginal data likelihood, where $A$ is the matrix of annotations, $S$ is the matrix of competence indicators and $T$ is the matrix of true labels:</p>
+<div>
+$$
+P(A; \theta, \xi) = \sum_{T, S} \big[ \prod_{i=1}^N P(T_i) \cdot \prod_{j=1}^M P(S_{ij}; \theta_j) \cdot P(A_{ij} \vert S_{ij}, T_i; \xi_j) \big]
+$$
+</div>
+<p>Either EM (Expectation–maximization) or VB (Variational Bayes) can be applied to maximize the above marginal likelihood. During EM optimization, at M-step, a fixed value $\delta$ is added to the fractional counts before normalizing. During VB training, they applied symmetric Beta priors on $\theta_j$  and symmetric Dirichlet priors on $\xi_j$. When recovering the correct answers, we can take majority vote weighted by the annotators&rsquo; $\theta$ estimates.</p>
+<h2 id="rater-disagreement--two-paradigms">Rater Disagreement &amp; Two Paradigms<a hidden class="anchor" aria-hidden="true" href="#rater-disagreement--two-paradigms">#</a></h2>
+<p>The aggregation process described above depends on an assumption that there exists <em>one</em> underlying gold answer and thus we can evaluate annotators&rsquo; performance accordingly. However, in many topics, especially in safety, social, or cultural areas, people can disagree and often this disagreement is valid and then it comes down to how much we want to apply a strict rule versus embracing diversity.</p>
+<p><a href="https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/2564">Aroyo &amp; Welty (2015)</a> discussed a set of &ldquo;myths&rdquo; in the practice of human annotation collection and found all of them somewhat inaccurate, key findings including:</p>
+<ul>
+<li>Often there is more than one correct interpretation for some samples. We need diverse perspectives via e.g. having multiple people to review annotation quality.</li>
+<li>Disagreement is not always bad. We should reduce disagreements caused by errors or poorly designed process but other disagreements can give us rich information.
+<ul>
+<li>If it is caused by a task not well defined, we should enhance the instruction. However, a more detailed guideline does not resolve innate diversity among opinions.</li>
+</ul>
+</li>
+<li>Experts may not always be better than lay people, but they would have a big gap in terms of considering what&rsquo;s important.</li>
+<li>Ground truth annotations can change in time, especially those related to timely events or news.</li>
+</ul>
+<p>Later, <a href="https://arxiv.org/abs/2112.07475">Rottger et al. (2021)</a> formulated the difference into two contrasting paradigms for data annotation for subjective NLP tasks.</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Descriptive</th>
+          <th>Prescriptive</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Definition</td>
+          <td>Encourage annotator subjectivity, trying to model many beliefs.</td>
+          <td>Discourage annotator subjectivity, trying to consistently apply one belief.</td>
+      </tr>
+      <tr>
+          <td>Pros</td>
+          <td>- Can help to identify which entries are more subjective;<br>- Embrace diversity<br></td>
+          <td>- More aligned with standard NLP setup. <br>- Easier to do QC by measuring disagreement or doing label aggregation.<br></td>
+      </tr>
+      <tr>
+          <td>Cons</td>
+          <td>- Metrics like rater disagreement cannot be used to measure data quality or annotator performance; <br>- Cannot be used for training models that are optimized for outputting one preset behavior.<br></td>
+          <td>- Expensive and challenging to create high-quality annotation guidelines, which can never be perfect, in practice;<br>- Training annotators to get familiar with guideline in order to apply it properly is also challenging;<br>- Cannot capture an interpretable diversity of beliefs or consistently encode one specific belief.<br></td>
+      </tr>
+  </tbody>
+</table>
+<p>The descriptive paradigm allows us to understand a number of important effects as well as to account for different perspectives. For example, annotator identity (e.g. African American, LGBTQ) is found to be a statistically significant factor in how they would label identify-related content as toxic (<a href="https://arxiv.org/abs/2205.00501">Goyal et al. 2022</a>). Topics can be another main driver for diverse opinions. <a href="https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/">Wang et al. (2023)</a> studied the human evaluation process of safety of an AI conversation system and compared results between labels by Trust &amp; Safety (T&amp;S) professionals and crowdsourcing annotators. They intentionally collected rich metadata associated with crowd annotators like demographic or behavior information. Comparing T&amp;S expert labels and crowd annotations, they found that agreement rates vary across semantic topics and the level of severity:</p>
+<ul>
+<li>Agreement rate differs a lot across different topics; ranging from 0.96 on violence/gory to 0.25 on personal topics.</li>
+<li>Agreement rates are higher on &ldquo;extreme&rdquo; and &ldquo;benign&rdquo; conversations, given four label options marking &ldquo;benign&rdquo;, &ldquo;debatable&rdquo;, &ldquo;moderate&rdquo; to &ldquo;extreme&rdquo;.</li>
+</ul>
+<figure>
+	<img src="topic_agreement.png" style="width: 100%;"   />
+	<figcaption>Correlations between non-expert and expert annotations vary a lot across topics. (Image source: <a href="https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/" target="_blank">Wang et al. 2023</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2311.04345">Zhang et al. (2023)</a> proposed a taxonomy of rater disagreement to analyze the root causes. Among the listed causes, disagreement due to stochastic errors or inconsistency on the individual level should be avoided. In cases when a rater gives different labels to the same task when asked multiple times, some of those are most likely caused by human errors. Based on this intuition, the disagreement deconvolution method (<a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445423">Gordon et al. 2021</a>) disentangles stable opinions from errors by anchoring each individual&rsquo;s opinion to their own primary label and thus encouraging <em>intra</em>-rater consistency.</p>
+<figure>
+	<img src="taxonomy.png" style="width: 100%;"  />
+	<figcaption>A taxonomy of causes for rater disagreement. (Image source: <a href="https://arxiv.org/abs/2311.04345" target="_blank">Zhang et al. 2023</a>)</figcaption>
+</figure>
+<p>Disagreement deconvolution relies on probabilistic graph modeling:</p>
+<ol>
+<li>Estimate how often an annotator returns non-primary labels, $p_\text{flip}$</li>
+<li>Per sample, get an adjusted label distribution $p^*$ of primary labels based on $p_\text{flip}$</li>
+<li>Sample from $p^*$ as a new test set.</li>
+<li>Measure performance metrics against the new test set.</li>
+</ol>
+<p>Given $C$-category classification, the sampling process of the generative model is stated as follows:</p>
+<div>
+$$
+\begin{aligned}
+y^*\mid x &\sim \text{Categorial}([C], p^*(y\mid x)) \\
+y_\text{other}\mid y^* &\sim \text{Categorial}([C]\setminus\{y^*\}, \frac{1}{C-1}) \\
+z_\text{flip} \mid x &\sim \text{Bernoulli}(p_\text{flip}(x)) \\
+y\mid y^*, y_\text{other}, z_\text{flip} &= y^* (1 - z_\text{flip}) + y_\text{other} z_\text{flip}
+\end{aligned}
+$$
+</div>
+<p>Given the true $p(y\mid x)$ and $p_\text{flip}$ that can be estimated from the data, we would update the label distribution of primary labels:</p>
+<div>
+$$
+p^*(y\mid x) = \frac{p(y\mid x) - \frac{p_\text{flip}(x)}{C-1}}{1 - \frac{C \cdot p_\text{flip}(x)}{C - 1}}
+$$
+</div>
+<p>A new test set sampled from $p^*(y \mid x)$ represents the primary labels with individual inconsistency noise removed. It can be used for evaluation, as a noise-free test set.</p>
+<p>To capture systematic disagreement among annotators when learning to predict labels, <a href="https://arxiv.org/abs/2110.05719">Davani et al. (2021)</a> experimented with a multi-annotator model where predicting each annotator&rsquo;s labels is treated as one sub-task. Say, the classification task is defined on an annotated dataset $D=(X, A, Y)$, where $X$ is the text instances, $A$ is the set of annotators and $Y$ is the annotation matrix, $y_{ij} \in Y$ represents a binary label assigned by $a_j \in A$ to the sample $x_i \in X$. The majority vote for $x_i$ is denoted as $\bar{y}_{i,}$. The experiment is to train a classification head on top of a pre-trained BERT model and compares 4 setups:</p>
+<ul>
+<li>Baseline: Directly predict the majority vote $\bar{y}_i$, not using the full annotation matrix $Y$.</li>
+<li>Ensemble: Train one model per annotator separately to predict $y_{ij}$ and then the results are aggregated by majority vote.</li>
+<li>Multi-label: Learn to predict $\vert A \vert$ labels to represent all annotators&rsquo; labels per sample $\langle y_{i1}, \dots, y_{i\vert A \vert} \rangle$, with a shared MLP layer and then outputs are aggregated.</li>
+<li>Multi-task: Similar to multi-label, but each annotator&rsquo;s prediction head is learned from a separated MLP layer, such that we allocate extra compute to learn the difference among annotators.</li>
+</ul>
+<p>Experiment results on the <a href="https://osf.io/edua3/">GHC (Gab Hate Corpus)</a> dataset showed that the multi-task model achieves the best F1 score and also can naturally provide prediction uncertainty estimation, correlated with annotation disagreement.</p>
+<figure>
+	<img src="multi_annotator_model.png" style="width: 80%;"   />
+	<figcaption>Illustration of different architectures for modeling multiple annotators' labels. (Image source: <a href="https://arxiv.org/abs/2110.05719" target="_blank">Davani et al. 2021</a>)</figcaption>
+</figure>
+<p>Jury Learning (<a href="https://arxiv.org/abs/2202.02950">Gordon et al. 2022</a>) mimics the <a href="https://www.uscourts.gov/services-forms/jury-service/juror-selection-process">jury process</a> by modeling the different annotators&rsquo; labeling behavior conditioned on their characteristics. Starting with a dataset with labels and demographic characteristics of each labeler, we train a model to learn to predict labels made by every individual annotator, each as a potential juror. At decision time, practitioners can specify the composition of a group of jurors to determine a sampling strategy. The final decision is made by aggregating labels from jurors from multiple trials.</p>
+<figure>
+	<img src="jury.png" style="width: 100%;"   />
+	<figcaption>Illustration of how jury learning works. (Image source: <a href="https://arxiv.org/abs/2202.02950" target="_blank">Gordon et al. 2022</a>)</figcaption>
+</figure>
+<p>The jury learning model is a <a href="https://arxiv.org/abs/2008.13535">DCN (Deep &amp; Cross network)</a> , commonly for recommendation use case,  that is jointly trained to learn comment embedding, annotator embedding and group (annotator&rsquo;s characteristics) embedding. The text content is processed by a pre-trained BERT, which is also jointly fine-tuned but for a shorter period to avoid overfitting.</p>
+<figure>
+	<img src="jury_model.png" style="width: 100%;"   />
+	<figcaption>DCN model architecture for jury learning. (Image source: <a href="https://arxiv.org/abs/2202.02950" target="_blank">Gordon et al. 2022</a>)</figcaption>
+</figure>
+<p>Their experiment runs on the <a href="https://data.esrg.stanford.edu/study/toxicity-perspectives">toxicity diversity dataset</a> and compares jury learning with a baseline model which is a fine-tuned BERT to predict individual annotator&rsquo;s label without using metadata. Performance is measured in MAE (mean absolute error). Jury learning consistently outperforms the annotator-agnostic baseline on the full test set as well as each group segment.</p>
+<figure>
+	<img src="jury_exp.png" style="width: 100%;"   />
+	<figcaption>Experiment results comparing an annotator-agnostic baseline with jury learning. (Image source: <a href="https://arxiv.org/abs/2202.02950" target="_blank">Gordon et al. 2022</a>)</figcaption>
+</figure>
+<h1 id="data-quality--model-training">Data Quality ↔ Model Training<a hidden class="anchor" aria-hidden="true" href="#data-quality--model-training">#</a></h1>
+<p>Once a dataset is constructed, many methods can help identify mislabels according to the training dynamics. Note that we only focus on methods to find and exclude data points with potentially incorrect labels, not about <a href="https://lilianweng.github.io/posts/2022-04-15-data-gen/#training-with-noisy-data">how to train a model with noisy data</a>.</p>
+<h2 id="influence-functions">Influence Functions<a hidden class="anchor" aria-hidden="true" href="#influence-functions">#</a></h2>
+<p><strong>Influence functions</strong> is a classic technique from robust statistics (<a href="https://www.jstor.org/stable/2285666">Hampel, 1974</a>) to measure the effect of training data points by describing how the model parameters change as we upweight a training point by an infinitesimal amount. <a href="https://arxiv.org/abs/1703.04730">Koh &amp; Liang (2017)</a> introduced the concept to be applied to deep neural networks.</p>
+<p>Given $n$ data samples in the train set, $z_i = (x_i, y_i)$ for $i =1, \dots, n$, The model parameter $\theta$ is optimized to minimize a loss: $\hat{\theta} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta)$. The change of model parameters after we remove a single data point $z$ is denoted as $\hat{\theta}_{-z} - \hat{\theta}$ where $\hat{\theta}_{-z} = \arg\min_{\theta \in \Theta} \frac{1}{n} \sum_{z_i \neq z} \mathcal{L}(z_i, \theta)$. However, computing this literally for every sample is too expensive. One way to approximate this is to compute the parameter change given a small upweight $\epsilon$ on $z$. By definition, the influence of upweighting $z$ by $\epsilon$ is given by:</p>
+<div>
+$$
+\mathcal{I}_{\text{up,params}}(z) = \frac{d\hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0}=-\mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+$$
+</div>
+<p>where $\hat{\theta}_{\epsilon,z} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta) + \epsilon L(z, \theta)$ and $\mathbf{H}^{-1}_{\hat{\theta}} = \frac{1}{n}\sum_{i=1}^n \nabla^2_\theta \mathcal{L}(z_i, \hat{\theta})$.
+Removing a data point $x$ is equivalent to upweighting it by $\epsilon = -\frac{1}{n}$ and therefore $\hat{\theta}_{-z} - \hat{\theta} \approx -\frac{1}{n} \mathcal{I}_{\text{up,params}}(z)$.</p>
+<p>The influence of upweighting $z$ on the loss at a test point $z_\text{test}$ is given by applying the chain rule:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{I}_{\text{up,loss}}(z, z_\text{test}) 
+&= \frac{d \mathcal{L}(z_\text{test}, \hat{\theta}_{\epsilon,z})}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&= \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \frac{d \hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&= - \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+\end{aligned}
+$$
+</div>
+<p>Using the influence function we can measure the effect of a single data point on model parameters and loss function in closed forms. It can help approximate leave-one-out retraining without actually running all the retraining. To identify mislabeled data, we can measure $\mathcal{I}_\text{up,loss}(z_i, z_i)$, approximating the prediction error on $z_i$ if $z_i$ is removed from the training set.</p>
+<figure>
+	<img src="influence.png" style="width: 80%;"   />
+	<figcaption>Influence functions values match leave-one-out training results on 10-class MNIST. (Image source: <a href="https://arxiv.org/abs/1703.04730" target="_blank">Kohn & Liang, 2017</a>)</figcaption>
+</figure>
+<p>Given the closed form, influence functions is still hard to be scaled up because the inverse Hessian vector product is hard to compute. <a href="https://arxiv.org/abs/2308.03296">Grosse et al. (2023)</a> experimented with the EK-FAC (Eigenvalue-corrected Kronecker-Factored Approximate Curvature; <a href="https://arxiv.org/abs/1806.03884">George et al. 2018</a>) approximation instead.</p>
+<h2 id="prediction-changes-during-training">Prediction Changes during Training<a hidden class="anchor" aria-hidden="true" href="#prediction-changes-during-training">#</a></h2>
+<p>Another branch of methods are to track the changes of model prediction during training to identify cases which seem hard to be learned. <strong>Data Maps</strong> (<a href="https://arxiv.org/abs/2009.10795">Swayamdipta et al. 2020</a>) tracks two attributes of model behavior dynamics during training to analyze the quality of dataset:</p>
+<ol>
+<li><strong>Confidence</strong>: The model&rsquo;s confidence in the true label, defined as the mean model probability of the true label across epochs. They also used a coarse-grained metric, &ldquo;correctness&rdquo;, defined as the fraction of times when the model predicts the correct label across epochs.</li>
+<li><strong>Variability</strong>: The variation of the confidence, defined as the standard deviation of model probability of the true label across epochs.</li>
+</ol>
+<figure>
+	<img src="data_map.png" style="width: 70%;"   />
+	<figcaption>Data map for SNLI training set, based on a RoBERTa classifier. (Image source: <a href="https://arxiv.org/abs/2009.10795" target="_blank">Swayamdipta et al. 2020</a>)</figcaption>
+</figure>
+<p>Hard-to-learn (low confidence, low variability) samples are more likely to be mislabeled. They ran an experiment on WinoGrande dataset with 1% flipped label data. After retraining, flipped instances move to the lower confidence and slightly higher variability regions, indicating that the hard-to-learn regions contains mislabeled samples. Given this, we can train a classifier on equal numbers of label flipped and clean samples using only the confidence score (unsure why the paper didn&rsquo;t use both confidence and variability as features). This simple noise classifier then can be used on the original dataset to identify potentially mislabeled instances.</p>
+<figure>
+	<img src="flip_exp.png" style="width: 80%;"   />
+	<figcaption>Data points originally with high confidence and low variability scores moved to low confidence, slightly higher variability regions after labels get flipped. (Image source: <a href="https://arxiv.org/abs/2009.10795" target="_blank">Swayamdipta et al. 2020</a>)</figcaption>
+</figure>
+<p>However, we should not consider all hard-to-learn samples to be incorrect. In fact, the paper hypothesizes that ambiguous (high variability) and hard-to-learn (low confidence, low variability) samples are more informative for learning. Experiments showed that they are good for OOD generalization, giving better results on OOD eval, even in comparison to 100% training set.</p>
+<p>To investigate whether neural networks have a tendency to <strong>forget</strong> previously learned information, <a href="https://arxiv.org/abs/1812.05159">Toneva et al. (2019)</a> designed an experiment: They track the model prediction for each sample during the training process and count the transitions for each sample from being classified correctly to incorrectly or vice-versa. Then samples can be categorized accordingly,</p>
+<ul>
+<li><em>Forgettable</em> (redundant) samples: If the class label changes across training epochs.</li>
+<li><em>Unforgettable</em> samples: If the class label assignment is consistent across training epochs. Those samples are never forgotten once learned.</li>
+</ul>
+<p>They found that there are a large number of unforgettable examples that are never forgotten once learnt. Examples with noisy labels or images with &ldquo;uncommon&rdquo; features (visually complicated to classify) are among the most forgotten examples. The experiments empirically validated that unforgettable examples can be safely removed without compromising model performance.</p>
+<p>In the implementation, the forgetting event is only counted when a sample is included in the current training batch; that is, they compute forgetting across presentations of the same example in subsequent mini-batches. The number of forgetting events per sample is quite stable across different seeds and forgettable examples have a small tendency to be first-time learned later in the training. The forgetting events are also found to be transferable throughout the training period and between architectures.</p>
+<p><a href="https://arxiv.org/abs/2001.10528">Pleiss, et al. (2020)</a> developed a method named <strong>AUM (Area under the Margin)</strong> to spot wrong labels based on such an assumption: Say, a BIRD image is mistakenly marked as DOG. The gradient update would encourage generalization from other BIRD images to this BIRD image, while the DOG label provides an incorrect supervised signal to encourage the update to go another way. Hence, there exists tension between generalization and (wrong) prediction in gradient update signals.</p>
+<p>Given a classification dataset $(\mathbf{x}, y) \in \mathcal{D}_\text{train}$, let $z^{(t)}_i(\mathbf{x}) \in \mathbb{R}$ be the logit corresponding to class $i$ at epoch $t$. The margin at epoch $t$ is the difference between the assigned logit and the next largest logit:</p>
+<div>
+$$
+M^{(t)}(\mathbf{x}, y) = z_y^{(t)}(\mathbf{x}) - \max_{i \neq y} z^{(t)}_i(\mathbf{x}),\quad
+\text{AUM}(\mathbf{x}, y) = \frac{1}{T} \sum^T_{t=1} M^{(t)}(\mathbf{x}, y)
+$$
+</div>
+<p>A negative margin indicates a wrong prediction and a large positive margin suggests high confidence in a correct prediction. The hypothesis is that mislabeled samples would have a smaller margin than correct samples due to the tension of generalization via SGD triggered by other samples.</p>
+<p>In order to determine the threshold, they insert fake data, named &ldquo;threshold samples&rdquo;, to determine the threshold:</p>
+<ol>
+<li>Create a subset of threshold samples $\mathcal{D}_\text{thr}$.  If there are $N$ training samples for $C$ classes, we randomly sample $N/(C+1)$ samples and switch all their labels to a fake new class $C+1$.</li>
+<li>Merge threshold samples into the original dataset: $\mathcal{D}&rsquo; = { (\mathbf{x}, C+1): \mathbf{x} \in \mathcal{D}_\text{thr}} \cup (\mathcal{D} \setminus\mathcal{D}_\text{thr})$;</li>
+<li>Train the model on $\mathcal{D}&rsquo;$ and measure AUM of all the data;</li>
+<li>Compute the threshold $\alpha$ as the 99th percentile of AUM of threshold samples;</li>
+<li>Identify mislabeled data using $\alpha$ a threshold: ${(\mathbf{x}, y) \in \mathcal{D} \setminus \mathcal{D}_\text{thr}: \text{AUM}_{\mathbf{x}, y} \leq \alpha}$</li>
+</ol>
+<figure>
+	<img src="AUM_threshold.png" style="width: 70%;"   />
+	<figcaption>How the AUM of threshold samples help separate out mislabeled samples. (Image source: <a href="https://arxiv.org/abs/2001.10528" target="_blank">Pleiss et al. 2020</a>)</figcaption>
+</figure>
+<figure>
+	<img src="AUM_exp.png"  />
+	<figcaption>Test error on CIFAR 10/100 with randomly mislabeled samples, comparing different methods for data filter or noisy data training. (Image source: <a href="https://arxiv.org/abs/2001.10528" target="_blank">Pleiss et al. 2020</a>)</figcaption>
+</figure>
+<h2 id="noisy-cross-validation">Noisy Cross-Validation<a hidden class="anchor" aria-hidden="true" href="#noisy-cross-validation">#</a></h2>
+<p>The <strong>NCV (Noisy Cross-Validation)</strong> method (<a href="https://arxiv.org/abs/1905.05040">Chen et al. 2019</a>) divides the dataset into half at random, and then identifies data samples as &ldquo;clean&rdquo; if its label matches the predicted label provided by the model that is only trained on the other half of the dataset. Clean samples are expected to be more trustworthy. INCV (Iterative Noisy Cross-Validation) runs NCV iteratively where more clean samples are added into the trusted candidate set $\mathcal{C}$ and more noisy samples are removed.</p>
+<figure>
+	<img src="INCV_algo.png" style="width: 60%;"   />
+	<figcaption>Algorithm of INCV (iterative noisy cross-validation). (Image source: <a href="https://arxiv.org/abs/1905.05040" target="_blank">Chen et al. 2019</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Feb 2024). &ldquo;Thinking about High-Quality Human Data&rdquo;. Lil&rsquo;Log. https://lilianweng.github.io/posts/2024-02-05-human-data-quality/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2024humandata,
+  title   = &#34;Thinking about High-Quality Human Data&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2024&#34;,
+  month   = &#34;Feb&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2024-02-05-human-data-quality/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Francis Galton <a href="https://www.nature.com/articles/075450a0">&ldquo;Vox populi&rdquo;</a>  Nature 75, 450-451 (1907).</p>
+<p>[2] Sambasivan et al. <a href="https://dl.acm.org/doi/10.1145/3411764.3445518">&ldquo;Everyone wants to do the model work, not the data work&rdquo;: Data Cascades in High-Stakes AI&quot;</a> CHI 2021</p>
+<p>[3] Chris Callison-Burch. <a href="https://aclanthology.org/D09-1030/">&ldquo;Fast, Cheap, and Creative: Evaluating Translation Quality Using Amazon’s Mechanical Turk&rdquo;</a> EMNLP 2009</p>
+<p>[4] Rottger et al. <a href="https://arxiv.org/abs/2112.07475">&ldquo;Two Contrasting Data Annotation Paradigms for Subjective NLP Tasks&rdquo;</a> NAACL 2022.</p>
+<p>[5] Aroyo &amp; Welty <a href="https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/2564">&ldquo;Truth Is a Lie: Crowd Truth and the Seven Myths of Human Annotation&rdquo;</a> AI Magazine 36.1: 15-24 (2015).</p>
+<p>[6] Hovy et al. <a href="https://aclanthology.org/N13-1132.pdf">&ldquo;Learning Whom to Trust with MACE&rdquo;</a> NAACL-HLT 2013.</p>
+<p>[7] Wang et al. <a href="https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/">&ldquo;All that Agrees Is Not Gold: Evaluating Ground Truth Labels and Dialogue Content for Safety&rdquo;</a> 2023.</p>
+<p>[8] Zhang et al. <a href="https://arxiv.org/abs/2311.04345">&ldquo;A Taxonomy of Rater Disagreements: Surveying Challenges &amp; Opportunities from the Perspective of Annotating Online Toxicity&rdquo;</a> arXiv preprint arXiv:2311.04345 (2023).</p>
+<p>[9] Davani et al. <a href="https://arxiv.org/abs/2110.05719">&ldquo;Dealing with disagreements: Looking beyond the majority vote in subjective annotations&rdquo;</a> ACL 2022.</p>
+<p>[10] Gordon et al. <a href="https://arxiv.org/abs/2202.02950">&ldquo;Jury Learning: Integrating Dissenting Voices into Machine Learning Models&rdquo;</a> CHI 2022.</p>
+<p>[11] Gordon et al. <a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445423">&ldquo;The Disagreement Deconvolution: Bringing Machine Learning Performance Metrics In Line With Reality&rdquo;</a> CHI 2021</p>
+<p>[12] Daniel et al. 2018 <a href="https://arxiv.org/abs/1801.02546">&ldquo;Quality Control in Crowdsourcing: A Survey of Quality Attributes, Assessment Techniques, and Assurance Actions&rdquo;</a> ACM Computing Surveys (CSUR), 51(1), 1-40 (2018).</p>
+<p>[13] Koh &amp; Liang. <a href="https://arxiv.org/abs/1703.04730">&ldquo;Understanding Black-box Predictions via Influence Functions&rdquo;</a> ICML 2017.</p>
+<p>[14] Grosse et al. <a href="https://arxiv.org/abs/2308.03296">&ldquo;Studying Large Language Model Generalization with Influence Functions&rdquo;</a> arXiv preprint arXiv:2308.03296 (2023).</p>
+<p>[15] Swayamdipta et al. <a href="https://arxiv.org/abs/2009.10795">&ldquo;Dataset Cartography: Mapping and Diagnosing Datasets with Training Dynamics&rdquo;</a> EMNLP 2020.</p>
+<p>[16] Toneva, et al. <a href="https://arxiv.org/abs/1812.05159">&ldquo;An Empirical Study of Example Forgetting during Deep Neural Network Learning&rdquo;</a> ICLR 2019.</p>
+<p>[17] Pleiss, et al.  <a href="https://arxiv.org/abs/2001.10528">&ldquo;Identifying Mislabeled Data using the Area Under the Margin Ranking&rdquo;</a> NeuriPS 2020.</p>
+<p>[18] Chen et al. <a href="https://arxiv.org/abs/1905.05040">&ldquo;Understanding and utilizing deep neural networks trained with noisy labels&rdquo;</a> ICML 2019.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/data/">Data</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data-quality/">Data-Quality</a></li>
+      <li><a href="https://lilianweng.github.io/tags/human-ai/">Human-Ai</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2024-04-12-diffusion-video/">
+    <span class="title">« </span>
+    <br>
+    <span>Diffusion Models for Video Generation</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/">
+    <span class="title"> »</span>
+    <br>
+    <span>Adversarial Attacks on LLMs</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on twitter"
+        href="https://twitter.com/intent/tweet/?text=Thinking%20about%20High-Quality%20Human%20Data&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f&amp;hashtags=data%2cdata-quality%2chuman-ai">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f&amp;title=Thinking%20about%20High-Quality%20Human%20Data&amp;summary=Thinking%20about%20High-Quality%20Human%20Data&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f&title=Thinking%20about%20High-Quality%20Human%20Data">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on whatsapp"
+        href="https://api.whatsapp.com/send?text=Thinking%20about%20High-Quality%20Human%20Data%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Thinking about High-Quality Human Data on telegram"
+        href="https://telegram.me/share/url?text=Thinking%20about%20High-Quality%20Human%20Data&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2024-02-05-human-data-quality%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

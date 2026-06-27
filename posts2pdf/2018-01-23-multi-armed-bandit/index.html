@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>The Multi-Armed Bandit Problem and Its Solutions | Lil&#39;Log</title>
+<meta name="keywords" content="exploration, math-heavy, reinforcement-learning" />
+<meta name="description" content="
+The algorithms are implemented for Bernoulli bandit in lilianweng/multi-armed-bandit.
+Exploitation vs Exploration
+The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="The Multi-Armed Bandit Problem and Its Solutions" />
+<meta property="og:description" content="
+The algorithms are implemented for Bernoulli bandit in lilianweng/multi-armed-bandit.
+Exploitation vs Exploration
+The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2018-01-23T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2018-01-23T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="The Multi-Armed Bandit Problem and Its Solutions"/>
+<meta name="twitter:description" content="
+The algorithms are implemented for Bernoulli bandit in lilianweng/multi-armed-bandit.
+Exploitation vs Exploration
+The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "The Multi-Armed Bandit Problem and Its Solutions",
+      "item": "https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The Multi-Armed Bandit Problem and Its Solutions",
+  "name": "The Multi-Armed Bandit Problem and Its Solutions",
+  "description": " The algorithms are implemented for Bernoulli bandit in lilianweng/multi-armed-bandit.\nExploitation vs Exploration The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful.\n",
+  "keywords": [
+    "exploration", "math-heavy", "reinforcement-learning"
+  ],
+  "articleBody": " The algorithms are implemented for Bernoulli bandit in lilianweng/multi-armed-bandit.\nExploitation vs Exploration The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful.\nA real-life example of the exploration vs exploitation dilemma: where to eat? (Image source: UC Berkeley AI course slide, lecture 11.) If we have learned all the information about the environment, we are able to find the best strategy by even just simulating brute-force, let alone many other smart approaches. The dilemma comes from the incomplete information: we need to gather enough information to make best overall decisions while keeping the risk under control. With exploitation, we take advantage of the best option we know. With exploration, we take some risk to collect information about unknown options. The best long-term strategy may involve short-term sacrifices. For example, one exploration trial could be a total failure, but it warns us of not taking that action too often in the future.\nWhat is Multi-Armed Bandit? The multi-armed bandit problem is a classic problem that well demonstrates the exploration vs exploitation dilemma. Imagine you are in a casino facing multiple slot machines and each is configured with an unknown probability of how likely you can get a reward at one play. The question is: What is the best strategy to achieve highest long-term rewards?\nIn this post, we will only discuss the setting of having an infinite number of trials. The restriction on a finite number of trials introduces a new type of exploration problem. For instance, if the number of trials is smaller than the number of slot machines, we cannot even try every machine to estimate the reward probability (!) and hence we have to behave smartly w.r.t. a limited set of knowledge and resources (i.e. time).\nAn illustration of how a Bernoulli multi-armed bandit works. The reward probabilities are **unknown** to the player. A naive approach can be that you continue to playing with one machine for many many rounds so as to eventually estimate the “true” reward probability according to the law of large numbers. However, this is quite wasteful and surely does not guarantee the best long-term reward.\nDefinition Now let’s give it a scientific definition.\nA Bernoulli multi-armed bandit can be described as a tuple of $\\langle \\mathcal{A}, \\mathcal{R} \\rangle$, where:\nWe have $K$ machines with reward probabilities, $\\{ \\theta_1, \\dots, \\theta_K \\}$. At each time step t, we take an action a on one slot machine and receive a reward r. $\\mathcal{A}$ is a set of actions, each referring to the interaction with one slot machine. The value of action a is the expected reward, $Q(a) = \\mathbb{E} [r \\vert a] = \\theta$. If action $a_t$ at the time step t is on the i-th machine, then $Q(a_t) = \\theta_i$. $\\mathcal{R}$ is a reward function. In the case of Bernoulli bandit, we observe a reward r in a stochastic fashion. At the time step t, $r_t = \\mathcal{R}(a_t)$ may return reward 1 with a probability $Q(a_t)$ or 0 otherwise. It is a simplified version of Markov decision process, as there is no state $\\mathcal{S}$.\nThe goal is to maximize the cumulative reward $\\sum_{t=1}^T r_t$. If we know the optimal action with the best reward, then the goal is same as to minimize the potential regret or loss by not picking the optimal action.\nThe optimal reward probability $\\theta^{*}$ of the optimal action $a^{*}$ is:\n$$ \\theta^{*}=Q(a^{*})=\\max_{a \\in \\mathcal{A}} Q(a) = \\max_{1 \\leq i \\leq K} \\theta_i $$ Our loss function is the total regret we might have by not selecting the optimal action up to the time step T:\n$$ \\mathcal{L}_T = \\mathbb{E} \\Big[ \\sum_{t=1}^T \\big( \\theta^{*} - Q(a_t) \\big) \\Big] $$ Bandit Strategies Based on how we do exploration, there several ways to solve the multi-armed bandit.\nNo exploration: the most naive approach and a bad one. Exploration at random Exploration smartly with preference to uncertainty ε-Greedy Algorithm The ε-greedy algorithm takes the best action most of the time, but does random exploration occasionally. The action value is estimated according to the past experience by averaging the rewards associated with the target action a that we have observed so far (up to the current time step t):\n$$ \\hat{Q}_t(a) = \\frac{1}{N_t(a)} \\sum_{\\tau=1}^t r_\\tau \\mathbb{1}[a_\\tau = a] $$ where $\\mathbb{1}$ is a binary indicator function and $N_t(a)$ is how many times the action a has been selected so far, $N_t(a) = \\sum_{\\tau=1}^t \\mathbb{1}[a_\\tau = a]$.\nAccording to the ε-greedy algorithm, with a small probability $\\epsilon$ we take a random action, but otherwise (which should be the most of the time, probability 1-$\\epsilon$) we pick the best action that we have learnt so far: $\\hat{a}^{*}_t = \\arg\\max_{a \\in \\mathcal{A}} \\hat{Q}_t(a)$.\nCheck my toy implementation here.\nUpper Confidence Bounds Random exploration gives us an opportunity to try out options that we have not known much about. However, due to the randomness, it is possible we end up exploring a bad action which we have confirmed in the past (bad luck!). To avoid such inefficient exploration, one approach is to decrease the parameter ε in time and the other is to be optimistic about options with high uncertainty and thus to prefer actions for which we haven’t had a confident value estimation yet. Or in other words, we favor exploration of actions with a strong potential to have a optimal value.\nThe Upper Confidence Bounds (UCB) algorithm measures this potential by an upper confidence bound of the reward value, $\\hat{U}_t(a)$, so that the true value is below with bound $Q(a) \\leq \\hat{Q}_t(a) + \\hat{U}_t(a)$ with high probability. The upper bound $\\hat{U}_t(a)$ is a function of $N_t(a)$; a larger number of trials $N_t(a)$ should give us a smaller bound $\\hat{U}_t(a)$.\nIn UCB algorithm, we always select the greediest action to maximize the upper confidence bound:\n$$ a^{UCB}_t = argmax_{a \\in \\mathcal{A}} \\hat{Q}_t(a) + \\hat{U}_t(a) $$ Now, the question is how to estimate the upper confidence bound.\nHoeffding’s Inequality If we do not want to assign any prior knowledge on how the distribution looks like, we can get help from “Hoeffding’s Inequality” — a theorem applicable to any bounded distribution.\nLet $X_1, \\dots, X_t$ be i.i.d. (independent and identically distributed) random variables and they are all bounded by the interval [0, 1]. The sample mean is $\\overline{X}_t = \\frac{1}{t}\\sum_{\\tau=1}^t X_\\tau$. Then for $u \u003e 0$, we have:\n$$ \\mathbb{P} [ \\mathbb{E}[X] \u003e \\overline{X}_t + u] \\leq e^{-2tu^2} $$ Given one target action $a$, let us consider:\n$r_t(a)$ as the random variables, $Q(a)$ as the true mean, $\\hat{Q}_t(a)$ as the sample mean, And $u$ as the upper confidence bound, $u = U_t(a)$ Then we have,\n$$ \\mathbb{P} [ Q(a) \u003e \\hat{Q}_t(a) + U_t(a)] \\leq e^{-2t{U_t(a)}^2} $$ We want to pick a bound so that with high chances the true mean is blow the sample mean + the upper confidence bound. Thus $e^{-2t U_t(a)^2}$ should be a small probability. Let’s say we are ok with a tiny threshold p:\n$$ e^{-2t U_t(a)^2} = p \\text{ Thus, } U_t(a) = \\sqrt{\\frac{-\\log p}{2 N_t(a)}} $$ UCB1 One heuristic is to reduce the threshold p in time, as we want to make more confident bound estimation with more rewards observed. Set $p=t^{-4}$ we get UCB1 algorithm:\n$$ U_t(a) = \\sqrt{\\frac{2 \\log t}{N_t(a)}} \\text{ and } a^{UCB1}_t = \\arg\\max_{a \\in \\mathcal{A}} Q(a) + \\sqrt{\\frac{2 \\log t}{N_t(a)}} $$ Bayesian UCB In UCB or UCB1 algorithm, we do not assume any prior on the reward distribution and therefore we have to rely on the Hoeffding’s Inequality for a very generalize estimation. If we are able to know the distribution upfront, we would be able to make better bound estimation.\nFor example, if we expect the mean reward of every slot machine to be Gaussian as in Fig 2, we can set the upper bound as 95% confidence interval by setting $\\hat{U}_t(a)$ to be twice the standard deviation.\nWhen the expected reward has a Gaussian distribution. $\\sigma(a\\_i)$ is the standard deviation and $c\\sigma(a\\_i)$ is the upper confidence bound. The constant $c$ is a adjustable hyperparameter. (Image source: UCL RL course lecture 9's slides) Check my toy implementation of UCB1 and Bayesian UCB with Beta prior on θ.\nThompson Sampling Thompson sampling has a simple idea but it works great for solving the multi-armed bandit problem.\nOops, I guess not this Thompson? (Credit goes to Ben Taborsky; he has a full theorem of how Thompson invented while pondering over who to pass the ball. Yes I stole his joke.) At each time step, we want to select action a according to the probability that a is optimal:\n$$ \\begin{aligned} \\pi(a \\; \\vert \\; h_t) \u0026= \\mathbb{P} [ Q(a) \u003e Q(a'), \\forall a' \\neq a \\; \\vert \\; h_t] \\\\ \u0026= \\mathbb{E}_{\\mathcal{R} \\vert h_t} [ \\mathbb{1}(a = \\arg\\max_{a \\in \\mathcal{A}} Q(a)) ] \\end{aligned} $$ where $\\pi(a ; \\vert ; h_t)$ is the probability of taking action a given the history $h_t$.\nFor the Bernoulli bandit, it is natural to assume that $Q(a)$ follows a Beta distribution, as $Q(a)$ is essentially the success probability θ in Bernoulli distribution. The value of $\\text{Beta}(\\alpha, \\beta)$ is within the interval [0, 1]; α and β correspond to the counts when we succeeded or failed to get a reward respectively.\nFirst, let us initialize the Beta parameters α and β based on some prior knowledge or belief for every action. For example,\nα = 1 and β = 1; we expect the reward probability to be 50% but we are not very confident. α = 1000 and β = 9000; we strongly believe that the reward probability is 10%. At each time t, we sample an expected reward, $\\tilde{Q}(a)$, from the prior distribution $\\text{Beta}(\\alpha_i, \\beta_i)$ for every action. The best action is selected among samples: $a^{TS}_t = \\arg\\max_{a \\in \\mathcal{A}} \\tilde{Q}(a)$. After the true reward is observed, we can update the Beta distribution accordingly, which is essentially doing Bayesian inference to compute the posterior with the known prior and the likelihood of getting the sampled data.\n$$ \\begin{aligned} \\alpha_i \u0026 \\leftarrow \\alpha_i + r_t \\mathbb{1}[a^{TS}_t = a_i] \\\\ \\beta_i \u0026 \\leftarrow \\beta_i + (1-r_t) \\mathbb{1}[a^{TS}_t = a_i] \\end{aligned} $$ Thompson sampling implements the idea of probability matching. Because its reward estimations $\\tilde{Q}$ are sampled from posterior distributions, each of these probabilities is equivalent to the probability that the corresponding action is optimal, conditioned on observed history.\nHowever, for many practical and complex problems, it can be computationally intractable to estimate the posterior distributions with observed true rewards using Bayesian inference. Thompson sampling still can work out if we are able to approximate the posterior distributions using methods like Gibbs sampling, Laplace approximate, and the bootstraps. This tutorial presents a comprehensive review; strongly recommend it if you want to learn more about Thompson sampling.\nCase Study I implemented the above algorithms in lilianweng/multi-armed-bandit. A BernoulliBandit object can be constructed with a list of random or predefined reward probabilities. The bandit algorithms are implemented as subclasses of Solver, taking a Bandit object as the target problem. The cumulative regrets are tracked in time.\nThe result of a small experiment on solving a Bernoulli bandit with K = 10 slot machines with reward probabilities, {0.0, 0.1, 0.2, ..., 0.9}. Each solver runs 10000 steps. (Left) The plot of time step vs the cumulative regrets. (Middle) The plot of true reward probability vs estimated probability. (Right) The fraction of each action is picked during the 10000-step run.* Summary We need exploration because information is valuable. In terms of the exploration strategies, we can do no exploration at all, focusing on the short-term returns. Or we occasionally explore at random. Or even further, we explore and we are picky about which options to explore — actions with higher uncertainty are favored because they can provide higher information gain.\nCited as:\n@article{weng2018bandit, title = \"The Multi-Armed Bandit Problem and Its Solutions\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2018\", url = \"https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/\" } References [1] CS229 Supplemental Lecture notes: Hoeffding’s inequality.\n[2] RL Course by David Silver - Lecture 9: Exploration and Exploitation\n[3] Olivier Chapelle and Lihong Li. “An empirical evaluation of thompson sampling.” NIPS. 2011.\n[4] Russo, Daniel, et al. “A Tutorial on Thompson Sampling.” arXiv:1707.02038 (2017).\n",
+  "wordCount" : "2100",
+  "inLanguage": "en",
+  "datePublished": "2018-01-23T00:00:00Z",
+  "dateModified": "2018-01-23T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      The Multi-Armed Bandit Problem and Its Solutions
+    </h1>
+    <div class="post-meta">Date: January 23, 2018  |  Estimated Reading Time: 10 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#exploitation-vs-exploration" aria-label="Exploitation vs Exploration">Exploitation vs Exploration</a></li>
+                <li>
+                    <a href="#what-is-multi-armed-bandit" aria-label="What is Multi-Armed Bandit?">What is Multi-Armed Bandit?</a><ul>
+                        
+                <li>
+                    <a href="#definition" aria-label="Definition">Definition</a></li>
+                <li>
+                    <a href="#bandit-strategies" aria-label="Bandit Strategies">Bandit Strategies</a></li></ul>
+                </li>
+                <li>
+                    <a href="#%ce%b5-greedy-algorithm" aria-label="ε-Greedy Algorithm">ε-Greedy Algorithm</a></li>
+                <li>
+                    <a href="#upper-confidence-bounds" aria-label="Upper Confidence Bounds">Upper Confidence Bounds</a><ul>
+                        
+                <li>
+                    <a href="#hoeffdings-inequality" aria-label="Hoeffding&rsquo;s Inequality">Hoeffding&rsquo;s Inequality</a></li>
+                <li>
+                    <a href="#ucb1" aria-label="UCB1">UCB1</a></li>
+                <li>
+                    <a href="#bayesian-ucb" aria-label="Bayesian UCB">Bayesian UCB</a></li></ul>
+                </li>
+                <li>
+                    <a href="#thompson-sampling" aria-label="Thompson Sampling">Thompson Sampling</a></li>
+                <li>
+                    <a href="#case-study" aria-label="Case Study">Case Study</a></li>
+                <li>
+                    <a href="#summary" aria-label="Summary">Summary</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- The multi-armed bandit problem is a class example to demonstrate the exploration versus exploitation dilemma. This post introduces the bandit problem and how to solve it using different exploration strategies. -->
+<p>The algorithms are implemented for Bernoulli bandit in <a href="http://github.com/lilianweng/multi-armed-bandit">lilianweng/multi-armed-bandit</a>.</p>
+<h1 id="exploitation-vs-exploration">Exploitation vs Exploration<a hidden class="anchor" aria-hidden="true" href="#exploitation-vs-exploration">#</a></h1>
+<p>The exploration vs exploitation dilemma exists in many aspects of our life. Say, your favorite restaurant is right around the corner. If you go there every day, you would be confident of what you will get, but miss the chances of discovering an even better option. If you try new places all the time, very likely you are gonna have to eat unpleasant food from time to time. Similarly, online advisors try to balance between the known most attractive ads and the new ads that might be even more successful.</p>
+<figure>
+	<img src="exploration_vs_exploitation.png" style="width: 80%;"  />
+	<figcaption>A real-life example of the exploration vs exploitation dilemma: where to eat? (Image source: UC Berkeley AI course <a href="http://ai.berkeley.edu/lecture_slides.html" target="_blank">slide</a>, <a href="http://ai.berkeley.edu/slides/Lecture%2011%20--%20Reinforcement%20Learning%20II/SP14%20CS188%20Lecture%2011%20--%20Reinforcement%20Learning%20II.pptx" target="_blank">lecture 11</a>.)</figcaption>
+</figure>
+<p>If we have learned all the information about the environment, we are able to find the best strategy by even just simulating brute-force, let alone many other smart approaches. The dilemma comes from the <em>incomplete</em> information: we need to gather enough information to make best overall decisions while keeping the risk under control. With exploitation, we take advantage of the best option we know. With exploration, we take some risk to collect information about unknown options. The best long-term strategy may involve short-term sacrifices. For example, one exploration trial could be a total failure, but it warns us of not taking that action too often in the future.</p>
+<h1 id="what-is-multi-armed-bandit">What is Multi-Armed Bandit?<a hidden class="anchor" aria-hidden="true" href="#what-is-multi-armed-bandit">#</a></h1>
+<p>The <a href="https://en.wikipedia.org/wiki/Multi-armed_bandit">multi-armed bandit</a> problem is a classic problem that well demonstrates the exploration vs exploitation dilemma. Imagine you are in a casino facing multiple slot machines and each is configured with an unknown probability of how likely you can get a reward at one play. The question is: <em>What is the best strategy to achieve highest long-term rewards?</em></p>
+<p>In this post, we will only discuss the setting of having an infinite number of trials. The restriction on a finite number of trials introduces a new type of exploration problem. For instance, if the number of trials is smaller than the number of slot machines, we cannot even try every machine to estimate the reward probability (!) and hence we have to behave smartly w.r.t. a limited set of knowledge and resources (i.e. time).</p>
+<figure>
+	<img src="bern_bandit.png" style="width: 80%;"  />
+	<figcaption>An illustration of how a Bernoulli multi-armed bandit works. The reward probabilities are **unknown** to the player.</figcaption>
+</figure>
+<p>A naive approach can be that you continue to playing with one machine for many many rounds so as to eventually estimate the &ldquo;true&rdquo; reward probability according to the <a href="https://en.wikipedia.org/wiki/Law_of_large_numbers">law of large numbers</a>. However, this is quite wasteful and surely does not guarantee the best long-term reward.</p>
+<h2 id="definition">Definition<a hidden class="anchor" aria-hidden="true" href="#definition">#</a></h2>
+<p>Now let&rsquo;s give it a scientific definition.</p>
+<p>A Bernoulli multi-armed bandit can be described as a tuple of $\langle \mathcal{A}, \mathcal{R} \rangle$, where:</p>
+<ul>
+<li>We have $K$ machines with reward probabilities, $\{ \theta_1, \dots, \theta_K \}$.</li>
+<li>At each time step t, we take an action a on one slot machine and receive a reward r.</li>
+<li>$\mathcal{A}$ is a set of actions, each referring to the interaction with one slot machine. The value of action a is the expected reward, $Q(a) = \mathbb{E} [r \vert a] = \theta$. If action $a_t$ at the time step t is on the i-th machine, then $Q(a_t) = \theta_i$.</li>
+<li>$\mathcal{R}$ is a reward function. In the case of Bernoulli bandit, we observe a reward r in a <em>stochastic</em> fashion. At the time step t, $r_t = \mathcal{R}(a_t)$ may return reward 1 with a probability $Q(a_t)$ or 0 otherwise.</li>
+</ul>
+<p>It is a simplified version of <a href="https://en.wikipedia.org/wiki/Markov_decision_process">Markov decision process</a>, as there is no state $\mathcal{S}$.</p>
+<p>The goal is to maximize the cumulative reward $\sum_{t=1}^T r_t$.
+If we know the optimal action with the best reward, then the goal is same as to minimize the potential <a href="https://en.wikipedia.org/wiki/Regret_(decision_theory)">regret</a> or loss by not picking the optimal action.</p>
+<p>The optimal reward probability $\theta^{*}$ of the optimal action $a^{*}$ is:</p>
+<div>
+$$
+\theta^{*}=Q(a^{*})=\max_{a \in \mathcal{A}} Q(a) = \max_{1 \leq i \leq K} \theta_i
+$$
+</div>
+<p>Our loss function is the total regret we might have by not selecting the optimal action up to the time step T:</p>
+<div>
+$$
+\mathcal{L}_T = \mathbb{E} \Big[ \sum_{t=1}^T \big( \theta^{*} - Q(a_t) \big) \Big]
+$$
+</div>
+<h2 id="bandit-strategies">Bandit Strategies<a hidden class="anchor" aria-hidden="true" href="#bandit-strategies">#</a></h2>
+<p>Based on how we do exploration, there several ways to solve the multi-armed bandit.</p>
+<ul>
+<li>No exploration: the most naive approach and a bad one.</li>
+<li>Exploration at random</li>
+<li>Exploration smartly with preference to uncertainty</li>
+</ul>
+<h1 id="ε-greedy-algorithm">ε-Greedy Algorithm<a hidden class="anchor" aria-hidden="true" href="#ε-greedy-algorithm">#</a></h1>
+<p>The ε-greedy algorithm takes the best action most of the time, but does random exploration occasionally. The action value is estimated according to the past experience by averaging the rewards associated with the target action a that we have observed so far (up to the current time step t):</p>
+<div>
+$$
+\hat{Q}_t(a) = \frac{1}{N_t(a)} \sum_{\tau=1}^t r_\tau \mathbb{1}[a_\tau = a]
+$$
+</div>
+<p>where $\mathbb{1}$ is a binary indicator function and $N_t(a)$ is how many times the action a has been selected so far, $N_t(a) = \sum_{\tau=1}^t \mathbb{1}[a_\tau = a]$.</p>
+<p>According to the ε-greedy algorithm, with a small probability $\epsilon$ we take a random action, but otherwise (which should be the most of the time, probability 1-$\epsilon$) we pick the best action that we have learnt so far: $\hat{a}^{*}_t = \arg\max_{a \in \mathcal{A}} \hat{Q}_t(a)$.</p>
+<p>Check my toy implementation <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L45">here</a>.</p>
+<h1 id="upper-confidence-bounds">Upper Confidence Bounds<a hidden class="anchor" aria-hidden="true" href="#upper-confidence-bounds">#</a></h1>
+<p>Random exploration gives us an opportunity to try out options that we have not known much about. However, due to the randomness, it is possible we end up exploring a bad action which we have confirmed in the past (bad luck!). To avoid such inefficient exploration, one approach is to decrease the parameter ε in time and the other is to be optimistic about options with <em>high uncertainty</em> and thus to prefer actions for which we haven&rsquo;t had a confident value estimation yet. Or in other words, we favor exploration of actions with a strong potential to have a optimal value.</p>
+<p>The Upper Confidence Bounds (UCB) algorithm measures this potential by an upper confidence bound of the reward value, $\hat{U}_t(a)$, so that the true value is below with bound $Q(a) \leq \hat{Q}_t(a) + \hat{U}_t(a)$ with high probability. The upper bound $\hat{U}_t(a)$ is a function of $N_t(a)$; a larger number of trials $N_t(a)$ should give us a smaller bound $\hat{U}_t(a)$.</p>
+<p>In UCB algorithm, we always select the greediest action to maximize the upper confidence bound:</p>
+<div>
+$$
+a^{UCB}_t = argmax_{a \in \mathcal{A}} \hat{Q}_t(a) + \hat{U}_t(a)
+$$
+</div>
+<p>Now, the question is <em>how to estimate the upper confidence bound</em>.</p>
+<h2 id="hoeffdings-inequality">Hoeffding&rsquo;s Inequality<a hidden class="anchor" aria-hidden="true" href="#hoeffdings-inequality">#</a></h2>
+<p>If we do not want to assign any prior knowledge on how the distribution looks like, we can get help from <a href="http://cs229.stanford.edu/extra-notes/hoeffding.pdf">&ldquo;Hoeffding&rsquo;s Inequality&rdquo;</a> &mdash; a theorem applicable to any bounded distribution.</p>
+<p>Let $X_1, \dots, X_t$ be i.i.d. (independent and identically distributed) random variables and they are all bounded by the interval [0, 1]. The sample mean is $\overline{X}_t = \frac{1}{t}\sum_{\tau=1}^t X_\tau$. Then for $u &gt; 0$, we have:</p>
+<div>
+$$
+\mathbb{P} [ \mathbb{E}[X] > \overline{X}_t + u] \leq e^{-2tu^2}
+$$
+</div>
+<p>Given one target action $a$, let us consider:</p>
+<ul>
+<li>$r_t(a)$ as the random variables,</li>
+<li>$Q(a)$ as the true mean,</li>
+<li>$\hat{Q}_t(a)$ as the sample mean,</li>
+<li>And $u$ as the upper confidence bound, $u = U_t(a)$</li>
+</ul>
+<p>Then we have,</p>
+<div>
+$$
+\mathbb{P} [ Q(a) > \hat{Q}_t(a) + U_t(a)] \leq e^{-2t{U_t(a)}^2}
+$$
+</div>
+<p>We want to pick a bound so that with high chances the true mean is blow the sample mean + the upper confidence bound. Thus $e^{-2t U_t(a)^2}$ should be a small probability. Let&rsquo;s say we are ok with a tiny threshold p:</p>
+<div>
+$$
+e^{-2t U_t(a)^2} = p \text{  Thus, } U_t(a) = \sqrt{\frac{-\log p}{2 N_t(a)}}
+$$
+</div>
+<h2 id="ucb1">UCB1<a hidden class="anchor" aria-hidden="true" href="#ucb1">#</a></h2>
+<p>One heuristic is to reduce the threshold p in time, as we want to make more confident bound estimation with more rewards observed. Set $p=t^{-4}$ we get <strong>UCB1</strong> algorithm:</p>
+<div>
+$$
+U_t(a) = \sqrt{\frac{2 \log t}{N_t(a)}} \text{  and  }
+a^{UCB1}_t = \arg\max_{a \in \mathcal{A}} Q(a) + \sqrt{\frac{2 \log t}{N_t(a)}}
+$$
+</div>
+<h2 id="bayesian-ucb">Bayesian UCB<a hidden class="anchor" aria-hidden="true" href="#bayesian-ucb">#</a></h2>
+<p>In UCB or UCB1 algorithm, we do not assume any prior on the reward distribution and therefore we have to rely on the Hoeffding&rsquo;s Inequality for a very generalize estimation. If we are able to know the distribution upfront, we would be able to make better bound estimation.</p>
+<p>For example, if we expect the mean reward of every slot machine to be Gaussian as in Fig 2, we can set the upper bound as 95% confidence interval by setting $\hat{U}_t(a)$ to be twice the standard deviation.</p>
+<figure>
+	<img src="bern_UCB.png" style="width: 100%;"  />
+	<figcaption>When the expected reward has a Gaussian distribution. $\sigma(a\_i)$ is the standard deviation and $c\sigma(a\_i)$ is the upper confidence bound. The constant $c$ is a adjustable hyperparameter. (Image source: <a href="http://www0.cs.ucl.ac.uk/staff/d.silver/web/Teaching_files/XX.pdf" target="_blank">UCL RL course lecture 9's slides</a>)</figcaption>
+</figure>
+<p>Check my toy implementation of <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L76">UCB1</a> and <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L99">Bayesian UCB</a> with Beta prior on θ.</p>
+<h1 id="thompson-sampling">Thompson Sampling<a hidden class="anchor" aria-hidden="true" href="#thompson-sampling">#</a></h1>
+<p>Thompson sampling has a simple idea but it works great for solving the multi-armed bandit problem.</p>
+<figure>
+	<img src="klay-thompson.jpg" style="width: 80%;"  />
+	<figcaption>Oops, I guess not this Thompson? (Credit goes to <a href="https://www.linkedin.com/in/benjamin-taborsky" target="_blank">Ben Taborsky</a>; he has a full theorem of how Thompson invented while pondering over who to pass the ball. Yes I stole his joke.)</figcaption>
+</figure>
+<p>At each time step, we want to select action a according to the probability that a is <strong>optimal</strong>:</p>
+<div>
+$$
+\begin{aligned}
+\pi(a \; \vert \; h_t) 
+&= \mathbb{P} [ Q(a) > Q(a'), \forall a' \neq a \; \vert \; h_t] \\
+&= \mathbb{E}_{\mathcal{R} \vert h_t} [ \mathbb{1}(a = \arg\max_{a \in \mathcal{A}} Q(a)) ]
+\end{aligned}
+$$
+</div>
+<p>where $\pi(a ; \vert ; h_t)$ is the probability of taking action a given the history $h_t$.</p>
+<p>For the Bernoulli bandit, it is natural to assume that $Q(a)$ follows a <a href="https://en.wikipedia.org/wiki/Beta_distribution">Beta</a> distribution, as $Q(a)$ is essentially the success probability θ in <a href="https://en.wikipedia.org/wiki/Bernoulli_distribution">Bernoulli</a> distribution.  The value of $\text{Beta}(\alpha, \beta)$ is within the interval [0, 1]; α and β correspond to the counts when we <strong>succeeded</strong> or <strong>failed</strong> to get a reward respectively.</p>
+<p>First, let us initialize the Beta parameters α and β based on some prior knowledge or belief for every action. For example,</p>
+<ul>
+<li>α = 1 and β = 1; we expect the reward probability to be 50% but we are not very confident.</li>
+<li>α = 1000 and β = 9000; we strongly believe that the reward probability is 10%.</li>
+</ul>
+<p>At each time t, we sample an expected reward, $\tilde{Q}(a)$, from the prior distribution $\text{Beta}(\alpha_i, \beta_i)$ for every action. The best action is selected among samples: $a^{TS}_t = \arg\max_{a \in \mathcal{A}} \tilde{Q}(a)$. After the true reward is observed, we can update the Beta distribution accordingly, which is essentially doing Bayesian inference to compute the posterior with the known prior and the likelihood of getting the sampled data.</p>
+<div>
+$$
+\begin{aligned}
+\alpha_i & \leftarrow \alpha_i + r_t \mathbb{1}[a^{TS}_t = a_i] \\ 
+\beta_i & \leftarrow \beta_i + (1-r_t) \mathbb{1}[a^{TS}_t = a_i]
+\end{aligned}
+$$
+</div>
+<p>Thompson sampling implements the idea of <a href="https://en.wikipedia.org/wiki/Probability_matching">probability matching</a>. Because its reward estimations $\tilde{Q}$ are sampled from posterior distributions, each of these probabilities is equivalent to the probability that the corresponding action is optimal, conditioned on observed history.</p>
+<p>However, for many practical and complex problems, it can be computationally intractable to estimate the posterior distributions with observed true rewards using Bayesian inference. Thompson sampling still can work out if we are able to approximate the posterior distributions using methods like Gibbs sampling, Laplace approximate, and the bootstraps. This <a href="https://arxiv.org/pdf/1707.02038.pdf">tutorial</a> presents a comprehensive review; strongly recommend it if you want to learn more about Thompson sampling.</p>
+<h1 id="case-study">Case Study<a hidden class="anchor" aria-hidden="true" href="#case-study">#</a></h1>
+<p>I implemented the above algorithms in <a href="https://github.com/lilianweng/multi-armed-bandit">lilianweng/multi-armed-bandit</a>. A <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/bandits.py#L13">BernoulliBandit</a> object can be constructed with a list of random or predefined reward probabilities. The bandit algorithms are implemented as subclasses of <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L9">Solver</a>, taking a Bandit object as the target problem. The cumulative regrets are tracked in time.</p>
+<figure>
+	<img src="bandit_experiment.png" style="width: 100%;"  />
+	<figcaption>The result of a small experiment on solving a Bernoulli bandit with K = 10 slot machines with reward probabilities, {0.0, 0.1, 0.2, ..., 0.9}. Each solver runs 10000 steps.</figcaption>
+</figure>
+(Left) The plot of time step vs the cumulative regrets. 
+(Middle) The plot of true reward probability vs estimated probability. 
+(Right) The fraction of each action is picked during the 10000-step run.*
+<h1 id="summary">Summary<a hidden class="anchor" aria-hidden="true" href="#summary">#</a></h1>
+<p>We need exploration because information is valuable. In terms of the exploration strategies, we can do no exploration at all, focusing on the short-term returns. Or we occasionally explore at random. Or even further, we explore and we are picky about which options to explore &mdash; actions with higher uncertainty are favored because they can provide higher information gain.</p>
+<figure>
+	<img src="bandit_solution_summary.png" style="width: 90%;"  />
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2018bandit,
+  title   = &#34;The Multi-Armed Bandit Problem and Its Solutions&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2018&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] CS229 Supplemental Lecture notes: <a href="http://cs229.stanford.edu/extra-notes/hoeffding.pdf">Hoeffding&rsquo;s inequality</a>.</p>
+<p>[2] RL Course by David Silver - Lecture 9: <a href="https://youtu.be/sGuiWX07sKw">Exploration and Exploitation</a></p>
+<p>[3] Olivier Chapelle and Lihong Li. <a href="http://papers.nips.cc/paper/4321-an-empirical-evaluation-of-thompson-sampling.pdf">&ldquo;An empirical evaluation of thompson sampling.&rdquo;</a> NIPS. 2011.</p>
+<p>[4] Russo, Daniel, et al. <a href="https://arxiv.org/pdf/1707.02038.pdf">&ldquo;A Tutorial on Thompson Sampling.&rdquo;</a> arXiv:1707.02038 (2017).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/exploration/">Exploration</a></li>
+      <li><a href="https://lilianweng.github.io/tags/math-heavy/">Math-Heavy</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/">
+    <span class="title">« </span>
+    <br>
+    <span>A (Long) Peek into Reinforcement Learning</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">
+    <span class="title"> »</span>
+    <br>
+    <span>Object Detection for Dummies Part 3: R-CNN Family</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on twitter"
+        href="https://twitter.com/intent/tweet/?text=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f&amp;hashtags=exploration%2cmath-heavy%2creinforcement-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f&amp;title=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions&amp;summary=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f&title=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on whatsapp"
+        href="https://api.whatsapp.com/send?text=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share The Multi-Armed Bandit Problem and Its Solutions on telegram"
+        href="https://telegram.me/share/url?text=The%20Multi-Armed%20Bandit%20Problem%20and%20Its%20Solutions&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-01-23-multi-armed-bandit%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

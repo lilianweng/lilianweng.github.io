@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Curriculum for Reinforcement Learning | Lil&#39;Log</title>
+<meta name="keywords" content="reinforcement-learning, generative-model, meta-learning" />
+<meta name="description" content="
+[Updated on 2020-02-03: mentioning PCG in the &ldquo;Task-Specific Curriculum&rdquo; section.
+[Updated on 2020-02-04: Add a new &ldquo;curriculum through distillation&rdquo; section.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Curriculum for Reinforcement Learning" />
+<meta property="og:description" content="
+[Updated on 2020-02-03: mentioning PCG in the &ldquo;Task-Specific Curriculum&rdquo; section.
+[Updated on 2020-02-04: Add a new &ldquo;curriculum through distillation&rdquo; section." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-01-29T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2020-01-29T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Curriculum for Reinforcement Learning"/>
+<meta name="twitter:description" content="
+[Updated on 2020-02-03: mentioning PCG in the &ldquo;Task-Specific Curriculum&rdquo; section.
+[Updated on 2020-02-04: Add a new &ldquo;curriculum through distillation&rdquo; section."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Curriculum for Reinforcement Learning",
+      "item": "https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Curriculum for Reinforcement Learning",
+  "name": "Curriculum for Reinforcement Learning",
+  "description": " [Updated on 2020-02-03: mentioning PCG in the \u0026ldquo;Task-Specific Curriculum\u0026rdquo; section. [Updated on 2020-02-04: Add a new \u0026ldquo;curriculum through distillation\u0026rdquo; section.\n",
+  "keywords": [
+    "reinforcement-learning", "generative-model", "meta-learning"
+  ],
+  "articleBody": " [Updated on 2020-02-03: mentioning PCG in the “Task-Specific Curriculum” section. [Updated on 2020-02-04: Add a new “curriculum through distillation” section.\nIt sounds like an impossible task if we want to teach integral or derivative to a 3-year-old who does not even know basic arithmetics. That’s why education is important, as it provides a systematic way to break down complex knowledge and a nice curriculum for teaching concepts from simple to hard. A curriculum makes learning difficult things easier and approachable for us humans. But, how about machine learning models? Can we train our models more efficiently with a curriculum? Can we design a curriculum to speed up learning?\nBack in 1993, Jeffrey Elman has proposed the idea of training neural networks with a curriculum. His early work on learning simple language grammar demonstrated the importance of such a strategy: starting with a restricted set of simple data and gradually increasing the complexity of training samples; otherwise the model was not able to learn at all.\nCompared to training without a curriculum, we would expect the adoption of the curriculum to expedite the speed of convergence and may or may not improve the final model performance. To design an efficient and effective curriculum is not easy. Keep in mind that, a bad curriculum may even hamper learning.\nNext, we will look into several categories of curriculum learning, as illustrated in Most cases are applied to Reinforcement Learning, with a few exceptions on Supervised Learning.\nFive types of curriculum for reinforcement learning. In “The importance of starting small” paper (Elman 1993), I especially like the starting sentences and find them both inspiring and affecting:\n“Humans differ from other species along many dimensions, but two are particularly noteworthy. Humans display an exceptional capacity to learn; and humans are remarkable for the unusually long time it takes to reach maturity. The adaptive advantage of learning is clear, and it may be argued that, through culture, learning has created the basis for a non-genetically based transmission of behaviors which may accelerate the evolution of our species.”\nIndeed, learning is probably the best superpower we humans have.\nTask-Specific Curriculum Bengio, et al. (2009) provided a good overview of curriculum learning in the old days. The paper presented two ideas with toy experiments using a manually designed task-specific curriculum:\nCleaner Examples may yield better generalization faster. Introducing gradually more difficult examples speeds up online training. It is plausible that some curriculum strategies could be useless or even harmful. A good question to answer in the field is: What could be the general principles that make some curriculum strategies work better than others? The Bengio 2009 paper hypothesized it would be beneficial to make learning focus on “interesting” examples that are neither too hard or too easy.\nIf our naive curriculum is to train the model on samples with a gradually increasing level of complexity, we need a way to quantify the difficulty of a task first. One idea is to use its minimal loss with respect to another model while this model is pretrained on other tasks (Weinshall, et al. 2018). In this way, the knowledge of the pretrained model can be transferred to the new model by suggesting a rank of training samples. Fig. 2 shows the effectiveness of the curriculum group (green), compared to control (random order; yellow) and anti (reverse the order; red) groups.\nImage classification accuracy on test image set (5 member classes of \"small mammals\" in CIFAR100). There are 4 experimental groups, (a) `curriculum`: sort the labels by the confidence of another trained classifier (e.g. the margin of an SVM); (b) `control-curriculum`: sort the labels randomly; (c) `anti-curriculum`: sort the labels reversely; (d) `None`: no curriculum. (Image source: Weinshall, et al. 2018) Zaremba \u0026 Sutskever (2014) did an interesting experiment on training LSTM to predict the output of a short Python program for mathematical ops without actually executing the code. They found curriculum is necessary for learning. The program’s complexity is controlled by two parameters, length ∈ [1, a] and nesting∈ [1, b]. Three strategies are considered:\nNaive curriculum: increase length first until reaching a; then increase nesting and reset length to 1; repeat this process until both reach maximum. Mix curriculum: sample length ~ [1, a] and nesting ~ [1, b] Combined: naive + mix. They noticed that combined strategy always outperformed the naive curriculum and would generally (but not always) outperform the mix strategy — indicating that it is quite important to mix in easy tasks during training to avoid forgetting.\nProcedural content generation (PCG) is a popular approach for creating video games of various levels of difficulty. PCG involves algorithmic randomness and a heavy dose of human expertise in designing game elements and dependencies among them. Procedurally generated levels have been introduced into several benchmark environments for evaluating whether an RL agent can generalize to a new level that it is not trained on (meta-RL!), such as GVGAI, OpenAI CoinRun and Procgen benchmark. Using GVGAI, Justesen, et al. (2018) demonstrated that an RL policy can easily overfit to a specific game but training over a simple curriculum that grows the task difficulty together with the model performance helps its generalization to new human-designed levels. Similar results are also found in CoinRun (Cobbe, et al. 2018). POET (Wang et al, 2019) is another example for leveraging evolutionary algorithm and procedural generated game levels to improve RL generalization, which I’ve described in details in my meta-RL post.\nTo follow the curriculum learning approaches described above, generally we need to figure out two problems in the training procedure:\nDesign a metric to quantify how hard a task is so that we can sort tasks accordingly. Provide a sequence of tasks with an increasing level of difficulty to the model during training. However, the order of tasks does not have to be sequential. In our Rubik’s cube paper (OpenAI et al, 2019), we depended on Automatic domain randomization (ADR) to generate a curriculum by growing a distribution of environments with increasing complexity. The difficulty of each task (i.e. solving a Rubik’s cube in a set of environments) depends on the randomization ranges of various environmental parameters. Even with a simplified assumption that all the environmental parameters are uncorrelated, we were able to create a decent curriculum for our robot hand to learn the task.\nTeacher-Guided Curriculum The idea of Automatic Curriculum Learning was proposed by Graves, et al. 2017 slightly earlier. It considers a $N$-task curriculum as an $N$-armed bandit problem and an adaptive policy which learns to optimize the returns from this bandit.\nTwo categories of learning signals have been considered in the paper:\nLoss-driven progress: the loss function change before and after one gradient update. This type of reward signals tracks the speed of the learning process, because the greatest task loss decrease is equivalent to the fastest learning. Complex-driven progress: the KL divergence between posterior and prior distribution over network weights. This type of learning signals are inspired by the MDL principle, “increasing the model complexity by a certain amount is only worthwhile if it compresses the data by a greater amount”. The model complexity is therefore expected to increase most in response to the model nicely generalizing to training examples. This framework of proposing curriculum automatically through another RL agent was formalized as Teacher-Student Curriculum Learning (TSCL; Matiisen, et al. 2017). In TSCL, a student is an RL agent working on actual tasks while a teacher agent is a policy for selecting tasks. The student aims to master a complex task that might be hard to learn directly. To make this task easier to learn, we set up the teacher agent to guide the student’s training process by picking proper sub-tasks.\nThe setup of teacher-student curriculum learning. (Image source: Matiisen, et al. 2017 + my annotation in red.) In the process, the student should learn tasks which:\ncan help the student make fastest learning progress, or are at risk of being forgotten. Note: The setup of framing the teacher model as an RL problem feels quite similar to Neural Architecture Search (NAS), but differently the RL model in TSCL operates on the task space and NAS operates on the main model architecture space.\nTraining the teacher model is to solve a POMDP problem:\nThe unobserved $s_t$ is the full state of the student model. The observed $o = (x_t^{(1)}, \\dots, x_t^{(N)})$ are a list of scores for $N$ tasks. The action $a$ is to pick on subtask. The reward per step is the score delta.$r_t = \\sum_{i=1}^N x_t^{(i)} - x_{t-1}^{(i)}$ (i.e., equivalent to maximizing the score of all tasks at the end of the episode). The method of estimating learning progress from noisy task scores while balancing exploration vs exploitation can be borrowed from the non-stationary multi-armed bandit problem — use ε-greedy, or Thompson sampling.\nThe core idea, in summary, is to use one policy to propose tasks for another policy to learn better. Interestingly, both works above (in the discrete task space) found that uniformly sampling from all tasks is a surprisingly strong benchmark.\nWhat if the task space is continuous? Portelas, et al. (2019) studied a continuous teacher-student framework, where the teacher has to sample parameters from continuous task space to generate a learning curriculum. Given a newly sampled parameter $p$, the absolute learning progress (short for ALP) is measured as $\\text{ALP}_p = \\vert r - r_\\text{old} \\vert$, where $r$ is the episodic reward associated with $p$ and $r_\\text{old}$ is the reward associated with $p_\\text{old}$. Here, $p_\\text{old}$ is a previous sampled parameter closest to $p$ in the task space, which can be retrieved by nearest neighbor. Note that how this ALP score is different from learning signals in TSCL or Grave, et al. 2017 above: ALP score measures the reward difference between two tasks rather than performance at two time steps of the same task.\nOn top of the task parameter space, a Gaussian mixture model is trained to fit the distribution of $\\text{ALP}_p$ over $p$. ε-greedy is used when sampling the tasks: with some probability, sampling a random task; otherwise sampling proportionally to ALP score from the GMM model.\nThe algorithm of ALP-GMM (absolute learning progress Gaussian mixture model). (Image source: Portelas, et al., 2019) Curriculum through Self-Play Different from the teacher-student framework, two agents are doing very different things. The teacher learns to pick a task for the student without any knowledge of the actual task content. What if we want to make both train on the main task directly? How about even make them compete with each other?\nSukhbaatar, et al. (2017) proposed a framework for automatic curriculum learning through asymmetric self-play. Two agents, Alice and Bob, play the same task with different goals: Alice challenges Bob to achieve the same state and Bob attempts to complete it as fast as he can.\nIllustration of the self-play setup when training two agents. The example task is MazeBase: An agent is asked to reach a goal flag in a maze with a light switch, a key and a wall with a door. Toggling the key switch can open or close the door and Turning off the light makes only the glowing light switch available to the agent. (Image source: Sukhbaatar, et al. 2017) Let us consider Alice and Bob as two separate copies for one RL agent trained in the same environment but with different brains. Each of them has independent parameters and loss objective. The self-play-driven training consists of two types of episodes:\nIn the self-play episode, Alice alters the state from $s_0$ to $s_t$ and then Bob is asked to return the environment to its original state $s_0$ to get an internal reward. In the target task episode, Bob receives an external reward if he visits the target flag. Note that since B has to repeat the actions between the same pair of $(s_0, s_t)$ of A, this framework only works in reversible or resettable environments.\nAlice should learn to push Bob out of his comfort zone, but not give him impossible tasks. Bob’s reward is set as $R_B = -\\gamma t_B$ and Alice’s reward is $R_A = \\gamma \\max(0, t_B - t_A)$, where $t_B$ is the total time for B to complete the task, $t_A$ is the time until Alice performs the STOP action and $\\gamma$ is a scalar constant to rescale the reward to be comparable with the external task reward. If B fails a task, $t_B = t_\\max - t_A$. Both policies are goal-conditioned. The losses imply:\nB wants to finish a task asap. A prefers tasks that take more time of B. A does not want to take too many steps when B is failing. In this way, the interaction between Alice and Bob automatically builds a curriculum of increasingly challenging tasks. Meanwhile, as A has done the task herself before proposing the task to B, the task is guaranteed to be solvable.\nThe paradigm of A suggesting tasks and then B solving them does sound similar to the Teacher-Student framework. However, in asymmetric self-play, Alice, who plays a teacher role, also works on the same task to find challenging cases for Bob, rather than optimizes B’s learning process explicitly.\nAutomatic Goal Generation Often RL policy needs to be able to perform over a set of tasks. The goal should be carefully chosen so that at every training stage, it would not be too hard or too easy for the current policy. A goal $g \\in \\mathcal{G}$ can be defined as a set of states $S^g$ and a goal is considered as achieved whenever an agent arrives at any of those states.\nThe approach of Generative Goal Learning (Florensa, et al. 2018) relies on a Goal GAN to generate desired goals automatically. In their experiment, the reward is very sparse, just a binary flag for whether a goal is achieved or not and the policy is conditioned on goal,\n$$ \\begin{aligned} \\pi^{*}(a_t\\vert s_t, g) \u0026= \\arg\\max_\\pi \\mathbb{E}_{g\\sim p_g(.)} R^g(\\pi) \\\\ \\text{where }R^g(\\pi) \u0026= \\mathbb{E}_\\pi(.\\mid s_t, g) \\mathbf{1}[\\exists t \\in [1,\\dots, T]: s_t \\in S^g] \\end{aligned} $$ Here $R^g(\\pi)$ is the expected return, also equivalent to the success probability. Given sampled trajectories from the current policy, as long as any state belongs to the goal set, the return will be positive.\nTheir approach iterates through 3 steps until the policy converges:\nLabel a set of goals based on whether they are at the appropriate level of difficulty for the current policy. The set of goals at the appropriate level of difficulty are named GOID (short for “Goals of Intermediate Difficulty”).$\\text{GOID}_i := \\{g : R_\\text{min} \\leq R^g(\\pi_i) \\leq R_\\text{max} \\} \\subseteq G$ Here $R_\\text{min}$ and $R_\\text{max}$ can be interpreted as a minimum and maximum probability of reaching a goal over T time-steps. Train a Goal GAN model using labelled goals from step 1 to produce new goals Use these new goals to train the policy, improving its coverage objective. The Goal GAN generates a curriculum automatically:\nGenerator $G(z)$: produces a new goal. =\u003e expected to be a goal uniformly sampled from $GOID$ set. Discriminator $D(g)$: evaluates whether a goal can be achieved. =\u003e expected to tell whether a goal is from $GOID$ set. The Goal GAN is constructed similar to LSGAN (Least-Squared GAN; Mao et al., (2017)), which has better stability of learning compared to vanilla GAN. According to LSGAN, we should minimize the following losses for $D$ and $G$ respectively:\n$$ \\begin{aligned} \\mathcal{L}_\\text{LSGAN}(D) \u0026= \\frac{1}{2} \\mathbb{E}_{g \\sim p_\\text{data}(g)} [ (D(g) - b)^2] + \\frac{1}{2} \\mathbb{E}_{z \\sim p_z(z)} [ (D(G(z)) - a)^2] \\\\ \\mathcal{L}_\\text{LSGAN}(G) \u0026= \\frac{1}{2} \\mathbb{E}_{z \\sim p_z(z)} [ (D(G(z)) - c)^2] \\end{aligned} $$ where $a$ is the label for fake data, $b$ for real data, and $c$ is the value that $G$ wants $D$ to believe for fake data. In LSGAN paper’s experiments, they used $a=-1, b=1, c=0$.\nThe Goal GAN introduces an extra binary flag $y_b$ indicating whether a goal $g$ is real ($y_g = 1$) or fake ($y_g = 0$) so that the model can use negative samples for training:\n$$ \\begin{aligned} \\mathcal{L}_\\text{GoalGAN}(D) \u0026= \\frac{1}{2} \\mathbb{E}_{g \\sim p_\\text{data}(g)} [ (D(g) - b)^2 + (1-y_g) (D(g) - a)^2] + \\frac{1}{2} \\mathbb{E}_{z \\sim p_z(z)} [ (D(G(z)) - a)^2] \\\\ \\mathcal{L}_\\text{GoalGAN}(G) \u0026= \\frac{1}{2} \\mathbb{E}_{z \\sim p_z(z)} [ (D(G(z)) - c)^2] \\end{aligned} $$ The algorithm of Generative Goal Learning. (Image source: (Florensa, et al. 2018) Following the same idea, Racaniere \u0026 Lampinen, et al. (2019) designs a method to make the objectives of goal generator more sophisticated. Their method contains three components, same as generative goal learning above:\nSolver/Policy $\\pi$: In each episode, the solver gets a goal $g$ at the beginning and get a single binary reward $R^g$ at the end. Judge/Discriminator $D(.)$: A classifier to predict the binary reward (whether goal can be achieved or not); precisely it outputs the logit of a probability of achieving the given goal, $\\sigma(D(g)) = p(R^g=1\\vert g)$, where $\\sigma$ is the sigmoid function. Setter/Generator $G(.)$: The goal setter takes as input a desired feasibility score $f \\in \\text{Unif}(0, 1)$ and generates $g = G(z, f)$, where the latent variable $z$ is sampled by $z \\sim \\mathcal{N}(0, I)$. The goal generator is designed to reversible, so $G^{-1}$ can map backwards from a goal $g$ to a latent $z = G^{-1}(g, f)$ The generator is optimized with three objectives:\nGoal validity: The proposed goal should be achievable by an expert policy. The corresponding generative loss is designed to increase the likelihood of generating goals that the solver policy has achieved before (like in HER). $\\mathcal{L}_\\text{val}$ is the negative log-likelihood of generated goals that have been solved by the solver in the past. $$ \\begin{align*} \\mathcal{L}_\\text{val} = \\mathbb{E}_{\\substack{ g \\sim \\text{ achieved by solver}, \\\\ \\xi \\in \\text{Uniform}(0, \\delta), \\\\ f \\in \\text{Uniform}(0, 1) }} \\big[ -\\log p(G^{-1}(g + \\xi, f)) \\big] \\end{align*} $$ Goal feasibility: The proposed goal should be achievable by the current policy; that is, the level of difficulty should be appropriate. $\\mathcal{L}_\\text{feas}$ is the output probability by the judge model $D$ on the generated goal $G(z, f)$ should match the desired $f$. $$ \\begin{align*} \\mathcal{L}_\\text{feas} = \\mathbb{E}_{\\substack{ z \\in \\mathcal{N}(0, 1), \\\\ f \\in \\text{Uniform}(0, 1) }} \\big[ D(G(z, f)) - \\sigma^{-1}(f)^2 \\big] \\end{align*} $$ Goal coverage: We should maximize the entropy of generated goals to encourage diverse goal and to improve the coverage over the goal space. $$ \\begin{align*} \\mathcal{L}_\\text{cov} = \\mathbb{E}_{\\substack{ z \\in \\mathcal{N}(0, 1), \\\\ f \\in \\text{Uniform}(0, 1) }} \\big[ \\log p(G(z, f)) \\big] \\end{align*} $$ Their experiments showed complex environments require all three losses above. When the environment is changing between episodes, both the goal generator and the discriminator need to be conditioned on environmental observation to produce better results. If there is a desired goal distribution, an additional loss can be added to match a desired goal distribution using Wasserstein distance. Using this loss, the generator can push the solver toward mastering the desired tasks more efficiently.\nTraining schematic for the (a) solver/policy, (b) judge/discriminator, and (c) setter/goal generator models. (Image source: Racaniere \u0026 Lampinen, et al., 2019) Skill-Based Curriculum Another view is to decompose what an agent is able to complete into a variety of skills and each skill set could be mapped into a task. Let’s imagine when an agent interacts with the environment in an unsupervised manner, is there a way to discover useful skills from such interaction and further build into the solutions for more complicated tasks through a curriculum?\nJabri, et al. (2019) developed an automatic curriculum, CARML (short for “Curricula for Unsupervised Meta-Reinforcement Learning”), by modeling unsupervised trajectories into a latent skill space, with a focus on training meta-RL policies (i.e. can transfer to unseen tasks). The setting of training environments in CARML is similar to DIAYN. Differently, CARML is trained on pixel-level observations but DIAYN operates on the true state space. An RL algorithm $\\pi_\\theta$, parameterized by $\\theta$, is trained via unsupervised interaction formulated as a CMP combined with a learned reward function $r$. This setting naturally works for the meta-learning purpose, since a customized reward function can be given only at the test time.\nAn illustration of CARML, containing two steps: (1) organizing experiential data into the latent skill space; (2) meta-training the policy with the reward function constructed from the learned skills. (Image source: Jabri, et al 2019) CARML is framed as a variational Expectation-Maximization (EM).\n(1) E-Step: This is the stage for organizing experiential data. Collected trajectories are modeled with a mixture of latent components forming the basis of skills.\nLet $z$ be a latent task variable and $q_\\phi$ be a variational distribution of $z$, which could be a mixture model with discrete $z$ or a VAE with continuous $z$. A variational posterior $q_\\phi(z \\vert s)$ works like a classifier, predicting a skill given a state, and we would like to maximize $q_\\phi(z \\vert s)$ to discriminate between data produced by different skills as much as possible. In E-step, $q_\\phi$ is fitted to a set of trajectories produced by $\\pi_\\theta$.\nPrecisely, given a trajectory $\\tau = (s_1,\\dots,s_T)$, we would like to find $\\phi$ such that\n$$ \\max_\\phi \\mathbb{E}_{z\\sim q_\\phi(z)} \\big[ \\log q_\\phi(\\tau \\vert z) \\big] = \\max_\\phi \\mathbb{E}_{z\\sim q_\\phi(z)} \\big[ \\sum_{s_i \\in \\tau} \\log q_\\phi(s_i \\vert z) \\big] $$ A simplifying assumption is made here to ignore the order of states in one trajectory.\n(2) M-Step: This is the stage for doing meta-RL training with $\\pi_\\theta$. The learned skill space is considered as a training task distribution. CARML is agnostic to the type of meta-RL algorithm for policy parameter updates.\nGiven a trajectory $\\tau$, it makes sense for the policy to maximize the mutual information between $\\tau$ and $z$, $I(\\tau;z) = H(\\tau) - H(\\tau \\vert z)$, because:\nmaximizing $H(\\tau)$ =\u003e diversity in the policy data space; expected to be large. minimizing $H(\\tau \\vert z)$ =\u003e given a certain skill, the behavior should be restricted; expected to be small. Then we have,\n$$ \\begin{aligned} I(\\tau; z) \u0026= \\mathcal{H}(z) - \\mathcal{H}(z \\vert s_1,\\dots, s_T) \\\\ \u0026\\geq \\mathbb{E}_{s \\in \\tau} [\\mathcal{H}(z) - \\mathcal{H}(z\\vert s)] \u0026 \\scriptstyle{\\text{; discard the order of states.}} \\\\ \u0026= \\mathbb{E}_{s \\in \\tau} [\\mathcal{H}(s_t) - \\mathcal{H}(s\\vert z)] \u0026 \\scriptstyle{\\text{; by definition of MI.}} \\\\ \u0026= \\mathbb{E}_{z\\sim q_\\phi(z), s\\sim \\pi_\\theta(s|z)} [\\log q_\\phi(s|z) - \\log \\pi_\\theta(s)] \\\\ \u0026\\approx \\mathbb{E}_{z\\sim q_\\phi(z), s\\sim \\pi_\\theta(s|z)} [\\color{green}{\\log q_\\phi(s|z) - \\log q_\\phi(s)}] \u0026 \\scriptstyle{\\text{; assume learned marginal distr. matches policy.}} \\end{aligned} $$ We can set the reward as $\\log q_\\phi(s \\vert z) - \\log q_\\phi(s)$, as shown in the red part in the equation above. In order to balance between task-specific exploration (as in red below) and latent skill matching (as in blue below) , a parameter $\\lambda \\in [0, 1]$ is added. Each realization of $z \\sim q_\\phi(z)$ induces a reward function $r_z(s)$ (remember that reward + CMP =\u003e MDP) as follows:\n$$ \\begin{aligned} r_z(s) \u0026= \\lambda \\log q_\\phi(s|z) - \\log q_\\phi(s) \\\\ \u0026= \\lambda \\log q_\\phi(s|z) - \\log \\frac{q_\\phi(s|z) q_\\phi(z)}{q_\\phi(z|s)} \\\\ \u0026= \\lambda \\log q_\\phi(s|z) - \\log q_\\phi(s|z) - \\log q_\\phi(z) + \\log q_\\phi(z|s) \\\\ \u0026= (\\lambda - 1) \\log \\color{red}{q_\\phi(s|z)} + \\color{blue}{\\log q_\\phi(z|s)} + C \\end{aligned} $$ The algorithm of CARML. (Image source: Jabri, et al 2019) Learning a latent skill space can be done in different ways, such as in Hausman, et al. 2018. The goal of their approach is to learn a task-conditioned policy, $\\pi(a \\vert s, t^{(i)})$, where $t^{(i)}$ is from a discrete list of $N$ tasks, $\\mathcal{T} = [t^{(1)}, \\dots, t^{(N)}]$. However, rather than learning $N$ separate solutions, one per task, it would be nice to learn a latent skill space so that each task could be represented in a distribution over skills and thus skills are reused between tasks. The policy is defined as $\\pi_\\theta(a \\vert s,t) = \\int \\pi_\\theta(a \\vert z,s,t) p_\\phi(z \\vert t)\\mathrm{d}z$, where $\\pi_\\theta$ and $p_\\phi$ are policy and embedding networks to learn, respectively. If $z$ is discrete, i.e. drawn from a set of $K$ skills, then the policy becomes a mixture of $K$ sub-policies. The policy training uses SAC and the dependency on $z$ is introduced in the entropy term.\nCurriculum through Distillation [I was thinking of the name of this section for a while, deciding between cloning, inheritance, and distillation. Eventually, I picked distillation because it sounds the coolest B-)]\nThe motivation for the progressive neural network (Rusu et al. 2016) architecture is to efficiently transfer learned skills between different tasks and in the meantime avoid catastrophic forgetting. The curriculum is realized through a set of progressively stacked neural network towers (or “columns”, as in the paper).\nA progressive network has the following structure:\nIt starts with a single column containing $L$ layers of neurons, in which the corresponding activation layers are labelled as $h^{(1)}_i, i=1, \\dots, L$. We first train this single-column network for one task to convergence, achieving parameter config $\\theta^{(1)}$.\nOnce switch to the next task, we need to add a new column to adapt to the new context while freezing $\\theta^{(1)}$ to lock down the learned skills from the previous task. The new column has activation layers labelled as $h^{(2)}_i, i=1, \\dots, L$, and parameters $\\theta^{(2)}$.\nStep 2 can be repeated with every new task. The $i$-th layer activation in the $k$-th column depends on the previous activation layers in all the existing columns:\n$$ h^{(k)}_i = f(W^{(k)}_i h^{(k)}_{i-1} + \\sum_{j \u003c k} U_i^{(k:j)} h^{(j)}_{i-1}) $$ where $W^{(k)}_i$ is the weight matrix of the layer $i$ in the column $k$; $U_i^{(k:j)}, j \u003c k$ are the weight matrices for projecting the layer $i-1$ of the column $j$ to the layer $i$ of column $k$ ($ j \u003c k $). The above weights matrices should be learned. $f(.)$ is a non-linear activation function by choice.\nThe progressive neural network architecture. (Image source: Rusu, et al. 2017) The paper experimented with Atari games by training a progressive network on multiple games to check whether features learned in one game can transfer to another. That is indeed the case. Though interestingly, learning a high dependency on features in the previous columns does not always indicate good transfer performance on the new task. One hypothesis is that features learned from the old task might introduce biases into the new task, leading to policy getting trapped in a sub-optimal solution. Overall, the progressive network works better than only fine-tuning the top layer and can achieve similar transfer performance as fine-tuning the entire network.\nOne use case for the progressive network is to do sim2real transfer (Rusu, et al. 2017), in which the first column is trained in simulator with a lot of samples and then the additional columns (could be for different real-world tasks) are added and trained with a few real data samples.\nCzarnecki, et al. (2018) proposed another RL training framework, Mix \u0026 Match (short for M\u0026M) to provide curriculum through coping knowledge between agents. Given a sequence of agents from simple to complex, $\\pi_1, \\dots, \\pi_K$, each parameterized with some shared weights (e.g. by shared some lower common layers). M\u0026M trains a mixture of agents, but only the final performance of the most complex one $\\pi_K$ matters.\nIn the meantime, M\u0026M learns a categorical distribution $c \\sim \\text{Categorical}(1, \\dots, K \\vert \\alpha)$ with pmf $p(c=i) = \\alpha_i$ probability to pick which policy to use at a given time. The mixed M\u0026M policy is a simple weighted sum: $\\pi_\\text{mm}(a \\vert s) = \\sum_{i=1}^K \\alpha_i \\pi_i(a \\vert s)$. Curriculum learning is realized by dynamically adjusting $\\alpha_i$, from $\\alpha_K=0$ to $\\alpha_K=1$. The tuning of $\\alpha$ can be manual or through population-based training.\nTo encourage cooperation rather than competition among policies, besides the RL loss $\\mathcal{L}_\\text{RL}$, another distillation-like loss $\\mathcal{L}_\\text{mm}(\\theta)$ is added. The knowledge transfer loss $\\mathcal{L}_\\text{mm}(\\theta)$ measures the KL divergence between two policies, $\\propto D_\\text{KL}(\\pi_{i}(. \\vert s) | \\pi_j(. \\vert s))$ for $i \u003c j$. It encourages complex agents to match the simpler ones early on. The final loss is $\\mathcal{L} = \\mathcal{L}_\\text{RL}(\\theta \\vert \\pi_\\text{mm}) + \\lambda \\mathcal{L}_\\text{mm}(\\theta)$.\nThe Mix \u0026 Match architecture for training a mixture of policies. (Image source: Czarnecki, et al., 2018) Citation Cited as:\nWeng, Lilian. (Jan 2020). Curriculum for reinforcement learning. Lil’Log. https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/.\nOr\n@article{weng2020curriculum, title = \"Curriculum for Reinforcement Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2020\", month = \"Jan\", url = \"https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/\" } References [1] Jeffrey L. Elman. “Learning and development in neural networks: The importance of starting small.” Cognition 48.1 (1993): 71-99.\n[2] Yoshua Bengio, et al. “Curriculum learning.” ICML 2009.\n[3] Daphna Weinshall, Gad Cohen, and Dan Amir. “Curriculum learning by transfer learning: Theory and experiments with deep networks.” ICML 2018.\n[4] Wojciech Zaremba and Ilya Sutskever. “Learning to execute.” arXiv preprint arXiv:1410.4615 (2014).\n[5] Tambet Matiisen, et al. “Teacher-student curriculum learning.” IEEE Trans. on neural networks and learning systems (2017).\n[6] Alex Graves, et al. “Automated curriculum learning for neural networks.” ICML 2017.\n[7] Remy Portelas, et al. Teacher algorithms for curriculum learning of Deep RL in continuously parameterized environments. CoRL 2019.\n[8] Sainbayar Sukhbaatar, et al. “Intrinsic Motivation and Automatic Curricula via Asymmetric Self-Play.” ICLR 2018.\n[9] Carlos Florensa, et al. “Automatic Goal Generation for Reinforcement Learning Agents” ICML 2019.\n[10] Sebastien Racaniere \u0026 Andrew K. Lampinen, et al. “Automated Curriculum through Setter-Solver Interactions” ICLR 2020.\n[11] Allan Jabri, et al. “Unsupervised Curricula for Visual Meta-Reinforcement Learning” NeuriPS 2019.\n[12] Karol Hausman, et al. “Learning an Embedding Space for Transferable Robot Skills “ ICLR 2018.\n[13] Josh Merel, et al. “Reusable neural skill embeddings for vision-guided whole body movement and object manipulation” arXiv preprint arXiv:1911.06636 (2019).\n[14] OpenAI, et al. “Solving Rubik’s Cube with a Robot Hand.” arXiv preprint arXiv:1910.07113 (2019).\n[15] Niels Justesen, et al. “Illuminating Generalization in Deep Reinforcement Learning through Procedural Level Generation” NeurIPS 2018 Deep RL Workshop.\n[16] Karl Cobbe, et al. “Quantifying Generalization in Reinforcement Learning” arXiv preprint arXiv:1812.02341 (2018).\n[17] Andrei A. Rusu et al. “Progressive Neural Networks” arXiv preprint arXiv:1606.04671 (2016).\n[18] Andrei A. Rusu et al. “Sim-to-Real Robot Learning from Pixels with Progressive Nets.” CoRL 2017.\n[19] Wojciech Marian Czarnecki, et al. “Mix \u0026 Match – Agent Curricula for Reinforcement Learning.” ICML 2018.\n",
+  "wordCount" : "4984",
+  "inLanguage": "en",
+  "datePublished": "2020-01-29T00:00:00Z",
+  "dateModified": "2020-01-29T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Curriculum for Reinforcement Learning
+    </h1>
+    <div class="post-meta">Date: January 29, 2020  |  Estimated Reading Time: 24 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#task-specific-curriculum" aria-label="Task-Specific Curriculum">Task-Specific Curriculum</a></li>
+                <li>
+                    <a href="#teacher-guided-curriculum" aria-label="Teacher-Guided Curriculum">Teacher-Guided Curriculum</a></li>
+                <li>
+                    <a href="#curriculum-through-self-play" aria-label="Curriculum through Self-Play">Curriculum through Self-Play</a></li>
+                <li>
+                    <a href="#automatic-goal-generation" aria-label="Automatic Goal Generation">Automatic Goal Generation</a></li>
+                <li>
+                    <a href="#skill-based-curriculum" aria-label="Skill-Based Curriculum">Skill-Based Curriculum</a></li>
+                <li>
+                    <a href="#curriculum-through-distillation" aria-label="Curriculum through Distillation">Curriculum through Distillation</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- A curriculum is an efficient tool for humans to progressively learn from simple concepts to hard problems. It breaks down complex knowledge by providing a sequence of learning steps of increasing difficulty. In this post, we will examine how the idea of curriculum can help reinforcement learning models learn to solve complicated tasks. -->
+<p><span class="update">[Updated on 2020-02-03: mentioning <a href="#pcg">PCG</a> in the &ldquo;Task-Specific Curriculum&rdquo; section.</span><br/>
+<span class="update">[Updated on 2020-02-04: Add a new <a href="#curriculum-through-distillation">&ldquo;curriculum through distillation&rdquo;</a> section.</span></p>
+<p>It sounds like an impossible task if we want to teach integral or derivative to a 3-year-old who does not even know basic arithmetics. That&rsquo;s why education is important, as it provides a systematic way to break down complex knowledge and a nice curriculum for teaching concepts from simple to hard. A curriculum makes learning difficult things easier and approachable for us humans. But, how about machine learning models? Can we train our models more efficiently with a curriculum? Can we design a curriculum to speed up learning?</p>
+<p>Back in 1993, Jeffrey Elman has proposed the idea of training neural networks with a curriculum. His early work on learning simple language grammar demonstrated the importance of such a strategy: starting with a restricted set of simple data and gradually increasing the complexity of training samples; otherwise the model was not able to learn at all.</p>
+<p>Compared to training without a curriculum, we would expect the adoption of the curriculum to expedite the speed of convergence and may or may not improve the final model performance. To design an efficient and effective curriculum is not easy. Keep in mind that, a bad curriculum may even hamper learning.</p>
+<p>Next, we will look into several categories of curriculum learning, as illustrated in Most cases are applied to Reinforcement Learning, with a few exceptions on Supervised Learning.</p>
+<figure>
+	<img src="types-of-curriculum-2.png" style="width: 100%;"  />
+	<figcaption>Five types of curriculum for reinforcement learning.</figcaption>
+</figure>
+<p>In &ldquo;The importance of starting small&rdquo; paper (<a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.4487&amp;rep=rep1&amp;type=pdf">Elman 1993</a>), I especially like the starting sentences and find them both inspiring and affecting:</p>
+<blockquote>
+<p>&ldquo;Humans differ from other species along many dimensions, but two are particularly noteworthy. Humans display an exceptional capacity to learn; and humans are remarkable for the unusually long time it takes to reach maturity. The adaptive advantage of learning is clear, and it may be argued that, through culture, learning has created the basis for a non-genetically based transmission of behaviors which may accelerate the evolution of our species.&rdquo;</p>
+</blockquote>
+<p>Indeed, learning is probably the best superpower we humans have.</p>
+<h1 id="task-specific-curriculum">Task-Specific Curriculum<a hidden class="anchor" aria-hidden="true" href="#task-specific-curriculum">#</a></h1>
+<p><a href="https://www.researchgate.net/profile/Y_Bengio/publication/221344862_Curriculum_learning/links/546cd2570cf2193b94c577ac/Curriculum-learning.pdf">Bengio, et al. (2009)</a> provided a good overview of curriculum learning in the old days. The paper presented two ideas with toy experiments using a manually designed task-specific curriculum:</p>
+<ol>
+<li>Cleaner Examples may yield better generalization faster.</li>
+<li>Introducing gradually more difficult examples speeds up online training.</li>
+</ol>
+<p>It is plausible that some curriculum strategies could be useless or even harmful. A good question to answer in the field is: <em>What could be the general principles that make some curriculum strategies work better than others?</em> The Bengio 2009 paper hypothesized it would be beneficial to make learning focus on &ldquo;interesting&rdquo; examples that are neither too hard or too easy.</p>
+<p>If our naive curriculum is to train the model on samples with a gradually increasing level of complexity, we need a way to quantify the difficulty of a task first. One idea is to use its minimal loss with respect to another model while this model is pretrained on other tasks (<a href="https://arxiv.org/abs/1802.03796">Weinshall, et al. 2018</a>). In this way, the knowledge of the pretrained model can be transferred to the new model by suggesting a rank of training samples. Fig. 2 shows the effectiveness of the <code>curriculum</code> group (green), compared to <code>control</code> (random order; yellow) and <code>anti</code> (reverse the order; red) groups.</p>
+<figure>
+	<img src="curriculum-by-transfer-learning.png" style="width: 100%;"  />
+	<figcaption>Image classification accuracy on test image set (5 member classes of "small mammals" in CIFAR100). There are 4 experimental groups, (a) `curriculum`: sort the labels by the confidence of another trained classifier (e.g. the margin of an SVM); (b) `control-curriculum`: sort the labels randomly; (c) `anti-curriculum`: sort the labels reversely; (d) `None`: no curriculum. (Image source: <a href="https://arxiv.org/abs/1802.03796" target="_blank">Weinshall, et al. 2018</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1410.4615">Zaremba &amp; Sutskever (2014)</a> did an interesting experiment on training LSTM to predict the output of a short Python program for mathematical ops without actually executing the code. They found curriculum is necessary for learning. The program&rsquo;s complexity is controlled by two parameters, <code>length</code> ∈ [1, a] and <code>nesting</code>∈ [1, b]. Three strategies are considered:</p>
+<ol>
+<li>Naive curriculum: increase <code>length</code> first until reaching <code>a</code>; then increase <code>nesting</code> and reset <code>length</code> to 1; repeat this process until both reach maximum.</li>
+<li>Mix curriculum: sample <code>length</code> ~ [1, a] and <code>nesting</code> ~ [1, b]</li>
+<li>Combined: naive + mix.</li>
+</ol>
+<p>They noticed that combined strategy always outperformed the naive curriculum and would generally (but not always) outperform the mix strategy &mdash; indicating that it is quite important to mix in easy tasks during training to <em>avoid forgetting</em>.</p>
+<p><a id="pcg" ></a>Procedural content generation (<a href="https://en.wikipedia.org/wiki/Procedural_generation">PCG</a>) is a popular approach for creating video games of various levels of difficulty. PCG involves algorithmic randomness and a heavy dose of human expertise in designing game elements and dependencies among them. Procedurally generated levels have been introduced into several benchmark environments for evaluating whether an RL agent can generalize to a new level that it is not trained on (<a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/">meta-RL</a>!), such as <a href="http://www.gvgai.net/">GVGAI</a>, OpenAI <a href="https://openai.com/blog/quantifying-generalization-in-reinforcement-learning/">CoinRun</a> and <a href="https://openai.com/blog/procgen-benchmark/">Procgen benchmark</a>. Using GVGAI, <a href="https://arxiv.org/abs/1806.10729">Justesen, et al. (2018)</a> demonstrated that an RL policy can easily overfit to a specific game but training over a simple curriculum that grows the task difficulty together with the model performance helps its generalization to new human-designed levels. Similar results are also found in CoinRun (<a href="https://arxiv.org/abs/1812.02341">Cobbe, et al. 2018</a>). POET (<a href="https://arxiv.org/abs/1901.01753">Wang et al, 2019</a>) is another example for leveraging evolutionary algorithm and procedural generated game levels to improve RL generalization, which I&rsquo;ve described in details in my <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#evolutionary-algorithm-on-environment-generation">meta-RL post</a>.</p>
+<p>To follow the curriculum learning approaches described above, generally we need to figure out two problems in the training procedure:</p>
+<ol>
+<li>Design a metric to quantify how hard a task is so that we can sort tasks accordingly.</li>
+<li>Provide a sequence of tasks with an increasing level of difficulty to the model during training.</li>
+</ol>
+<p>However, the order of tasks does not have to be sequential. In our Rubik&rsquo;s cube paper (<a href="https://arxiv.org/abs/1910.07113.">OpenAI et al, 2019</a>), we depended on <em>Automatic domain randomization</em> (<strong>ADR</strong>) to generate a curriculum by growing a distribution of environments with increasing complexity. The difficulty of each task (i.e. solving a Rubik&rsquo;s cube in a set of environments) depends on the randomization ranges of various environmental parameters. Even with a simplified assumption that all the environmental parameters are uncorrelated, we were able to create a decent curriculum for our robot hand to learn the task.</p>
+<h1 id="teacher-guided-curriculum">Teacher-Guided Curriculum<a hidden class="anchor" aria-hidden="true" href="#teacher-guided-curriculum">#</a></h1>
+<p><a id="grave-et-al-2017" ></a>The idea of <em>Automatic Curriculum Learning</em> was proposed by <a href="https://arxiv.org/abs/1704.03003">Graves, et al. 2017</a> slightly earlier. It considers a $N$-task curriculum as an <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/">$N$-armed bandit</a> problem and an adaptive policy which learns to optimize the returns from this bandit.</p>
+<p>Two categories of learning signals have been considered in the paper:</p>
+<ol>
+<li>Loss-driven progress: the loss function change before and after one gradient update. This type of reward signals tracks the speed of the learning process, because the greatest task loss decrease is equivalent to the fastest learning.</li>
+<li>Complex-driven progress: the KL divergence between posterior and prior distribution over network weights. This type of learning signals are inspired by the <a href="https://en.wikipedia.org/wiki/Minimum_description_length">MDL</a> principle, &ldquo;increasing the model complexity by a certain amount is only worthwhile if it compresses the data by a greater amount&rdquo;. The model complexity is therefore expected to increase most in response to the model nicely generalizing to training examples.</li>
+</ol>
+<p><a id="TSCL" ></a>This framework of proposing curriculum automatically through another RL agent was formalized as <em>Teacher-Student Curriculum Learning</em> (<strong>TSCL</strong>; <a href="https://arxiv.org/abs/1707.00183">Matiisen, et al. 2017</a>). In TSCL, a <em>student</em> is an RL agent working on actual tasks while a <em>teacher</em> agent is a policy for selecting tasks. The student aims to master a complex task that might be hard to learn directly. To make this task easier to learn, we set up the teacher agent to guide the student&rsquo;s training process by picking proper sub-tasks.</p>
+<figure>
+	<img src="teacher-student-curriculum.png" style="width: 100%;"  />
+	<figcaption>The setup of teacher-student curriculum learning. (Image source: <a href="https://arxiv.org/abs/1707.00183" target="_blank">Matiisen, et al. 2017</a> + my annotation in red.)</figcaption>
+</figure>
+<p>In the process, the student should learn tasks which:</p>
+<ol>
+<li>can help the student make fastest learning progress, or</li>
+<li>are at risk of being forgotten.</li>
+</ol>
+<blockquote>
+<p>Note: The setup of framing the teacher model as an RL problem feels quite similar to Neural Architecture Search (NAS), but differently the RL model in TSCL operates on the task space and NAS operates on the main model architecture space.</p>
+</blockquote>
+<p>Training the teacher model is to solve a <a href="https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process">POMDP</a> problem:</p>
+<ul>
+<li>The unobserved $s_t$ is the full state of the student model.</li>
+<li>The observed $o = (x_t^{(1)}, \dots, x_t^{(N)})$ are a list of scores for $N$ tasks.</li>
+<li>The action $a$ is to pick on subtask.</li>
+<li>The reward per step is the score delta.$r_t = \sum_{i=1}^N x_t^{(i)} - x_{t-1}^{(i)}$ (i.e., equivalent to maximizing the score of all tasks at the end of the episode).</li>
+</ul>
+<p>The method of estimating learning progress from noisy task scores while balancing exploration vs exploitation can be borrowed from the non-stationary multi-armed bandit problem &mdash; use <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#%CE%B5-greedy-algorithm">ε-greedy</a>, or <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#thompson-sampling">Thompson sampling</a>.</p>
+<p>The core idea, in summary, is to use one policy to propose tasks for another policy to learn better. Interestingly, both works above (in the discrete task space) found that uniformly sampling from all tasks is a surprisingly strong benchmark.</p>
+<p>What if the task space is continuous? <a href="https://arxiv.org/abs/1910.07224">Portelas, et al. (2019)</a> studied a continuous teacher-student framework, where the teacher has to sample parameters from continuous task space to generate a learning curriculum. Given a newly sampled parameter $p$, the absolute learning progress (short for ALP) is measured as $\text{ALP}_p = \vert r - r_\text{old} \vert$, where $r$ is the episodic reward associated with $p$ and $r_\text{old}$ is the reward associated with $p_\text{old}$. Here, $p_\text{old}$ is a previous sampled parameter closest to $p$ in the task space, which can be retrieved by nearest neighbor. Note that how this ALP score is different from learning signals in <a href="#TSCL">TSCL</a> or <a href="#grave-et-al-2017">Grave, et al. 2017</a> above: ALP score measures the reward difference between two tasks rather than performance at two time steps of the same task.</p>
+<p>On top of the task parameter space, a Gaussian mixture model is trained to fit the distribution of $\text{ALP}_p$ over $p$. ε-greedy is used when sampling the tasks: with some probability, sampling a random task; otherwise sampling proportionally to ALP score from the GMM model.</p>
+<figure>
+	<img src="ALP-GMM-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm of ALP-GMM (absolute learning progress Gaussian mixture model). (Image source: <a href="https://arxiv.org/abs/1910.07224" target="_blank">Portelas, et al., 2019</a>)</figcaption>
+</figure>
+<h1 id="curriculum-through-self-play">Curriculum through Self-Play<a hidden class="anchor" aria-hidden="true" href="#curriculum-through-self-play">#</a></h1>
+<p>Different from the teacher-student framework, two agents are doing very different things. The teacher learns to pick a task for the student without any knowledge of the actual task content. What if we want to make both train on the main task directly? How about even make them compete with each other?</p>
+<p><a href="https://arxiv.org/abs/1703.05407">Sukhbaatar, et al. (2017)</a> proposed a framework for automatic curriculum learning through <strong>asymmetric self-play</strong>. Two agents, Alice and Bob, play the same task with different goals: Alice challenges Bob to achieve the same state and Bob attempts to complete it as fast as he can.</p>
+<figure>
+	<img src="self-play-maze.png" style="width: 100%;"  />
+	<figcaption>Illustration of the self-play setup when training two agents. The example task is <a href="https://github.com/facebook/MazeBase" target="_blank">MazeBase</a>: An agent is asked to reach a goal flag in a maze with a light switch, a key and a wall with a door. Toggling the key switch can open or close the door and Turning off the light makes only the glowing light switch available to the agent. (Image source: <a href="https://arxiv.org/abs/1703.05407" target="_blank">Sukhbaatar, et al. 2017</a>)</figcaption>
+</figure>
+<p>Let us consider Alice and Bob as two separate copies for one RL agent trained in the same environment but with different brains. Each of them has independent parameters and loss objective. The self-play-driven training consists of two types of episodes:</p>
+<ul>
+<li>In the <em>self-play episode</em>, Alice alters the state from $s_0$ to $s_t$ and then Bob is asked to return the environment to its original state $s_0$ to get an internal reward.</li>
+<li>In the <em>target task episode</em>, Bob receives an external reward if he visits the target flag.</li>
+</ul>
+<p>Note that since B has to repeat the actions between the same pair of $(s_0, s_t)$ of A, this framework only works in reversible or resettable environments.</p>
+<p>Alice should learn to push Bob out of his comfort zone, but not give him impossible tasks. Bob&rsquo;s reward is set as $R_B = -\gamma t_B$ and Alice&rsquo;s reward is $R_A = \gamma \max(0, t_B - t_A)$, where $t_B$ is the total time for B to complete the task, $t_A$ is the time until Alice performs the STOP action and $\gamma$ is a scalar constant to rescale the reward to be comparable with the external task reward. If B fails a task, $t_B = t_\max - t_A$.
+Both policies are goal-conditioned. The losses imply:</p>
+<ol>
+<li>B wants to finish a task asap.</li>
+<li>A prefers tasks that take more time of B.</li>
+<li>A does not want to take too many steps when B is failing.</li>
+</ol>
+<p>In this way, the interaction between Alice and Bob automatically builds a curriculum of increasingly challenging tasks. Meanwhile, as A has done the task herself before proposing the task to B, the task is guaranteed to be solvable.</p>
+<p>The paradigm of A suggesting tasks and then B solving them does sound similar to the Teacher-Student framework. However, in asymmetric self-play, Alice, who plays a teacher role, also works on the same task to find challenging cases for Bob, rather than optimizes B&rsquo;s learning process explicitly.</p>
+<h1 id="automatic-goal-generation">Automatic Goal Generation<a hidden class="anchor" aria-hidden="true" href="#automatic-goal-generation">#</a></h1>
+<p>Often RL policy needs to be able to perform over a set of tasks. The goal should be carefully chosen so that at every training stage, it would not be too hard or too easy for the current policy. A goal $g \in \mathcal{G}$ can be defined as a set of states $S^g$ and a goal is considered as achieved whenever an agent arrives at any of those states.</p>
+<p>The approach of Generative Goal Learning (<a href="https://arxiv.org/abs/1705.06366">Florensa, et al. 2018</a>) relies on a <strong>Goal GAN</strong> to generate desired goals automatically. In their experiment, the reward is very sparse, just a binary flag for whether a goal is achieved or not and the policy is conditioned on goal,</p>
+<div>
+$$
+\begin{aligned}
+\pi^{*}(a_t\vert s_t, g) &= \arg\max_\pi \mathbb{E}_{g\sim p_g(.)} R^g(\pi) \\
+\text{where }R^g(\pi) &= \mathbb{E}_\pi(.\mid s_t, g) \mathbf{1}[\exists t \in [1,\dots, T]: s_t \in S^g]
+\end{aligned}
+$$
+</div>
+<p>Here $R^g(\pi)$ is the expected return, also equivalent to the success probability. Given sampled trajectories from the current policy, as long as any state belongs to the goal set, the return will be positive.</p>
+<p>Their approach iterates through 3 steps until the policy converges:</p>
+<ol>
+<li>Label a set of goals based on whether they are at the appropriate level of difficulty for the current policy.</li>
+</ol>
+<ul>
+<li>The set of goals at the appropriate level of difficulty are named <strong>GOID</strong> (short for &ldquo;Goals of Intermediate Difficulty&rdquo;).<br/>$\text{GOID}_i := \{g : R_\text{min} \leq R^g(\pi_i) \leq R_\text{max} \} \subseteq G$</li>
+<li>Here $R_\text{min}$ and $R_\text{max}$ can be interpreted as a minimum and maximum probability of reaching a goal over T time-steps.</li>
+</ul>
+<ol start="2">
+<li>Train a Goal GAN model using labelled goals from step 1 to produce new goals</li>
+<li>Use these new goals to train the policy, improving its coverage objective.</li>
+</ol>
+<p>The Goal GAN generates a curriculum automatically:</p>
+<ul>
+<li>Generator $G(z)$: produces a new goal. =&gt; expected to be a goal uniformly sampled from $GOID$ set.</li>
+<li>Discriminator $D(g)$: evaluates whether a goal can be achieved. =&gt; expected to tell whether a goal is from $GOID$ set.</li>
+</ul>
+<p>The Goal GAN is constructed similar to LSGAN (Least-Squared GAN; <a href="https://arxiv.org/abs/1611.04076">Mao et al., (2017)</a>), which has better stability of learning compared to vanilla GAN. According to LSGAN, we should minimize the following losses for $D$ and $G$ respectively:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{LSGAN}(D) &= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{LSGAN}(G) &= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+$$
+</div>
+<p>where $a$ is the label for fake data, $b$ for real data, and $c$ is the value that $G$ wants $D$ to believe for fake data. In LSGAN paper&rsquo;s experiments, they used $a=-1, b=1, c=0$.</p>
+<p>The Goal GAN introduces an extra binary flag $y_b$ indicating whether a goal $g$ is real ($y_g = 1$) or fake ($y_g = 0$) so that the model can use negative samples for training:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{L}_\text{GoalGAN}(D) &= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2 + (1-y_g) (D(g) - a)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{GoalGAN}(G) &= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="generative-goal-learning-algorithm.png" style="width: 60%;"  />
+	<figcaption>The algorithm of Generative Goal Learning. (Image source: (<a href="https://arxiv.org/abs/1705.06366" target="_blank">Florensa, et al. 2018</a>)</figcaption>
+</figure>
+<p>Following the same idea, <a href="https://arxiv.org/abs/1909.12892">Racaniere &amp; Lampinen, et al. (2019)</a> designs a method to make the objectives of goal generator more sophisticated. Their method contains three components, same as generative goal learning above:</p>
+<ul>
+<li><strong>Solver</strong>/Policy $\pi$: In each episode, the solver gets a goal $g$ at the beginning and get a single binary reward $R^g$ at the end.</li>
+<li><strong>Judge</strong>/Discriminator $D(.)$: A classifier to predict the binary reward (whether goal can be achieved or not); precisely it outputs the logit of a probability of achieving the given goal, $\sigma(D(g)) = p(R^g=1\vert g)$, where $\sigma$ is the sigmoid function.</li>
+<li><strong>Setter</strong>/Generator $G(.)$: The goal setter takes as input a desired feasibility score $f \in \text{Unif}(0, 1)$ and generates $g = G(z, f)$, where the latent variable $z$ is sampled by $z \sim \mathcal{N}(0, I)$. The goal generator is designed to reversible, so $G^{-1}$ can map backwards from a goal $g$ to a latent $z = G^{-1}(g, f)$</li>
+</ul>
+<p>The generator is optimized with three objectives:</p>
+<ol>
+<li>Goal <strong>validity</strong>: The proposed goal should be achievable by an expert policy. The corresponding generative loss is designed to increase the likelihood of generating goals that the solver policy has achieved before (like in <a href="https://arxiv.org/abs/1707.01495">HER</a>).
+<ul>
+<li>$\mathcal{L}_\text{val}$ is the negative log-likelihood of generated goals that have been solved by the solver in the past.</li>
+<li></li>
+</ul>
+</li>
+</ol>
+<div>
+$$
+\begin{align*}
+\mathcal{L}_\text{val} = \mathbb{E}_{\substack{
+  g \sim \text{ achieved by solver}, \\
+  \xi \in \text{Uniform}(0, \delta), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ -\log p(G^{-1}(g + \xi, f)) \big]
+\end{align*}
+$$
+</div>
+<ol start="2">
+<li>Goal <strong>feasibility</strong>: The proposed goal should be achievable by the current policy; that is, the level of difficulty should be appropriate.
+<ul>
+<li>$\mathcal{L}_\text{feas}$ is the output probability by the judge model $D$ on the generated goal $G(z, f)$ should match the desired $f$.</li>
+<li></li>
+</ul>
+</li>
+</ol>
+<div>
+$$
+\begin{align*}
+\mathcal{L}_\text{feas} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ D(G(z, f)) - \sigma^{-1}(f)^2 \big]
+\end{align*}
+$$
+</div>
+<ol start="3">
+<li>Goal <strong>coverage</strong>: We should maximize the entropy of generated goals to encourage diverse goal and to improve the coverage over the goal space.</li>
+</ol>
+<div>
+$$
+\begin{align*}
+\mathcal{L}_\text{cov} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ \log p(G(z, f)) \big]
+\end{align*}
+$$
+</div>
+<p>Their experiments showed complex environments require all three losses above. When the environment is changing between episodes, both the goal generator and the discriminator need to be conditioned on environmental observation to produce better results. If there is a desired goal distribution, an additional loss can be added to match a desired goal distribution using Wasserstein distance. Using this loss, the generator can push the solver toward mastering the desired tasks more efficiently.</p>
+<figure>
+	<img src="setter-judge-goal-generation.png" style="width: 100%;"  />
+	<figcaption>Training schematic for the (a) solver/policy, (b) judge/discriminator, and (c) setter/goal generator models. (Image source: <a href="https://arxiv.org/abs/1909.12892" target="_blank">Racaniere & Lampinen, et al., 2019</a>)</figcaption>
+</figure>
+<h1 id="skill-based-curriculum">Skill-Based Curriculum<a hidden class="anchor" aria-hidden="true" href="#skill-based-curriculum">#</a></h1>
+<p>Another view is to decompose what an agent is able to complete into a variety of skills and each skill set could be mapped into a task. Let&rsquo;s imagine when an agent interacts with the environment in an unsupervised manner, is there a way to discover useful skills from such interaction and further build into the solutions for more complicated tasks through a curriculum?</p>
+<p><a href="https://arxiv.org/abs/1912.04226">Jabri, et al. (2019)</a> developed an automatic curriculum, <strong>CARML</strong> (short for &ldquo;Curricula for Unsupervised Meta-Reinforcement Learning&rdquo;), by modeling unsupervised trajectories into a latent skill space, with a focus on training <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/">meta-RL</a> policies (i.e. can transfer to unseen tasks). The setting of training environments in CARML is similar to <a href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/#learning-with-random-rewards">DIAYN</a>. Differently, CARML is trained on pixel-level observations but DIAYN operates on the true state space. An RL algorithm $\pi_\theta$, parameterized by $\theta$, is trained via unsupervised interaction formulated as a CMP combined with a learned reward function $r$. This setting naturally works for the meta-learning purpose, since a customized reward function can be given only at the test time.</p>
+<figure>
+	<img src="CARML.png" style="width: 100%;"  />
+	<figcaption>An illustration of CARML, containing two steps: (1) organizing experiential data into the latent skill space; (2) meta-training the policy with the reward function constructed from the learned skills. (Image source: <a href="https://arxiv.org/abs/1912.04226" target="_blank">Jabri, et al 2019</a>)</figcaption>
+</figure>
+<p>CARML is framed as a <a href="https://chrischoy.github.io/research/Expectation-Maximization-and-Variational-Inference/">variational Expectation-Maximization (EM)</a>.</p>
+<p>(1) <strong>E-Step</strong>: This is the stage for organizing experiential data. Collected trajectories are modeled with a mixture of latent components forming the <a href="https://en.wikipedia.org/wiki/Basis_(linear_algebra)">basis</a> of <em>skills</em>.</p>
+<p>Let $z$ be a latent task variable and $q_\phi$ be a variational distribution of $z$, which could be a mixture model with discrete $z$ or a VAE with continuous $z$. A variational posterior $q_\phi(z \vert s)$ works like a classifier, predicting a skill given a state, and we would like to maximize $q_\phi(z \vert s)$ to discriminate between data produced by different skills as much as possible. In E-step, $q_\phi$ is fitted to a set of trajectories produced by $\pi_\theta$.</p>
+<p>Precisely, given a trajectory $\tau = (s_1,\dots,s_T)$, we would like to find $\phi$ such that</p>
+<div>
+$$
+\max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \log q_\phi(\tau \vert z) \big]
+= \max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \sum_{s_i \in \tau} \log q_\phi(s_i \vert z) \big]
+$$
+</div>
+<p>A simplifying assumption is made here to ignore the order of states in one trajectory.</p>
+<p>(2) <strong>M-Step</strong>: This is the stage for doing meta-RL training with $\pi_\theta$. The learned skill space is considered as a training task distribution. CARML is agnostic to the type of meta-RL algorithm for policy parameter updates.</p>
+<p>Given a trajectory $\tau$, it makes sense for the policy to maximize the mutual information between $\tau$ and $z$, $I(\tau;z) = H(\tau) - H(\tau \vert z)$, because:</p>
+<ul>
+<li>maximizing $H(\tau)$ =&gt; diversity in the policy data space; expected to be large.</li>
+<li>minimizing $H(\tau \vert z)$ =&gt; given a certain skill, the behavior should be restricted; expected to be small.</li>
+</ul>
+<p>Then we have,</p>
+<div>
+$$
+\begin{aligned}
+I(\tau; z) 
+&= \mathcal{H}(z) - \mathcal{H}(z \vert s_1,\dots, s_T) \\
+&\geq \mathbb{E}_{s \in \tau} [\mathcal{H}(z) - \mathcal{H}(z\vert s)] & \scriptstyle{\text{; discard the order of states.}} \\
+&= \mathbb{E}_{s \in \tau} [\mathcal{H}(s_t) - \mathcal{H}(s\vert z)] & \scriptstyle{\text{; by definition of MI.}} \\
+&= \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\log q_\phi(s|z) - \log \pi_\theta(s)] \\
+&\approx \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\color{green}{\log q_\phi(s|z) - \log q_\phi(s)}] & \scriptstyle{\text{; assume learned marginal distr. matches policy.}}
+\end{aligned}
+$$
+</div>
+<p>We can set the reward as $\log q_\phi(s \vert z) - \log q_\phi(s)$, as shown in the <span style="color: green;">red</span> part in the equation above. In order to balance between task-specific exploration (as in <span style="color: red;">red</span> below) and latent skill matching (as in <span style="color: blue;">blue</span> below) , a parameter $\lambda \in [0, 1]$ is added. Each realization of $z \sim q_\phi(z)$ induces a reward function $r_z(s)$ (remember that reward + CMP =&gt; MDP) as follows:</p>
+<div>
+$$
+\begin{aligned}
+r_z(s)
+&= \lambda \log q_\phi(s|z) - \log q_\phi(s) \\
+&= \lambda \log q_\phi(s|z) - \log \frac{q_\phi(s|z) q_\phi(z)}{q_\phi(z|s)} \\
+&= \lambda \log q_\phi(s|z) - \log q_\phi(s|z) - \log q_\phi(z) + \log q_\phi(z|s) \\
+&= (\lambda - 1) \log \color{red}{q_\phi(s|z)} + \color{blue}{\log q_\phi(z|s)} + C
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="CARML-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm of CARML. (Image source: <a href="https://arxiv.org/abs/1912.04226" target="_blank">Jabri, et al 2019</a>)</figcaption>
+</figure>
+<p>Learning a latent skill space can be done in different ways, such as in <a href="https://openreview.net/forum?id=rk07ZXZRb">Hausman, et al. 2018</a>. The goal of their approach is to learn a task-conditioned policy, $\pi(a \vert s, t^{(i)})$, where $t^{(i)}$ is from a discrete list of $N$ tasks, $\mathcal{T} = [t^{(1)}, \dots, t^{(N)}]$. However, rather than learning $N$ separate solutions, one per task, it would be nice to learn a latent skill space so that each task could be represented in a distribution over skills and thus skills are <em>reused between tasks</em>. The policy is defined as $\pi_\theta(a \vert s,t) = \int \pi_\theta(a \vert z,s,t) p_\phi(z \vert t)\mathrm{d}z$, where $\pi_\theta$ and $p_\phi$ are policy and embedding networks to learn, respectively. If $z$ is discrete, i.e. drawn from a set of $K$ skills, then the policy becomes a mixture of $K$ sub-policies. The policy training uses <a href="http://127.0.0.1:4000/lil-log/2018/04/07/policy-gradient-algorithms.html#sac">SAC</a> and the dependency on $z$ is introduced in the entropy term.</p>
+<h1 id="curriculum-through-distillation">Curriculum through Distillation<a hidden class="anchor" aria-hidden="true" href="#curriculum-through-distillation">#</a></h1>
+<p>[I was thinking of the name of this section for a while, deciding between cloning, inheritance, and distillation. Eventually, I picked distillation because it sounds the coolest B-)]</p>
+<p>The motivation for the <strong>progressive neural network</strong> (<a href="https://arxiv.org/abs/1606.04671">Rusu et al. 2016</a>) architecture is to efficiently transfer learned skills between different tasks and in the meantime avoid catastrophic forgetting. The curriculum is realized through a set of progressively stacked neural network towers (or &ldquo;columns&rdquo;, as in the paper).</p>
+<p>A progressive network has the following structure:</p>
+<ol>
+<li>
+<p>It starts with a single column containing $L$ layers of neurons, in which the corresponding activation layers are labelled as $h^{(1)}_i, i=1, \dots, L$. We first train this single-column network for one task to convergence, achieving parameter config $\theta^{(1)}$.</p>
+</li>
+<li>
+<p>Once switch to the next task, we need to add a new column to adapt to the new context while freezing $\theta^{(1)}$ to lock down the learned skills from the previous task. The new column has activation layers labelled as $h^{(2)}_i, i=1, \dots, L$, and parameters $\theta^{(2)}$.</p>
+</li>
+<li>
+<p>Step 2 can be repeated with every new task. The $i$-th layer activation in the $k$-th column depends on the previous activation layers in all the existing columns:</p>
+ <div>
+ $$
+ h^{(k)}_i = f(W^{(k)}_i h^{(k)}_{i-1} + \sum_{j < k} U_i^{(k:j)} h^{(j)}_{i-1})
+ $$
+ </div>
+<p>where $W^{(k)}_i$ is the weight matrix of the layer $i$ in the column $k$; $U_i^{(k:j)}, j &lt; k$ are the weight matrices for projecting the layer $i-1$ of the column $j$ to the layer $i$ of column $k$ ($ j &lt; k $). The above weights matrices should be learned. $f(.)$ is a non-linear activation function by choice.</p>
+</li>
+</ol>
+<figure>
+	<img src="progressive-networks.png" style="width: 85%;"  />
+	<figcaption>The progressive neural network architecture. (Image source: <a href="https://arxiv.org/abs/1610.04286" target="_blank">Rusu, et al. 2017</a>)</figcaption>
+</figure>
+<p>The paper experimented with Atari games by training a progressive network on multiple games to check whether features learned in one game can transfer to another. That is indeed the case. Though interestingly, learning a high dependency on features in the previous columns does not always indicate good transfer performance on the new task. One hypothesis is that features learned from the old task might introduce biases into the new task, leading to policy getting trapped in a sub-optimal solution. Overall, the progressive network works better than only fine-tuning the top layer and can achieve similar transfer performance as fine-tuning the entire network.</p>
+<p>One use case for the progressive network is to do sim2real transfer (<a href="https://arxiv.org/abs/1610.04286">Rusu, et al. 2017</a>), in which the first column is trained in simulator with a lot of samples and then the additional columns (could be for different real-world tasks) are added and trained with a few real data samples.</p>
+<p><a href="https://arxiv.org/abs/1806.01780">Czarnecki, et al. (2018)</a> proposed another RL training framework, <strong>Mix &amp; Match</strong> (short for <strong>M&amp;M</strong>) to provide curriculum through coping knowledge between agents. Given a sequence of agents from simple to complex, $\pi_1, \dots, \pi_K$, each parameterized with some shared weights (e.g. by shared some lower common layers). M&amp;M trains a mixture of agents, but only the final performance of the most complex one $\pi_K$ matters.</p>
+<p>In the meantime, M&amp;M learns a categorical distribution $c \sim \text{Categorical}(1, \dots, K \vert \alpha)$ with <a href="https://en.wikipedia.org/wiki/Probability_mass_function">pmf</a> $p(c=i) = \alpha_i$ probability to pick which policy to use at a given time. The mixed M&amp;M policy is a simple weighted sum: $\pi_\text{mm}(a \vert s) = \sum_{i=1}^K \alpha_i \pi_i(a \vert s)$. Curriculum learning is realized by dynamically adjusting $\alpha_i$, from $\alpha_K=0$ to $\alpha_K=1$. The tuning of $\alpha$ can be manual or through <a href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/#hyperparameter-tuning-pbt">population-based training</a>.</p>
+<p>To encourage cooperation rather than competition among policies, besides the RL loss $\mathcal{L}_\text{RL}$, another <a href="https://arxiv.org/abs/1511.06295">distillation</a>-like loss $\mathcal{L}_\text{mm}(\theta)$ is added. The knowledge transfer loss $\mathcal{L}_\text{mm}(\theta)$ measures the KL divergence between two policies, $\propto D_\text{KL}(\pi_{i}(. \vert s) | \pi_j(. \vert s))$ for $i &lt; j$. It encourages complex agents to match the simpler ones early on. The final loss is $\mathcal{L} = \mathcal{L}_\text{RL}(\theta \vert \pi_\text{mm}) + \lambda \mathcal{L}_\text{mm}(\theta)$.</p>
+<figure>
+	<img src="mix-and-match.png" style="width: 60%;"  />
+	<figcaption>The Mix & Match architecture for training a mixture of policies.  (Image source: <a href="https://arxiv.org/abs/1806.01780" target="_blank">Czarnecki, et al., 2018</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Jan 2020). Curriculum for reinforcement learning. Lil&rsquo;Log. https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2020curriculum,
+  title   = &#34;Curriculum for Reinforcement Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2020&#34;,
+  month   = &#34;Jan&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Jeffrey L. Elman. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.4487&amp;rep=rep1&amp;type=pdf">&ldquo;Learning and development in neural networks: The importance of starting small.&rdquo;</a> Cognition 48.1 (1993): 71-99.</p>
+<p>[2] Yoshua Bengio, et al. <a href="https://www.researchgate.net/profile/Y_Bengio/publication/221344862_Curriculum_learning/links/546cd2570cf2193b94c577ac/Curriculum-learning.pdf">&ldquo;Curriculum learning.&rdquo;</a> ICML 2009.</p>
+<p>[3] Daphna Weinshall, Gad Cohen, and Dan Amir. <a href="https://arxiv.org/abs/1802.03796">&ldquo;Curriculum learning by transfer learning: Theory and experiments with deep networks.&rdquo;</a> ICML 2018.</p>
+<p>[4] Wojciech Zaremba and Ilya Sutskever. <a href="https://arxiv.org/abs/1410.4615">&ldquo;Learning to execute.&rdquo;</a> arXiv preprint arXiv:1410.4615 (2014).</p>
+<p>[5] Tambet Matiisen, et al. <a href="https://arxiv.org/abs/1707.00183">&ldquo;Teacher-student curriculum learning.&rdquo;</a> IEEE Trans. on neural networks and learning systems (2017).</p>
+<p>[6] Alex Graves, et al. <a href="https://arxiv.org/abs/1704.03003">&ldquo;Automated curriculum learning for neural networks.&rdquo;</a> ICML 2017.</p>
+<p>[7]  Remy Portelas, et al. <a href="https://arxiv.org/abs/1910.07224">Teacher algorithms for curriculum learning of Deep RL in continuously parameterized environments</a>. CoRL 2019.</p>
+<p>[8] Sainbayar Sukhbaatar, et al. <a href="https://arxiv.org/abs/1703.05407">&ldquo;Intrinsic Motivation and Automatic Curricula via Asymmetric Self-Play.&rdquo;</a> ICLR 2018.</p>
+<p>[9] Carlos Florensa, et al. <a href="https://arxiv.org/abs/1705.06366">&ldquo;Automatic Goal Generation for Reinforcement Learning Agents&rdquo;</a> ICML 2019.</p>
+<p>[10] Sebastien Racaniere &amp; Andrew K. Lampinen, et al. <a href="https://arxiv.org/abs/1909.12892">&ldquo;Automated Curriculum through Setter-Solver Interactions&rdquo;</a> ICLR 2020.</p>
+<p>[11] Allan Jabri, et al. <a href="https://arxiv.org/abs/1912.04226">&ldquo;Unsupervised Curricula for Visual Meta-Reinforcement Learning&rdquo;</a> NeuriPS 2019.</p>
+<p>[12] Karol Hausman, et al. <a href="https://openreview.net/forum?id=rk07ZXZRb">&ldquo;Learning an Embedding Space for Transferable Robot Skills &ldquo;</a> ICLR 2018.</p>
+<p>[13] Josh Merel, et al. <a href="https://arxiv.org/abs/1911.06636">&ldquo;Reusable neural skill embeddings for vision-guided whole body movement and object manipulation&rdquo;</a> arXiv preprint arXiv:1911.06636 (2019).</p>
+<p>[14] OpenAI, et al. <a href="https://arxiv.org/abs/1910.07113">&ldquo;Solving Rubik&rsquo;s Cube with a Robot Hand.&rdquo;</a> arXiv preprint arXiv:1910.07113 (2019).</p>
+<p>[15] Niels Justesen, et al. <a href="https://arxiv.org/abs/1806.10729">&ldquo;Illuminating Generalization in Deep Reinforcement Learning through Procedural Level Generation&rdquo;</a> NeurIPS 2018 Deep RL Workshop.</p>
+<p>[16] Karl Cobbe, et al. <a href="https://arxiv.org/abs/1812.02341">&ldquo;Quantifying Generalization in Reinforcement Learning&rdquo;</a> arXiv preprint arXiv:1812.02341 (2018).</p>
+<p>[17] Andrei A. Rusu et al. <a href="https://arxiv.org/abs/1606.04671">&ldquo;Progressive Neural Networks&rdquo;</a> arXiv preprint arXiv:1606.04671 (2016).</p>
+<p>[18] Andrei A. Rusu et al. <a href="https://arxiv.org/abs/1610.04286">&ldquo;Sim-to-Real Robot Learning from Pixels with Progressive Nets.&rdquo;</a> CoRL 2017.</p>
+<p>[19] Wojciech Marian Czarnecki, et al. <a href="https://arxiv.org/abs/1806.01780">&ldquo;Mix &amp; Match – Agent Curricula for Reinforcement Learning.&rdquo;</a> ICML 2018.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/generative-model/">Generative-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/meta-learning/">Meta-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/">
+    <span class="title">« </span>
+    <br>
+    <span>The Transformer Family</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">
+    <span class="title"> »</span>
+    <br>
+    <span>Self-Supervised Representation Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Curriculum%20for%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f&amp;hashtags=reinforcement-learning%2cgenerative-model%2cmeta-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f&amp;title=Curriculum%20for%20Reinforcement%20Learning&amp;summary=Curriculum%20for%20Reinforcement%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f&title=Curriculum%20for%20Reinforcement%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Curriculum%20for%20Reinforcement%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Curriculum for Reinforcement Learning on telegram"
+        href="https://telegram.me/share/url?text=Curriculum%20for%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-01-29-curriculum-rl%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

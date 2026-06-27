@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Some Math behind Neural Tangent Kernel | Lil&#39;Log</title>
+<meta name="keywords" content="foundation, neural-tangent-kernel, learning-dynamics" />
+<meta name="description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2022-09-08-ntk/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-09-08-ntk/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Some Math behind Neural Tangent Kernel" />
+<meta property="og:description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2022-09-08-ntk/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-09-08T10:00:00-07:00" />
+<meta property="article:modified_time" content="2022-09-08T10:00:00-07:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Some Math behind Neural Tangent Kernel"/>
+<meta name="twitter:description" content="Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.
+Neural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Some Math behind Neural Tangent Kernel",
+      "item": "https://lilianweng.github.io/posts/2022-09-08-ntk/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Some Math behind Neural Tangent Kernel",
+  "name": "Some Math behind Neural Tangent Kernel",
+  "description": "Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.\nNeural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.\n",
+  "keywords": [
+    "foundation", "neural-tangent-kernel", "learning-dynamics"
+  ],
+  "articleBody": "Neural networks are well known to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.\nNeural tangent kernel (NTK) (Jacot et al. 2018) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.\n🤓 Different from my previous posts, this one mainly focuses on a small number of core papers, less on the breadth of the literature review in the field. There are many interesting works after NTK, with modification or expansion of the theory for understanding the learning dynamics of NNs, but they won’t be covered here. The goal is to show all the math behind NTK in a clear and easy-to-follow format, so the post is quite math-intensive. If you notice any mistakes, please let me know and I will be happy to correct them quickly. Thanks in advance!\nBasics This section contains reviews of several very basic concepts which are core to understanding of neural tangent kernel. Feel free to skip.\nVector-to-vector Derivative Given an input vector $\\mathbf{x} \\in \\mathbb{R}^n$ (as a column vector) and a function $f: \\mathbb{R}^n \\to \\mathbb{R}^m$, the derivative of $f$ with respective to $\\mathbf{x}$ is a $m\\times n$ matrix, also known as Jacobian matrix:\n$$ J = \\frac{\\partial f}{\\partial \\mathbf{x}} = \\begin{bmatrix} \\frac{\\partial f_1}{\\partial x_1} \u0026 \\dots \u0026\\frac{\\partial f_1}{\\partial x_n} \\\\ \\vdots \u0026 \u0026 \\\\ \\frac{\\partial f_m}{\\partial x_1} \u0026 \\dots \u0026\\frac{\\partial f_m}{\\partial x_n} \\\\ \\end{bmatrix} \\in \\mathbb{R}^{m \\times n} $$ Throughout the post, I use integer subscript(s) to refer to a single entry out of a vector or matrix value; i.e. $x_i$ indicates the $i$-th value in the vector $\\mathbf{x}$ and $f_i(.)$ is the $i$-th entry in the output of the function.\nThe gradient of a vector with respect to a vector is defined as $\\nabla_\\mathbf{x} f = J^\\top \\in \\mathbb{R}^{n \\times m}$ and this formation is also valid when $m=1$ (i.e., scalar output).\nDifferential Equations Differential equations describe the relationship between one or multiple functions and their derivatives. There are two main types of differential equations.\n(1) ODE (Ordinary differential equation) contains only an unknown function of one random variable. ODEs are the main form of differential equations used in this post. A general form of ODE looks like $(x, y, \\frac{dy}{dx}, \\dots, \\frac{d^ny}{dx^n}) = 0$. (2) PDE (Partial differential equation) contains unknown multivariable functions and their partial derivatives. Let’s review the simplest case of differential equations and its solution. Separation of variables (Fourier method) can be used when all the terms containing one variable can be moved to one side, while the other terms are all moved to the other side. For example,\n$$ \\begin{aligned} \\text{Given }a\\text{ is a constant scalar:}\\quad\\frac{dy}{dx} \u0026= ay \\\\ \\text{Move same variables to the same side:}\\quad\\frac{dy}{y} \u0026= adx \\\\ \\text{Put integral on both sides:}\\quad\\int \\frac{dy}{y} \u0026= \\int adx \\\\ \\ln (y) \u0026= ax + C' \\\\ \\text{Finally}\\quad y \u0026= e^{ax + C'} = C e^{ax} \\end{aligned} $$ Central Limit Theorem Given a collection of i.i.d. random variables, $x_1, \\dots, x_N$ with mean $\\mu$ and variance $\\sigma^2$, the Central Limit Theorem (CTL) states that the expectation would be Gaussian distributed when $N$ becomes really large.\n$$ \\bar{x} = \\frac{1}{N}\\sum_{i=1}^N x_i \\sim \\mathcal{N}(\\mu, \\frac{\\sigma^2}{n})\\quad\\text{when }N \\to \\infty $$ CTL can also apply to multidimensional vectors, and then instead of a single scale $\\sigma^2$ we need to compute the covariance matrix of random variable $\\Sigma$.\nTaylor Expansion The Taylor expansion is to express a function as an infinite sum of components, each represented in terms of this function’s derivatives. The Tayler expansion of a function $f(x)$ at $x=a$ can be written as: $$ f(x) = f(a) + \\sum_{k=1}^\\infty \\frac{1}{k!} (x - a)^k\\nabla^k_xf(x)\\vert_{x=a} $$ where $\\nabla^k$ denotes the $k$-th derivative.\nThe first-order Taylor expansion is often used as a linear approximation of the function value:\n$$ f(x) \\approx f(a) + (x - a)\\nabla_x f(x)\\vert_{x=a} $$ Kernel \u0026 Kernel Methods A kernel is essentially a similarity function between two data points, $K: \\mathcal{X} \\times \\mathcal{X} \\to \\mathbb{R}$. It describes how sensitive the prediction for one data sample is to the prediction for the other; or in other words, how similar two data points are. The kernel should be symmetric, $K(x, x’) = K(x’, x)$.\nDepending on the problem structure, some kernels can be decomposed into two feature maps, one corresponding to one data point, and the kernel value is an inner product of these two features: $K(x, x’) = \\langle \\varphi(x), \\varphi(x’) \\rangle$.\nKernel methods are a type of non-parametric, instance-based machine learning algorithms. Assuming we have known all the labels of training samples $\\{x^{(i)}, y^{(i)}\\}$, the label for a new input $x$ is predicted by a weighted sum $\\sum_{i} K(x^{(i)}, x)y^{(i)}$.\nGaussian Processes Gaussian process (GP) is a non-parametric method by modeling a multivariate Gaussian probability distribution over a collection of random variables. GP assumes a prior over functions and then updates the posterior over functions based on what data points are observed.\nGiven a collection of data points $\\{x^{(1)}, \\dots, x^{(N)}\\}$, GP assumes that they follow a jointly multivariate Gaussian distribution, defined by a mean $\\mu(x)$ and a covariance matrix $\\Sigma(x)$. Each entry at location $(i,j)$ in the covariance matrix $\\Sigma(x)$ is defined by a kernel $\\Sigma_{i,j} = K(x^{(i)}, x^{(j)})$, also known as a covariance function. The core idea is – if two data points are deemed similar by the kernel, the function outputs should be close, too. Making predictions with GP for unknown data points is equivalent to drawing samples from this distribution, via a conditional distribution of unknown data points given observed ones.\nCheck this post for a high-quality and highly visualization tutorial on what Gaussian Processes are.\nNotation Let us consider a fully-connected neural networks with parameter $\\theta$, $f(.;\\theta): \\mathbb{R}^{n_0} \\to \\mathbb{R}^{n_L}$. Layers are indexed from 0 (input) to $L$ (output), each containing $n_0, \\dots, n_L$ neurons, including the input of size $n_0$ and the output of size $n_L$. There are $P = \\sum_{l=0}^{L-1} (n_l + 1) n_{l+1}$ parameters in total and thus we have $\\theta \\in \\mathbb{R}^P$.\nThe training dataset contains $N$ data points, $\\mathcal{D}=\\{\\mathbf{x}^{(i)}, y^{(i)}\\}_{i=1}^N$. All the inputs are denoted as $\\mathcal{X}=\\{\\mathbf{x}^{(i)}\\}_{i=1}^N$ and all the labels are denoted as $\\mathcal{Y}=\\{y^{(i)}\\}_{i=1}^N$.\nNow let’s look into the forward pass computation in every layer in detail. For $l=0, \\dots, L-1$, each layer $l$ defines an affine transformation $A^{(l)}$ with a weight matrix $\\mathbf{w}^{(l)} \\in \\mathbb{R}^{n_{l} \\times n_{l+1}}$ and a bias term $\\mathbf{b}^{(l)} \\in \\mathbb{R}^{n_{l+1}}$, as well as a pointwise nonlinearity function $\\sigma(.)$ which is Lipschitz continuous.\n$$ \\begin{aligned} A^{(0)} \u0026= \\mathbf{x} \\\\ \\tilde{A}^{(l+1)}(\\mathbf{x}) \u0026= \\frac{1}{\\sqrt{n_l}} {\\mathbf{w}^{(l)}}^\\top A^{(l)} + \\beta\\mathbf{b}^{(l)}\\quad\\in\\mathbb{R}^{n_{l+1}} \u0026 \\text{; pre-activations}\\\\ A^{(l+1)}(\\mathbf{x}) \u0026= \\sigma(\\tilde{A}^{(l+1)}(\\mathbf{x}))\\quad\\in\\mathbb{R}^{n_{l+1}} \u0026 \\text{; post-activations} \\end{aligned} $$ Note that the NTK parameterization applies a rescale weight $1/\\sqrt{n_l}$ on the transformation to avoid divergence with infinite-width networks. The constant scalar $\\beta \\geq 0$ controls how much effort the bias terms have.\nAll the network parameters are initialized as an i.i.d Gaussian $\\mathcal{N}(0, 1)$ in the following analysis.\nNeural Tangent Kernel Neural tangent kernel (NTK) (Jacot et al. 2018) is an important concept for understanding neural network training via gradient descent. At its core, it explains how updating the model parameters on one data sample affects the predictions for other samples.\nLet’s start with the intuition behind NTK, step by step.\nThe empirical loss function $\\mathcal{L}: \\mathbb{R}^P \\to \\mathbb{R}_+$ to minimize during training is defined as follows, using a per-sample cost function $\\ell: \\mathbb{R}^{n_0} \\times \\mathbb{R}^{n_L} \\to \\mathbb{R}_+$:\n$$ \\mathcal{L}(\\theta) =\\frac{1}{N} \\sum_{i=1}^N \\ell(f(\\mathbf{x}^{(i)}; \\theta), y^{(i)}) $$ and according to the chain rule. the gradient of the loss is:\n$$ \\nabla_\\theta \\mathcal{L}(\\theta)= \\frac{1}{N} \\sum_{i=1}^N \\underbrace{\\nabla_\\theta f(\\mathbf{x}^{(i)}; \\theta)}_{\\text{size }P \\times n_L} \\underbrace{\\nabla_f \\ell(f, y^{(i)})}_{\\text{size } n_L \\times 1} $$ When tracking how the network parameter $\\theta$ evolves in time, each gradient descent update introduces a small incremental change of an infinitesimal step size. Because of the update step is small enough, it can be approximately viewed as a derivative on the time dimension:\n$$ \\frac{d\\theta}{d t} = - \\nabla_\\theta\\mathcal{L}(\\theta) = -\\frac{1}{N} \\sum_{i=1}^N \\nabla_\\theta f(\\mathbf{x}^{(i)}; \\theta) \\nabla_f \\ell(f, y^{(i)}) $$ Again, by the chain rule, the network output evolves according to the derivative:\n$$ \\frac{df(\\mathbf{x};\\theta)}{dt} = \\frac{df(\\mathbf{x};\\theta)}{d\\theta}\\frac{d\\theta}{dt} = -\\frac{1}{N} \\sum_{i=1}^N \\color{blue}{\\underbrace{\\nabla_\\theta f(\\mathbf{x};\\theta)^\\top \\nabla_\\theta f(\\mathbf{x}^{(i)}; \\theta)}_\\text{Neural tangent kernel}} \\color{black}{\\nabla_f \\ell(f, y^{(i)})} $$ Here we find the Neural Tangent Kernel (NTK), as defined in the blue part in the above formula, $K: \\mathbb{R}^{n_0}\\times\\mathbb{R}^{n_0} \\to \\mathbb{R}^{n_L \\times n_L}$ :\n$$ K(\\mathbf{x}, \\mathbf{x}'; \\theta) = \\nabla_\\theta f(\\mathbf{x};\\theta)^\\top \\nabla_\\theta f(\\mathbf{x}'; \\theta) $$ where each entry in the output matrix at location $(m, n), 1 \\leq m, n \\leq n_L$ is:\n$$ K_{m,n}(\\mathbf{x}, \\mathbf{x}'; \\theta) = \\sum_{p=1}^P \\frac{\\partial f_m(\\mathbf{x};\\theta)}{\\partial \\theta_p} \\frac{\\partial f_n(\\mathbf{x}';\\theta)}{\\partial \\theta_p} $$ The “feature map” form of one input $\\mathbf{x}$ is $\\varphi(\\mathbf{x}) = \\nabla_\\theta f(\\mathbf{x};\\theta)$.\nInfinite Width Networks To understand why the effect of one gradient descent is so similar for different initializations of network parameters, several pioneering theoretical work starts with infinite width networks. We will look into detailed proof using NTK of how it guarantees that infinite width networks can converge to a global minimum when trained to minimize an empirical loss.\nConnection with Gaussian Processes Deep neural networks have deep connection with gaussian processes (Neal 1994). The output functions of a $L$-layer network, $f_i(\\mathbf{x}; \\theta)$ for $i=1, \\dots, n_L$ , are i.i.d. centered Gaussian process of covariance $\\Sigma^{(L)}$, defined recursively as:\n$$ \\begin{aligned} \\Sigma^{(1)}(\\mathbf{x}, \\mathbf{x}') \u0026= \\frac{1}{n_0}\\mathbf{x}^\\top{\\mathbf{x}'} + \\beta^2 \\\\ \\lambda^{(l+1)}(\\mathbf{x}, \\mathbf{x}') \u0026= \\begin{bmatrix} \\Sigma^{(l)}(\\mathbf{x}, \\mathbf{x}) \u0026 \\Sigma^{(l)}(\\mathbf{x}, \\mathbf{x}') \\\\ \\Sigma^{(l)}(\\mathbf{x}', \\mathbf{x}) \u0026 \\Sigma^{(l)}(\\mathbf{x}', \\mathbf{x}') \\end{bmatrix} \\\\ \\Sigma^{(l+1)}(\\mathbf{x}, \\mathbf{x}') \u0026= \\mathbb{E}_{f \\sim \\mathcal{N}(0, \\lambda^{(l)})}[\\sigma(f(\\mathbf{x})) \\sigma(f(\\mathbf{x}'))] + \\beta^2 \\end{aligned} $$ Lee \u0026 Bahri et al. (2018) showed a proof by mathematical induction:\n(1) Let’s start with $L=1$, when there is no nonlinearity function and the input is only processed by a simple affine transformation:\n$$ \\begin{aligned} f(\\mathbf{x};\\theta) = \\tilde{A}^{(1)}(\\mathbf{x}) \u0026= \\frac{1}{\\sqrt{n_0}}{\\mathbf{w}^{(0)}}^\\top\\mathbf{x} + \\beta\\mathbf{b}^{(0)} \\\\ \\text{where }\\tilde{A}_m^{(1)}(\\mathbf{x}) \u0026= \\frac{1}{\\sqrt{n_0}}\\sum_{i=1}^{n_0} w^{(0)}_{im}x_i + \\beta b^{(0)}_m\\quad \\text{for }1 \\leq m \\leq n_1 \\end{aligned} $$ Since the weights and biases are initialized i.i.d., all the output dimensions of this network ${\\tilde{A}^{(1)}_1(\\mathbf{x}), \\dots, \\tilde{A}^{(1)}_{n_1}(\\mathbf{x})}$ are also i.i.d. Given different inputs, the $m$-th network outputs $\\tilde{A}^{(1)}_m(.)$ have a joint multivariate Gaussian distribution, equivalent to a Gaussian process with covariance function (We know that mean $\\mu_w=\\mu_b=0$ and variance $\\sigma^2_w = \\sigma^2_b=1$)\n$$ \\begin{aligned} \\Sigma^{(1)}(\\mathbf{x}, \\mathbf{x}') \u0026= \\mathbb{E}[\\tilde{A}_m^{(1)}(\\mathbf{x})\\tilde{A}_m^{(1)}(\\mathbf{x}')] \\\\ \u0026= \\mathbb{E}\\Big[\\Big( \\frac{1}{\\sqrt{n_0}}\\sum_{i=1}^{n_0} w^{(0)}_{i,m}x_i + \\beta b^{(0)}_m \\Big) \\Big( \\frac{1}{\\sqrt{n_0}}\\sum_{i=1}^{n_0} w^{(0)}_{i,m}x'_i + \\beta b^{(0)}_m \\Big)\\Big] \\\\ \u0026= \\frac{1}{n_0} \\sigma^2_w \\sum_{i=1}^{n_0} \\sum_{j=1}^{n_0} x_i{x'}_j + \\frac{\\beta \\mu_b}{\\sqrt{n_0}} \\sum_{i=1}^{n_0} w_{im}(x_i + x'_i) + \\sigma^2_b \\beta^2 \\\\ \u0026= \\frac{1}{n_0}\\mathbf{x}^\\top{\\mathbf{x}'} + \\beta^2 \\end{aligned} $$ (2) Using induction, we first assume the proposition is true for $L=l$, a $l$-layer network, and thus $\\tilde{A}^{(l)}_m(.)$ is a Gaussian process with covariance $\\Sigma^{(l)}$ and $\\{\\tilde{A}^{(l)}_i\\}_{i=1}^{n_l}$ are i.i.d.\nThen we need to prove the proposition is also true for $L=l+1$. We compute the outputs by:\n$$ \\begin{aligned} f(\\mathbf{x};\\theta) = \\tilde{A}^{(l+1)}(\\mathbf{x}) \u0026= \\frac{1}{\\sqrt{n_l}}{\\mathbf{w}^{(l)}}^\\top \\sigma(\\tilde{A}^{(l)}(\\mathbf{x})) + \\beta\\mathbf{b}^{(l)} \\\\ \\text{where }\\tilde{A}^{(l+1)}_m(\\mathbf{x}) \u0026= \\frac{1}{\\sqrt{n_l}}\\sum_{i=1}^{n_l} w^{(l)}_{im}\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x})) + \\beta b^{(l)}_m \\quad \\text{for }1 \\leq m \\leq n_{l+1} \\end{aligned} $$ We can infer that the expectation of the sum of contributions of the previous hidden layers is zero:\n$$ \\begin{aligned} \\mathbb{E}[w^{(l)}_{im}\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x}))] \u0026= \\mathbb{E}[w^{(l)}_{im}]\\mathbb{E}[\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x}))] = \\mu_w \\mathbb{E}[\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x}))] = 0 \\\\ \\mathbb{E}[\\big(w^{(l)}_{im}\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x}))\\big)^2] \u0026= \\mathbb{E}[{w^{(l)}_{im}}^2]\\mathbb{E}[\\sigma(\\tilde{A}^{(l)}_i(\\mathbf{x}))^2] = \\sigma_w^2 \\Sigma^{(l)}(\\mathbf{x}, \\mathbf{x}) = \\Sigma^{(l)}(\\mathbf{x}, \\mathbf{x}) \\end{aligned} $$ Since $\\{\\tilde{A}^{(l)}_i(\\mathbf{x})\\}_{i=1}^{n_l}$ are i.i.d., according to central limit theorem, when the hidden layer gets infinitely wide $n_l \\to \\infty$, $\\tilde{A}^{(l+1)}_m(\\mathbf{x})$ is Gaussian distributed with variance $\\beta^2 + \\text{Var}(\\tilde{A}_i^{(l)}(\\mathbf{x}))$. Note that ${\\tilde{A}^{(l+1)}_1(\\mathbf{x}), \\dots, \\tilde{A}^{(l+1)}_{n_{l+1}}(\\mathbf{x})}$ are still i.i.d.\n$\\tilde{A}^{(l+1)}_m(.)$ is equivalent to a Gaussian process with covariance function:\n$$ \\begin{aligned} \\Sigma^{(l+1)}(\\mathbf{x}, \\mathbf{x}') \u0026= \\mathbb{E}[\\tilde{A}^{(l+1)}_m(\\mathbf{x})\\tilde{A}^{(l+1)}_m(\\mathbf{x}')] \\\\ \u0026= \\frac{1}{n_l} \\sigma\\big(\\tilde{A}^{(l)}_i(\\mathbf{x})\\big)^\\top \\sigma\\big(\\tilde{A}^{(l)}_i(\\mathbf{x}')\\big) + \\beta^2 \\quad\\text{;similar to how we get }\\Sigma^{(1)} \\end{aligned} $$ When $n_l \\to \\infty$, according to central limit theorem,\n$$ \\Sigma^{(l+1)}(\\mathbf{x}, \\mathbf{x}') \\to \\mathbb{E}_{f \\sim \\mathcal{N}(0, \\Lambda^{(l)})}[\\sigma(f(\\mathbf{x}))^\\top \\sigma(f(\\mathbf{x}'))] + \\beta^2 $$ The form of Gaussian processes in the above process is referred to as the Neural Network Gaussian Process (NNGP) (Lee \u0026 Bahri et al. (2018)).\nDeterministic Neural Tangent Kernel Finally we are now prepared enough to look into the most critical proposition from the NTK paper:\nWhen $n_1, \\dots, n_L \\to \\infty$ (network with infinite width), the NTK converges to be:\n(1) deterministic at initialization, meaning that the kernel is irrelevant to the initialization values and only determined by the model architecture; and (2) stays constant during training. The proof depends on mathematical induction as well:\n(1) First of all, we always have $K^{(0)} = 0$. When $L=1$, we can get the representation of NTK directly. It is deterministic and does not depend on the network initialization. There is no hidden layer, so there is nothing to take on infinite width.\n$$ \\begin{aligned} f(\\mathbf{x};\\theta) \u0026= \\tilde{A}^{(1)}(\\mathbf{x}) = \\frac{1}{\\sqrt{n_0}} {\\mathbf{w}^{(0)}}^\\top\\mathbf{x} + \\beta\\mathbf{b}^{(0)} \\\\ K^{(1)}(\\mathbf{x}, \\mathbf{x}';\\theta) \u0026= \\Big(\\frac{\\partial f(\\mathbf{x}';\\theta)}{\\partial \\mathbf{w}^{(0)}}\\Big)^\\top \\frac{\\partial f(\\mathbf{x};\\theta)}{\\partial \\mathbf{w}^{(0)}} + \\Big(\\frac{\\partial f(\\mathbf{x}';\\theta)}{\\partial \\mathbf{b}^{(0)}}\\Big)^\\top \\frac{\\partial f(\\mathbf{x};\\theta)}{\\partial \\mathbf{b}^{(0)}} \\\\ \u0026= \\frac{1}{n_0} \\mathbf{x}^\\top{\\mathbf{x}'} + \\beta^2 = \\Sigma^{(1)}(\\mathbf{x}, \\mathbf{x}') \\end{aligned} $$ (2) Now when $L=l$, we assume that a $l$-layer network with $\\tilde{P}$ parameters in total, $\\tilde{\\theta} = (\\mathbf{w}^{(0)}, \\dots, \\mathbf{w}^{(l-1)}, \\mathbf{b}^{(0)}, \\dots, \\mathbf{b}^{(l-1)}) \\in \\mathbb{R}^\\tilde{P}$, has a NTK converging to a deterministic limit when $n_1, \\dots, n_{l-1} \\to \\infty$.\n$$ K^{(l)}(\\mathbf{x}, \\mathbf{x}';\\tilde{\\theta}) = \\nabla_{\\tilde{\\theta}} \\tilde{A}^{(l)}(\\mathbf{x})^\\top \\nabla_{\\tilde{\\theta}} \\tilde{A}^{(l)}(\\mathbf{x}') \\to K^{(l)}_{\\infty}(\\mathbf{x}, \\mathbf{x}') $$ Note that $K_\\infty^{(l)}$ has no dependency on $\\theta$.\nNext let’s check the case $L=l+1$. Compared to a $l$-layer network, a $(l+1)$-layer network has additional weight matrix $\\mathbf{w}^{(l)}$ and bias $\\mathbf{b}^{(l)}$ and thus the total parameters contain $\\theta = (\\tilde{\\theta}, \\mathbf{w}^{(l)}, \\mathbf{b}^{(l)})$.\nThe output function of this $(l+1)$-layer network is:\n$$ f(\\mathbf{x};\\theta) = \\tilde{A}^{(l+1)}(\\mathbf{x};\\theta) = \\frac{1}{\\sqrt{n_l}} {\\mathbf{w}^{(l)}}^\\top \\sigma\\big(\\tilde{A}^{(l)}(\\mathbf{x})\\big) + \\beta \\mathbf{b}^{(l)} $$ And we know its derivative with respect to different sets of parameters; let denote $\\tilde{A}^{(l)} = \\tilde{A}^{(l)}(\\mathbf{x})$ for brevity in the following equation:\n$$ \\begin{aligned} \\nabla_{\\color{blue}{\\mathbf{w}^{(l)}}} f(\\mathbf{x};\\theta) \u0026= \\color{blue}{ \\frac{1}{\\sqrt{n_l}} \\sigma\\big(\\tilde{A}^{(l)}\\big)^\\top } \\color{black}{\\quad \\in \\mathbb{R}^{1 \\times n_l}} \\\\ \\nabla_{\\color{green}{\\mathbf{b}^{(l)}}} f(\\mathbf{x};\\theta) \u0026= \\color{green}{ \\beta } \\\\ \\nabla_{\\color{red}{\\tilde{\\theta}}} f(\\mathbf{x};\\theta) \u0026= \\frac{1}{\\sqrt{n_l}} \\nabla_\\tilde{\\theta}\\sigma(\\tilde{A}^{(l)}) \\mathbf{w}^{(l)} \\\\ \u0026= \\color{red}{ \\frac{1}{\\sqrt{n_l}} \\begin{bmatrix} \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_1} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_1} \\\\ \\vdots \\\\ \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_\\tilde{P}} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_\\tilde{P}}\\\\ \\end{bmatrix} \\mathbf{w}^{(l)} \\color{black}{\\quad \\in \\mathbb{R}^{\\tilde{P} \\times n_{l+1}}} } \\end{aligned} $$ where $\\dot{\\sigma}$ is the derivative of $\\sigma$ and each entry at location $(p, m), 1 \\leq p \\leq \\tilde{P}, 1 \\leq m \\leq n_{l+1}$ in the matrix $\\nabla_{\\tilde{\\theta}} f(\\mathbf{x};\\theta)$ can be written as\n$$ \\frac{\\partial f_m(\\mathbf{x};\\theta)}{\\partial \\tilde{\\theta}_p} = \\sum_{i=1}^{n_l} w^{(l)}_{im} \\dot{\\sigma}\\big(\\tilde{A}_i^{(l)} \\big) \\nabla_{\\tilde{\\theta}_p} \\tilde{A}_i^{(l)} $$ The NTK for this $(l+1)$-layer network can be defined accordingly:\n$$ \\begin{aligned} \u0026 K^{(l+1)}(\\mathbf{x}, \\mathbf{x}'; \\theta) \\\\ =\u0026 \\nabla_{\\theta} f(\\mathbf{x};\\theta)^\\top \\nabla_{\\theta} f(\\mathbf{x};\\theta) \\\\ =\u0026 \\color{blue}{\\nabla_{\\mathbf{w}^{(l)}} f(\\mathbf{x};\\theta)^\\top \\nabla_{\\mathbf{w}^{(l)}} f(\\mathbf{x};\\theta)} + \\color{green}{\\nabla_{\\mathbf{b}^{(l)}} f(\\mathbf{x};\\theta)^\\top \\nabla_{\\mathbf{b}^{(l)}} f(\\mathbf{x};\\theta)} + \\color{red}{\\nabla_{\\tilde{\\theta}} f(\\mathbf{x};\\theta)^\\top \\nabla_{\\tilde{\\theta}} f(\\mathbf{x};\\theta)} \\\\ =\u0026 \\frac{1}{n_l} \\Big[ \\color{blue}{\\sigma(\\tilde{A}^{(l)})\\sigma(\\tilde{A}^{(l)})^\\top} + \\color{green}{\\beta^2} \\\\ \u0026+ \\color{red}{ {\\mathbf{w}^{(l)}}^\\top \\begin{bmatrix} \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\dot{\\sigma}(\\tilde{A}_1^{(l)})\\sum_{p=1}^\\tilde{P} \\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_p}\\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_p} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\sum_{p=1}^\\tilde{P} \\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_p}\\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_p} \\\\ \\vdots \\\\ \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\dot{\\sigma}(\\tilde{A}_1^{(l)})\\sum_{p=1}^\\tilde{P} \\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_p}\\frac{\\partial \\tilde{A}_1^{(l)}}{\\partial \\tilde{\\theta}_p} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\sum_{p=1}^\\tilde{P} \\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_p}\\frac{\\partial \\tilde{A}_{n_l}^{(l)}}{\\partial \\tilde{\\theta}_p} \\\\ \\end{bmatrix} \\mathbf{w}^{(l)} } \\color{black}{\\Big]} \\\\ =\u0026 \\frac{1}{n_l} \\Big[ \\color{blue}{\\sigma(\\tilde{A}^{(l)})\\sigma(\\tilde{A}^{(l)})^\\top} + \\color{green}{\\beta^2} \\\\ \u0026+ \\color{red}{ {\\mathbf{w}^{(l)}}^\\top \\begin{bmatrix} \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\dot{\\sigma}(\\tilde{A}_1^{(l)})K^{(l)}_{11} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_1^{(l)})\\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})K^{(l)}_{1n_l} \\\\ \\vdots \\\\ \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\dot{\\sigma}(\\tilde{A}_1^{(l)})K^{(l)}_{n_l1} \u0026 \\dots \u0026 \\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})\\dot{\\sigma}(\\tilde{A}_{n_l}^{(l)})K^{(l)}_{n_ln_l} \\\\ \\end{bmatrix} \\mathbf{w}^{(l)} } \\color{black}{\\Big]} \\end{aligned} $$ where each individual entry at location $(m, n), 1 \\leq m, n \\leq n_{l+1}$ of the matrix $K^{(l+1)}$ can be written as:\n$$ \\begin{aligned} K^{(l+1)}_{mn} =\u0026 \\frac{1}{n_l}\\Big[ \\color{blue}{\\sigma(\\tilde{A}_m^{(l)})\\sigma(\\tilde{A}_n^{(l)})} + \\color{green}{\\beta^2} + \\color{red}{ \\sum_{i=1}^{n_l} \\sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \\dot{\\sigma}(\\tilde{A}_i^{(l)}) \\dot{\\sigma}(\\tilde{A}_{j}^{(l)}) K_{ij}^{(l)} } \\Big] \\end{aligned} $$ When $n_l \\to \\infty$, the section in blue and green has the limit (See the proof in the previous section):\n$$ \\frac{1}{n_l}\\sigma(\\tilde{A}^{(l)})\\sigma(\\tilde{A}^{(l)}) + \\beta^2\\to \\Sigma^{(l+1)} $$ and the red section has the limit:\n$$ \\sum_{i=1}^{n_l} \\sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \\dot{\\sigma}(\\tilde{A}_i^{(l)}) \\dot{\\sigma}(\\tilde{A}_{j}^{(l)}) K_{ij}^{(l)} \\to \\sum_{i=1}^{n_l} \\sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \\dot{\\sigma}(\\tilde{A}_i^{(l)}) \\dot{\\sigma}(\\tilde{A}_{j}^{(l)}) K_{\\infty,ij}^{(l)} $$ Later, Arora et al. (2019) provided a proof with a weaker limit, that does not require all the hidden layers to be infinitely wide, but only requires the minimum width to be sufficiently large.\nLinearized Models From the previous section, according to the derivative chain rule, we have known that the gradient update on the output of an infinite width network is as follows; For brevity, we omit the inputs in the following analysis:\n$$ \\begin{aligned} \\frac{df(\\theta)}{dt} \u0026= -\\eta\\nabla_\\theta f(\\theta)^\\top \\nabla_\\theta f(\\theta) \\nabla_f \\mathcal{L} \u0026 \\\\ \u0026= -\\eta\\nabla_\\theta f(\\theta)^\\top \\nabla_\\theta f(\\theta) \\nabla_f \\mathcal{L} \u0026 \\\\ \u0026= -\\eta K(\\theta) \\nabla_f \\mathcal{L} \\\\ \u0026= \\color{cyan}{-\\eta K_\\infty \\nabla_f \\mathcal{L}} \u0026 \\text{; for infinite width network}\\\\ \\end{aligned} $$ To track the evolution of $\\theta$ in time, let’s consider it as a function of time step $t$. With Taylor expansion, the network learning dynamics can be simplified as:\n$$ f(\\theta(t)) \\approx f^\\text{lin}(\\theta(t)) = f(\\theta(0)) + \\underbrace{\\nabla_\\theta f(\\theta(0))}_{\\text{formally }\\nabla_\\theta f(\\mathbf{x}; \\theta) \\vert_{\\theta=\\theta(0)}} (\\theta(t) - \\theta(0)) $$ Such formation is commonly referred to as the linearized model, given $\\theta(0)$, $f(\\theta(0))$, and $\\nabla_\\theta f(\\theta(0))$ are all constants. Assuming that the incremental time step $t$ is extremely small and the parameter is updated by gradient descent:\n$$ \\begin{aligned} \\theta(t) - \\theta(0) \u0026= - \\eta \\nabla_\\theta \\mathcal{L}(\\theta) = - \\eta \\nabla_\\theta f(\\theta)^\\top \\nabla_f \\mathcal{L} \\\\ f^\\text{lin}(\\theta(t)) - f(\\theta(0)) \u0026= - \\eta\\nabla_\\theta f(\\theta(0))^\\top \\nabla_\\theta f(\\mathcal{X};\\theta(0)) \\nabla_f \\mathcal{L} \\\\ \\frac{df(\\theta(t))}{dt} \u0026= - \\eta K(\\theta(0)) \\nabla_f \\mathcal{L} \\\\ \\frac{df(\\theta(t))}{dt} \u0026= \\color{cyan}{- \\eta K_\\infty \\nabla_f \\mathcal{L}} \u0026 \\text{; for infinite width network}\\\\ \\end{aligned} $$ Eventually we get the same learning dynamics, which implies that a neural network with infinite width can be considerably simplified as governed by the above linearized model (Lee \u0026 Xiao, et al. 2019).\nIn a simple case when the empirical loss is an MSE loss, $\\nabla_\\theta \\mathcal{L}(\\theta) = f(\\mathcal{X}; \\theta) - \\mathcal{Y}$, the dynamics of the network becomes a simple linear ODE and it can be solved in a closed form:\n$$ \\begin{aligned} \\frac{df(\\theta)}{dt} =\u0026 -\\eta K_\\infty (f(\\theta) - \\mathcal{Y}) \u0026 \\\\ \\frac{dg(\\theta)}{dt} =\u0026 -\\eta K_\\infty g(\\theta) \u0026 \\text{; let }g(\\theta)=f(\\theta) - \\mathcal{Y} \\\\ \\int \\frac{dg(\\theta)}{g(\\theta)} =\u0026 -\\eta \\int K_\\infty dt \u0026 \\\\ g(\\theta) \u0026= C e^{-\\eta K_\\infty t} \u0026 \\end{aligned} $$ When $t=0$, we have $C=f(\\theta(0)) - \\mathcal{Y}$ and therefore,\n$$ f(\\theta) = (f(\\theta(0)) - \\mathcal{Y})e^{-\\eta K_\\infty t} + \\mathcal{Y} \\\\ = f(\\theta(0))e^{-K_\\infty t} + (I - e^{-\\eta K_\\infty t})\\mathcal{Y} $$ Lazy Training People observe that when a neural network is heavily over-parameterized, the model is able to learn with the training loss quickly converging to zero but the network parameters hardly change. Lazy training refers to the phenomenon. In other words, when the loss $\\mathcal{L}$ has a decent amount of reduction, the change in the differential of the network $f$ (aka the Jacobian matrix) is still very small.\nLet $\\theta(0)$ be the initial network parameters and $\\theta(T)$ be the final network parameters when the loss has been minimized to zero. The delta change in parameter space can be approximated with first-order Taylor expansion:\n$$ \\begin{aligned} \\hat{y} = f(\\theta(T)) \u0026\\approx f(\\theta(0)) + \\nabla_\\theta f(\\theta(0)) (\\theta(T) - \\theta(0)) \\\\ \\text{Thus }\\Delta \\theta \u0026= \\theta(T) - \\theta(0) \\approx \\frac{\\|\\hat{y} - f(\\theta(0))\\|}{\\| \\nabla_\\theta f(\\theta(0)) \\|} \\end{aligned} $$ Still following the first-order Taylor expansion, we can track the change in the differential of $f$:\n$$ \\begin{aligned} \\nabla_\\theta f(\\theta(T)) \u0026\\approx \\nabla_\\theta f(\\theta(0)) + \\nabla^2_\\theta f(\\theta(0)) \\Delta\\theta \\\\ \u0026= \\nabla_\\theta f(\\theta(0)) + \\nabla^2_\\theta f(\\theta(0)) \\frac{\\|\\hat{y} - f(\\mathbf{x};\\theta(0))\\|}{\\| \\nabla_\\theta f(\\theta(0)) \\|} \\\\ \\text{Thus }\\Delta\\big(\\nabla_\\theta f\\big) \u0026= \\nabla_\\theta f(\\theta(T)) - \\nabla_\\theta f(\\theta(0)) = \\|\\hat{y} - f(\\mathbf{x};\\theta(0))\\| \\frac{\\nabla^2_\\theta f(\\theta(0))}{\\| \\nabla_\\theta f(\\theta(0)) \\|} \\end{aligned} $$ Let $\\kappa(\\theta)$ be the relative change of the differential of $f$ to the change in the parameter space:\n$$ \\kappa(\\theta = \\frac{\\Delta\\big(\\nabla_\\theta f\\big)}{\\| \\nabla_\\theta f(\\theta(0)) \\|} = \\|\\hat{y} - f(\\theta(0))\\| \\frac{\\nabla^2_\\theta f(\\theta(0))}{\\| \\nabla_\\theta f(\\theta(0)) \\|^2} $$ Chizat et al. (2019) showed the proof for a two-layer neural network that $\\mathbb{E}[\\kappa(\\theta_0)] \\to 0$ (getting into the lazy regime) when the number of hidden neurons $\\to \\infty$. Also, recommend this post for more discussion on linearized models and lazy training.\nCitation Cited as:\nWeng, Lilian. (Sep 2022). Some math behind neural tangent kernel. Lil’Log. https://lilianweng.github.io/posts/2022-09-08-ntk/.\nOr\n@article{weng2022ntk, title = \"Some Math behind Neural Tangent Kernel\", author = \"Weng, Lilian\", journal = \"Lil'Log\", year = \"2022\", month = \"Sep\", url = \"https://lilianweng.github.io/posts/2022-09-08-ntk/\" } References [1] Jacot et al. “Neural Tangent Kernel: Convergence and Generalization in Neural Networks.” NeuriPS 2018.\n[2]Radford M. Neal. “Priors for Infinite Networks.” Bayesian Learning for Neural Networks. Springer, New York, NY, 1996. 29-53.\n[3] Lee \u0026 Bahri et al. “Deep Neural Networks as Gaussian Processes.” ICLR 2018.\n[4] Chizat et al. “On Lazy Training in Differentiable Programming” NeuriPS 2019.\n[5] Lee \u0026 Xiao, et al. “Wide Neural Networks of Any Depth Evolve as Linear Models Under Gradient Descent.” NeuriPS 2019.\n[6] Arora, et al. “On Exact Computation with an Infinitely Wide Neural Net.” NeurIPS 2019.\n[7] (YouTube video) “Neural Tangent Kernel: Convergence and Generalization in Neural Networks” by Arthur Jacot, Nov 2018.\n[8] (YouTube video) “Lecture 7 - Deep Learning Foundations: Neural Tangent Kernels” by Soheil Feizi, Sep 2020.\n[9] “Understanding the Neural Tangent Kernel.” Rajat’s Blog.\n[10] “Neural Tangent Kernel.”Applied Probability Notes, Mar 2021.\n[11] “Some Intuition on the Neural Tangent Kernel.” inFERENCe, Nov 2020.\n",
+  "wordCount" : "3539",
+  "inLanguage": "en",
+  "datePublished": "2022-09-08T10:00:00-07:00",
+  "dateModified": "2022-09-08T10:00:00-07:00",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2022-09-08-ntk/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Some Math behind Neural Tangent Kernel
+    </h1>
+    <div class="post-meta">Date: September 8, 2022  |  Estimated Reading Time: 17 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#basics" aria-label="Basics">Basics</a><ul>
+                        
+                <li>
+                    <a href="#vector-to-vector-derivative" aria-label="Vector-to-vector Derivative">Vector-to-vector Derivative</a></li>
+                <li>
+                    <a href="#differential-equations" aria-label="Differential Equations">Differential Equations</a></li>
+                <li>
+                    <a href="#central-limit-theorem" aria-label="Central Limit Theorem">Central Limit Theorem</a></li>
+                <li>
+                    <a href="#taylor-expansion" aria-label="Taylor Expansion">Taylor Expansion</a></li>
+                <li>
+                    <a href="#kernel--kernel-methods" aria-label="Kernel &amp; Kernel Methods">Kernel &amp; Kernel Methods</a></li>
+                <li>
+                    <a href="#gaussian-processes" aria-label="Gaussian Processes">Gaussian Processes</a></li></ul>
+                </li>
+                <li>
+                    <a href="#notation" aria-label="Notation">Notation</a></li>
+                <li>
+                    <a href="#neural-tangent-kernel" aria-label="Neural Tangent Kernel">Neural Tangent Kernel</a></li>
+                <li>
+                    <a href="#infinite-width-networks" aria-label="Infinite Width Networks">Infinite Width Networks</a><ul>
+                        
+                <li>
+                    <a href="#connection-with-gaussian-processes" aria-label="Connection with Gaussian Processes">Connection with Gaussian Processes</a></li>
+                <li>
+                    <a href="#deterministic-neural-tangent-kernel" aria-label="Deterministic Neural Tangent Kernel">Deterministic Neural Tangent Kernel</a></li>
+                <li>
+                    <a href="#linearized-models" aria-label="Linearized Models">Linearized Models</a></li>
+                <li>
+                    <a href="#lazy-training" aria-label="Lazy Training">Lazy Training</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p>Neural networks are <a href="https://lilianweng.github.io/posts/2019-03-14-overfit/">well known</a> to be over-parameterized and can often easily fit data with near-zero training loss with decent generalization performance on test dataset. Although all these parameters are initialized at random, the optimization process can consistently lead to similarly good outcomes. And this is true even when the number of model parameters exceeds the number of training data points.</p>
+<p><strong>Neural tangent kernel (NTK)</strong> (<a href="https://arxiv.org/abs/1806.07572">Jacot et al. 2018</a>) is a kernel to explain the evolution of neural networks during training via gradient descent. It leads to great insights into why neural networks with enough width can consistently converge to a global minimum when trained to minimize an empirical loss. In the post, we will do a deep dive into the motivation and definition of NTK, as well as the proof of a deterministic convergence at different initializations of neural networks with infinite width by characterizing NTK in such a setting.</p>
+<blockquote>
+<p>🤓 Different from my previous posts, this one mainly focuses on a small number of core papers, less on the breadth of the literature review in the field. There are many interesting works after NTK, with modification or expansion of the theory for understanding the learning dynamics of NNs, but they won&rsquo;t be covered here. The goal is to show all the math behind NTK in a clear and easy-to-follow format, so the post is quite math-intensive. If you notice any mistakes, please let me know and I will be happy to correct them quickly. Thanks in advance!</p>
+</blockquote>
+<h1 id="basics">Basics<a hidden class="anchor" aria-hidden="true" href="#basics">#</a></h1>
+<p>This section contains reviews of several very basic concepts which are core to understanding of neural tangent kernel. Feel free to skip.</p>
+<h2 id="vector-to-vector-derivative">Vector-to-vector Derivative<a hidden class="anchor" aria-hidden="true" href="#vector-to-vector-derivative">#</a></h2>
+<p>Given an input vector $\mathbf{x} \in \mathbb{R}^n$ (as a column vector) and a function $f: \mathbb{R}^n \to \mathbb{R}^m$, the derivative of $f$ with respective to $\mathbf{x}$ is a $m\times n$ matrix, also known as <a href="https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant"><em>Jacobian matrix</em></a>:</p>
+<div>
+$$
+J
+= \frac{\partial f}{\partial \mathbf{x}}
+= \begin{bmatrix}
+\frac{\partial f_1}{\partial x_1} & \dots &\frac{\partial f_1}{\partial x_n} \\
+\vdots & & \\
+\frac{\partial f_m}{\partial x_1} & \dots &\frac{\partial f_m}{\partial x_n} \\
+\end{bmatrix}
+\in \mathbb{R}^{m \times n}
+$$
+</div>
+<p>Throughout the post, I use integer subscript(s) to refer to a single entry out of a vector or matrix value; i.e. $x_i$ indicates the $i$-th value in the vector $\mathbf{x}$ and $f_i(.)$ is the $i$-th entry in the output of the function.</p>
+<p>The gradient of a vector with respect to a vector is defined as $\nabla_\mathbf{x} f = J^\top \in \mathbb{R}^{n \times m}$ and this formation is also valid when $m=1$ (i.e., scalar output).</p>
+<h2 id="differential-equations">Differential Equations<a hidden class="anchor" aria-hidden="true" href="#differential-equations">#</a></h2>
+<p>Differential equations describe the relationship between one or multiple functions and their derivatives. There are two main types of differential equations.</p>
+<ul>
+<li>(1) <em>ODE (Ordinary differential equation)</em> contains only an unknown function of one random variable. ODEs are the main form of differential equations used in this post. A general form of ODE looks like $(x, y, \frac{dy}{dx}, \dots, \frac{d^ny}{dx^n}) = 0$.</li>
+<li>(2) <em>PDE (Partial differential equation)</em> contains unknown multivariable functions and their partial derivatives.</li>
+</ul>
+<p>Let&rsquo;s review the simplest case of differential equations and its solution. <em>Separation of variables</em> (Fourier method) can be used when all the terms containing one variable can be moved to one side, while the other terms are all moved to the other side. For example,</p>
+<div>
+$$
+\begin{aligned}
+\text{Given }a\text{ is a constant scalar:}\quad\frac{dy}{dx} &= ay \\
+\text{Move same variables to the same side:}\quad\frac{dy}{y} &= adx \\
+\text{Put integral on both sides:}\quad\int \frac{dy}{y} &= \int adx \\
+\ln (y) &= ax + C' \\
+\text{Finally}\quad y &= e^{ax + C'} = C e^{ax}
+\end{aligned}
+$$
+</div>
+<h2 id="central-limit-theorem">Central Limit Theorem<a hidden class="anchor" aria-hidden="true" href="#central-limit-theorem">#</a></h2>
+<p>Given a collection of i.i.d. random variables, $x_1, \dots, x_N$ with mean $\mu$ and variance $\sigma^2$, the <em>Central Limit Theorem (CTL)</em> states that the expectation would be Gaussian distributed when $N$ becomes really large.</p>
+<div>
+$$
+\bar{x} = \frac{1}{N}\sum_{i=1}^N x_i \sim \mathcal{N}(\mu, \frac{\sigma^2}{n})\quad\text{when }N \to \infty
+$$
+</div>
+<p>CTL can also apply to multidimensional vectors, and then instead of a single scale $\sigma^2$ we need to compute the covariance matrix of random variable $\Sigma$.</p>
+<h2 id="taylor-expansion">Taylor Expansion<a hidden class="anchor" aria-hidden="true" href="#taylor-expansion">#</a></h2>
+<p>The <a href="https://en.wikipedia.org/wiki/Taylor_series"><em>Taylor expansion</em></a> is to express a function as an infinite sum of components, each represented in terms of this function&rsquo;s derivatives. The Tayler expansion of a function $f(x)$ at $x=a$ can be written as:
+$$
+f(x) = f(a) + \sum_{k=1}^\infty \frac{1}{k!} (x - a)^k\nabla^k_xf(x)\vert_{x=a}
+$$
+where $\nabla^k$ denotes the $k$-th derivative.</p>
+<p>The first-order Taylor expansion is often used as a linear approximation of the function value:</p>
+<div>
+$$
+f(x) \approx f(a) + (x - a)\nabla_x f(x)\vert_{x=a}
+$$
+</div>
+<h2 id="kernel--kernel-methods">Kernel &amp; Kernel Methods<a hidden class="anchor" aria-hidden="true" href="#kernel--kernel-methods">#</a></h2>
+<p>A <a href="https://en.wikipedia.org/wiki/Kernel_method"><em>kernel</em></a> is essentially a similarity function between two data points, $K: \mathcal{X} \times \mathcal{X} \to \mathbb{R}$. It describes how sensitive the prediction for one data sample is to the prediction for the other; or in other words, how similar two data points are. The kernel should be symmetric, $K(x, x&rsquo;) = K(x&rsquo;, x)$.</p>
+<p>Depending on the problem structure, some kernels can be decomposed into two feature maps, one corresponding to one data point, and the kernel value is an inner product of these two features: $K(x, x&rsquo;) = \langle \varphi(x), \varphi(x&rsquo;) \rangle$.</p>
+<p><em>Kernel methods</em> are a type of non-parametric, instance-based machine learning algorithms. Assuming we have known all the labels of training samples $\{x^{(i)}, y^{(i)}\}$, the label for a new input $x$ is predicted by a weighted sum $\sum_{i} K(x^{(i)}, x)y^{(i)}$.</p>
+<h2 id="gaussian-processes">Gaussian Processes<a hidden class="anchor" aria-hidden="true" href="#gaussian-processes">#</a></h2>
+<p><em>Gaussian process (GP)</em> is a non-parametric method by modeling a multivariate Gaussian probability distribution over a collection of random variables. GP assumes a prior over functions and then updates the posterior over functions based on what data points are observed.</p>
+<p>Given a collection of data points $\{x^{(1)}, \dots, x^{(N)}\}$, GP assumes that they follow a jointly multivariate Gaussian distribution, defined by a mean $\mu(x)$ and a covariance matrix $\Sigma(x)$. Each entry at location $(i,j)$ in the covariance matrix $\Sigma(x)$ is defined by a kernel $\Sigma_{i,j} = K(x^{(i)}, x^{(j)})$, also known as a <em>covariance function</em>. The core idea is &ndash; if two data points are deemed similar by the kernel, the function outputs should be close, too. Making predictions with GP for unknown data points is equivalent to drawing samples from this distribution, via a conditional distribution of unknown data points given observed ones.</p>
+<p>Check <a href="https://distill.pub/2019/visual-exploration-gaussian-processes/">this post</a> for a high-quality and highly visualization tutorial on what Gaussian Processes are.</p>
+<h1 id="notation">Notation<a hidden class="anchor" aria-hidden="true" href="#notation">#</a></h1>
+<p>Let us consider a fully-connected neural networks with parameter $\theta$, $f(.;\theta): \mathbb{R}^{n_0} \to \mathbb{R}^{n_L}$. Layers are indexed from 0 (input) to $L$ (output), each containing $n_0, \dots, n_L$ neurons, including the input of size $n_0$ and the output of size $n_L$. There are $P = \sum_{l=0}^{L-1} (n_l + 1) n_{l+1}$ parameters in total and thus we have $\theta \in \mathbb{R}^P$.</p>
+<p>The training dataset contains $N$ data points, $\mathcal{D}=\{\mathbf{x}^{(i)}, y^{(i)}\}_{i=1}^N$. All the inputs are denoted as  $\mathcal{X}=\{\mathbf{x}^{(i)}\}_{i=1}^N$ and all the labels are denoted as  $\mathcal{Y}=\{y^{(i)}\}_{i=1}^N$.</p>
+<p>Now let&rsquo;s look into the forward pass computation in every layer in detail. For $l=0, \dots, L-1$, each layer $l$ defines an affine transformation $A^{(l)}$ with a weight matrix $\mathbf{w}^{(l)} \in \mathbb{R}^{n_{l} \times n_{l+1}}$ and a bias term $\mathbf{b}^{(l)} \in \mathbb{R}^{n_{l+1}}$, as well as a pointwise nonlinearity function $\sigma(.)$ which is <a href="https://en.wikipedia.org/wiki/Lipschitz_continuity">Lipschitz continuous</a>.</p>
+<div> 
+$$
+\begin{aligned}
+A^{(0)} &= \mathbf{x} \\
+\tilde{A}^{(l+1)}(\mathbf{x}) &= \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top A^{(l)} + \beta\mathbf{b}^{(l)}\quad\in\mathbb{R}^{n_{l+1}} & \text{; pre-activations}\\
+A^{(l+1)}(\mathbf{x}) &= \sigma(\tilde{A}^{(l+1)}(\mathbf{x}))\quad\in\mathbb{R}^{n_{l+1}} & \text{; post-activations}
+\end{aligned}
+$$
+</div>
+<p>Note that the <em>NTK parameterization</em> applies a rescale weight $1/\sqrt{n_l}$ on the transformation to avoid divergence with infinite-width networks. The constant scalar $\beta \geq 0$ controls how much effort the bias terms have.</p>
+<p>All the network parameters are initialized as an i.i.d Gaussian $\mathcal{N}(0, 1)$ in the following analysis.</p>
+<h1 id="neural-tangent-kernel">Neural Tangent Kernel<a hidden class="anchor" aria-hidden="true" href="#neural-tangent-kernel">#</a></h1>
+<p><strong>Neural tangent kernel (NTK)</strong> (<a href="https://arxiv.org/abs/1806.07572">Jacot et al. 2018</a>) is an important concept for understanding neural network training via gradient descent. At its core, it explains how updating the model parameters on one data sample affects the predictions for other samples.</p>
+<p>Let&rsquo;s start with the intuition behind NTK, step by step.</p>
+<p>The empirical loss function $\mathcal{L}: \mathbb{R}^P \to \mathbb{R}_+$ to minimize during training is defined as follows, using a per-sample cost function $\ell: \mathbb{R}^{n_0} \times \mathbb{R}^{n_L} \to \mathbb{R}_+$:</p>
+<div>
+$$
+\mathcal{L}(\theta) =\frac{1}{N} \sum_{i=1}^N \ell(f(\mathbf{x}^{(i)}; \theta), y^{(i)})
+$$
+</div>
+<p>and according to the chain rule. the gradient of the loss is:</p>
+<div>
+$$
+\nabla_\theta \mathcal{L}(\theta)= \frac{1}{N} \sum_{i=1}^N \underbrace{\nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_{\text{size }P \times n_L} 
+\underbrace{\nabla_f \ell(f, y^{(i)})}_{\text{size } n_L \times 1} 
+$$
+</div>
+<p>When tracking how the network parameter $\theta$ evolves in time, each gradient descent update introduces a small incremental change of an infinitesimal step size. Because of the update step is small enough, it can be approximately viewed as a derivative on the time dimension:</p>
+<div>
+$$
+\frac{d\theta}{d t} = - \nabla_\theta\mathcal{L}(\theta)  = -\frac{1}{N} \sum_{i=1}^N \nabla_\theta f(\mathbf{x}^{(i)}; \theta) \nabla_f \ell(f, y^{(i)})
+$$
+</div>
+<p>Again, by the chain rule, the network output evolves according to the derivative:</p>
+<div>
+$$
+\frac{df(\mathbf{x};\theta)}{dt} 
+= \frac{df(\mathbf{x};\theta)}{d\theta}\frac{d\theta}{dt}
+= -\frac{1}{N} \sum_{i=1}^N \color{blue}{\underbrace{\nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_\text{Neural tangent kernel}} \color{black}{\nabla_f \ell(f, y^{(i)})}
+$$
+</div>
+<p>Here we find the <strong>Neural Tangent Kernel (NTK)</strong>, as defined in the blue part in the above formula, $K: \mathbb{R}^{n_0}\times\mathbb{R}^{n_0} \to \mathbb{R}^{n_L \times n_L}$ :</p>
+<div>
+$$
+K(\mathbf{x}, \mathbf{x}'; \theta) = \nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}'; \theta)
+$$
+</div>
+<p>where each entry in the output matrix at location $(m, n), 1 \leq m, n \leq n_L$ is:</p>
+<div>
+$$
+K_{m,n}(\mathbf{x}, \mathbf{x}'; \theta) = \sum_{p=1}^P \frac{\partial f_m(\mathbf{x};\theta)}{\partial \theta_p} \frac{\partial f_n(\mathbf{x}';\theta)}{\partial \theta_p}
+$$
+</div>
+<p>The &ldquo;feature map&rdquo; form of one input $\mathbf{x}$ is $\varphi(\mathbf{x}) = \nabla_\theta f(\mathbf{x};\theta)$.</p>
+<h1 id="infinite-width-networks">Infinite Width Networks<a hidden class="anchor" aria-hidden="true" href="#infinite-width-networks">#</a></h1>
+<p>To understand why the effect of one gradient descent is so similar for different initializations of network parameters, several pioneering theoretical work starts with infinite width networks. We will look into detailed proof using NTK of how it guarantees that infinite width networks can converge to a global minimum when trained to minimize an empirical loss.</p>
+<h2 id="connection-with-gaussian-processes">Connection with Gaussian Processes<a hidden class="anchor" aria-hidden="true" href="#connection-with-gaussian-processes">#</a></h2>
+<p>Deep neural networks have deep connection with gaussian processes (<a href="https://www.cs.toronto.edu/~radford/ftp/pin.pdf">Neal 1994</a>). The output functions of a $L$-layer network, $f_i(\mathbf{x}; \theta)$ for $i=1, \dots, n_L$ , are i.i.d. centered Gaussian process of covariance $\Sigma^{(L)}$, defined recursively as:</p>
+<div>
+$$
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}') &= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}'} + \beta^2 \\
+\lambda^{(l+1)}(\mathbf{x}, \mathbf{x}') &= \begin{bmatrix}
+\Sigma^{(l)}(\mathbf{x}, \mathbf{x}) & \Sigma^{(l)}(\mathbf{x}, \mathbf{x}') \\
+\Sigma^{(l)}(\mathbf{x}', \mathbf{x}) & \Sigma^{(l)}(\mathbf{x}', \mathbf{x}')
+\end{bmatrix} \\
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}') &= \mathbb{E}_{f \sim \mathcal{N}(0, \lambda^{(l)})}[\sigma(f(\mathbf{x})) \sigma(f(\mathbf{x}'))] + \beta^2
+\end{aligned}
+$$
+</div>
+<p><a href="https://arxiv.org/abs/1711.00165">Lee &amp; Bahri et al. (2018)</a> showed a proof by mathematical induction:</p>
+<p>(1) Let&rsquo;s start with $L=1$, when there is no nonlinearity function and the input is only processed by a simple affine transformation:</p>
+<div>
+$$
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(1)}(\mathbf{x}) &= \frac{1}{\sqrt{n_0}}{\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+\text{where }\tilde{A}_m^{(1)}(\mathbf{x}) &= \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{im}x_i + \beta b^{(0)}_m\quad \text{for }1 \leq m \leq n_1
+\end{aligned}
+$$
+</div>
+<p>Since the weights and biases are initialized i.i.d., all the output dimensions of this network  ${\tilde{A}^{(1)}_1(\mathbf{x}), \dots, \tilde{A}^{(1)}_{n_1}(\mathbf{x})}$ are also i.i.d. Given different inputs, the $m$-th network outputs $\tilde{A}^{(1)}_m(.)$ have a joint multivariate Gaussian distribution, equivalent to a Gaussian process with covariance function (We know that mean $\mu_w=\mu_b=0$ and variance $\sigma^2_w = \sigma^2_b=1$)</p>
+<div>
+$$
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}') 
+&= \mathbb{E}[\tilde{A}_m^{(1)}(\mathbf{x})\tilde{A}_m^{(1)}(\mathbf{x}')] \\
+&= \mathbb{E}\Big[\Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x_i + \beta b^{(0)}_m \Big) \Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x'_i + \beta b^{(0)}_m \Big)\Big] \\
+&= \frac{1}{n_0} \sigma^2_w \sum_{i=1}^{n_0} \sum_{j=1}^{n_0} x_i{x'}_j + \frac{\beta \mu_b}{\sqrt{n_0}} \sum_{i=1}^{n_0} w_{im}(x_i + x'_i) + \sigma^2_b \beta^2 \\
+&= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}'} + \beta^2
+\end{aligned}
+$$
+</div>
+<p>(2) Using induction, we first assume the proposition is true for $L=l$, a $l$-layer network, and thus $\tilde{A}^{(l)}_m(.)$ is a Gaussian process with covariance $\Sigma^{(l)}$ and $\{\tilde{A}^{(l)}_i\}_{i=1}^{n_l}$ are i.i.d.</p>
+<p>Then we need to prove the proposition is also true for $L=l+1$. We compute the outputs by:</p>
+<div>
+$$
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x}) &= \frac{1}{\sqrt{n_l}}{\mathbf{w}^{(l)}}^\top \sigma(\tilde{A}^{(l)}(\mathbf{x})) + \beta\mathbf{b}^{(l)} \\
+\text{where }\tilde{A}^{(l+1)}_m(\mathbf{x}) &= \frac{1}{\sqrt{n_l}}\sum_{i=1}^{n_l} w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x})) + \beta b^{(l)}_m \quad \text{for }1 \leq m \leq n_{l+1}
+\end{aligned}
+$$
+</div>
+<p>We can infer that the expectation of the sum of contributions of the previous hidden layers is zero:</p>
+<div>
+$$
+\begin{aligned}
+\mathbb{E}[w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+&= \mathbb{E}[w^{(l)}_{im}]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+= \mu_w \mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] = 0 \\
+\mathbb{E}[\big(w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))\big)^2]
+&= \mathbb{E}[{w^{(l)}_{im}}^2]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))^2] 
+= \sigma_w^2 \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+= \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+\end{aligned}
+$$
+</div>
+<p>Since $\{\tilde{A}^{(l)}_i(\mathbf{x})\}_{i=1}^{n_l}$ are i.i.d., according to central limit theorem, when the hidden layer gets infinitely wide $n_l \to \infty$, $\tilde{A}^{(l+1)}_m(\mathbf{x})$ is Gaussian distributed with variance $\beta^2 + \text{Var}(\tilde{A}_i^{(l)}(\mathbf{x}))$. Note that ${\tilde{A}^{(l+1)}_1(\mathbf{x}), \dots, \tilde{A}^{(l+1)}_{n_{l+1}}(\mathbf{x})}$ are still i.i.d.</p>
+<p>$\tilde{A}^{(l+1)}_m(.)$ is equivalent to a Gaussian process with covariance function:</p>
+<div>
+$$
+\begin{aligned}
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}') 
+&= \mathbb{E}[\tilde{A}^{(l+1)}_m(\mathbf{x})\tilde{A}^{(l+1)}_m(\mathbf{x}')] \\
+&= \frac{1}{n_l} \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x})\big)^\top \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x}')\big) + \beta^2 \quad\text{;similar to how we get }\Sigma^{(1)}
+\end{aligned}
+$$
+</div>
+<p>When $n_l \to \infty$, according to central limit theorem,</p>
+<div>
+$$
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}')  \to \mathbb{E}_{f \sim \mathcal{N}(0, \Lambda^{(l)})}[\sigma(f(\mathbf{x}))^\top \sigma(f(\mathbf{x}'))] + \beta^2
+$$
+</div>
+<p>The form of Gaussian processes in the above process is referred to as the <em>Neural Network Gaussian Process (NNGP)</em> (<a href="https://arxiv.org/abs/1711.00165">Lee &amp; Bahri et al. (2018)</a>).</p>
+<h2 id="deterministic-neural-tangent-kernel">Deterministic Neural Tangent Kernel<a hidden class="anchor" aria-hidden="true" href="#deterministic-neural-tangent-kernel">#</a></h2>
+<p>Finally we are now prepared enough to look into the most critical proposition from the NTK paper:</p>
+<p><strong>When $n_1, \dots, n_L \to \infty$ (network with infinite width), the NTK converges to be:</strong></p>
+<ul>
+<li><strong>(1) deterministic at initialization, meaning that the kernel is irrelevant to the initialization values and only determined by the model architecture; and</strong></li>
+<li><strong>(2) stays constant during training.</strong></li>
+</ul>
+<p>The proof depends on mathematical induction as well:</p>
+<p>(1) First of all, we always have $K^{(0)} = 0$. When $L=1$, we can get the representation of NTK directly. It is deterministic and does not depend on the network initialization. There is no hidden layer, so there is nothing to take on infinite width.</p>
+<div>
+$$
+\begin{aligned}
+f(\mathbf{x};\theta) &= \tilde{A}^{(1)}(\mathbf{x}) = \frac{1}{\sqrt{n_0}} {\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+K^{(1)}(\mathbf{x}, \mathbf{x}';\theta) 
+&= \Big(\frac{\partial f(\mathbf{x}';\theta)}{\partial \mathbf{w}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{w}^{(0)}} +
+\Big(\frac{\partial f(\mathbf{x}';\theta)}{\partial \mathbf{b}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{b}^{(0)}} \\
+&= \frac{1}{n_0} \mathbf{x}^\top{\mathbf{x}'} + \beta^2 = \Sigma^{(1)}(\mathbf{x}, \mathbf{x}')
+\end{aligned}
+$$
+</div>
+<p>(2) Now when $L=l$, we assume that a $l$-layer network with $\tilde{P}$ parameters in total, $\tilde{\theta} = (\mathbf{w}^{(0)}, \dots, \mathbf{w}^{(l-1)}, \mathbf{b}^{(0)}, \dots, \mathbf{b}^{(l-1)}) \in \mathbb{R}^\tilde{P}$, has a NTK converging to a deterministic limit when $n_1, \dots, n_{l-1} \to \infty$.</p>
+<div>
+$$
+K^{(l)}(\mathbf{x}, \mathbf{x}';\tilde{\theta}) = \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x})^\top \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x}') \to K^{(l)}_{\infty}(\mathbf{x}, \mathbf{x}')
+$$
+</div>
+<p>Note that $K_\infty^{(l)}$ has no dependency on $\theta$.</p>
+<p>Next let&rsquo;s check the case $L=l+1$. Compared to a $l$-layer network, a $(l+1)$-layer network has additional weight matrix $\mathbf{w}^{(l)}$ and bias $\mathbf{b}^{(l)}$ and thus the total parameters contain $\theta = (\tilde{\theta}, \mathbf{w}^{(l)}, \mathbf{b}^{(l)})$.</p>
+<p>The output function of this $(l+1)$-layer network is:</p>
+<div>
+$$
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x};\theta) = \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top \sigma\big(\tilde{A}^{(l)}(\mathbf{x})\big) + \beta \mathbf{b}^{(l)}
+$$
+</div>
+<p>And we know its derivative with respect to different sets of parameters; let denote $\tilde{A}^{(l)} = \tilde{A}^{(l)}(\mathbf{x})$ for brevity in the following equation:</p>
+<div>
+$$
+\begin{aligned}
+\nabla_{\color{blue}{\mathbf{w}^{(l)}}} f(\mathbf{x};\theta) &= \color{blue}{
+    \frac{1}{\sqrt{n_l}} \sigma\big(\tilde{A}^{(l)}\big)^\top
+} \color{black}{\quad \in \mathbb{R}^{1 \times n_l}} \\
+\nabla_{\color{green}{\mathbf{b}^{(l)}}} f(\mathbf{x};\theta) &= \color{green}{ \beta } \\
+\nabla_{\color{red}{\tilde{\theta}}} f(\mathbf{x};\theta) 
+&= \frac{1}{\sqrt{n_l}} \nabla_\tilde{\theta}\sigma(\tilde{A}^{(l)}) \mathbf{w}^{(l)} \\
+&= \color{red}{
+    \frac{1}{\sqrt{n_l}}
+    \begin{bmatrix}
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_1} & \dots & \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_1} \\
+        \vdots \\       
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_\tilde{P}}
+        & \dots & \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_\tilde{P}}\\
+    \end{bmatrix}
+    \mathbf{w}^{(l)}
+    \color{black}{\quad \in \mathbb{R}^{\tilde{P} \times n_{l+1}}}
+}
+\end{aligned}
+$$
+</div>
+<p>where $\dot{\sigma}$ is the derivative of $\sigma$ and each entry at location $(p, m), 1 \leq p \leq \tilde{P}, 1 \leq m \leq n_{l+1}$ in the matrix $\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)$ can be written as</p>
+<div>
+$$
+\frac{\partial f_m(\mathbf{x};\theta)}{\partial \tilde{\theta}_p} = \sum_{i=1}^{n_l} w^{(l)}_{im} \dot{\sigma}\big(\tilde{A}_i^{(l)} \big) \nabla_{\tilde{\theta}_p} \tilde{A}_i^{(l)}
+$$
+</div>
+<p>The NTK for this $(l+1)$-layer network can be defined accordingly:</p>
+<div>
+$$
+\begin{aligned}
+& K^{(l+1)}(\mathbf{x}, \mathbf{x}'; \theta) \\ 
+=& \nabla_{\theta} f(\mathbf{x};\theta)^\top \nabla_{\theta} f(\mathbf{x};\theta) \\
+=& \color{blue}{\nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)} 
+    + \color{green}{\nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)}
+    + \color{red}{\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)^\top \nabla_{\tilde{\theta}} f(\mathbf{x};\theta)}  \\
+=& \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} & \dots & \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} & \dots & \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]} \\
+=& \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{11} & \dots & \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{1n_l} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{n_l1} & \dots & \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{n_ln_l} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]}
+\end{aligned}
+$$
+</div>
+<p>where each individual entry at location $(m, n), 1 \leq m, n \leq n_{l+1}$ of the matrix $K^{(l+1)}$ can be written as:</p>
+<div>
+$$
+\begin{aligned}
+K^{(l+1)}_{mn} 
+=& \frac{1}{n_l}\Big[
+    \color{blue}{\sigma(\tilde{A}_m^{(l)})\sigma(\tilde{A}_n^{(l)})}
+    + \color{green}{\beta^2} 
+    + \color{red}{
+    \sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)}
+}
+\Big]
+\end{aligned}
+$$
+</div>
+<p>When $n_l \to \infty$, the section in blue and green has the limit (See the proof in the <a href="#connection-with-gaussian-processes">previous section</a>):</p>
+<div>
+$$
+\frac{1}{n_l}\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)}) + \beta^2\to \Sigma^{(l+1)}
+$$
+</div>
+<p>and the red section has the limit:</p>
+<div>
+$$
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)} 
+\to
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{\infty,ij}^{(l)}
+$$
+</div>
+<p>Later, <a href="https://arxiv.org/abs/1904.11955">Arora et al. (2019)</a> provided a proof with a weaker limit, that does not require all the hidden layers to be infinitely wide, but only requires the minimum width to be sufficiently large.</p>
+<h2 id="linearized-models">Linearized Models<a hidden class="anchor" aria-hidden="true" href="#linearized-models">#</a></h2>
+<p>From the <a href="#neural-tangent-kernel">previous section</a>, according to the derivative chain rule, we have known that the gradient update on the output of an infinite width network is as follows; For brevity, we omit the inputs in the following analysis:</p>
+<div>
+$$
+\begin{aligned}
+\frac{df(\theta)}{dt} 
+&= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} & \\
+&= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} & \\
+&= -\eta K(\theta) \nabla_f \mathcal{L} \\
+&= \color{cyan}{-\eta K_\infty \nabla_f \mathcal{L}} & \text{; for infinite width network}\\
+\end{aligned}
+$$
+</div>
+<p>To track the evolution of $\theta$ in time, let&rsquo;s consider it as a function of time step $t$. With Taylor expansion, the network learning dynamics can be simplified as:</p>
+<div>
+$$
+f(\theta(t)) \approx f^\text{lin}(\theta(t)) = f(\theta(0)) + \underbrace{\nabla_\theta f(\theta(0))}_{\text{formally }\nabla_\theta f(\mathbf{x}; \theta) \vert_{\theta=\theta(0)}} (\theta(t) - \theta(0))
+$$
+</div>
+<p>Such formation is commonly referred to as the <em>linearized</em> model, given $\theta(0)$, $f(\theta(0))$, and $\nabla_\theta f(\theta(0))$ are all constants. Assuming that the incremental time step $t$ is extremely small and the parameter is updated by gradient descent:</p>
+<div>
+$$
+\begin{aligned}
+\theta(t) - \theta(0) &= - \eta \nabla_\theta \mathcal{L}(\theta) = - \eta \nabla_\theta f(\theta)^\top \nabla_f \mathcal{L} \\
+f^\text{lin}(\theta(t)) - f(\theta(0)) &= - \eta\nabla_\theta f(\theta(0))^\top \nabla_\theta f(\mathcal{X};\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &= - \eta K(\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &= \color{cyan}{- \eta K_\infty \nabla_f \mathcal{L}}  & \text{; for infinite width network}\\
+\end{aligned}
+$$
+</div>
+<p>Eventually we get the same learning dynamics, which implies that a neural network with infinite width can be considerably simplified as governed by the above linearized model (<a href="https://arxiv.org/abs/1902.06720">Lee &amp; Xiao, et al. 2019</a>).</p>
+<p>In a simple case when the empirical loss is an MSE loss, $\nabla_\theta \mathcal{L}(\theta) = f(\mathcal{X}; \theta) - \mathcal{Y}$, the dynamics of the network becomes a simple linear ODE and it can be solved in a closed form:</p>
+<div>
+$$
+\begin{aligned}
+\frac{df(\theta)}{dt} =& -\eta K_\infty (f(\theta) - \mathcal{Y}) & \\
+\frac{dg(\theta)}{dt} =& -\eta K_\infty g(\theta) & \text{; let }g(\theta)=f(\theta) - \mathcal{Y} \\
+\int \frac{dg(\theta)}{g(\theta)} =& -\eta \int K_\infty dt & \\
+g(\theta) &= C e^{-\eta K_\infty t} &
+\end{aligned}
+$$
+</div>
+<p>When $t=0$, we have $C=f(\theta(0)) - \mathcal{Y}$ and therefore,</p>
+<div>
+$$
+f(\theta) 
+= (f(\theta(0)) - \mathcal{Y})e^{-\eta K_\infty t} + \mathcal{Y} \\
+= f(\theta(0))e^{-K_\infty t} + (I - e^{-\eta K_\infty t})\mathcal{Y}
+$$
+</div>
+<h2 id="lazy-training">Lazy Training<a hidden class="anchor" aria-hidden="true" href="#lazy-training">#</a></h2>
+<p>People observe that when a neural network is heavily over-parameterized, the model is able to learn with the training loss quickly converging to zero but the network parameters hardly change. <em>Lazy training</em> refers to the phenomenon. In other words, when the loss $\mathcal{L}$ has a decent amount of reduction, the change in the differential of the network $f$ (aka the Jacobian matrix) is still very small.</p>
+<p>Let $\theta(0)$ be the initial network parameters and $\theta(T)$ be the final network parameters when the loss has been minimized to zero. The delta change in parameter space can be approximated with first-order Taylor expansion:</p>
+<div>
+$$
+\begin{aligned}
+\hat{y} = f(\theta(T)) &\approx f(\theta(0)) + \nabla_\theta f(\theta(0)) (\theta(T) - \theta(0)) \\
+\text{Thus }\Delta \theta &= \theta(T) - \theta(0) \approx \frac{\|\hat{y} - f(\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+$$
+</div>
+<p>Still following the first-order Taylor expansion, we can track the change in the differential of $f$:</p>
+<div>
+$$
+\begin{aligned}
+\nabla_\theta f(\theta(T)) 
+&\approx \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \Delta\theta \\
+&= \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \frac{\|\hat{y} - f(\mathbf{x};\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|} \\
+\text{Thus }\Delta\big(\nabla_\theta f\big) &= \nabla_\theta f(\theta(T)) - \nabla_\theta f(\theta(0)) = \|\hat{y} - f(\mathbf{x};\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+$$
+</div>
+<p>Let $\kappa(\theta)$ be the relative change of the differential of $f$ to the change in the parameter space:</p>
+<div>
+$$
+\kappa(\theta = \frac{\Delta\big(\nabla_\theta f\big)}{\| \nabla_\theta f(\theta(0)) \|} = \|\hat{y} - f(\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|^2}
+$$
+</div>
+<p><a href="https://arxiv.org/abs/1812.07956">Chizat et al. (2019)</a> showed the proof for a two-layer neural network that $\mathbb{E}[\kappa(\theta_0)] \to 0$ (getting into the lazy regime) when the number of hidden neurons $\to \infty$. Also, recommend <a href="https://rajatvd.github.io/NTK/">this post</a> for more discussion on linearized models and lazy training.</p>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Sep 2022). Some math behind neural tangent kernel. Lil&rsquo;Log. https://lilianweng.github.io/posts/2022-09-08-ntk/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2022ntk,
+  title   = &#34;Some Math behind Neural Tangent Kernel&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;Lil&#39;Log&#34;,
+  year    = &#34;2022&#34;,
+  month   = &#34;Sep&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2022-09-08-ntk/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Jacot et al. <a href="https://arxiv.org/abs/1806.07572">&ldquo;Neural Tangent Kernel: Convergence and Generalization in Neural Networks.&rdquo;</a> NeuriPS 2018.</p>
+<p>[2]Radford M. Neal. <a href="">&ldquo;Priors for Infinite Networks.&rdquo;</a> Bayesian Learning for Neural Networks. Springer, New York, NY, 1996. 29-53.</p>
+<p>[3] Lee &amp; Bahri et al. <a href="https://arxiv.org/abs/1711.00165">&ldquo;Deep Neural Networks as Gaussian Processes.&rdquo;</a> ICLR 2018.</p>
+<p>[4] Chizat et al. <a href="https://arxiv.org/abs/1812.07956">&ldquo;On Lazy Training in Differentiable Programming&rdquo;</a> NeuriPS 2019.</p>
+<p>[5] Lee &amp; Xiao, et al. <a href="https://arxiv.org/abs/1902.06720">&ldquo;Wide Neural Networks of Any Depth Evolve as Linear Models Under Gradient Descent.&rdquo;</a> NeuriPS 2019.</p>
+<p>[6] Arora, et al. <a href="https://arxiv.org/abs/1904.11955">&ldquo;On Exact Computation with an Infinitely Wide Neural Net.&rdquo;</a> NeurIPS 2019.</p>
+<p>[7] (YouTube video) <a href="https://www.youtube.com/watch?v=raT2ECrvbag">&ldquo;Neural Tangent Kernel: Convergence and Generalization in Neural Networks&rdquo;</a> by Arthur Jacot, Nov 2018.</p>
+<p>[8] (YouTube video) <a href="https://www.youtube.com/watch?v=DObobAnELkU">&ldquo;Lecture 7 - Deep Learning Foundations: Neural Tangent Kernels&rdquo;</a> by Soheil Feizi, Sep 2020.</p>
+<p>[9] <a href="https://rajatvd.github.io/NTK/">&ldquo;Understanding the Neural Tangent Kernel.&rdquo;</a> Rajat&rsquo;s Blog.</p>
+<p>[10] <a href="https://appliedprobability.blog/2021/03/10/neural-tangent-kernel/">&ldquo;Neural Tangent Kernel.&rdquo;</a>Applied Probability Notes, Mar 2021.</p>
+<p>[11] <a href="https://www.inference.vc/neural-tangent-kernels-some-intuition-for-kernel-gradient-descent/">&ldquo;Some Intuition on the Neural Tangent Kernel.&rdquo;</a> inFERENCe, Nov 2020.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/neural-tangent-kernel/">Neural-Tangent-Kernel</a></li>
+      <li><a href="https://lilianweng.github.io/tags/learning-dynamics/">Learning-Dynamics</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2023-01-10-inference-optimization/">
+    <span class="title">« </span>
+    <br>
+    <span>Large Transformer Model Inference Optimization</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2022-06-09-vlm/">
+    <span class="title"> »</span>
+    <br>
+    <span>Generalized Visual Language Models</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on twitter"
+        href="https://twitter.com/intent/tweet/?text=Some%20Math%20behind%20Neural%20Tangent%20Kernel&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f&amp;hashtags=foundation%2cneural-tangent-kernel%2clearning-dynamics">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f&amp;title=Some%20Math%20behind%20Neural%20Tangent%20Kernel&amp;summary=Some%20Math%20behind%20Neural%20Tangent%20Kernel&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f&title=Some%20Math%20behind%20Neural%20Tangent%20Kernel">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on whatsapp"
+        href="https://api.whatsapp.com/send?text=Some%20Math%20behind%20Neural%20Tangent%20Kernel%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Some Math behind Neural Tangent Kernel on telegram"
+        href="https://telegram.me/share/url?text=Some%20Math%20behind%20Neural%20Tangent%20Kernel&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-09-08-ntk%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Learning with not Enough Data Part 3: Data Generation | Lil&#39;Log</title>
+<meta name="keywords" content="data, data-generation, data-augmentation, data-quality" />
+<meta name="description" content="Here comes the Part 3 on learning with not enough data (Previous: Part 1 and Part 2). Let’s consider two approaches for generating synthetic data for training.
+
+Augmented data. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a previous post on contrastive learning. For the sake of post completeness, I duplicate the section on data augmentation here with some edits.
+New data. Given few or even no data points, we can rely on powerful pretrained models to generate a number of new data points. This is especially true in recent years given the fast progress in large pretrained language models (LM). Few shot prompting is shown to be effective for LM to learn within context without extra training.
+
+Data Augmentation
+The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2022-04-15-data-gen/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-04-15-data-gen/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Learning with not Enough Data Part 3: Data Generation" />
+<meta property="og:description" content="Here comes the Part 3 on learning with not enough data (Previous: Part 1 and Part 2). Let’s consider two approaches for generating synthetic data for training.
+
+Augmented data. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a previous post on contrastive learning. For the sake of post completeness, I duplicate the section on data augmentation here with some edits.
+New data. Given few or even no data points, we can rely on powerful pretrained models to generate a number of new data points. This is especially true in recent years given the fast progress in large pretrained language models (LM). Few shot prompting is shown to be effective for LM to learn within context without extra training.
+
+Data Augmentation
+The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2022-04-15-data-gen/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-04-15T15:10:30-07:00" />
+<meta property="article:modified_time" content="2022-04-15T15:10:30-07:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Learning with not Enough Data Part 3: Data Generation"/>
+<meta name="twitter:description" content="Here comes the Part 3 on learning with not enough data (Previous: Part 1 and Part 2). Let’s consider two approaches for generating synthetic data for training.
+
+Augmented data. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a previous post on contrastive learning. For the sake of post completeness, I duplicate the section on data augmentation here with some edits.
+New data. Given few or even no data points, we can rely on powerful pretrained models to generate a number of new data points. This is especially true in recent years given the fast progress in large pretrained language models (LM). Few shot prompting is shown to be effective for LM to learn within context without extra training.
+
+Data Augmentation
+The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Learning with not Enough Data Part 3: Data Generation",
+      "item": "https://lilianweng.github.io/posts/2022-04-15-data-gen/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Learning with not Enough Data Part 3: Data Generation",
+  "name": "Learning with not Enough Data Part 3: Data Generation",
+  "description": "Here comes the Part 3 on learning with not enough data (Previous: Part 1 and Part 2). Let’s consider two approaches for generating synthetic data for training.\nAugmented data. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a previous post on contrastive learning. For the sake of post completeness, I duplicate the section on data augmentation here with some edits. New data. Given few or even no data points, we can rely on powerful pretrained models to generate a number of new data points. This is especially true in recent years given the fast progress in large pretrained language models (LM). Few shot prompting is shown to be effective for LM to learn within context without extra training. Data Augmentation The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged.\n",
+  "keywords": [
+    "data", "data-generation", "data-augmentation", "data-quality"
+  ],
+  "articleBody": "Here comes the Part 3 on learning with not enough data (Previous: Part 1 and Part 2). Let’s consider two approaches for generating synthetic data for training.\nAugmented data. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a previous post on contrastive learning. For the sake of post completeness, I duplicate the section on data augmentation here with some edits. New data. Given few or even no data points, we can rely on powerful pretrained models to generate a number of new data points. This is especially true in recent years given the fast progress in large pretrained language models (LM). Few shot prompting is shown to be effective for LM to learn within context without extra training. Data Augmentation The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged.\nImage Augmentation Basic Image Processing Operations There are several ways to modify an image while retaining its semantic information. We can use any one of the following augmentation or a composition of multiple operations.\nRandom cropping and then resize back to the original size. Random color distortions Random Gaussian blur Random color jittering Random horizontal flip Random grayscale conversion And many more. Check PIL.ImageOps for inspiration. Task-Specific Augmentation Strategies If the downstream task is known, it is possible to learn the optimal augmentation strategies (i.e. what processing operations to use and how to combine them in sequence) to maximize the downstream task performance.\nAutoAugment (Cubuk, et al. 2018) is inspired by neural architecture search, AutoAugment frames the problem of learning best data augmentation operations (i.e. shearing, rotation, invert, etc.) for image classification as an RL problem and looks for the combination that leads to the highest accuracy on the evaluation set. AutoAugment can be executed in adversarial fashion (Zhang, et al 2019). RandAugment (Cubuk et al., 2019) greatly reduces the search space of AutoAugment by controlling the magnitudes of different transformation operations with a single magnitude parameter. Population based augmentation (PBA; Ho et al., 2019) combines PBT (“population based training”; Jaderberg et al, 2017) with AutoAugment, using the evolutionary algorithm to train a population of children models in parallel to evolve the best augmentation strategies. Unsupervised Data Augmentation (UDA; Xie et al., 2019), among a set of possible augmentation strategies, selects a subset to minimize the KL divergence between the predicted distribution over an unlabelled example and its unlabelled augmented version. Image Mixture Image mixture methods can construct new training examples from existing data points.\nMixup (Zhang et al., 2018) runs global-level mixture by creating a weighted pixel-wise combination of two existing images $I_1$ and $I_2$: $I_\\text{mixup} \\gets \\alpha I_1 + (1-\\alpha) I_2$ and $\\alpha \\in [0, 1]$. Cutmix (Yun et al., 2019) does region-level mixture by generating a new example by combining a local region of one image with the rest of the other image. $I_\\text{cutmix} \\gets \\mathbf{M}_b \\odot I_1 + (1-\\mathbf{M}_b) \\odot I_2$, where $\\mathbf{M}_b \\in \\{0, 1\\}^I$ is a binary mask and $\\odot$ is element-wise multiplication. It is equivalent to filling the cutout (DeVries \u0026 Taylor 2017) region with the same region from another image. Given a query $\\mathbf{q}$, MoCHi (“mixing of contrastive hard negatives”; Kalantidis et al. 2020) maintains a queue of $K$ negative features $Q={\\mathbf{n}_1, \\dots, \\mathbf{n}_K }$ and sorts these negative features by similarity to the query, $\\mathbf{q}^\\top \\mathbf{n}$, in descending order. The first $N$ items in the queue are considered as the hardest negatives, $Q^N$. Then synthetic hard examples can be generated by $\\mathbf{h} = \\tilde{\\mathbf{h}} / |\\tilde{\\mathbf{h}}|_2$ where $\\tilde{\\mathbf{h}} = \\alpha\\mathbf{n}_i + (1-\\alpha) \\mathbf{n}_j$ and $\\alpha \\in (0, 1)$. Even harder examples can be created by mixing with the query feature, $\\mathbf{h}’ = \\tilde{\\mathbf{h}’} / |\\tilde{\\mathbf{h}’}|_2$ where $\\tilde{\\mathbf{h}’} = \\beta\\mathbf{q} + (1-\\beta) \\mathbf{n}_j$ and $\\beta \\in (0, 0.5)$. Text Augmentation Lexical Edits Easy Data Augmentation (EDA; Wei \u0026 Zou 2019) defines a set of simple but powerful operations for text augmentation. Given a sentence, EDA randomly chooses and applies one of four simple operations:\nSynonym replacement (SR): Replace $n$ random non-stop words with their synonyms. Random insertion (RI): Place a random synonym of a randomly selected non-stop word in the sentence at a random position. Random swap (RS): Randomly swap two words and repeat $n$ times. Random deletion (RD): Randomly delete each word in the sentence with probability $p$. where $p=\\alpha$ and $n=\\alpha \\times \\text{sentence_length}$, with the intuition that longer sentences can absorb more noise while maintaining the original label. The hyperparameter $\\alpha$ roughly indicates the percent of words in one sentence that may be changed by one augmentation.\nEDA is shown to improve the classification accuracy on several classification benchmark datasets compared to baseline without EDA. The performance lift is more significant on a smaller training set. All the four operations in EDA help improve the classification accuracy, but get to optimal at different $\\alpha$’s.\nEDA leads to performance improvement on several classification benchmarks. (Image source: Wei \u0026 Zou 2019) Contextual Augmentation (Kobayashi, 2018) replaces word $w_i$ at position $i$ by sampling from a probability distribution learned by a bidirectional LM such as BERT, $p(.\\mid S\\setminus{w_i})$. In this way, the words are substituted by synonyms, or similar words suitable for the context. To guarantee such operations do not alter the labels, the LM is fit to be label-conditioned bidirectional LM. Conditional BERT (CBERT; Xing Wu et al. 2018) extends BERT to predict masked tokens conditioned on the class label and can be used for contextual augmentation prediction.\nBack-translation Back-translation produces augmented data by translating text samples to another language and then translating them back. The translation happens in two ways and both directions should have decent enough performance to avoid significant loss of semantic meaning.\nMix-up It is also possible to apply Mixup to text (Guo et al. 2019) but on the embedding space to obtain some performance gain. The proposed method relies on a specially designed model architecture to operate the prediction on the word or sentence embedding. Adding adversarial noise in the embedding space as a way of data augmentation is shown to improve the generalization of model training (Zhu et al. 2019).\nAudio Augmentation Here is a list of several commonly used audio data augmentation methods, operated on raw audio or spectrograms, summarized by Wang \u0026 van den Oord (2021).\nAudio mixup. Given two audio clips $\\mathbf{x}_1$ and $\\mathbf{x}_2$, the mixed-up version $\\hat{\\mathbf{x}} = \\alpha \\mathbf{x}_1 + (1-\\alpha)\\mathbf{x}_2$ should be associated with the label of the more dominant input. The audio mixup augments the data with more realistic noise.\nTime masking. A small consecutive chunk of the audio can be masked without losing semantic information.\nFrequency masking. A small amount of frequency components on the spectrogram can be dropped off and it should not change the associated label.\nFrequency shift. The spectrogram can be shifted by an integer between $[-F, F]$, where $F$ is the maximum shift size. It is a cheap augmentation to change the pitch of the audio.\nArchitectural Augmentation Models with dropout layers can create augmented samples by applying different dropout masks on the same input sample. For example, in the contrastive learning model SimCSE (Guo et al. 2021), a sample is simply fed into the encoder twice with different dropout masks and these two versions are the positive pair where the other in-batch samples are considered as negative pairs.\nDropout augments data by adding noise onto the internal representation of the model. It can be applied in a more structured way, such as in cutoff (Shen et al. (2020)), where random chunks of the token embedding matrix are removed.\nData Synthesis Given that generating high-quality, photorealistic images is a lot more difficult than generating human-like natural language text and recent success with large pretrained language models, this section only focuses on text generation. To read more on how to synthesize realistic images, check posts on GAN, VAE, flow and diffusion models.\nLanguage Model as Noisy Annotator Wang et al. (2021) explored ways to leverage GPT-3 as a weak annotator via few-shot prompting, achieving 10x cheaper than human labeling. The paper argues that by using data labeled by GPT-3, it essentially performs self-training: The predictions on unlabeled samples apply entropy regularization on the model to avoid high class overlaps so as to help improve the model performance.\nIllustration of how to use GPT-3 to generate more training data with the human-in-the-loop active learning pipeline to improve the data quality. (Image source: Wang et al. 2021) GPT-3-labeled samples selected by active learning with highest uncertainty are sent to human labelers to be re-annotated. The few-shot prompt contains a small number of human labeled examples and thus the labeling cost is restricted. Synthetic samples are ranked by predicted logits of label $y$ and those with the lowest scores go through relabeling.\nGPT-3 labeling achieves better results in the low-cost regime, but has a gap with human labeling when enough money is spent on data collection. This implies the following inequation, although to what extent “a lot” or “noisy” means depends on the task details.\nA lot of high-quality data \u003e A lot of noisy data \u003e A little high quality data.\nGPT-3 labeling technique improves the classification performance in the low-cost regime. (Image source: Wang et al. 2021) Language Model as Data Generator If enough training dataset for text classification tasks are available, we can fine-tune language models to synthesize more training samples conditioned on labels (Anaby-Tavor et al. 2019, Kumar et al. 2021).\nLanguage-model-based data augmentation (LAMBADA; Anaby-Tavor et al. 2019) takes such an idea, where the process involves fine-tuning both a classifier and a sample generation model.\nTrain a baseline classifier using the existing training dataset: $h = \\mathcal{A}(\\mathcal{D}_\\text{train})$. Independently of step 1, a LM $\\mathcal{M}$ is fine-tuned on $\\mathcal{D}_{\\text{train}}$ to obtain $\\mathcal{M}_{\\text{tuned}}$. Synthesize a labeled dataset $\\mathcal{D}^*$ by generating the continuation of the sequence y[SEP] until EOS using $\\mathcal{M}_\\text{tuned}$. Filter synthesized dataset by, (1) Verifying that the predicted label is correct $h(x)=y$; (2) Selecting the top ranked samples when they are ranked by the classifier probability. $\\mathcal{D}_\\text{syn} \\subset \\mathcal{D}^*$. They generate 10x more samples needed for augmentation and only the top 10% synthesized samples with highest confidence scores remain. The final classifier is trained on $\\mathcal{D}_\\text{syn} \\cup \\mathcal{D}_\\text{train}$ . The process can be repeated multiple times, but it is unclear whether the benefit would quickly diminish or the repetitive process would bring in self-bias.\nAccuracy of LAMBADA vs. other generative approaches over all datasets and classifiers. (Image source: Anaby-Tavor et al. 2019) To simplify LAMBADA, we can actually remove the dependency of a fine-tuned generation model and an existing training dataset of a decent size (Step 2 above). Unsupervised data generation (UDG; Wang et al. 2021) relies on few-shot prompting on a large pretrained language model to generate high-quality synthetic data for training. Opposite to the above approach where LM is asked to predict $y$ given $\\mathbf{x}$, UDG instead synthetizes the inputs $\\mathbf{x}$ given labels $y$. Then a task-specific model is trained on this synthetic dataset.\nSchick \u0026 Schutze (2021) proposed a similar idea but on the NLI task instead of classification, asking PLM to write sentence pairs that are similar or different while the model is prompted with task-specific instructions.\nIllustration of the unsupervised data generation (UDG) framework. (Image source: Wang et al., 2021) The few-shot prompts of UDG contain a small number of unlabeled examples, as well as a task-specific natural language description of the desired label. Because some generated examples are noisy, they implemented noisy label annealing (NLA) techniques to filter potentially misaligned samples out during the training processes. NLA gradually removes noisy training signals in time during training when the model starts to disagree with its pseudo label with high confidence. At each training step $t$, a given example $(\\mathbf{x}_i, \\hat{y}_i)$ is considered noisy and should be removed if:\nThe model predicted probability is higher than a threshold $p(\\bar{y}_i \\vert \\mathbf{x}_i) \u003e \\mu_t$ where $\\bar{y}_i = \\arg\\max_y p(y \\vert \\mathbf{x}_i)$; And the predicted label is different from the synthetic label, $\\bar{y}_i \\neq \\hat{y}_i$. Note that the threshold $\\mu_t$ is time-dependent, initialized as 0.9 and then gradually annealed to $1/\\text{num_of_classes}$ in time.\nAs shown in their experiments, the improvement of UDG over few-shot inference is quit significant, where NLA brings in some extra boost. The results are even comparable with supervised fine-tuning on several cases.\nComparison of accuracy of UDG and other methods on different classification datasets. (Image source: Wang et al., 2021) Han et al (2021) achieved SOTA results on translation tasks using few-shot data generation, distillation and back-translation. The proposed method contains the following steps, assuming no access to paired translation data:\nZero-shot Generation. First use the zero-shot translation ability of a pre-trained LM to generate translations for a small set of unlabeled sentences. Few-shot Generation. Then amplify these zero-shot translations by using them as few-shot demonstrations to gather an even larger synthetic dataset. Distillation. Fine-tune the model on this dataset. The translation task is formulated as a language modeling task [L1] [[TRANSLATE]] [L2] . given a pair of two sequences in two different languages. At test-time, the LM is prompted with [L1] [[TRANSLATE]] [L2] and a candidate translation is parsed from the sampled completion. Back-translation. Continue fine-tuning on the back-translation dataset where the order of samples is reversed, . Step 1-4 can be repeated. Algorithm of using distillation and back-translation to train a language model on translation tasks. (Image source: Han et al. 2021) The success of the above method depends on a good pretrained LM to kick off the initial translation dataset. Iterative few-shot generation and distillation with back-translation is an effective way to extract and refine the translation capability out of a pretrained LM and further to distill that into a new model.\nComparison of BLEU scores of the translation models of different training runs using: only distillation, back-translation, both and with more monolingual training data. (Image source: Han et al. 2021) How to Quantify Generated Data Quality? Given all the generated data, either by data augmentation or data synthesis, how can we quantify data quality in terms of how they improve model generalization? Gontijo-Lopes et al. (2020) introduced two dimensions to track, affinity and diversity.\nAffinity is a model-sensitive metric for distribution shift, quantifying how much an augmentation shifts the training data distribution from what a model learned. Definition: The performance difference between the model tested on clean data vs augmented data, while the model is trained on clean data. As a comparison, KL can also measure distribution shift but does not consider the model performance. Diversity is a measure of augmentation complexity, measuring the complexity of the augmented data with respect to the model and learning procedure. Definition: The final training loss of a model trained with a given augmentation. Another potential diversity measure is the entropy of the transformed data. A third potential diversity measure is the training time needed for a model to reach a given training accuracy threshold. All three metrics above are correlated. The final model performance is dependent on both metrics to be high enough.\n(a) Left: A scatter plot of affinity vs diversity metric, where each point represents a different augmentation method and its color indicates the final test accuracy. (b) Right: The conceptual illustration of the relationship between clean and augmented data in different regions of affinity and diversity metrics. (Image source: Gontijo-Lopes et al. 2020) There are many quantitative metrics on relevancy and diversity, in different formations depending on whether a reference is available, such as perplexity, BLEU for text and inception score for images. I’m skipping the list of concrete quantitative metrics on quality here, given it could be very long.\nTraining with Noisy Data It is convenient to collect a large amount of noisy data via model generation or data augmentation, but it is hard to guarantee that augmented and generated data can be 100% accurate. Knowing that deep neural networks can easily overfit noisy labels and “memotize” corrupted labels, we can apply the techniques for training on noisy labels (noise-robust training) when using generated data to stabilize and optimize the performance. Please check this survey paper (Song et al. 2021) on learning from noisy labels for a more thorough coverage of related work.\nRegularization and Robust Architecture Generally speaking, mechanisms designed for avoiding overfitting should help improve training robustness when working with moderately noisy data, such as weight decay, dropout, batch normalization. In fact, good data augmentation (i.e. only non-essential attributes are modified) can be considered as a way of regularization as well.\nA different approach is to enhance the network with a dedicated noisy adaptation layer to approximate the unknown projection of label corruption (Sukhbaatar et al. 2015, Goldberger \u0026 Ben-Reuven, 2017).\nSukhbaatar et al. (2015) introduced an extra linear layer $Q$ into the network architecture to adapt the predictions to match the noisy label distribution. The noise matrix $Q$ is initially fixed to the identity function while only the base model parameters is updated. After some time, $Q$ starts to be updated and expected to capture the noise in the data. The noise matrix is trained with regularization to encourage it to match the noise distribution while keeping the base model prediction accurate for true labels.\n(a) Left: A noise matrix $Q$ is added between softmax and the final output for the loss. (b) Right: The noise matrix $Q$ is fixed at the identity function initially and only gets updated with regularization after some training. (Image source: Sukhbaatar et al. 2015) However, it is hard to guarantee such a noise matrix layer would only capture the noise transition distribution and it is actually non-trivial to learn. Goldberger \u0026 Ben-Reuven (2017)) proposed to add an additional softmax layer end-to-end with the base model and apply the EM algorithm by treating the correct labels as latent random variable and the noise processes as a communication channel with unknown parameters.\nRobust Learning Objective Besides the most commonly used cross entropy loss, some other choices of learning objectives are shown to be more robust to noisy labels.\nFor example, MAE (mean absolute error) is more robust to noisy labels than CCE (categorical cross entropy), as it treats every sample equally (Ghosh et al. 2017). Lack of different weighting among training samples of MAE lead to significantly longer training time. Motivated by the tradeoff between MAE and CCE, Zhang \u0026 Sabuncu (2018) proposed generalized cross entropy (GCE), a generalization of CCE loss to be robust to noisy data.\nTo exploit the benefits of both the noise-robustness provided by MAE and the implicit weighting scheme of CCE, GCE adopts the the negative Box-Cox transformation as a loss function:\n$$ \\mathcal{L}_q(f(\\mathbf{x}_i, y_i = j)) = \\frac{1 - f^{(j)}(\\mathbf{x}_i)^q}{q} $$\nwhere $f^{(j)}$ denotes the $j$-th element of $f(.)$ and $q \\in (0, 1]$. $\\mathcal{L}_q$ is equivalent to CCE when $q \\to 0$ and becomes MAE when $q=1$. Empirical experiments show that there exists a threshold of $q$ with which overfitting never emerges and the noisier the data the higher such a threshold should be.\nGiven true and predicted labels, $y_i, \\hat{y}_i \\in \\{0, 1\\}$ and let $u_i=y_i \\cdot \\hat{y}_i$, the zero-one loss, $\\mathcal{L}_{01}(\\mathbf{u}) = \\sum_{i=1}^n \\mathbb{1}[u_i \u003c 0]$, is another learning subjective shown to be robust to noisy data. Minimizing the empirical risk with the zero-one loss is shown to be equivalent to minimizing the empirical adversarial (worse-case) risk (Hu et al 2018). Because the worst-case risk is the upper bound of the classification risk of the clean data distribution, minimizing the worst-case risk can lead to decreased true risk, which makes the zero-one loss especially robust. However, the zero-one loss is non-differentiable and cannot be optimized directly. One solution is to approximate an upper bound of the zero-one loss and to minimize the upper bound loss instead.\nThe hinge loss, $\\mathcal{L}_\\text{hinge}(\\mathbf{u}) = \\sum_{i=1}^n \\max(0, 1 - u_i)$, defines a rough upper bound of the zero-one loss. Lyu \u0026 Tsang (2020) proposed a curriculum loss (CL), which is a tighter upper bound compared to a conventional surrogate loss like the hinge loss, $\\mathcal{L}_\\text{01}(\\mathbf{u}) \\leq \\mathcal{L}_\\text{CL}(\\mathbf{u}) \\leq \\mathcal{L}_\\text{hinge}(\\mathbf{u})$.\n$$ \\mathcal{L}_\\text{CL}(\\mathbf{u}) = \\min_{\\mathbf{w}\\in\\{0,1\\}^n}\\max(\\sum_{i=1}^n w_i \\ell(u_i), n - \\sum_{i=1}^n w_i + \\sum_{i=1}^n\\mathbb{1}[u_i \u003c 0]) $$\nwhere $\\ell(u_i)$ is a base surrogate loss for the zero-one loss (e.g. hinge loss) and the optimal weighting variable $\\mathbf{w}$ is to be learned.\nGiven a label corruption rate $\\rho$, the noise pruned curriculum loss (NPCL) is constructed based on the intuition that an ideal model should correctly classify $n(1-\\rho)$ samples with clean labels but misclassify $n\\rho$ corrupted labels. If $\\rho$ is a known prior, we would know how many samples (with largest losses) to be pruned. Assuming $\\ell(u_1) \\leq \\dots \\leq \\ell(u_n)$, then $u_{n(1-\\rho)+1} = \\dots = u_n =0$ and the following NPCL is the basic CL for only $n(1-\\rho)$ samples:\n$$ \\text{NPCL}(\\mathbf{u}) = \\min_{\\mathbf{w}\\in\\{0,1\\}^{n(1-\\rho)}} \\max(\\sum_{i=1}^{n(1-\\rho)} w_i \\ell(u_i), n(1-\\rho) - \\sum_{i=1}^{n(1-\\rho)} w_i) $$\nWhen experimenting on CIFAR-10, NPCL is comparable with GCE and performs better when the noise rate increases.\nLabel Correction Since it is known some labels are incorrect, noise-robust training can explicitly take the label correction into consideration.\nOne approach is to rely on the estimation of a noise transition matrix and use that to correct the forward or backward loss, named F-correction (Patrini et al. 2017). Let’s first assume that there are $k$ classes and the noise transition matrix $C \\in [0, 1]^{k\\times k}$ is observable and the label flipping probability does not depend on the sample input but only the label (i.e. known as random classification noise, RCN). Let $\\tilde{y}$ denote a corrupted label. Each entry of $C$ represents the probability of one label flipping to another1,\n$$ C_{ij} = p(\\tilde{y}= j \\vert y =i, \\mathbf{x}) \\approx p(\\tilde{y}= j \\vert y =i) $$\nThen we can proceed a forward label correction procedure to incorporate the prior knowledge of noisy transition matrix into the prediction.\n$$ \\begin{aligned} \\mathcal{L}(\\hat{p}(\\tilde{y}\\vert\\mathbf{x}), y) \u0026= - \\log \\hat{p}(\\tilde{y}=i\\vert\\mathbf{x}) \\\\ \u0026= - \\log \\sum_{j=1}^k p(\\tilde{y}=i\\vert y=j) \\hat{p}(y=j\\vert\\mathbf{x}) \\\\ \u0026= - \\log \\sum_{j=1}^k C_{ji} \\hat{p}(y=j\\vert\\mathbf{x}) \\end{aligned} $$\nIn matrix form, we have $\\mathcal{L}(\\hat{p}(y \\vert \\mathbf{x})) = - \\log C^\\top \\hat{p}(y \\vert \\mathbf{x})$. However, such a noise transition matrix is usually unknown. If we have access to a clean dataset, the noise matrix $C$ can be estimated (Hendrycks et al. 2018) by calculating confusion matrix on the clean data. Let’s denote a clean trusted dataset as $\\mathcal{D}_c$ and a noisy dataset as $\\mathcal{D}_n$ going forward.\n$$ \\hat{C}_{ij} = \\frac{1}{\\vert \\mathcal{A}_i\\vert} \\sum_{\\mathbf{x} \\in \\mathcal{A}_i} \\hat{p}(\\tilde{y}=j \\vert y=i, \\mathbf{x}) \\approx p(\\tilde{y}=j \\vert y=i) $$\nwhere $\\mathcal{A}_i$ is a subset of data points from $\\mathcal{D}_c$ with label $i$.\nLet $f(x) = \\hat{p}(\\tilde{y} \\vert \\mathbf{x}; \\theta)$ and this model should be trained with $\\mathcal{L}(f(\\mathbf{x}), y)$ on clean data $\\mathcal{D}_c$ and with $\\mathcal{L}(\\hat{C}^\\top f(\\mathbf{x}), \\hat{y})$ on noisy data $\\mathcal{D}_n$.\nAlgorithm of gold loss correction (GLC), estimating the noise transition matrix with a trusted dataset. (Image source: Hendrycks et al. 2018) If the trusted training dataset $\\mathcal{D}_c$ gets large, we can train a neural network only on clean data and distill its knowledge into the primary model (i.e. the final model to make predictions at test time) using corrected pseudo labels (Li et al. 2017). The primary model is trained on the entire dataset, $\\mathcal{D} = \\mathcal{D}_c \\cup \\mathcal{D}_n$. Optionally the “side” information of label relations in the knowledge graph, if available, can be incorporated into distillation to help the robustness of the predictions of the network that is trained on limited data.\nThe label correction distillation works as following:\nFirst train an auxiliary model $f_c$ from the small clean dataset $\\mathcal{D}_c$ to provide a soft label for each sample $x_i$, $s_i = \\delta(f_c(\\mathbf{x}_i)/T)$ is the sigmoid activation with temperature $T$. Because the clean dataset is not large, $f_c$ is likely to overfit, Li et al. (2017) turn to a knowledge graph $\\mathcal{G}$ that defines the relations in the label space and propagate the prediction among labels accordingly. The new soft label is donated as $\\hat{s}_i = \\mathcal{G}(s_i)$. The primary model $f$ is trained with predictions from $f_c$ to imitate, $$ \\mathcal{L}(y_i, f(\\mathbf{x}_i)) = \\text{CE}(\\underbrace{\\lambda y_i + (1 - \\lambda) \\hat{s}_i}_\\text{pseudo label}, f(\\mathbf{x}_i)) $$\nSample Reweighting and Selection Some samples may be more likely to have inaccurate labels than others. Such estimation gives us intuition on which samples should be weighted less or more in the loss function. However, considering two types of biases in training data, class imbalance and noisy labels, there is actually a contradictory preference — We would prefer samples with larger loss to balance the label distribution but those with smaller loss for mitigating the potential noise. Some work (Ren et al. 2018) thus argue that in order to learn general forms of training data biases, it is necessary to have a small unbiased validation to guide training. The sample reweighting methods presented in this section all assume access to a small trusted set of clean data.\nConsidering a binary classification task with random classification noise, $y, \\hat{y} \\in \\{-1, +1\\}$, the label flipping probabilities, $\\rho_{-1}, \\rho_{+1} \\in [0, 0.5)$, are defined as:\n$$ \\rho_{-1} = P(\\tilde{y} = +1 \\vert y=-1)\\quad\\rho_{+1} = P(\\tilde{y}=-1 \\vert y =+1) $$\nLiu \u0026 Tao (2015) applies importance reweighting to adjust the weighted distribution of observed $\\hat{y}$ to match the distribution of unobservable $y$. Let $\\mathcal{D}$ be the true data distribution and $\\mathcal{D}_\\rho$ be the corrupted version.\n$$ \\begin{aligned} \\mathcal{L}_{\\ell,\\mathcal{D}}(f) \u0026= \\mathbb{E}_{(\\mathbf{x},y)\\sim \\mathcal{D}}[\\ell(f(\\mathbf{x}), y)] \\\\ \u0026= \\mathbb{E}_{(\\mathbf{x},\\tilde{y})\\sim \\mathcal{D}_\\rho} \\Big[ \\frac{P_\\mathcal{D}(\\mathbf{x}, y=\\tilde{y})}{P_{\\mathcal{D}_\\rho}(\\mathbf{x}, \\tilde{y})} \\ell(f(\\mathbf{x}), \\tilde{y}) \\Big] \\\\ \u0026= \\mathbb{E}_{(\\mathbf{x},\\tilde{y})\\sim \\mathcal{D}_\\rho} \\Big[ \\frac{P_\\mathcal{D}(y=\\tilde{y} \\vert \\mathbf{x})}{P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x})} \\ell(f(\\mathbf{x}), \\tilde{y}) \\Big] \u0026 \\text{; because }P_\\mathcal{D}(\\mathbf{x})=P_{\\mathcal{D}_\\rho}(\\mathbf{x}) \\\\ \u0026= \\mathbb{E}_{(\\mathbf{x},\\tilde{y})\\sim \\mathcal{D}_\\rho} [ w(\\mathbf{x}, \\hat{y})\\ell(f(\\mathbf{x}), \\tilde{y}) ] = \\mathcal{L}_{w\\ell,\\mathcal{D}}(f) \\end{aligned} $$\nBecause,\n$$ \\begin{aligned} P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x}) \u0026= P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x}) P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert y=\\tilde{y}) + P_\\mathcal{D}(y = - \\tilde{y} \\vert \\mathbf{x}) P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert y = - \\tilde{y}) \\\\ \u0026= P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x}) (1 - P_{\\mathcal{D}_\\rho}(- \\tilde{y} \\vert y=\\tilde{y})) + (1 - P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x})) P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert y = - \\tilde{y}) \\\\ \u0026= P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x}) (1 - \\rho_{\\tilde{y}}) + (1 - P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x})) \\rho_{-\\tilde{y}} \\\\ \u0026= P_\\mathcal{D}(y = \\tilde{y} \\vert \\mathbf{x})(1 - \\rho_{\\tilde{y}} - \\rho_{-\\tilde{y}}) + \\rho_{-\\tilde{y}} \\end{aligned} $$\nThus the weight assigned to a noisy sample is,\n$$ w(x, \\tilde{y}) = \\frac{P_\\mathcal{D}(y=\\tilde{y} \\vert \\mathbf{x})}{P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x})} = \\frac{P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x}) - \\rho_{-\\tilde{y}}}{(1-\\rho_0-\\rho_1) P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x})} $$\nwhere $P_{\\mathcal{D}_\\rho}(\\tilde{y} \\vert \\mathbf{x})$ can be estimated using a simple logistic regression, but estimating the note rates is more challenging. Naive cross-validation can work out but is costly as the quality depends on the amount of trusted labels available. The paper approximates the upper bounds for noise rates first, $\\rho_\\tilde{y} \\leq P_{\\mathcal{D}_\\rho}(- \\tilde{y} \\vert \\mathbf{x})$ and then use a mild assumption to efficiently estimate them, $\\hat{\\rho}_{\\tilde{y}} = \\min_{\\mathbf{x} \\in {\\mathbf{x}_1, \\dots, \\mathbf{x}_n}} \\hat{P}_{\\mathcal{D}_\\rho}(- \\tilde{y} \\vert \\mathbf{x})$. In their experiments, the advantage of importance reweighting only varies across datasets and is more beneficial when the noise rates are high in general.\nSample reweighting schemes can be learned by a separate network. Learning to reweight (L2R; Ren et al. 2018) is a meta-learning approach to directly optimize the weights in pursuit of best validation performance on a known set of clean data. Each example gets assigned with the weight based on its gradient direction. The weighted loss to minimize $\\theta^*(\\mathbf{w})$ involves a set of training weights $\\{w_i\\}_{i=1}^n$ as unknown hyperparameters. These sample training weights $w_i$ are learned to minimize the loss on this unbiased validate set, $\\mathcal{D}_c = \\{x^\\text{valid}_j\\}_{j=1}^m$.\n$$ \\begin{aligned} \\theta^{*}(\\mathbf{w}) \u0026= \\arg\\min_\\theta \\sum_{i=1}^n w_i f(x_i; \\theta) \\\\ \\text{where optimal }\\mathbf{w}^{*} \u0026= \\arg\\min_{\\mathbf{w}, \\mathbf{w} \\geq \\mathbf{0}} \\frac{1}{m} \\sum_{j=1}^m f(\\mathbf{x}^\\text{valid}_j; \\theta^{*}(\\mathbf{w})) \\end{aligned} $$\nThe learning process involves two nested loops of optimization, so pretty expensive, 3x training time.\nIllustration of updates implemented by second order automatic differentiation. (Image source: Ren et al. 2018) They ran experiments on (1) two-class MNIST to test the robustness of L2R when the class distribution is imbalanced and (2) CIFAR-10 with noisy labels. L2R is shown to be better than other baseline methods at the time on both tasks.\nLeft: Imbalanced classes on MNIST (class 4 and 9); Right: Effect of the number of clean samples. Task is on CIFAR-10 with 40% of data flipped to label 3. (Image source: Ren et al. 2018) MentorNet (Jiang et al. 2018) uses teach-student curriculum learning to weight data. It incorporates two different networks, a mentor and a student. The mentor network provides a data-driven curriculum (i.e. sample training weighting scheme) for the student to focus on learning likely correct labels.\nLet $g_\\psi$ be the MentorNet parameterized by $\\psi$ , $f_\\theta$ be the StudentNet parametrized by $\\theta$ and $G$ be a predefined curriculum parameterized by $\\lambda$. Given the training data $\\mathcal{D} = \\{(\\mathbf{x}_i, y_i)\\}_{i=1}^n$ for a $k$-class classification task, the MentorNet needs to predict a time-varying latent weight variable $\\mathbf{w} \\in [0, 1]^{n \\times k}$ to guide the learning of StudentNet, taking an intermediate feature processed by StudentNet $f$ , $\\mathbf{z}_i = \\phi_{f_\\theta}(\\mathbf{x}_i, y_i)$:\n$$ g_{\\psi^{*}}(\\mathbf{z}_i) = \\arg\\min_{w_i \\in [0,1]} \\mathcal{L}(\\theta, \\mathbf{w}), \\forall i \\in [1, n] $$\nStudentNet learns to minimize the following learning objective,\n$$ \\begin{aligned} \\mathcal{L}(\\theta, \\mathbf{w}) \u0026= \\frac{1}{n}\\sum_{i=1}^n \\mathbf{w}_i^\\top \\ell(y_i, f_\\theta(\\mathbf{x}_i)) + G_\\lambda(\\mathbf{w}) + \\alpha |\\theta|^2_2 \\\\ \u0026= \\frac{1}{n}\\sum_{i=1}^n g_\\psi(\\mathbf{z}_i)^\\top \\ell_i + G_\\lambda(\\mathbf{w}) + \\alpha |\\theta|^2_2 \u0026 \\text{; Let }\\ell_i = \\ell(y_i, f_\\theta(\\mathbf{x}_i)) \\\\ \\end{aligned} $$\nThe mentor network $g_\\psi$ is trained with cross entropy on the input $(\\phi_{f_\\theta}(\\mathbf{x}_i, y_i), w^{*}_i)$ , where $v^*_i=1$ if $y_i$ is known to be a correct label, otherwise 0. The architecture of MentorNet does not have to be very complicated. In the paper, they adopted a LSTM layer to capture the prediction variance in time.\nModel architecture of MentorNet and StudentNet which are trained simultaneously, where MentorNet predicts the sample weights for StudentNet to train on. (Image source: Jiang et al. 2018) Different from MentorNet where one network explicitly learns weighting scheme and curriculum for the other network, Co-teaching (Han et al. 2018) trains two neural networks, $f_1$ and $f_2$, simultaneously and lets them teach each other by feeding data to each other selectively. Co-teaching consists of three steps:\nFirst, each network feeds forward the current mini-batch and selects samples with potentially clean labels; Then two networks exchange information on which samples in the batch should be used for training. Small-loss instances are selected as they are more likely to be associated with correct labels. The percentage of the batch to select is determined by a time-dependent function $R(T)$. The value of $R(T)$ decreases in time because the network is more likely to overfit and memorize noisy labels as training progresses and thus we use a smaller sampling percentage to keep the selected data quality high. Finally, each network runs back-propagation updates with the data selected by its peer. According to their experiments, co-teaching performs better than F-correction where the noise rates are high or the corruption transition matrix is not symmetric.\nAlgorithm of co-teaching in which two networks are trained separately in parallel and each selects samples for the other to train on. (Image source: Han et al. 2018) Citation Cited as:\nWeng, Lilian. (Apr 2022). Learning with not enough data part 3: data generation. Lil’Log. https://lilianweng.github.io/posts/2022-04-15-data-gen/.\nOr\n@article{weng2022datagen, title = \"Learning with not Enough Data Part 3: Data Generation\", author = \"Weng, Lilian\", journal = \"Lil'Log\", year = \"2022\", month = \"Apr\", url = \"https://lilianweng.github.io/posts/2022-04-15-data-gen/\" } Reference [1] Zhang et al. “Adversarial AutoAgument” ICLR 2020.\n[2] Kumar et al. “Data Augmentation using Pre-trained Transformer Models.” AACL 2020 Workshop.\n[3] Anaby-Tavor et al. “Not enough data? Deep learning to rescue!” AAAI 2020.\n[4] Wang et al. “Want To Reduce Labeling Cost? GPT-3 Can Help.” EMNLP 2021.\n[5] Wang et al. “Towards Zero-Label Language Learning.” arXiv preprint arXiv:2109.09193 (2021).\n[6] Schick \u0026 Schutze. Generating Datasets with Pretrained Language Models.\" EMNLP 2021.\n[7] Han et al. “Unsupervised Neural Machine Translation with Generative Language Models Only.” arXiv preprint arXiv:2110.05448 (2021).\n[8] Guo et al. “Augmenting data with mixup for sentence classification: An empirical study.” arXiv preprint arXiv:1905.08941 (2019).\n[9] Ekin D. Cubuk et al. “AutoAugment: Learning augmentation policies from data.” arXiv preprint arXiv:1805.09501 (2018).\n[10] Daniel Ho et al. “Population Based Augmentation: Efficient Learning of Augmentation Policy Schedules.” ICML 2019.\n[11] Cubuk \u0026 Zoph et al. “RandAugment: Practical automated data augmentation with a reduced search space.” arXiv preprint arXiv:1909.13719 (2019).\n[12] Zhang et al. “mixup: Beyond Empirical Risk Minimization.” ICLR 2017.\n[13] Yun et al. “CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features.” ICCV 2019.\n[14] Kalantidis et al. “Mixing of Contrastive Hard Negatives” NeuriPS 2020.\n[15] Wei \u0026 Zou. “EDA: Easy data augmentation techniques for boosting performance on text classification tasks.” EMNLP-IJCNLP 2019.\n[16] Kobayashi. “Contextual Augmentation: Data Augmentation by Words with Paradigmatic Relations.” NAACL 2018\n[17] Fang et al. “CERT: Contrastive self-supervised learning for language understanding.” arXiv preprint arXiv:2005.12766 (2020).\n[18] Gao et al. “SimCSE: Simple Contrastive Learning of Sentence Embeddings.” arXiv preprint arXiv:2104.08821 (2020). [code]\n[19] Shen et al. “A Simple but Tough-to-Beat Data Augmentation Approach for Natural Language Understanding and Generation.” arXiv preprint arXiv:2009.13818 (2020) [code]\n[20] Wang \u0026 van den Oord. “Multi-Format Contrastive Learning of Audio Representations.” NeuriPS Workshop 2020.\n[21] Wu et al. “Conditional BERT Contextual Augmentation” arXiv preprint arXiv:1812.06705 (2018).\n[22 Zhu et al. “FreeLB: Enhanced Adversarial Training for Natural Language Understanding.” ICLR 2020.\n[23] Affinity and Diversity: Quantifying Mechanisms of Data Augmentation Gontijo-Lopes et al. 2020 (https://arxiv.org/abs/2002.08973)\n[24] Song et al. “Learning from Noisy Labels with Deep Neural Networks: A Survey.” TNNLS 2020.\n[25] Zhang \u0026 Sabuncu. “Generalized cross entropy loss for training deep neural networks with noisy labels.” NeuriPS 2018.\n[26] Goldberger \u0026 Ben-Reuven. “Training deep neural-networks using a noise adaptation layer.” ICLR 2017.\n[27] Sukhbaatar et al. “Training convolutional networks with noisy labels.” ICLR Workshop 2015.\n[28] Patrini et al. “Making Deep Neural Networks Robust to Label Noise: a Loss Correction Approach” CVPR 2017.\n[29] Hendrycks et al. “Using trusted data to train deep networks on labels corrupted by severe noise.” NeuriPS 2018.\n[30] Zhang \u0026 Sabuncu. “Generalized cross entropy loss for training deep neural networks with noisy labels.” NeuriPS 2018.\n[31] Lyu \u0026 Tsang. “Curriculum loss: Robust learning and generalization against label corruption.” ICLR 2020.\n[32] Han et al. “Co-teaching: Robust training of deep neural networks with extremely noisy labels.” NeuriPS 2018. (code)\n[33] Ren et al. “Learning to reweight examples for robust deep learning.” ICML 2018.\n[34] Jiang et al. “MentorNet: Learning data-driven curriculum for very deep neural networks on corrupted labels.” ICML 2018.\n[35] Li et al. “Learning from noisy labels with distillation.” ICCV 2017.\n[36] Liu \u0026 Tao. “Classification with noisy labels by importance reweighting.” TPAMI 2015.\n[37] Ghosh, et al. “Robust loss functions under label noise for deep neural networks.” AAAI 2017.\n[38] Hu et al. “Does Distributionally Robust Supervised Learning Give Robust Classifiers? “ ICML 2018.\n$y=i$ is not a technically correct way to annotate a label being a certain value, since we usually use one-hot encoding (i.e. $\\mathbf{y} = \\mathbf{e}_i$). We use this form for simplicity. ↩︎\n",
+  "wordCount" : "5837",
+  "inLanguage": "en",
+  "datePublished": "2022-04-15T15:10:30-07:00",
+  "dateModified": "2022-04-15T15:10:30-07:00",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2022-04-15-data-gen/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Learning with not Enough Data Part 3: Data Generation
+    </h1>
+    <div class="post-meta">Date: April 15, 2022  |  Estimated Reading Time: 28 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#data-augmentation" aria-label="Data Augmentation">Data Augmentation</a><ul>
+                        
+                <li>
+                    <a href="#image-augmentation" aria-label="Image Augmentation">Image Augmentation</a><ul>
+                        
+                <li>
+                    <a href="#basic-image-processing-operations" aria-label="Basic Image Processing Operations">Basic Image Processing Operations</a></li>
+                <li>
+                    <a href="#task-specific-augmentation-strategies" aria-label="Task-Specific Augmentation Strategies">Task-Specific Augmentation Strategies</a></li>
+                <li>
+                    <a href="#image-mixture" aria-label="Image Mixture">Image Mixture</a></li></ul>
+                </li>
+                <li>
+                    <a href="#text-augmentation" aria-label="Text Augmentation">Text Augmentation</a><ul>
+                        
+                <li>
+                    <a href="#lexical-edits" aria-label="Lexical Edits">Lexical Edits</a></li>
+                <li>
+                    <a href="#back-translation" aria-label="Back-translation">Back-translation</a></li>
+                <li>
+                    <a href="#mix-up" aria-label="Mix-up">Mix-up</a></li></ul>
+                </li>
+                <li>
+                    <a href="#audio-augmentation" aria-label="Audio Augmentation">Audio Augmentation</a></li>
+                <li>
+                    <a href="#architectural-augmentation" aria-label="Architectural Augmentation">Architectural Augmentation</a></li></ul>
+                </li>
+                <li>
+                    <a href="#data-synthesis" aria-label="Data Synthesis">Data Synthesis</a><ul>
+                        
+                <li>
+                    <a href="#language-model-as-noisy-annotator" aria-label="Language Model as Noisy Annotator">Language Model as Noisy Annotator</a></li>
+                <li>
+                    <a href="#language-model-as-data-generator" aria-label="Language Model as Data Generator">Language Model as Data Generator</a></li></ul>
+                </li>
+                <li>
+                    <a href="#how-to-quantify-generated-data-quality" aria-label="How to Quantify Generated Data Quality?">How to Quantify Generated Data Quality?</a></li>
+                <li>
+                    <a href="#training-with-noisy-data" aria-label="Training with Noisy Data">Training with Noisy Data</a><ul>
+                        
+                <li>
+                    <a href="#regularization-and-robust-architecture" aria-label="Regularization and Robust Architecture">Regularization and Robust Architecture</a></li>
+                <li>
+                    <a href="#robust-learning-objective" aria-label="Robust Learning Objective">Robust Learning Objective</a></li>
+                <li>
+                    <a href="#label-correction" aria-label="Label Correction">Label Correction</a></li>
+                <li>
+                    <a href="#sample-reweighting-and-selection" aria-label="Sample Reweighting and Selection">Sample Reweighting and Selection</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p>Here comes the Part 3 on learning with not enough data (Previous: <a href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/">Part 1</a> and <a href="https://lilianweng.github.io/posts/2022-02-20-active-learning/">Part 2</a>). Let’s consider two approaches for generating synthetic data for training.</p>
+<ul>
+<li><strong>Augmented data</strong>. Given a set of existing training samples, we can apply a variety of augmentation, distortion and transformation to derive new data points without losing the key attributes. We have covered a bunch of augmentation methods on text and images in a <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/">previous post</a> on contrastive learning. For the sake of post completeness, I <em>duplicate</em> the section on data augmentation here with some edits.</li>
+<li><strong>New data</strong>. Given few or even no data points, we can rely on powerful pretrained models to generate a number of <em>new</em> data points. This is especially true in recent years given the fast progress in large pretrained <a href="https://lilianweng.github.io/posts/2019-01-31-lm/">language models (LM)</a>. Few shot prompting is shown to be effective for LM to learn within context without extra training.</li>
+</ul>
+<h1 id="data-augmentation">Data Augmentation<a hidden class="anchor" aria-hidden="true" href="#data-augmentation">#</a></h1>
+<p>The goal of data augmentation is to modify the input format (e.g. text wording, visual appearance) while the semantic meaning stays unchanged.</p>
+<h2 id="image-augmentation">Image Augmentation<a hidden class="anchor" aria-hidden="true" href="#image-augmentation">#</a></h2>
+<h3 id="basic-image-processing-operations">Basic Image Processing Operations<a hidden class="anchor" aria-hidden="true" href="#basic-image-processing-operations">#</a></h3>
+<p>There are several ways to modify an image while retaining its semantic information. We can use any one of the following augmentation or a composition of multiple operations.</p>
+<ul>
+<li>Random cropping and then resize back to the original size.</li>
+<li>Random color distortions</li>
+<li>Random Gaussian blur</li>
+<li>Random color jittering</li>
+<li>Random horizontal flip</li>
+<li>Random grayscale conversion</li>
+<li>And many more. Check <a href="https://pillow.readthedocs.io/en/stable/reference/ImageOps.html">PIL.ImageOps</a> for inspiration.</li>
+</ul>
+<h3 id="task-specific-augmentation-strategies">Task-Specific Augmentation Strategies<a hidden class="anchor" aria-hidden="true" href="#task-specific-augmentation-strategies">#</a></h3>
+<p>If the downstream task is known, it is possible to learn the optimal augmentation strategies (i.e. what processing operations to use and how to combine them in sequence) to maximize the downstream task performance.</p>
+<ul>
+<li><a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/#AutoAugment"><em>AutoAugment</em></a> (<a href="https://arxiv.org/abs/1805.09501">Cubuk, et al. 2018</a>) is inspired by <a href="https://lilianweng.github.io/posts/2020-08-06-nas/">neural architecture search</a>, AutoAugment frames the problem of learning best data augmentation operations (i.e. shearing, rotation, invert, etc.) for image classification as an RL problem and looks for the combination that leads to the highest accuracy on the evaluation set. AutoAugment can be executed in adversarial fashion (<a href="https://arxiv.org/abs/1912.11188">Zhang, et al 2019</a>).</li>
+<li><em>RandAugment</em> (<a href="https://arxiv.org/abs/1909.13719">Cubuk et al., 2019</a>) greatly reduces the search space of AutoAugment by controlling the magnitudes of different transformation operations with a single magnitude parameter.</li>
+<li><em>Population based augmentation</em> (PBA; <a href="https://arxiv.org/abs/1905.05393">Ho et al., 2019</a>) combines PBT (&ldquo;population based training&rdquo;; <a href="https://arxiv.org/abs/1711.09846">Jaderberg et al, 2017</a>) with AutoAugment, using the evolutionary algorithm to train a population of children models in parallel to evolve the best augmentation strategies.</li>
+<li><em>Unsupervised Data Augmentation</em> (UDA; <a href="https://arxiv.org/abs/1904.12848">Xie et al., 2019</a>), among a set of possible augmentation strategies, selects a subset to minimize the KL divergence between the predicted distribution over an unlabelled example and its unlabelled augmented version.</li>
+</ul>
+<h3 id="image-mixture">Image Mixture<a hidden class="anchor" aria-hidden="true" href="#image-mixture">#</a></h3>
+<p>Image mixture methods can construct new training examples from existing data points.</p>
+<ul>
+<li><em>Mixup</em> (<a href="https://arxiv.org/abs/1710.09412">Zhang et al., 2018</a>) runs global-level mixture by creating a weighted pixel-wise combination of two existing images $I_1$ and $I_2$: $I_\text{mixup} \gets \alpha I_1 + (1-\alpha) I_2$ and $\alpha \in [0, 1]$.</li>
+<li><em>Cutmix</em> (<a href="https://arxiv.org/abs/1905.04899">Yun et al., 2019</a>) does region-level mixture by generating a new example by combining a local region of one image with the rest of the other image. $I_\text{cutmix} \gets \mathbf{M}_b \odot I_1 + (1-\mathbf{M}_b) \odot I_2$, where $\mathbf{M}_b \in \{0, 1\}^I$ is a binary mask and $\odot$ is element-wise multiplication. It is equivalent to filling the <em>cutout</em> (<a href="https://arxiv.org/abs/1708.04552">DeVries &amp; Taylor 2017</a>) region with the same region from another image.</li>
+<li>Given a query $\mathbf{q}$, <em>MoCHi</em> (&ldquo;mixing of contrastive hard negatives&rdquo;; <a href="https://arxiv.org/abs/2010.01028">Kalantidis et al. 2020</a>) maintains a queue of $K$ negative features $Q={\mathbf{n}_1, \dots, \mathbf{n}_K }$ and sorts these negative features by similarity to the query, $\mathbf{q}^\top \mathbf{n}$, in descending order. The first $N$ items in the queue are considered as the hardest negatives, $Q^N$. Then synthetic hard examples can be generated by $\mathbf{h} = \tilde{\mathbf{h}} / |\tilde{\mathbf{h}}|_2$ where $\tilde{\mathbf{h}} = \alpha\mathbf{n}_i + (1-\alpha) \mathbf{n}_j$ and $\alpha \in (0, 1)$. Even harder examples can be created by mixing with the query feature, $\mathbf{h}&rsquo; = \tilde{\mathbf{h}&rsquo;} / |\tilde{\mathbf{h}&rsquo;}|_2$ where $\tilde{\mathbf{h}&rsquo;} = \beta\mathbf{q} + (1-\beta) \mathbf{n}_j$ and $\beta \in (0, 0.5)$.</li>
+</ul>
+<h2 id="text-augmentation">Text Augmentation<a hidden class="anchor" aria-hidden="true" href="#text-augmentation">#</a></h2>
+<h3 id="lexical-edits">Lexical Edits<a hidden class="anchor" aria-hidden="true" href="#lexical-edits">#</a></h3>
+<p><a id="EDA"></a><em>Easy Data Augmentation</em> (EDA; <a href="https://arxiv.org/abs/1901.11196">Wei &amp; Zou 2019</a>) defines a set of simple but powerful operations for text augmentation. Given a sentence, EDA randomly chooses and applies one of four simple operations:</p>
+<ol>
+<li>Synonym replacement (SR): Replace $n$ random non-stop words with their synonyms.</li>
+<li>Random insertion (RI): Place a random synonym of a randomly selected non-stop word in the sentence at a random position.</li>
+<li>Random swap (RS): Randomly swap two words and repeat $n$ times.</li>
+<li>Random deletion (RD): Randomly delete each word in the sentence with probability $p$.</li>
+</ol>
+<p>where $p=\alpha$ and $n=\alpha \times \text{sentence_length}$, with the intuition that longer sentences can absorb more noise while maintaining the original label. The hyperparameter $\alpha$ roughly indicates the percent of words in one sentence that may be changed by one augmentation.</p>
+<p>EDA is shown to improve the classification accuracy on several classification benchmark datasets compared to baseline without EDA. The performance lift is more significant on a <em>smaller</em> training set. All the four operations in EDA help improve the classification accuracy, but get to optimal at different $\alpha$&rsquo;s.</p>
+<figure>
+	<img src="EDA-exp1.png"  />
+	<figcaption>EDA leads to performance improvement on several classification benchmarks. (Image source: <a href="https://arxiv.org/abs/1901.11196" target="_blank">Wei & Zou 2019</a>)</figcaption>
+</figure>
+<p><em>Contextual</em> Augmentation (<a href="https://arxiv.org/abs/1805.06201">Kobayashi, 2018</a>) replaces word $w_i$ at position $i$ by sampling from a probability distribution learned by a bidirectional LM such as BERT, $p(.\mid S\setminus{w_i})$. In this way, the words are substituted by synonyms, or similar words suitable for the context. To guarantee such operations do not alter the labels, the LM is fit to be label-conditioned bidirectional LM. Conditional BERT (CBERT; <a href="https://arxiv.org/abs/1812.06705">Xing Wu et al. 2018</a>) extends BERT to predict masked tokens conditioned on the class label and can be used for contextual augmentation prediction.</p>
+<h3 id="back-translation">Back-translation<a hidden class="anchor" aria-hidden="true" href="#back-translation">#</a></h3>
+<p><em>Back-translation</em> produces augmented data by translating text samples to another language and then translating them back. The translation happens in two ways and both directions should have decent enough performance to avoid significant loss of semantic meaning.</p>
+<h3 id="mix-up">Mix-up<a hidden class="anchor" aria-hidden="true" href="#mix-up">#</a></h3>
+<p>It is also possible to apply <a href="#image-mixture"><em>Mixup</em></a> to text (<a href="https://arxiv.org/abs/1905.08941">Guo et al. 2019</a>) but on the embedding space to obtain some performance gain. The proposed method relies on a specially designed model architecture to operate the prediction on the word or sentence embedding. Adding adversarial noise in the embedding space as a way of data augmentation is shown to improve the generalization of model training (<a href="https://arxiv.org/abs/1909.11764">Zhu et al. 2019</a>).</p>
+<h2 id="audio-augmentation">Audio Augmentation<a hidden class="anchor" aria-hidden="true" href="#audio-augmentation">#</a></h2>
+<p>Here is a list of several commonly used audio data augmentation methods, operated on raw audio or spectrograms, summarized by <a href="https://arxiv.org/abs/2103.06508">Wang &amp; van den Oord (2021)</a>.</p>
+<p><strong>Audio mixup.</strong> Given two audio clips $\mathbf{x}_1$ and $\mathbf{x}_2$, the mixed-up version $\hat{\mathbf{x}} = \alpha \mathbf{x}_1 + (1-\alpha)\mathbf{x}_2$ should be associated with the label of the more dominant input. The audio mixup augments the data with more realistic noise.</p>
+<p><strong>Time masking.</strong> A small consecutive chunk of the audio can be masked without losing semantic information.</p>
+<p><strong>Frequency masking.</strong> A small amount of frequency components on the spectrogram can be dropped off and it should not change the associated label.</p>
+<p><strong>Frequency shift.</strong> The spectrogram can be shifted by an integer between $[-F, F]$, where $F$ is the maximum shift size. It is a cheap augmentation to change the pitch of the audio.</p>
+<h2 id="architectural-augmentation">Architectural Augmentation<a hidden class="anchor" aria-hidden="true" href="#architectural-augmentation">#</a></h2>
+<p>Models with <strong>dropout</strong> layers can create augmented samples by applying different dropout masks on the same input sample. For example, in the contrastive learning model <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/#simcse"><em>SimCSE</em></a> (<a href="https://arxiv.org/abs/2104.08821">Guo et al. 2021</a>), a sample is simply fed into the encoder twice with different dropout masks and these two versions are the positive pair where the other in-batch samples are considered as negative pairs.</p>
+<p>Dropout augments data by adding noise onto the internal representation of the model. It can be applied in a more structured way, such as in <strong>cutoff</strong> (<a href="https://arxiv.org/abs/2009.13818">Shen et al. (2020)</a>), where random chunks of the token embedding matrix are removed.</p>
+<h1 id="data-synthesis">Data Synthesis<a hidden class="anchor" aria-hidden="true" href="#data-synthesis">#</a></h1>
+<p>Given that generating high-quality, photorealistic images is a lot more difficult than generating human-like natural language text and recent success with large pretrained language models, this section only focuses on text generation. To read more on how to synthesize realistic images, check posts on <a href="https://lilianweng.github.io/posts/2017-08-20-gan/">GAN</a>, <a href="https://lilianweng.github.io/posts/2018-08-12-vae/">VAE</a>, <a href="https://lilianweng.github.io/posts/2018-10-13-flow-models/">flow</a> and <a href="https://lilianweng.github.io/posts/2021-07-11-diffusion-models/">diffusion</a> models.</p>
+<h2 id="language-model-as-noisy-annotator">Language Model as Noisy Annotator<a hidden class="anchor" aria-hidden="true" href="#language-model-as-noisy-annotator">#</a></h2>
+<p><a href="https://arxiv.org/abs/2108.13487">Wang et al. (2021)</a> explored ways to leverage GPT-3 as a weak annotator via few-shot prompting, achieving 10x cheaper than human labeling. The paper argues that by using data labeled by GPT-3, it essentially performs <a href="https://lilianweng.github.io/posts/2021-12-05-semi-supervised/#self-training"><em>self-training</em></a>: The predictions on unlabeled samples apply entropy regularization on the model to avoid high class overlaps so as to help improve the model performance.</p>
+<figure>
+	<img src="GPT3-data-gen.png"  />
+	<figcaption>Illustration of how to use GPT-3 to generate more training data with the human-in-the-loop active learning pipeline to improve the data quality. (Image source: <a href="https://arxiv.org/abs/2108.13487" target="_blank">Wang et al. 2021</a>)</figcaption>
+</figure>
+<p>GPT-3-labeled samples selected by <a href="https://lilianweng.github.io/posts/2022-02-20-active-learning/">active learning</a> with highest uncertainty are sent to human labelers to be re-annotated. The few-shot prompt contains a small number of human labeled examples and thus the labeling cost is restricted. Synthetic samples are ranked by predicted logits of label $y$ and those with the lowest scores go through relabeling.</p>
+<p>GPT-3 labeling achieves better results in the low-cost regime, but has a gap with human labeling when enough money is spent on data collection. This implies the following inequation, although to what extent &ldquo;a lot&rdquo; or &ldquo;noisy&rdquo; means depends on the task details.</p>
+<blockquote>
+<p><strong>A lot of high-quality data &gt; A lot of noisy data &gt; A little high quality data</strong>.</p>
+</blockquote>
+<figure>
+	<img src="GPT3-data-gen-exp.png"  />
+	<figcaption>GPT-3 labeling technique improves the classification performance in the low-cost regime. (Image source: <a href="https://arxiv.org/abs/2108.13487" target="_blank">Wang et al. 2021</a>)</figcaption>
+</figure>
+<h2 id="language-model-as-data-generator">Language Model as Data Generator<a hidden class="anchor" aria-hidden="true" href="#language-model-as-data-generator">#</a></h2>
+<p>If enough training dataset for text classification tasks are available, we can fine-tune language models to synthesize more training samples conditioned on labels (<a href="https://arxiv.org/abs/1911.03118">Anaby-Tavor et al. 2019</a>, <a href="https://arxiv.org/abs/2003.02245">Kumar et al. 2021</a>).</p>
+<p><em>Language-model-based data augmentation</em> (<strong>LAMBADA</strong>; <a href="https://arxiv.org/abs/1911.03118">Anaby-Tavor et al. 2019</a>) takes such an idea, where the process involves fine-tuning both a classifier and a sample generation model.</p>
+<ol>
+<li>Train a baseline classifier using the existing training dataset: $h = \mathcal{A}(\mathcal{D}_\text{train})$.</li>
+<li><a id="step2"></a>Independently of step 1, a LM $\mathcal{M}$ is fine-tuned on $\mathcal{D}_{\text{train}}$ to obtain $\mathcal{M}_{\text{tuned}}$.</li>
+<li>Synthesize a labeled dataset $\mathcal{D}^*$ by generating the continuation of the sequence <code>y[SEP]</code> until <code>EOS</code> using $\mathcal{M}_\text{tuned}$.</li>
+<li>Filter synthesized dataset by,
+<ul>
+<li>(1) Verifying that the predicted label is correct $h(x)=y$;</li>
+<li>(2) Selecting the top ranked samples when they are ranked by the classifier probability. $\mathcal{D}_\text{syn} \subset \mathcal{D}^*$. They generate 10x more samples needed for augmentation and only the top 10% synthesized samples with highest confidence scores remain.</li>
+</ul>
+</li>
+</ol>
+<p>The final classifier is trained on $\mathcal{D}_\text{syn} \cup \mathcal{D}_\text{train}$ . The process can be repeated multiple times, but it is unclear whether the benefit would quickly diminish or the repetitive process would bring in self-bias.</p>
+<figure>
+	<img src="LAMBADA.png" style="width: 60%;"   />
+	<figcaption>Accuracy of LAMBADA vs. other generative approaches over all datasets and classifiers. (Image source: <a href="https://arxiv.org/abs/1911.03118" target="_blank">Anaby-Tavor et al. 2019</a>)</figcaption>
+</figure>
+<p>To simplify LAMBADA,  we can actually remove the dependency of a fine-tuned generation model  and an existing training dataset of a decent size (<a href="#step2">Step 2</a> above). <em>Unsupervised data generation</em> (<strong>UDG</strong>; <a href="https://arxiv.org/abs/2109.09193">Wang et al. 2021</a>) relies on few-shot prompting on a large pretrained language model to generate high-quality synthetic data for training. Opposite to the above approach where LM is asked to predict $y$ given $\mathbf{x}$, UDG instead synthetizes the inputs $\mathbf{x}$ given labels $y$. Then a task-specific model is trained on this synthetic dataset.</p>
+<p><a href="https://arxiv.org/abs/2104.07540">Schick &amp; Schutze (2021)</a> proposed a similar idea but on the NLI task instead of classification, asking PLM to write sentence pairs that are similar or different while the model is prompted with task-specific instructions.</p>
+<figure>
+	<img src="UDG.png" style="width: 100%;"  />
+	<figcaption>Illustration of the unsupervised data generation (UDG) framework. (Image source: <a href="https://arxiv.org/abs/2109.09193" target="_blank">Wang et al., 2021</a>)</figcaption>
+</figure>
+<p>The few-shot prompts of UDG contain a small number of unlabeled examples, as well as a task-specific natural language description of the desired label. Because some generated examples are noisy, they implemented <strong>noisy label annealing</strong> (<strong>NLA</strong>) techniques to filter potentially misaligned samples out during the training processes. NLA gradually removes noisy training signals in time during training when the model starts to disagree with its pseudo label with high confidence. At each training step $t$, a given example $(\mathbf{x}_i, \hat{y}_i)$ is considered noisy and should be removed if:</p>
+<ul>
+<li>The model predicted probability is higher than a threshold $p(\bar{y}_i \vert \mathbf{x}_i) &gt; \mu_t$ where $\bar{y}_i = \arg\max_y p(y \vert \mathbf{x}_i)$;</li>
+<li>And the predicted label is different from the synthetic label, $\bar{y}_i \neq \hat{y}_i$.</li>
+</ul>
+<p>Note that the threshold $\mu_t$ is time-dependent, initialized as 0.9 and then gradually annealed to $1/\text{num_of_classes}$ in time.</p>
+<p>As shown in their experiments, the improvement of UDG over few-shot inference is quit significant, where NLA brings in some extra boost. The results are even comparable with supervised fine-tuning on several cases.</p>
+<figure>
+	<img src="UDG-exp.png" style="width: 100%;"  />
+	<figcaption>Comparison of accuracy of UDG and other methods on different classification datasets. (Image source: <a href="https://arxiv.org/abs/2109.09193" target="_blank">Wang et al., 2021</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/2110.05448">Han et al (2021)</a> achieved SOTA results on translation tasks using few-shot data generation, distillation and back-translation. The proposed method contains the following steps, assuming no access to paired translation data:</p>
+<ol>
+<li><em>Zero-shot Generation.</em> First use the zero-shot translation ability of a pre-trained LM to generate translations for a small set of unlabeled sentences.</li>
+<li><em>Few-shot Generation.</em> Then amplify these zero-shot translations by using them as few-shot demonstrations to gather an even larger synthetic dataset.</li>
+<li><em>Distillation.</em> Fine-tune the model on this dataset. The translation task is formulated as a language modeling task <code>[L1] &lt;seq1&gt; [[TRANSLATE]] [L2] &lt;seq2&gt;.</code> given a pair of two sequences <code>&lt;seq1, seq2&gt;</code> in two different languages. At test-time, the LM is prompted with <code>[L1] &lt;seq&gt; [[TRANSLATE]] [L2]</code> and a candidate translation <code>&lt;sampledSeq&gt;</code> is parsed from the sampled completion.</li>
+<li><em>Back-translation.</em> Continue fine-tuning on the back-translation dataset where the order of samples is reversed, <code>&lt;sampledSeq, seq&gt;</code>.</li>
+<li>Step 1-4 can be repeated.</li>
+</ol>
+<figure>
+	<img src="back-translation-data-gen.png" style="width: 100%;"  />
+	<figcaption>Algorithm of using distillation and back-translation to train a language model on translation tasks. (Image source: <a href="https://arxiv.org/abs/2110.05448" target="_blank">Han et al. 2021</a>)</figcaption>
+</figure>
+<p>The success of the above method depends on a good pretrained LM to kick off the initial translation dataset. Iterative few-shot generation and distillation with back-translation is an effective way to extract and refine the translation capability out of a pretrained LM and further to distill that into a new model.</p>
+<figure>
+	<img src="back-translation-data-gen-exp.png" style="width: 85%;"  />
+	<figcaption>Comparison of BLEU scores of the translation models of different training runs using: only distillation, back-translation, both and with more monolingual training data. (Image source: <a href="https://arxiv.org/abs/2110.05448" target="_blank">Han et al. 2021</a>)</figcaption>
+</figure>
+<h1 id="how-to-quantify-generated-data-quality">How to Quantify Generated Data Quality?<a hidden class="anchor" aria-hidden="true" href="#how-to-quantify-generated-data-quality">#</a></h1>
+<p>Given all the generated data, either by data augmentation or data synthesis, how can we quantify data quality in terms of how they improve model generalization? <a href="https://arxiv.org/abs/2002.08973">Gontijo-Lopes et al. (2020)</a> introduced two dimensions to track, affinity and diversity.</p>
+<ul>
+<li><strong>Affinity</strong> is a model-sensitive metric for <em>distribution shift</em>, quantifying how much an augmentation shifts the training data distribution from what a model learned.
+<ul>
+<li>Definition: The performance difference between the model tested on clean data vs augmented data, while the model is trained on clean data.</li>
+<li>As a comparison, KL can also measure distribution shift but does not consider the model performance.</li>
+</ul>
+</li>
+<li><strong>Diversity</strong> is a measure of <em>augmentation complexity</em>, measuring the complexity of the augmented data with respect to the model and learning procedure.
+<ul>
+<li>Definition: The final training loss of a model trained with a given augmentation.</li>
+<li>Another potential diversity measure is the entropy of the transformed data.</li>
+<li>A third potential diversity measure is the training time needed for a model to reach a given training accuracy threshold.</li>
+<li>All three metrics above are correlated.</li>
+</ul>
+</li>
+</ul>
+<p>The final model performance is dependent on both metrics to be high enough.</p>
+<figure>
+	<img src="affinity-diversity.png" style="width: 100%;"  />
+	<figcaption>(a) Left: A scatter plot of affinity vs diversity metric, where each point represents a different augmentation method and its color indicates the final test accuracy. (b) Right: The conceptual illustration of the relationship between clean and augmented data in different regions of affinity and diversity metrics. (Image source: <a href="https://arxiv.org/abs/2002.08973" target="_blank">Gontijo-Lopes et al. 2020</a>)</figcaption>
+</figure>
+<p>There are many quantitative metrics on relevancy and diversity, in different formations depending on whether a reference is available, such as perplexity, BLEU for text and inception score for images. I&rsquo;m skipping the list of concrete quantitative metrics on quality here, given it could be very long.</p>
+<h1 id="training-with-noisy-data">Training with Noisy Data<a hidden class="anchor" aria-hidden="true" href="#training-with-noisy-data">#</a></h1>
+<p>It is convenient to collect a large amount of noisy data via model generation or data augmentation, but it is hard to guarantee that augmented and generated data can be 100% accurate. Knowing that deep neural networks can easily overfit noisy labels and &ldquo;memotize&rdquo; corrupted labels, we can apply the techniques for training on noisy labels (<em>noise-robust training</em>) when using generated data to stabilize and optimize the performance. Please check this <a href="https://arxiv.org/abs/2007.08199">survey paper (Song et al. 2021)</a> on learning from noisy labels for a more thorough coverage of related work.</p>
+<h2 id="regularization-and-robust-architecture">Regularization and Robust Architecture<a hidden class="anchor" aria-hidden="true" href="#regularization-and-robust-architecture">#</a></h2>
+<p>Generally speaking, mechanisms designed for avoiding overfitting should help improve training robustness when working with moderately noisy data, such as weight decay, dropout, batch normalization. In fact, good data augmentation (i.e. only non-essential attributes are modified) can be considered as a way of regularization as well.</p>
+<p>A different approach is to enhance the network with a dedicated <strong>noisy adaptation layer</strong> to approximate the unknown projection of label corruption (<a href="https://arxiv.org/abs/1406.2080">Sukhbaatar et al. 2015</a>, <a href="https://openreview.net/forum?id=H12GRgcxg">Goldberger &amp; Ben-Reuven, 2017</a>).</p>
+<p><a href="https://arxiv.org/abs/1406.2080">Sukhbaatar et al. (2015)</a> introduced an extra linear layer $Q$ into the network architecture to adapt the predictions to match the noisy label distribution. The noise matrix $Q$ is initially <em>fixed</em> to the identity function while only the base model parameters is updated. After some time, $Q$ starts to be updated and expected to capture the noise in the data. The noise matrix is trained with regularization to encourage it to match the noise distribution while keeping the base model prediction accurate for true labels.</p>
+<figure>
+	<img src="noise-adaptation-layer.png" style="width: 100%;"  />
+	<figcaption>(a) Left: A noise matrix $Q$ is added between softmax and the final output for the loss. (b) Right: The noise matrix $Q$ is fixed at the identity function initially and only gets updated with regularization after some training. (Image source: <a href="https://arxiv.org/abs/1406.2080" target="_blank">Sukhbaatar et al. 2015</a>)</figcaption>
+</figure>
+<p>However, it is hard to guarantee such a noise matrix layer would only capture the noise transition distribution and it is actually non-trivial to learn. <a href="https://openreview.net/forum?id=H12GRgcxg">Goldberger &amp; Ben-Reuven (2017)</a>)  proposed to add an additional softmax layer end-to-end with the base model and apply the <a href="https://en.wikipedia.org/wiki/Expectation%E2%80%93maximization_algorithm">EM algorithm</a> by treating the correct labels as latent random variable and the noise processes as a communication channel with unknown parameters.</p>
+<h2 id="robust-learning-objective">Robust Learning Objective<a hidden class="anchor" aria-hidden="true" href="#robust-learning-objective">#</a></h2>
+<p>Besides the most commonly used cross entropy loss, some other choices of learning objectives are shown to be more robust to noisy labels.</p>
+<p>For example, <strong>MAE</strong> (mean absolute error) is more robust to noisy labels than CCE (categorical cross entropy), as it treats every sample equally (<a href="https://arxiv.org/abs/1712.09482">Ghosh et al. 2017</a>). Lack of different weighting among training samples of MAE lead to significantly longer training time. Motivated by the tradeoff between MAE and CCE, <a href="https://arxiv.org/abs/1805.07836">Zhang &amp; Sabuncu (2018)</a> proposed <em>generalized cross entropy</em> (<strong>GCE</strong>), a generalization of CCE loss to be robust to noisy data.</p>
+<p>To exploit the benefits of both the noise-robustness provided by MAE and the implicit weighting scheme of CCE, GCE adopts the the negative Box-Cox transformation as a loss function:</p>
+<p>$$
+\mathcal{L}_q(f(\mathbf{x}_i, y_i = j)) = \frac{1 - f^{(j)}(\mathbf{x}_i)^q}{q}
+$$</p>
+<p>where $f^{(j)}$ denotes the $j$-th element of $f(.)$ and $q \in (0, 1]$.
+$\mathcal{L}_q$ is equivalent to CCE when $q \to 0$ and becomes MAE when $q=1$. Empirical experiments show that there exists a threshold of $q$ with which overfitting never emerges and the noisier the data the higher such a threshold should be.</p>
+<p>Given true and predicted labels, $y_i, \hat{y}_i \in \{0, 1\}$ and let $u_i=y_i \cdot \hat{y}_i$, the <strong>zero-one loss</strong>, $\mathcal{L}_{01}(\mathbf{u}) = \sum_{i=1}^n \mathbb{1}[u_i &lt; 0]$, is another learning subjective shown to be robust to noisy data. Minimizing the empirical risk with the zero-one loss is shown to be equivalent to minimizing the empirical adversarial (worse-case) risk (<a href="https://arxiv.org/abs/1611.02041">Hu et al 2018</a>). Because the worst-case risk is the upper bound of the classification risk of the clean data distribution, minimizing the worst-case risk can lead to decreased true risk, which makes the zero-one loss especially robust. However, the zero-one loss is non-differentiable and cannot be optimized directly. One solution is to approximate an <em>upper bound</em> of the zero-one loss and to minimize the upper bound loss instead.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Hinge_loss">hinge loss</a>, $\mathcal{L}_\text{hinge}(\mathbf{u}) = \sum_{i=1}^n \max(0, 1 - u_i)$, defines a rough upper bound of the zero-one loss. <a href="https://arxiv.org/abs/1905.10045">Lyu &amp; Tsang (2020)</a> proposed a <em>curriculum loss</em> (<strong>CL</strong>), which is a tighter upper bound compared to a conventional surrogate loss like the hinge loss, $\mathcal{L}_\text{01}(\mathbf{u}) \leq \mathcal{L}_\text{CL}(\mathbf{u}) \leq \mathcal{L}_\text{hinge}(\mathbf{u})$.</p>
+<p>$$
+\mathcal{L}_\text{CL}(\mathbf{u}) = \min_{\mathbf{w}\in\{0,1\}^n}\max(\sum_{i=1}^n w_i \ell(u_i), n - \sum_{i=1}^n w_i + \sum_{i=1}^n\mathbb{1}[u_i &lt; 0])
+$$</p>
+<p>where $\ell(u_i)$ is a base surrogate loss for the zero-one loss (e.g. hinge loss) and the optimal weighting variable $\mathbf{w}$ is to be learned.</p>
+<p>Given a label corruption rate $\rho$, the <em>noise pruned curriculum loss</em> (<strong>NPCL</strong>) is constructed based on the intuition that an ideal model should correctly classify $n(1-\rho)$ samples with clean labels but misclassify $n\rho$ corrupted labels. If $\rho$ is a known prior, we would know how many samples (with largest losses) to be pruned. Assuming $\ell(u_1) \leq \dots \leq \ell(u_n)$, then $u_{n(1-\rho)+1} = \dots = u_n =0$ and the following NPCL is the basic CL for only $n(1-\rho)$ samples:</p>
+<p>$$
+\text{NPCL}(\mathbf{u}) = \min_{\mathbf{w}\in\{0,1\}^{n(1-\rho)}} \max(\sum_{i=1}^{n(1-\rho)} w_i \ell(u_i), n(1-\rho) - \sum_{i=1}^{n(1-\rho)} w_i)
+$$</p>
+<p>When experimenting on CIFAR-10, NPCL is comparable with GCE and performs better when the noise rate increases.</p>
+<h2 id="label-correction">Label Correction<a hidden class="anchor" aria-hidden="true" href="#label-correction">#</a></h2>
+<p>Since it is known some labels are incorrect, noise-robust training can explicitly take the label correction into consideration.</p>
+<p><a id="fcorrection"></a>One approach is to rely on the estimation of a noise transition matrix and use that to correct the forward or backward loss, named <strong>F-correction</strong> (<a href="https://arxiv.org/abs/1609.03683">Patrini et al. 2017</a>). Let’s first assume that there are $k$ classes and the noise transition matrix $C \in [0, 1]^{k\times k}$ is observable and the label flipping probability does not depend on the sample input but only the label (i.e. known as random classification noise, RCN). Let $\tilde{y}$ denote a corrupted label. Each entry of $C$ represents the probability of one label flipping to another<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>,</p>
+<p>$$
+C_{ij} = p(\tilde{y}= j \vert y =i, \mathbf{x}) \approx p(\tilde{y}= j \vert y =i)
+$$</p>
+<p>Then we can proceed a forward label correction procedure to incorporate the prior knowledge of noisy transition matrix into the prediction.</p>
+<p>$$
+\begin{aligned}
+\mathcal{L}(\hat{p}(\tilde{y}\vert\mathbf{x}), y)
+&amp;= - \log \hat{p}(\tilde{y}=i\vert\mathbf{x}) \\
+&amp;= - \log \sum_{j=1}^k p(\tilde{y}=i\vert y=j) \hat{p}(y=j\vert\mathbf{x}) \\
+&amp;= - \log \sum_{j=1}^k C_{ji} \hat{p}(y=j\vert\mathbf{x})
+\end{aligned}
+$$</p>
+<p>In matrix form, we have $\mathcal{L}(\hat{p}(y \vert \mathbf{x})) = - \log C^\top \hat{p}(y \vert \mathbf{x})$. However, such a noise transition matrix is usually <em>unknown</em>. If we have access to a clean dataset, the noise matrix $C$ can be estimated (<a href="https://arxiv.org/abs/1802.05300">Hendrycks et al. 2018</a>) by calculating confusion matrix on the clean data. Let’s denote a clean trusted dataset as $\mathcal{D}_c$ and a noisy dataset as $\mathcal{D}_n$ going forward.</p>
+<p>$$
+\hat{C}_{ij}
+= \frac{1}{\vert \mathcal{A}_i\vert} \sum_{\mathbf{x} \in \mathcal{A}_i} \hat{p}(\tilde{y}=j \vert y=i, \mathbf{x})
+\approx p(\tilde{y}=j \vert y=i)
+$$</p>
+<p>where $\mathcal{A}_i$ is a subset of data points from $\mathcal{D}_c$ with label $i$.</p>
+<p>Let $f(x) = \hat{p}(\tilde{y} \vert \mathbf{x}; \theta)$ and this model should be trained with $\mathcal{L}(f(\mathbf{x}), y)$ on clean data $\mathcal{D}_c$ and with $\mathcal{L}(\hat{C}^\top f(\mathbf{x}), \hat{y})$ on noisy data $\mathcal{D}_n$.</p>
+<figure>
+	<img src="GLC.png" style="width: 60%;"  />
+	<figcaption>Algorithm of gold loss correction (GLC), estimating the noise transition matrix with a trusted dataset. (Image source: <a href="https://arxiv.org/abs/1802.05300" target="_blank">Hendrycks et al. 2018</a>)</figcaption>
+</figure>
+<p>If the trusted training dataset $\mathcal{D}_c$ gets large, we can train a neural network only on clean data and <em>distill</em> its knowledge into the primary model (i.e. the final model to make predictions at test time) using corrected <strong>pseudo labels</strong> (<a href="https://arxiv.org/abs/1703.02391">Li et al. 2017</a>). The primary model is trained on the entire dataset, $\mathcal{D} = \mathcal{D}_c \cup \mathcal{D}_n$. Optionally the &ldquo;side&rdquo; information of label relations in the knowledge graph, if available, can be incorporated into distillation to help the robustness of the predictions of the network that is trained on limited data.</p>
+<p>The label correction distillation works as following:</p>
+<ol>
+<li>First train an auxiliary model $f_c$ from the small clean dataset $\mathcal{D}_c$ to provide a soft label for each sample $x_i$, $s_i = \delta(f_c(\mathbf{x}_i)/T)$ is the sigmoid activation with temperature $T$.</li>
+<li>Because the clean dataset is not large, $f_c$ is likely to overfit, <a href="https://arxiv.org/abs/1703.02391">Li et al. (2017)</a> turn to a knowledge graph $\mathcal{G}$ that defines the relations in the label space and <em>propagate</em> the prediction among labels accordingly. The new soft label is donated as $\hat{s}_i = \mathcal{G}(s_i)$.</li>
+<li>The primary model $f$ is trained with predictions from $f_c$ to imitate,</li>
+</ol>
+<p>$$
+\mathcal{L}(y_i, f(\mathbf{x}_i)) = \text{CE}(\underbrace{\lambda y_i + (1 - \lambda) \hat{s}_i}_\text{pseudo label}, f(\mathbf{x}_i))
+$$</p>
+<h2 id="sample-reweighting-and-selection">Sample Reweighting and Selection<a hidden class="anchor" aria-hidden="true" href="#sample-reweighting-and-selection">#</a></h2>
+<p>Some samples may be more likely to have inaccurate labels than others. Such estimation gives us intuition on which samples should be weighted less or more in the loss function. However, considering two types of biases in training data, class imbalance and noisy labels, there is actually a contradictory preference &mdash; We would prefer samples with larger loss to balance the label distribution but those with smaller loss for mitigating the potential noise. Some work (<a href="https://arxiv.org/abs/1803.09050">Ren et al. 2018</a>) thus argue that in order to learn general forms of training data biases, it is <em>necessary</em> to have <em>a small unbiased validation</em> to guide training. The sample reweighting methods presented in this section all assume access to a small trusted set of clean data.</p>
+<p>Considering a binary classification task with random classification noise, $y, \hat{y} \in \{-1, +1\}$, the label flipping probabilities, $\rho_{-1}, \rho_{+1} \in [0, 0.5)$, are defined as:</p>
+<p>$$
+\rho_{-1} = P(\tilde{y} = +1 \vert y=-1)\quad\rho_{+1} = P(\tilde{y}=-1 \vert y =+1)
+$$</p>
+<p><a href="https://arxiv.org/abs/1411.7718">Liu &amp; Tao (2015)</a> applies <strong>importance reweighting</strong> to adjust the weighted distribution of observed $\hat{y}$ to match the distribution of unobservable $y$. Let $\mathcal{D}$ be the true data distribution and $\mathcal{D}_\rho$ be the corrupted version.</p>
+<p>$$
+\begin{aligned}
+\mathcal{L}_{\ell,\mathcal{D}}(f)
+&amp;= \mathbb{E}_{(\mathbf{x},y)\sim \mathcal{D}}[\ell(f(\mathbf{x}), y)] \\
+&amp;= \mathbb{E}_{(\mathbf{x},\tilde{y})\sim \mathcal{D}_\rho} \Big[ \frac{P_\mathcal{D}(\mathbf{x}, y=\tilde{y})}{P_{\mathcal{D}_\rho}(\mathbf{x}, \tilde{y})} \ell(f(\mathbf{x}), \tilde{y}) \Big] \\
+&amp;= \mathbb{E}_{(\mathbf{x},\tilde{y})\sim \mathcal{D}_\rho} \Big[ \frac{P_\mathcal{D}(y=\tilde{y} \vert \mathbf{x})}{P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x})} \ell(f(\mathbf{x}), \tilde{y}) \Big] &amp; \text{; because }P_\mathcal{D}(\mathbf{x})=P_{\mathcal{D}_\rho}(\mathbf{x}) \\
+&amp;= \mathbb{E}_{(\mathbf{x},\tilde{y})\sim \mathcal{D}_\rho} [ w(\mathbf{x}, \hat{y})\ell(f(\mathbf{x}), \tilde{y}) ]
+= \mathcal{L}_{w\ell,\mathcal{D}}(f)
+\end{aligned}
+$$</p>
+<p>Because,</p>
+<p>$$
+\begin{aligned}
+P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x})
+&amp;= P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x}) P_{\mathcal{D}_\rho}(\tilde{y} \vert y=\tilde{y}) +
+P_\mathcal{D}(y = - \tilde{y} \vert \mathbf{x}) P_{\mathcal{D}_\rho}(\tilde{y} \vert y = - \tilde{y}) \\
+&amp;= P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x}) (1 - P_{\mathcal{D}_\rho}(- \tilde{y} \vert y=\tilde{y})) +
+(1 - P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x})) P_{\mathcal{D}_\rho}(\tilde{y} \vert y = - \tilde{y}) \\
+&amp;= P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x}) (1 - \rho_{\tilde{y}}) +
+(1 - P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x})) \rho_{-\tilde{y}} \\
+&amp;= P_\mathcal{D}(y = \tilde{y} \vert \mathbf{x})(1 - \rho_{\tilde{y}} - \rho_{-\tilde{y}}) + \rho_{-\tilde{y}}
+\end{aligned}
+$$</p>
+<p>Thus the weight assigned to a noisy sample is,</p>
+<p>$$
+w(x, \tilde{y})
+= \frac{P_\mathcal{D}(y=\tilde{y} \vert \mathbf{x})}{P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x})}
+= \frac{P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x}) - \rho_{-\tilde{y}}}{(1-\rho_0-\rho_1) P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x})}
+$$</p>
+<p>where $P_{\mathcal{D}_\rho}(\tilde{y} \vert \mathbf{x})$ can be estimated using a simple logistic regression, but estimating the note rates is more challenging. Naive cross-validation can work out but is costly as the quality depends on the amount of trusted labels available. The paper approximates the upper bounds for noise rates first, $\rho_\tilde{y} \leq P_{\mathcal{D}_\rho}(- \tilde{y} \vert \mathbf{x})$ and then use a mild assumption to efficiently estimate them, $\hat{\rho}_{\tilde{y}} = \min_{\mathbf{x} \in {\mathbf{x}_1, \dots, \mathbf{x}_n}} \hat{P}_{\mathcal{D}_\rho}(- \tilde{y} \vert \mathbf{x})$. In their experiments, the advantage of importance reweighting only varies across datasets and is more beneficial when the noise rates are high in general.</p>
+<p>Sample reweighting schemes can be learned by a separate network. <em>Learning to reweight</em> (<strong>L2R</strong>; <a href="https://arxiv.org/abs/1803.09050">Ren et al. 2018</a>) is a meta-learning approach to directly optimize the weights in pursuit of best validation performance on a known set of clean data. Each example gets assigned with the weight based on its gradient direction. The weighted loss to minimize $\theta^*(\mathbf{w})$ involves a set of training weights $\{w_i\}_{i=1}^n$ as unknown hyperparameters. These sample training weights $w_i$ are learned to minimize the loss on this unbiased validate set, $\mathcal{D}_c = \{x^\text{valid}_j\}_{j=1}^m$.</p>
+<p>$$
+\begin{aligned}
+\theta^{*}(\mathbf{w}) &amp;= \arg\min_\theta \sum_{i=1}^n w_i f(x_i; \theta) \\
+\text{where optimal }\mathbf{w}^{*} &amp;= \arg\min_{\mathbf{w}, \mathbf{w} \geq \mathbf{0}} \frac{1}{m} \sum_{j=1}^m f(\mathbf{x}^\text{valid}_j; \theta^{*}(\mathbf{w}))
+\end{aligned}
+$$</p>
+<p>The learning process involves two nested loops of optimization, so pretty expensive, 3x training time.</p>
+<figure>
+	<img src="L2R-backprop.png" style="width: 100%;"  />
+	<figcaption>Illustration of updates implemented by second order <a href="https://en.wikipedia.org/wiki/Automatic_differentiation" target="_blank">automatic differentiation</a>. (Image source: <a href="https://arxiv.org/abs/1803.09050" target="_blank">Ren et al. 2018</a>)</figcaption>
+</figure>
+<p>They ran experiments on (1) two-class MNIST to test the robustness of L2R when the class distribution is imbalanced and (2) CIFAR-10 with noisy labels.  L2R is shown to be better than other baseline methods at the time on both tasks.</p>
+<figure>
+	<img src="L2R-exp.png" style="width: 100%;"  />
+	<figcaption>Left: Imbalanced classes on MNIST (class 4 and 9); Right: Effect of the number of clean samples. Task is on CIFAR-10 with 40% of data flipped to label 3. (Image source: <a href="https://arxiv.org/abs/1803.09050" target="_blank">Ren et al. 2018</a>)</figcaption>
+</figure>
+<p><strong>MentorNet</strong> (<a href="https://arxiv.org/abs/1712.05055">Jiang et al. 2018</a>) uses teach-student curriculum learning to weight data. It incorporates two different networks, a mentor and a student. The mentor network provides a data-driven curriculum (i.e. sample training weighting scheme) for the student to focus on learning likely correct labels.</p>
+<p>Let $g_\psi$ be the MentorNet parameterized by $\psi$ , $f_\theta$  be the StudentNet parametrized by $\theta$ and $G$ be a predefined curriculum parameterized by $\lambda$. Given the training data $\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n$ for a $k$-class classification task, the MentorNet needs to predict a time-varying latent weight variable $\mathbf{w} \in [0, 1]^{n \times k}$ to guide the learning of StudentNet, taking an intermediate feature processed by StudentNet $f$ , $\mathbf{z}_i = \phi_{f_\theta}(\mathbf{x}_i, y_i)$:</p>
+<p>$$
+g_{\psi^{*}}(\mathbf{z}_i) = \arg\min_{w_i \in [0,1]} \mathcal{L}(\theta, \mathbf{w}), \forall i \in [1, n]
+$$</p>
+<p>StudentNet learns to minimize the following learning objective,</p>
+<p>$$
+\begin{aligned}
+\mathcal{L}(\theta, \mathbf{w})
+&amp;= \frac{1}{n}\sum_{i=1}^n \mathbf{w}_i^\top \ell(y_i, f_\theta(\mathbf{x}_i)) + G_\lambda(\mathbf{w}) + \alpha |\theta|^2_2 \\
+&amp;= \frac{1}{n}\sum_{i=1}^n g_\psi(\mathbf{z}_i)^\top \ell_i + G_\lambda(\mathbf{w}) + \alpha |\theta|^2_2 &amp; \text{; Let }\ell_i = \ell(y_i, f_\theta(\mathbf{x}_i)) \\
+\end{aligned}
+$$</p>
+<p>The mentor network $g_\psi$ is trained with cross entropy on the input $(\phi_{f_\theta}(\mathbf{x}_i, y_i), w^{*}_i)$ , where $v^*_i=1$ if $y_i$ is known to be a correct label, otherwise 0. The architecture of MentorNet does not have to be very complicated. In the paper, they adopted a LSTM layer to capture the prediction variance in time.</p>
+<figure>
+	<img src="MentorNet.png" style="width: 80%;"  />
+	<figcaption>Model architecture of MentorNet and StudentNet which are trained simultaneously, where MentorNet predicts the sample weights for StudentNet to train on. (Image source: <a href="https://arxiv.org/abs/1712.05055" target="_blank">Jiang et al. 2018</a>)</figcaption>
+</figure>
+<p>Different from MentorNet where one network explicitly learns weighting scheme and curriculum for the other network, <strong>Co-teaching</strong> (<a href="https://arxiv.org/abs/1804.06872">Han et al. 2018</a>) trains two neural networks, $f_1$ and $f_2$, simultaneously and lets them teach each other by feeding data to each other selectively. Co-teaching consists of three steps:</p>
+<ol>
+<li>First, each network feeds forward the current mini-batch and selects samples with potentially clean labels;</li>
+<li>Then two networks exchange information on which samples in the batch should be used for training.  Small-loss instances are selected as they are more likely to be associated with correct labels. The percentage of the batch to select is determined by a time-dependent function $R(T)$. The value of $R(T)$ decreases in time because the network is more likely to overfit and memorize noisy labels as training progresses and thus we use a smaller sampling percentage to keep the selected data quality high.</li>
+<li>Finally, each network runs back-propagation updates with the data selected by its peer.</li>
+</ol>
+<p>According to their experiments, co-teaching performs better than <a href="#fcorrection">F-correction</a> where the noise rates are high or the corruption transition matrix is not symmetric.</p>
+<figure>
+	<img src="co-teaching.png" style="width: 100%;"  />
+	<figcaption>Algorithm of co-teaching in which two networks are trained separately in parallel and each selects samples for the other to train on. (Image source: <a href="https://arxiv.org/abs/1804.06872" target="_blank">Han et al. 2018</a>)</figcaption>
+</figure>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Apr 2022). Learning with not enough data part 3: data generation. Lil&rsquo;Log. https://lilianweng.github.io/posts/2022-04-15-data-gen/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2022datagen,
+  title   = &#34;Learning with not Enough Data Part 3: Data Generation&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;Lil&#39;Log&#34;,
+  year    = &#34;2022&#34;,
+  month   = &#34;Apr&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2022-04-15-data-gen/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Zhang et al. <a href="https://arxiv.org/abs/1912.11188">&ldquo;Adversarial AutoAgument&rdquo;</a> ICLR 2020.</p>
+<p>[2] Kumar et al. <a href="https://arxiv.org/abs/2003.02245">&ldquo;Data Augmentation using Pre-trained Transformer Models.&rdquo;</a> AACL 2020 Workshop.</p>
+<p>[3] Anaby-Tavor et al. <a href="https://arxiv.org/abs/1911.03118">&ldquo;Not enough data? Deep learning to rescue!&rdquo;</a> AAAI 2020.</p>
+<p>[4] Wang et al. <a href="https://arxiv.org/abs/2108.13487">&ldquo;Want To Reduce Labeling Cost? GPT-3 Can Help.&rdquo;</a> EMNLP 2021.</p>
+<p>[5] Wang et al. <a href="https://arxiv.org/abs/2109.09193">&ldquo;Towards Zero-Label Language Learning.&rdquo;</a> arXiv preprint arXiv:2109.09193 (2021).</p>
+<p>[6] Schick &amp; Schutze. <a href="https://arxiv.org/abs/2104.07540">Generating Datasets with Pretrained Language Models.&quot;</a> EMNLP 2021.</p>
+<p>[7] Han et al. <a href="https://arxiv.org/abs/2110.05448">&ldquo;Unsupervised Neural Machine Translation with Generative Language Models Only.&rdquo;</a> arXiv preprint arXiv:2110.05448 (2021).</p>
+<p>[8] Guo et al. <a href="https://arxiv.org/abs/1905.08941">&ldquo;Augmenting data with mixup for sentence classification: An empirical study.&rdquo;</a> arXiv preprint arXiv:1905.08941 (2019).</p>
+<p>[9] Ekin D. Cubuk et al. <a href="https://arxiv.org/abs/1805.09501">&ldquo;AutoAugment: Learning augmentation policies from data.&rdquo;</a> arXiv preprint arXiv:1805.09501 (2018).</p>
+<p>[10] Daniel Ho et al. <a href="https://arxiv.org/abs/1905.05393">&ldquo;Population Based Augmentation: Efficient Learning of Augmentation Policy Schedules.&rdquo;</a> ICML 2019.</p>
+<p>[11] Cubuk &amp; Zoph et al. <a href="https://arxiv.org/abs/1909.13719">&ldquo;RandAugment: Practical automated data augmentation with a reduced search space.&rdquo;</a> arXiv preprint arXiv:1909.13719 (2019).</p>
+<p>[12] Zhang et al. <a href="https://arxiv.org/abs/1710.09412">&ldquo;mixup: Beyond Empirical Risk Minimization.&rdquo;</a> ICLR 2017.</p>
+<p>[13] Yun et al. <a href="https://arxiv.org/abs/1905.04899">&ldquo;CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features.&rdquo;</a> ICCV 2019.</p>
+<p>[14] Kalantidis et al. <a href="https://arxiv.org/abs/2010.01028">&ldquo;Mixing of Contrastive Hard Negatives&rdquo;</a> NeuriPS 2020.</p>
+<p>[15] Wei &amp; Zou. <a href="https://arxiv.org/abs/1901.11196">&ldquo;EDA: Easy data augmentation techniques for boosting performance on text classification tasks.&rdquo;</a>  EMNLP-IJCNLP 2019.</p>
+<p>[16] Kobayashi. <a href="https://arxiv.org/abs/1805.06201">&ldquo;Contextual Augmentation: Data Augmentation by Words with Paradigmatic Relations.&rdquo;</a> NAACL 2018</p>
+<p>[17] Fang et al. <a href="https://arxiv.org/abs/2005.12766">&ldquo;CERT: Contrastive self-supervised learning for language understanding.&rdquo;</a> arXiv preprint arXiv:2005.12766 (2020).</p>
+<p>[18] Gao et al. <a href="https://arxiv.org/abs/2104.08821">&ldquo;SimCSE: Simple Contrastive Learning of Sentence Embeddings.&rdquo;</a> arXiv preprint arXiv:2104.08821 (2020). [<a href="https://github.com/princeton-nlp/SimCSE">code</a>]</p>
+<p>[19] Shen et al. <a href="https://arxiv.org/abs/2009.13818">&ldquo;A Simple but Tough-to-Beat Data Augmentation Approach for Natural Language Understanding and Generation.&rdquo;</a> arXiv preprint arXiv:2009.13818 (2020) [<a href="https://github.com/dinghanshen/cutoff">code</a>]</p>
+<p>[20] Wang &amp; van den Oord. <a href="https://arxiv.org/abs/2103.06508">&ldquo;Multi-Format Contrastive Learning of Audio Representations.&rdquo;</a>  NeuriPS Workshop 2020.</p>
+<p>[21] Wu et al. <a href="https://arxiv.org/abs/1812.06705">&ldquo;Conditional BERT Contextual Augmentation&rdquo;</a> arXiv preprint arXiv:1812.06705 (2018).</p>
+<p>[22 Zhu et al. <a href="https://arxiv.org/abs/1909.11764">&ldquo;FreeLB: Enhanced Adversarial Training for Natural Language Understanding.&rdquo;</a> ICLR 2020.</p>
+<p>[23] Affinity and Diversity: Quantifying Mechanisms of Data Augmentation
+Gontijo-Lopes et al. 2020 (<a href="https://arxiv.org/abs/2002.08973">https://arxiv.org/abs/2002.08973</a>)</p>
+<p>[24] Song et al. <a href="https://arxiv.org/abs/2007.08199">&ldquo;Learning from Noisy Labels with Deep Neural Networks: A Survey.&rdquo;</a> TNNLS 2020.</p>
+<p>[25] Zhang &amp; Sabuncu. <a href="https://arxiv.org/abs/1805.07836">&ldquo;Generalized cross entropy loss for training deep neural networks with noisy labels.&rdquo;</a> NeuriPS 2018.</p>
+<p>[26] Goldberger &amp; Ben-Reuven. <a href="https://openreview.net/forum?id=H12GRgcxg">&ldquo;Training deep neural-networks using a noise adaptation layer.&rdquo;</a> ICLR 2017.</p>
+<p>[27] Sukhbaatar et al. <a href="https://arxiv.org/abs/1406.2080">&ldquo;Training convolutional networks with noisy labels.&rdquo;</a> ICLR Workshop 2015.</p>
+<p>[28] Patrini et al. <a href="https://arxiv.org/abs/1609.03683">&ldquo;Making Deep Neural Networks Robust to Label Noise: a Loss Correction Approach&rdquo;</a> CVPR 2017.</p>
+<p>[29] Hendrycks et al. <a href="https://arxiv.org/abs/1802.05300">&ldquo;Using trusted data to train deep networks on labels corrupted by severe noise.&rdquo;</a> NeuriPS 2018.</p>
+<p>[30] Zhang &amp; Sabuncu. <a href="https://arxiv.org/abs/1805.07836">&ldquo;Generalized cross entropy loss for training deep neural networks with noisy labels.&rdquo;</a> NeuriPS 2018.</p>
+<p>[31] Lyu &amp; Tsang. <a href="https://arxiv.org/abs/1905.10045">&ldquo;Curriculum loss: Robust learning and generalization against label corruption.&rdquo;</a> ICLR 2020.</p>
+<p>[32] Han et al. <a href="https://arxiv.org/abs/1804.06872">&ldquo;Co-teaching: Robust training of deep neural networks with extremely noisy labels.&rdquo;</a> NeuriPS 2018. (<a href="https://github.com/bhanML/Co-teaching">code</a>)</p>
+<p>[33] Ren et al.  <a href="https://arxiv.org/abs/1803.09050">&ldquo;Learning to reweight examples for robust deep learning.&rdquo;</a> ICML 2018.</p>
+<p>[34] Jiang et al. <a href="https://arxiv.org/abs/1712.05055">&ldquo;MentorNet: Learning data-driven curriculum for very deep neural networks on corrupted labels.&rdquo;</a> ICML 2018.</p>
+<p>[35] Li et al. <a href="https://arxiv.org/abs/1703.02391">&ldquo;Learning from noisy labels with distillation.&rdquo;</a> ICCV 2017.</p>
+<p>[36] Liu &amp; Tao. <a href="https://arxiv.org/abs/1411.7718">&ldquo;Classification with noisy labels by importance reweighting.&rdquo;</a> TPAMI 2015.</p>
+<p>[37] Ghosh, et al. <a href="https://arxiv.org/abs/1712.09482">&ldquo;Robust loss functions under label noise for deep neural networks.&rdquo;</a> AAAI 2017.</p>
+<p>[38] Hu et al. <a href="https://arxiv.org/abs/1611.02041">&ldquo;Does Distributionally Robust Supervised Learning Give Robust Classifiers? &ldquo;</a> ICML 2018.</p>
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p>$y=i$ is not a technically correct way to annotate a label being a certain value, since we usually use one-hot encoding (i.e. $\mathbf{y} = \mathbf{e}_i$). We use this form for simplicity.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/data/">Data</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data-generation/">Data-Generation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data-augmentation/">Data-Augmentation</a></li>
+      <li><a href="https://lilianweng.github.io/tags/data-quality/">Data-Quality</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2022-06-09-vlm/">
+    <span class="title">« </span>
+    <br>
+    <span>Generalized Visual Language Models</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2022-02-20-active-learning/">
+    <span class="title"> »</span>
+    <br>
+    <span>Learning with not Enough Data Part 2: Active Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on twitter"
+        href="https://twitter.com/intent/tweet/?text=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f&amp;hashtags=data%2cdata-generation%2cdata-augmentation%2cdata-quality">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f&amp;title=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation&amp;summary=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f&title=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on whatsapp"
+        href="https://api.whatsapp.com/send?text=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Learning with not Enough Data Part 3: Data Generation on telegram"
+        href="https://telegram.me/share/url?text=Learning%20with%20not%20Enough%20Data%20Part%203%3a%20Data%20Generation&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-04-15-data-gen%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

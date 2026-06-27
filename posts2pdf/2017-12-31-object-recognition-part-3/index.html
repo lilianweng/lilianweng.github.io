@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Object Detection for Dummies Part 3: R-CNN Family | Lil&#39;Log</title>
+<meta name="keywords" content="object-detection, object-recognition, vision-model" />
+<meta name="description" content="
+[Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.]
+
+[Updated on 2018-12-27: Add bbox regression and tricks sections for R-CNN.]
+In the series of &ldquo;Object Detection for Dummies&rdquo;, we started with basic concepts in image processing, such as gradient vectors and HOG, in Part 1. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in Part 2. In the third post of this series, we are about to review a set of models in the R-CNN (&ldquo;Region-based CNN&rdquo;) family.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Object Detection for Dummies Part 3: R-CNN Family" />
+<meta property="og:description" content="
+[Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.]
+
+[Updated on 2018-12-27: Add bbox regression and tricks sections for R-CNN.]
+In the series of &ldquo;Object Detection for Dummies&rdquo;, we started with basic concepts in image processing, such as gradient vectors and HOG, in Part 1. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in Part 2. In the third post of this series, we are about to review a set of models in the R-CNN (&ldquo;Region-based CNN&rdquo;) family." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2017-12-31T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-12-31T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Object Detection for Dummies Part 3: R-CNN Family"/>
+<meta name="twitter:description" content="
+[Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.]
+
+[Updated on 2018-12-27: Add bbox regression and tricks sections for R-CNN.]
+In the series of &ldquo;Object Detection for Dummies&rdquo;, we started with basic concepts in image processing, such as gradient vectors and HOG, in Part 1. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in Part 2. In the third post of this series, we are about to review a set of models in the R-CNN (&ldquo;Region-based CNN&rdquo;) family."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Object Detection for Dummies Part 3: R-CNN Family",
+      "item": "https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Object Detection for Dummies Part 3: R-CNN Family",
+  "name": "Object Detection for Dummies Part 3: R-CNN Family",
+  "description": " [Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.] [Updated on 2018-12-27: Add bbox regression and tricks sections for R-CNN.]\nIn the series of \u0026ldquo;Object Detection for Dummies\u0026rdquo;, we started with basic concepts in image processing, such as gradient vectors and HOG, in Part 1. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in Part 2. In the third post of this series, we are about to review a set of models in the R-CNN (\u0026ldquo;Region-based CNN\u0026rdquo;) family.\n",
+  "keywords": [
+    "object-detection", "object-recognition", "vision-model"
+  ],
+  "articleBody": " [Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.] [Updated on 2018-12-27: Add bbox regression and tricks sections for R-CNN.]\nIn the series of “Object Detection for Dummies”, we started with basic concepts in image processing, such as gradient vectors and HOG, in Part 1. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in Part 2. In the third post of this series, we are about to review a set of models in the R-CNN (“Region-based CNN”) family.\nLinks to all the posts in the series: [Part 1] [Part 2] [Part 3] [Part 4].\nHere is a list of papers covered in this post ;)\nModel Goal Resources R-CNN Object recognition [paper][code] Fast R-CNN Object recognition [paper][code] Faster R-CNN Object recognition [paper][code] Mask R-CNN Image segmentation [paper][code] R-CNN R-CNN (Girshick et al., 2014) is short for “Region-based Convolutional Neural Networks”. The main idea is composed of two steps. First, using selective search, it identifies a manageable number of bounding-box object region candidates (“region of interest” or “RoI”). And then it extracts CNN features from each region independently for classification.\nThe architecture of R-CNN. (Image source: Girshick et al., 2014) Model Workflow How R-CNN works can be summarized as follows:\nPre-train a CNN network on image classification tasks; for example, VGG or ResNet trained on ImageNet dataset. The classification task involves N classes. NOTE: You can find a pre-trained AlexNet in Caffe Model Zoo. I don’t think you can find it in Tensorflow, but Tensorflow-slim model library provides pre-trained ResNet, VGG, and others.\nPropose category-independent regions of interest by selective search (~2k candidates per image). Those regions may contain target objects and they are of different sizes. Region candidates are warped to have a fixed size as required by CNN. Continue fine-tuning the CNN on warped proposal regions for K + 1 classes; The additional one class refers to the background (no object of interest). In the fine-tuning stage, we should use a much smaller learning rate and the mini-batch oversamples the positive cases because most proposed regions are just background. Given every image region, one forward propagation through the CNN generates a feature vector. This feature vector is then consumed by a binary SVM trained for each class independently. The positive samples are proposed regions with IoU (intersection over union) overlap threshold \u003e= 0.3, and negative samples are irrelevant others. To reduce the localization errors, a regression model is trained to correct the predicted detection window on bounding box correction offset using CNN features. Bounding Box Regression Given a predicted bounding box coordinate $\\mathbf{p} = (p_x, p_y, p_w, p_h)$ (center coordinate, width, height) and its corresponding ground truth box coordinates $\\mathbf{g} = (g_x, g_y, g_w, g_h)$ , the regressor is configured to learn scale-invariant transformation between two centers and log-scale transformation between widths and heights. All the transformation functions take $\\mathbf{p}$ as input.\n$$ \\begin{aligned} \\hat{g}_x \u0026= p_w d_x(\\mathbf{p}) + p_x \\\\ \\hat{g}_y \u0026= p_h d_y(\\mathbf{p}) + p_y \\\\ \\hat{g}_w \u0026= p_w \\exp({d_w(\\mathbf{p})}) \\\\ \\hat{g}_h \u0026= p_h \\exp({d_h(\\mathbf{p})}) \\end{aligned} $$ Illustration of transformation between predicted and ground truth bounding boxes. An obvious benefit of applying such transformation is that all the bounding box correction functions, $d_i(\\mathbf{p})$ where $i \\in \\{ x, y, w, h \\}$, can take any value between [-∞, +∞]. The targets for them to learn are:\n$$ \\begin{aligned} t_x \u0026= (g_x - p_x) / p_w \\\\ t_y \u0026= (g_y - p_y) / p_h \\\\ t_w \u0026= \\log(g_w/p_w) \\\\ t_h \u0026= \\log(g_h/p_h) \\end{aligned} $$ A standard regression model can solve the problem by minimizing the SSE loss with regularization:\n$$ \\mathcal{L}_\\text{reg} = \\sum_{i \\in \\{x, y, w, h\\}} (t_i - d_i(\\mathbf{p}))^2 + \\lambda \\|\\mathbf{w}\\|^2 $$ The regularization term is critical here and RCNN paper picked the best λ by cross validation. It is also noteworthy that not all the predicted bounding boxes have corresponding ground truth boxes. For example, if there is no overlap, it does not make sense to run bbox regression. Here, only a predicted box with a nearby ground truth box with at least 0.6 IoU is kept for training the bbox regression model.\nCommon Tricks Several tricks are commonly used in RCNN and other detection models.\nNon-Maximum Suppression\nLikely the model is able to find multiple bounding boxes for the same object. Non-max suppression helps avoid repeated detection of the same instance. After we get a set of matched bounding boxes for the same object category: Sort all the bounding boxes by confidence score. Discard boxes with low confidence scores. While there is any remaining bounding box, repeat the following: Greedily select the one with the highest score. Skip the remaining boxes with high IoU (i.e. \u003e 0.5) with previously selected one.\nMultiple bounding boxes detect the car in the image. After non-maximum suppression, only the best remains and the rest are ignored as they have large overlaps with the selected one. (Image source: DPM paper) Hard Negative Mining\nWe consider bounding boxes without objects as negative examples. Not all the negative examples are equally hard to be identified. For example, if it holds pure empty background, it is likely an “easy negative”; but if the box contains weird noisy texture or partial object, it could be hard to be recognized and these are “hard negative”.\nThe hard negative examples are easily misclassified. We can explicitly find those false positive samples during the training loops and include them in the training data so as to improve the classifier.\nSpeed Bottleneck Looking through the R-CNN learning steps, you could easily find out that training an R-CNN model is expensive and slow, as the following steps involve a lot of work:\nRunning selective search to propose 2000 region candidates for every image; Generating the CNN feature vector for every image region (N images * 2000). The whole process involves three models separately without much shared computation: the convolutional neural network for image classification and feature extraction; the top SVM classifier for identifying target objects; and the regression model for tightening region bounding boxes. Fast R-CNN To make R-CNN faster, Girshick (2015) improved the training procedure by unifying three independent models into one jointly trained framework and increasing shared computation results, named Fast R-CNN. Instead of extracting CNN feature vectors independently for each region proposal, this model aggregates them into one CNN forward pass over the entire image and the region proposals share this feature matrix. Then the same feature matrix is branched out to be used for learning the object classifier and the bounding-box regressor. In conclusion, computation sharing speeds up R-CNN.\nThe architecture of Fast R-CNN. (Image source: Girshick, 2015) RoI Pooling It is a type of max pooling to convert features in the projected region of the image of any size, h x w, into a small fixed window, H x W. The input region is divided into H x W grids, approximately every subwindow of size h/H x w/W. Then apply max-pooling in each grid.\nRoI pooling (Image source: Stanford CS231n slides.) Model Workflow How Fast R-CNN works is summarized as follows; many steps are same as in R-CNN:\nFirst, pre-train a convolutional neural network on image classification tasks. Propose regions by selective search (~2k candidates per image). Alter the pre-trained CNN: Replace the last max pooling layer of the pre-trained CNN with a RoI pooling layer. The RoI pooling layer outputs fixed-length feature vectors of region proposals. Sharing the CNN computation makes a lot of sense, as many region proposals of the same images are highly overlapped. Replace the last fully connected layer and the last softmax layer (K classes) with a fully connected layer and softmax over K + 1 classes. Finally the model branches into two output layers: A softmax estimator of K + 1 classes (same as in R-CNN, +1 is the “background” class), outputting a discrete probability distribution per RoI. A bounding-box regression model which predicts offsets relative to the original RoI for each of K classes. Loss Function The model is optimized for a loss combining two tasks (classification + localization):\n| Symbol | Explanation | | $u$ | True class label, $ u \\in 0, 1, \\dots, K$; by convention, the catch-all background class has $u = 0$. | | $p$ | Discrete probability distribution (per RoI) over K + 1 classes: $p = (p_0, \\dots, p_K)$, computed by a softmax over the K + 1 outputs of a fully connected layer. | | $v$ | True bounding box $ v = (v_x, v_y, v_w, v_h) $. | | $t^u$ | Predicted bounding box correction, $t^u = (t^u_x, t^u_y, t^u_w, t^u_h)$. See above. | {:.info}\nThe loss function sums up the cost of classification and bounding box prediction: $\\mathcal{L} = \\mathcal{L}_\\text{cls} + \\mathcal{L}_\\text{box}$. For “background” RoI, $\\mathcal{L}_\\text{box}$ is ignored by the indicator function $\\mathbb{1} [u \\geq 1]$, defined as:\n$$ \\mathbb{1} [u \u003e= 1] = \\begin{cases} 1 \u0026 \\text{if } u \\geq 1\\\\ 0 \u0026 \\text{otherwise} \\end{cases} $$ The overall loss function is:\n$$ \\begin{align*} \\mathcal{L}(p, u, t^u, v) \u0026= \\mathcal{L}_\\text{cls} (p, u) + \\mathbb{1} [u \\geq 1] \\mathcal{L}_\\text{box}(t^u, v) \\\\ \\mathcal{L}_\\text{cls}(p, u) \u0026= -\\log p_u \\\\ \\mathcal{L}_\\text{box}(t^u, v) \u0026= \\sum_{i \\in \\{x, y, w, h\\}} L_1^\\text{smooth} (t^u_i - v_i) \\end{align*} $$ The bounding box loss $\\mathcal{L}_{box}$ should measure the difference between $t^u_i$ and $v_i$ using a robust loss function. The smooth L1 loss is adopted here and it is claimed to be less sensitive to outliers.\n$$ L_1^\\text{smooth}(x) = \\begin{cases} 0.5 x^2 \u0026 \\text{if } \\vert x \\vert \u003c 1\\\\ \\vert x \\vert - 0.5 \u0026 \\text{otherwise} \\end{cases} $$ The plot of smooth L1 loss, $y = L\\_1^\\text{smooth}(x)$. (Image source: link) Speed Bottleneck Fast R-CNN is much faster in both training and testing time. However, the improvement is not dramatic because the region proposals are generated separately by another model and that is very expensive.\nFaster R-CNN An intuitive speedup solution is to integrate the region proposal algorithm into the CNN model. Faster R-CNN (Ren et al., 2016) is doing exactly this: construct a single, unified model composed of RPN (region proposal network) and fast R-CNN with shared convolutional feature layers.\nAn illustration of Faster R-CNN model. (Image source: Ren et al., 2016) Model Workflow Pre-train a CNN network on image classification tasks. Fine-tune the RPN (region proposal network) end-to-end for the region proposal task, which is initialized by the pre-train image classifier. Positive samples have IoU (intersection-over-union) \u003e 0.7, while negative samples have IoU \u003c 0.3. Slide a small n x n spatial window over the conv feature map of the entire image. At the center of each sliding window, we predict multiple regions of various scales and ratios simultaneously. An anchor is a combination of (sliding window center, scale, ratio). For example, 3 scales + 3 ratios =\u003e k=9 anchors at each sliding position. Train a Fast R-CNN object detection model using the proposals generated by the current RPN Then use the Fast R-CNN network to initialize RPN training. While keeping the shared convolutional layers, only fine-tune the RPN-specific layers. At this stage, RPN and the detection network have shared convolutional layers! Finally fine-tune the unique layers of Fast R-CNN Step 4-5 can be repeated to train RPN and Fast R-CNN alternatively if needed. Loss Function Faster R-CNN is optimized for a multi-task loss function, similar to fast R-CNN.\n| Symbol | Explanation | | $p_i$ | Predicted probability of anchor i being an object. | | $p^*_i$ | Ground truth label (binary) of whether anchor i is an object. | | $t_i$ | Predicted four parameterized coordinates. | | $t^*_i$ | Ground truth coordinates. | | $N_\\text{cls}$ | Normalization term, set to be mini-batch size (~256) in the paper. | | $N_\\text{box}$ | Normalization term, set to the number of anchor locations (~2400) in the paper. | | $\\lambda$ | A balancing parameter, set to be ~10 in the paper (so that both $\\mathcal{L}_\\text{cls}$ and $\\mathcal{L}_\\text{box}$ terms are roughly equally weighted). | {:.info}\nThe multi-task loss function combines the losses of classification and bounding box regression:\n$$ \\begin{align*} \\mathcal{L} \u0026= \\mathcal{L}_\\text{cls} + \\mathcal{L}_\\text{box} \\\\ \\mathcal{L}(\\{p_i\\}, \\{t_i\\}) \u0026= \\frac{1}{N_\\text{cls}} \\sum_i \\mathcal{L}_\\text{cls} (p_i, p^*_i) + \\frac{\\lambda}{N_\\text{box}} \\sum_i p^*_i \\cdot L_1^\\text{smooth}(t_i - t^*_i) \\\\ \\end{align*} $$ where $\\mathcal{L}_\\text{cls}$ is the log loss function over two classes, as we can easily translate a multi-class classification into a binary classification by predicting a sample being a target object versus not. $L_1^\\text{smooth}$ is the smooth L1 loss.\n$$ \\mathcal{L}_\\text{cls} (p_i, p^*_i) = - p^*_i \\log p_i - (1 - p^*_i) \\log (1 - p_i) $$ Mask R-CNN Mask R-CNN (He et al., 2017) extends Faster R-CNN to pixel-level image segmentation. The key point is to decouple the classification and the pixel-level mask prediction tasks. Based on the framework of Faster R-CNN, it added a third branch for predicting an object mask in parallel with the existing branches for classification and localization. The mask branch is a small fully-connected network applied to each RoI, predicting a segmentation mask in a pixel-to-pixel manner.\nMask R-CNN is Faster R-CNN model with image segmentation. (Image source: He et al., 2017) Because pixel-level segmentation requires much more fine-grained alignment than bounding boxes, mask R-CNN improves the RoI pooling layer (named “RoIAlign layer”) so that RoI can be better and more precisely mapped to the regions of the original image.\nPredictions by Mask R-CNN on COCO test set. (Image source: He et al., 2017) RoIAlign The RoIAlign layer is designed to fix the location misalignment caused by quantization in the RoI pooling. RoIAlign removes the hash quantization, for example, by using x/16 instead of [x/16], so that the extracted features can be properly aligned with the input pixels. Bilinear interpolation is used for computing the floating-point location values in the input.\nA region of interest is mapped **accurately** from the original image onto the feature map without rounding up to integers. (Image source: link) Loss Function The multi-task loss function of Mask R-CNN combines the loss of classification, localization and segmentation mask: $ \\mathcal{L} = \\mathcal{L}_\\text{cls} + \\mathcal{L}_\\text{box} + \\mathcal{L}_\\text{mask}$, where $\\mathcal{L}_\\text{cls}$ and $\\mathcal{L}_\\text{box}$ are same as in Faster R-CNN.\nThe mask branch generates a mask of dimension m x m for each RoI and each class; K classes in total. Thus, the total output is of size $K \\cdot m^2$. Because the model is trying to learn a mask for each class, there is no competition among classes for generating masks.\n$\\mathcal{L}_\\text{mask}$ is defined as the average binary cross-entropy loss, only including k-th mask if the region is associated with the ground truth class k.\n$$ \\mathcal{L}_\\text{mask} = - \\frac{1}{m^2} \\sum_{1 \\leq i, j \\leq m} \\big[ y_{ij} \\log \\hat{y}^k_{ij} + (1-y_{ij}) \\log (1- \\hat{y}^k_{ij}) \\big] $$ where $y_{ij}$ is the label of a cell (i, j) in the true mask for the region of size m x m; $\\hat{y}_{ij}^k$ is the predicted value of the same cell in the mask learned for the ground-truth class k.\nSummary of Models in the R-CNN family Here I illustrate model designs of R-CNN, Fast R-CNN, Faster R-CNN and Mask R-CNN. You can track how one model evolves to the next version by comparing the small differences.\nCited as:\n@article{weng2017detection3, title = \"Object Detection for Dummies Part 3: R-CNN Family\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2017\", url = \"https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/\" } Reference [1] Ross Girshick, Jeff Donahue, Trevor Darrell, and Jitendra Malik. “Rich feature hierarchies for accurate object detection and semantic segmentation.” In Proc. IEEE Conf. on computer vision and pattern recognition (CVPR), pp. 580-587. 2014.\n[2] Ross Girshick. “Fast R-CNN.” In Proc. IEEE Intl. Conf. on computer vision, pp. 1440-1448. 2015.\n[3] Shaoqing Ren, Kaiming He, Ross Girshick, and Jian Sun. “Faster R-CNN: Towards real-time object detection with region proposal networks.” In Advances in neural information processing systems (NIPS), pp. 91-99. 2015.\n[4] Kaiming He, Georgia Gkioxari, Piotr Dollár, and Ross Girshick. “Mask R-CNN.” arXiv preprint arXiv:1703.06870, 2017.\n[5] Joseph Redmon, Santosh Divvala, Ross Girshick, and Ali Farhadi. “You only look once: Unified, real-time object detection.” In Proc. IEEE Conf. on computer vision and pattern recognition (CVPR), pp. 779-788. 2016.\n[6] “A Brief History of CNNs in Image Segmentation: From R-CNN to Mask R-CNN” by Athelas.\n[7] Smooth L1 Loss: https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf\n",
+  "wordCount" : "2709",
+  "inLanguage": "en",
+  "datePublished": "2017-12-31T00:00:00Z",
+  "dateModified": "2017-12-31T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Object Detection for Dummies Part 3: R-CNN Family
+    </h1>
+    <div class="post-meta">Date: December 31, 2017  |  Estimated Reading Time: 13 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#r-cnn" aria-label="R-CNN">R-CNN</a><ul>
+                        
+                <li>
+                    <a href="#model-workflow" aria-label="Model Workflow">Model Workflow</a></li>
+                <li>
+                    <a href="#bounding-box-regression" aria-label="Bounding Box Regression">Bounding Box Regression</a></li>
+                <li>
+                    <a href="#common-tricks" aria-label="Common Tricks">Common Tricks</a></li>
+                <li>
+                    <a href="#speed-bottleneck" aria-label="Speed Bottleneck">Speed Bottleneck</a></li></ul>
+                </li>
+                <li>
+                    <a href="#fast-r-cnn" aria-label="Fast R-CNN">Fast R-CNN</a><ul>
+                        
+                <li>
+                    <a href="#roi-pooling" aria-label="RoI Pooling">RoI Pooling</a></li>
+                <li>
+                    <a href="#model-workflow-1" aria-label="Model Workflow">Model Workflow</a></li>
+                <li>
+                    <a href="#loss-function" aria-label="Loss Function">Loss Function</a></li>
+                <li>
+                    <a href="#speed-bottleneck-1" aria-label="Speed Bottleneck">Speed Bottleneck</a></li></ul>
+                </li>
+                <li>
+                    <a href="#faster-r-cnn" aria-label="Faster R-CNN">Faster R-CNN</a><ul>
+                        
+                <li>
+                    <a href="#model-workflow-2" aria-label="Model Workflow">Model Workflow</a></li>
+                <li>
+                    <a href="#loss-function-1" aria-label="Loss Function">Loss Function</a></li></ul>
+                </li>
+                <li>
+                    <a href="#mask-r-cnn" aria-label="Mask R-CNN">Mask R-CNN</a><ul>
+                        
+                <li>
+                    <a href="#roialign" aria-label="RoIAlign">RoIAlign</a></li>
+                <li>
+                    <a href="#loss-function-2" aria-label="Loss Function">Loss Function</a></li></ul>
+                </li>
+                <li>
+                    <a href="#summary-of-models-in-the-r-cnn-family" aria-label="Summary of Models in the R-CNN family">Summary of Models in the R-CNN family</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- In Part 3, we would examine four object detection models: R-CNN, Fast R-CNN, Faster R-CNN, and Mask R-CNN. These models are highly related and the new versions show great speed improvement compared to the older ones. -->
+<p><span class="update">[Updated on 2018-12-20: Remove YOLO here. Part 4 will cover multiple fast object detection algorithms, including YOLO.]</span>
+<br/>
+<span class="update">[Updated on 2018-12-27: Add <a href="#bounding-box-regression">bbox regression</a> and <a href="#common-tricks">tricks</a> sections for R-CNN.]</span></p>
+<p>In the series of &ldquo;Object Detection for Dummies&rdquo;, we started with basic concepts in image processing, such as gradient vectors and HOG, in <a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/">Part 1</a>. Then we introduced classic convolutional neural network architecture designs for classification and pioneer models for object recognition, Overfeat and DPM, in <a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">Part 2</a>. In the third post of this series, we are about to review a set of models in the R-CNN (&ldquo;Region-based CNN&rdquo;) family.</p>
+<p>Links to all the posts in the series:
+[<a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/">Part 1</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">Part 2</a>]
+[<a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/">Part 3</a>]
+[<a href="https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/">Part 4</a>].</p>
+<p>Here is a list of papers covered in this post ;)</p>
+<table>
+  <thead>
+      <tr>
+          <th><strong>Model</strong></th>
+          <th><strong>Goal</strong></th>
+          <th><strong>Resources</strong></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>R-CNN</td>
+          <td>Object recognition</td>
+          <td>[<a href="https://arxiv.org/abs/1311.2524">paper</a>][<a href="https://github.com/rbgirshick/rcnn">code</a>]</td>
+      </tr>
+      <tr>
+          <td>Fast R-CNN</td>
+          <td>Object recognition</td>
+          <td>[<a href="https://arxiv.org/abs/1504.08083">paper</a>][<a href="https://github.com/rbgirshick/fast-rcnn">code</a>]</td>
+      </tr>
+      <tr>
+          <td>Faster R-CNN</td>
+          <td>Object recognition</td>
+          <td>[<a href="https://arxiv.org/abs/1506.01497">paper</a>][<a href="https://github.com/rbgirshick/py-faster-rcnn">code</a>]</td>
+      </tr>
+      <tr>
+          <td>Mask R-CNN</td>
+          <td>Image segmentation</td>
+          <td>[<a href="https://arxiv.org/abs/1703.06870">paper</a>][<a href="https://github.com/CharlesShang/FastMaskRCNN">code</a>]</td>
+      </tr>
+  </tbody>
+</table>
+<h1 id="r-cnn">R-CNN<a hidden class="anchor" aria-hidden="true" href="#r-cnn">#</a></h1>
+<p>R-CNN (<a href="https://arxiv.org/abs/1311.2524">Girshick et al., 2014</a>) is short for &ldquo;Region-based Convolutional Neural Networks&rdquo;. The main idea is composed of two steps. First, using <a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/#selective-search">selective search</a>, it identifies a manageable number of bounding-box object region candidates (&ldquo;region of interest&rdquo; or &ldquo;RoI&rdquo;). And then it extracts CNN features from each region independently for classification.</p>
+<figure>
+	<img src="RCNN.png" style="width: 100%;"  />
+	<figcaption>The architecture of R-CNN. (Image source: <a href="https://arxiv.org/abs/1311.2524" target="_blank">Girshick et al., 2014</a>)</figcaption>
+</figure>
+<h2 id="model-workflow">Model Workflow<a hidden class="anchor" aria-hidden="true" href="#model-workflow">#</a></h2>
+<p>How R-CNN works can be summarized as follows:</p>
+<ol>
+<li><strong>Pre-train</strong> a CNN network on image classification tasks; for example, VGG or ResNet trained on <a href="http://image-net.org/index">ImageNet</a> dataset. The classification task involves N classes.
+<br /></li>
+</ol>
+<blockquote>
+<p>NOTE: You can find a pre-trained <a href="https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet">AlexNet</a> in Caffe Model <a href="https://github.com/caffe2/caffe2/wiki/Model-Zoo">Zoo</a>. I don’t think you can <a href="https://github.com/tensorflow/models/issues/1394">find it</a> in Tensorflow, but Tensorflow-slim model <a href="https://github.com/tensorflow/models/tree/master/research/slim">library</a> provides pre-trained ResNet, VGG, and others.</p>
+</blockquote>
+<ol start="2">
+<li>Propose category-independent regions of interest by selective search (~2k candidates per image). Those regions may contain target objects and they are of different sizes.</li>
+<li>Region candidates are <strong>warped</strong> to have a fixed size as required by CNN.</li>
+<li>Continue fine-tuning the CNN on warped proposal regions for K + 1 classes; The additional one class refers to the background (no object of interest). In the fine-tuning stage, we should use a much smaller learning rate and the mini-batch oversamples the positive cases because most proposed regions are just background.</li>
+<li>Given every image region, one forward propagation through the CNN generates a feature vector. This feature vector is then consumed by a <strong>binary SVM</strong> trained for <strong>each class</strong> independently.
+<br />
+The positive samples are proposed regions with IoU (intersection over union) overlap threshold &gt;= 0.3, and negative samples are irrelevant others.</li>
+<li>To reduce the localization errors, a regression model is trained to correct the predicted detection window on bounding box correction offset using CNN features.</li>
+</ol>
+<h2 id="bounding-box-regression">Bounding Box Regression<a hidden class="anchor" aria-hidden="true" href="#bounding-box-regression">#</a></h2>
+<p>Given a predicted bounding box coordinate $\mathbf{p} = (p_x, p_y, p_w, p_h)$ (center coordinate, width, height) and its corresponding ground truth box coordinates $\mathbf{g} = (g_x, g_y, g_w, g_h)$ , the regressor is configured to learn scale-invariant transformation between two centers and log-scale transformation between widths and heights. All the transformation functions take $\mathbf{p}$ as input.</p>
+<div>
+$$
+\begin{aligned}
+\hat{g}_x &= p_w d_x(\mathbf{p}) + p_x \\
+\hat{g}_y &= p_h d_y(\mathbf{p}) + p_y \\
+\hat{g}_w &= p_w \exp({d_w(\mathbf{p})}) \\
+\hat{g}_h &= p_h \exp({d_h(\mathbf{p})})
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="RCNN-bbox-regression.png" style="width: 60%;"  />
+	<figcaption>Illustration of transformation between predicted and ground truth bounding boxes.</figcaption>
+</figure>
+<p>An obvious benefit of applying such transformation is that all the bounding box correction functions, $d_i(\mathbf{p})$ where $i \in \{ x, y, w, h \}$, can take any value between [-∞, +∞]. The targets for them to learn are:</p>
+<div>
+$$
+\begin{aligned}
+t_x &= (g_x - p_x) / p_w \\
+t_y &= (g_y - p_y) / p_h \\
+t_w &= \log(g_w/p_w) \\
+t_h &= \log(g_h/p_h)
+\end{aligned}
+$$
+</div>
+<p>A standard regression model can solve the problem by minimizing the SSE loss with regularization:</p>
+<div>
+$$
+\mathcal{L}_\text{reg} = \sum_{i \in \{x, y, w, h\}} (t_i - d_i(\mathbf{p}))^2 + \lambda \|\mathbf{w}\|^2
+$$
+</div>
+<p>The regularization term is critical here and RCNN paper picked the best λ by cross validation. It is also noteworthy that not all the predicted bounding boxes have corresponding ground truth boxes. For example, if there is no overlap, it does not make sense to run bbox regression. Here, only a predicted box with a nearby ground truth box with at least 0.6 IoU is kept for training the bbox regression model.</p>
+<h2 id="common-tricks">Common Tricks<a hidden class="anchor" aria-hidden="true" href="#common-tricks">#</a></h2>
+<p>Several tricks are commonly used in RCNN and other detection models.</p>
+<p><strong>Non-Maximum Suppression</strong></p>
+<p>Likely the model is able to find multiple bounding boxes for the same object. Non-max suppression helps avoid repeated detection of the same instance. After we get a set of matched bounding boxes for the same object category:
+Sort all the bounding boxes by confidence score.
+Discard boxes with low confidence scores.
+<em>While</em> there is any remaining bounding box, repeat the following:
+Greedily select the one with the highest score.
+Skip the remaining boxes with high IoU (i.e. &gt; 0.5) with previously selected one.</p>
+<figure>
+	<img src="non-max-suppression.png"  />
+	<figcaption>Multiple bounding boxes detect the car in the image. After non-maximum suppression, only the best remains and the rest are ignored as they have large overlaps with the selected one. (Image source: <a href="http://lear.inrialpes.fr/~oneata/reading_group/dpm.pdf" target="_blank">DPM paper</a>)</figcaption>
+</figure>
+<p><strong>Hard Negative Mining</strong></p>
+<p>We consider bounding boxes without objects as negative examples. Not all the negative examples are equally hard to be identified. For example, if it holds pure empty background, it is likely an “<em>easy negative</em>”; but if the box contains weird noisy texture or partial object, it could be hard to be recognized and these are “<em>hard negative</em>”.</p>
+<p>The hard negative examples are easily misclassified. We can explicitly find those false positive samples during the training loops and include them in the training data so as to improve the classifier.</p>
+<h2 id="speed-bottleneck">Speed Bottleneck<a hidden class="anchor" aria-hidden="true" href="#speed-bottleneck">#</a></h2>
+<p>Looking through the R-CNN learning steps, you could easily find out that training an R-CNN model is expensive and slow, as the following steps involve a lot of work:</p>
+<ul>
+<li>Running selective search to propose 2000 region candidates for every image;</li>
+<li>Generating the CNN feature vector for every image region (N images * 2000).</li>
+<li>The whole process involves three models separately without much shared computation: the convolutional neural network for image classification and feature extraction; the top SVM classifier for identifying target objects; and the regression model for tightening region bounding boxes.</li>
+</ul>
+<h1 id="fast-r-cnn">Fast R-CNN<a hidden class="anchor" aria-hidden="true" href="#fast-r-cnn">#</a></h1>
+<p>To make R-CNN faster, Girshick (<a href="https://arxiv.org/pdf/1504.08083.pdf">2015</a>) improved the training procedure by unifying three independent models into one jointly trained framework and increasing shared computation results, named <strong>Fast R-CNN</strong>. Instead of extracting CNN feature vectors independently for each region proposal, this model aggregates them into one CNN forward pass over the entire image and the region proposals share this feature matrix. Then the same feature matrix is branched out to be used for learning the object classifier and the bounding-box regressor. In conclusion, computation sharing speeds up R-CNN.</p>
+<figure>
+	<img src="fast-RCNN.png" style="width: 540px;"  />
+	<figcaption>The architecture of Fast R-CNN. (Image source: <a href="https://arxiv.org/pdf/1504.08083.pdf" target="_blank">Girshick, 2015</a>)</figcaption>
+</figure>
+<h2 id="roi-pooling">RoI Pooling<a hidden class="anchor" aria-hidden="true" href="#roi-pooling">#</a></h2>
+<p>It is a type of max pooling to convert features in the projected region of the image of any size, h x w, into a small fixed window, H x W. The input region is divided into H x W grids, approximately every subwindow of size h/H x w/W. Then apply max-pooling in each grid.</p>
+<figure>
+	<img src="roi-pooling.png" style="width: 540px;"  />
+	<figcaption>RoI pooling (Image source: <a href="http://cs231n.stanford.edu/slides/2016/winter1516_lecture8.pdf" target="_blank">Stanford CS231n slides</a>.)</figcaption>
+</figure>
+<h2 id="model-workflow-1">Model Workflow<a hidden class="anchor" aria-hidden="true" href="#model-workflow-1">#</a></h2>
+<p>How Fast R-CNN works is summarized as follows; many steps are same as in R-CNN:</p>
+<ol>
+<li>First, pre-train a convolutional neural network on image classification tasks.</li>
+<li>Propose regions by selective search (~2k candidates per image).</li>
+<li>Alter the pre-trained CNN:
+<ul>
+<li>Replace the last max pooling layer of the pre-trained CNN with a <a href="#roi-pooling">RoI pooling</a> layer. The RoI pooling layer outputs fixed-length feature vectors of region proposals. Sharing the CNN computation makes a lot of sense, as many region proposals of the same images are highly overlapped.</li>
+<li>Replace the last fully connected layer and the last softmax layer (K classes) with a fully connected layer and softmax over K + 1 classes.</li>
+</ul>
+</li>
+<li>Finally the model branches into two output layers:
+<ul>
+<li>A softmax estimator of K + 1 classes (same as in R-CNN, +1 is the &ldquo;background&rdquo; class), outputting a discrete probability distribution per RoI.</li>
+<li>A bounding-box regression model which predicts offsets relative to the original RoI for each of K classes.</li>
+</ul>
+</li>
+</ol>
+<h2 id="loss-function">Loss Function<a hidden class="anchor" aria-hidden="true" href="#loss-function">#</a></h2>
+<p>The model is optimized for a loss combining two tasks (classification + localization):</p>
+<p>| <strong>Symbol</strong> | <strong>Explanation</strong> |
+| $u$ | True class label, $ u \in 0, 1, \dots, K$; by convention, the catch-all background class has $u = 0$. |
+| $p$ | Discrete probability distribution (per RoI) over K + 1 classes: $p = (p_0, \dots, p_K)$, computed by a softmax over the K + 1 outputs of a fully connected layer. |
+| $v$ | True bounding box $ v = (v_x, v_y, v_w, v_h) $. |
+| $t^u$ | Predicted bounding box correction, $t^u = (t^u_x, t^u_y, t^u_w, t^u_h)$. See <a href="#bounding-box-regression">above</a>. |
+{:.info}</p>
+<p>The loss function sums up the cost of classification and bounding box prediction: $\mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box}$. For &ldquo;background&rdquo; RoI, $\mathcal{L}_\text{box}$ is ignored by the indicator function $\mathbb{1} [u \geq 1]$, defined as:</p>
+<div>
+$$
+\mathbb{1} [u >= 1] = \begin{cases}
+    1  & \text{if } u \geq 1\\
+    0  & \text{otherwise}
+\end{cases}
+$$
+</div>
+<p>The overall loss function is:</p>
+<div>
+$$
+\begin{align*}
+\mathcal{L}(p, u, t^u, v) &= \mathcal{L}_\text{cls} (p, u) + \mathbb{1} [u \geq 1] \mathcal{L}_\text{box}(t^u, v) \\
+\mathcal{L}_\text{cls}(p, u) &= -\log p_u \\
+\mathcal{L}_\text{box}(t^u, v) &= \sum_{i \in \{x, y, w, h\}} L_1^\text{smooth} (t^u_i - v_i)
+\end{align*}
+$$
+</div>
+<p>The bounding box loss $\mathcal{L}_{box}$ should measure the difference between $t^u_i$ and $v_i$ using a <strong>robust</strong> loss function. The <a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf">smooth L1 loss</a> is adopted here and it is claimed to be less sensitive to outliers.</p>
+<div>
+$$
+L_1^\text{smooth}(x) = \begin{cases}
+    0.5 x^2             & \text{if } \vert x \vert < 1\\
+    \vert x \vert - 0.5 & \text{otherwise}
+\end{cases}
+$$
+</div>
+<figure>
+	<img src="l1-smooth.png" style="width: 240px;"  />
+	<figcaption>The plot of smooth L1 loss, $y = L\_1^\text{smooth}(x)$. (Image source: <a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf" target="_blank">link</a>)</figcaption>
+</figure>
+<h2 id="speed-bottleneck-1">Speed Bottleneck<a hidden class="anchor" aria-hidden="true" href="#speed-bottleneck-1">#</a></h2>
+<p>Fast R-CNN is much faster in both training and testing time. However, the improvement is not dramatic because the region proposals are generated separately by another model and that is very expensive.</p>
+<h1 id="faster-r-cnn">Faster R-CNN<a hidden class="anchor" aria-hidden="true" href="#faster-r-cnn">#</a></h1>
+<p>An intuitive speedup solution is to integrate the region proposal algorithm into the CNN model. <strong>Faster R-CNN</strong> (<a href="https://arxiv.org/pdf/1506.01497.pdf">Ren et al., 2016</a>) is doing exactly this: construct a single, unified model composed of RPN (region proposal network) and fast R-CNN with shared convolutional feature layers.</p>
+<figure>
+	<img src="faster-RCNN.png" style="width: 100%;"  />
+	<figcaption>An illustration of Faster R-CNN model. (Image source: <a href="https://arxiv.org/pdf/1506.01497.pdf" target="_blank">Ren et al., 2016</a>)</figcaption>
+</figure>
+<h2 id="model-workflow-2">Model Workflow<a hidden class="anchor" aria-hidden="true" href="#model-workflow-2">#</a></h2>
+<ol>
+<li>Pre-train a CNN network on image classification tasks.</li>
+<li>Fine-tune the RPN (region proposal network) end-to-end for the region proposal task, which is initialized by the pre-train image classifier. Positive samples have IoU (intersection-over-union) &gt; 0.7, while negative samples have IoU &lt; 0.3.
+<ul>
+<li>Slide a small n x n spatial window over the conv feature map of the entire image.</li>
+<li>At the center of each sliding window, we predict multiple regions of various scales and ratios simultaneously. An anchor is a combination of (sliding window center, scale, ratio). For example, 3 scales + 3 ratios =&gt; k=9 anchors at each sliding position.</li>
+</ul>
+</li>
+<li>Train a Fast R-CNN object detection model using the proposals generated by the current RPN</li>
+<li>Then use the Fast R-CNN network to initialize RPN training. While keeping the shared convolutional layers, only fine-tune the RPN-specific layers. At this stage, RPN and the detection network have shared convolutional layers!</li>
+<li>Finally fine-tune the unique layers of Fast R-CNN</li>
+<li>Step 4-5 can be repeated to train RPN and Fast R-CNN alternatively if needed.</li>
+</ol>
+<h2 id="loss-function-1">Loss Function<a hidden class="anchor" aria-hidden="true" href="#loss-function-1">#</a></h2>
+<p>Faster R-CNN is optimized for a multi-task loss function, similar to fast R-CNN.</p>
+<p>| <strong>Symbol</strong>  | <strong>Explanation</strong> |
+| $p_i$     | Predicted probability of anchor i being an object. |
+| $p^*_i$   | Ground truth label (binary) of whether anchor i is an object. |
+| $t_i$     | Predicted four parameterized coordinates. |
+| $t^*_i$   | Ground truth coordinates. |
+| $N_\text{cls}$ | Normalization term, set to be mini-batch size (~256) in the paper. |
+| $N_\text{box}$ | Normalization term, set to the number of anchor locations (~2400) in the paper. |
+| $\lambda$ | A balancing parameter, set to be ~10 in the paper (so that both $\mathcal{L}_\text{cls}$ and $\mathcal{L}_\text{box}$ terms are roughly equally weighted). |
+{:.info}</p>
+<p>The multi-task loss function combines the losses of classification and bounding box regression:</p>
+<div>
+$$
+\begin{align*}
+\mathcal{L} &= \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} \\
+\mathcal{L}(\{p_i\}, \{t_i\}) &= \frac{1}{N_\text{cls}} \sum_i \mathcal{L}_\text{cls} (p_i, p^*_i) + \frac{\lambda}{N_\text{box}} \sum_i p^*_i \cdot L_1^\text{smooth}(t_i - t^*_i) \\
+\end{align*}
+$$
+</div>
+<p>where $\mathcal{L}_\text{cls}$ is the log loss function over two classes, as we can easily translate a multi-class classification into a binary classification by predicting a sample being a target object versus not. $L_1^\text{smooth}$ is the smooth L1 loss.</p>
+<div>
+$$
+\mathcal{L}_\text{cls} (p_i, p^*_i) = - p^*_i \log p_i - (1 - p^*_i) \log (1 - p_i)
+$$
+</div>
+<h1 id="mask-r-cnn">Mask R-CNN<a hidden class="anchor" aria-hidden="true" href="#mask-r-cnn">#</a></h1>
+<p>Mask R-CNN (<a href="https://arxiv.org/pdf/1703.06870.pdf">He et al., 2017</a>) extends Faster R-CNN to pixel-level <a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/#image-segmentation-felzenszwalbs-algorithm">image segmentation</a>. The key point is to decouple the classification and the pixel-level mask prediction tasks. Based on the framework of <a href="#faster-r-cnn">Faster R-CNN</a>, it added a third branch for predicting an object mask in parallel with the existing branches for classification and localization. The mask branch is a small fully-connected network applied to each RoI, predicting a segmentation mask in a pixel-to-pixel manner.</p>
+<figure>
+	<img src="mask-rcnn.png" style="width: 550px;"  />
+	<figcaption>Mask R-CNN is Faster R-CNN model with image segmentation. (Image source: <a href="https://arxiv.org/pdf/1703.06870.pdf" target="_blank">He et al., 2017</a>)</figcaption>
+</figure>
+<p>Because pixel-level segmentation requires much more fine-grained alignment than bounding boxes, mask R-CNN improves the RoI pooling layer (named &ldquo;RoIAlign layer&rdquo;) so that RoI can be better and more precisely mapped to the regions of the original image.</p>
+<figure>
+	<img src="mask-rcnn-examples.png" style="width: 100%;"  />
+	<figcaption>Predictions by Mask R-CNN on COCO test set. (Image source: <a href="https://arxiv.org/pdf/1703.06870.pdf" target="_blank">He et al., 2017</a>)</figcaption>
+</figure>
+<h2 id="roialign">RoIAlign<a hidden class="anchor" aria-hidden="true" href="#roialign">#</a></h2>
+<p>The RoIAlign layer is designed to fix the location misalignment caused by quantization in the RoI pooling. RoIAlign removes the hash quantization, for example, by using x/16 instead of [x/16], so that the extracted features can be properly aligned with the input pixels. <a href="https://en.wikipedia.org/wiki/Bilinear_interpolation">Bilinear interpolation</a> is used for computing the floating-point location values in the input.</p>
+<figure>
+	<img src="roi-align.png" style="width: 640px;"  />
+	<figcaption>A region of interest is mapped **accurately** from the original image onto the feature map without rounding up to integers. (Image source: <a href="https://blog.athelas.com/a-brief-history-of-cnns-in-image-segmentation-from-r-cnn-to-mask-r-cnn-34ea83205de4" target="_blank">link</a>)</figcaption>
+</figure>
+<h2 id="loss-function-2">Loss Function<a hidden class="anchor" aria-hidden="true" href="#loss-function-2">#</a></h2>
+<p>The multi-task loss function of Mask R-CNN combines the loss of classification, localization and segmentation mask: $ \mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} + \mathcal{L}_\text{mask}$, where $\mathcal{L}_\text{cls}$ and $\mathcal{L}_\text{box}$ are same as in Faster R-CNN.</p>
+<p>The mask branch generates a mask of dimension m x m for each RoI and each class; K classes in total. Thus, the total output is of size $K \cdot m^2$. Because the model is trying to learn a mask for each class, there is no competition among classes for generating masks.</p>
+<p>$\mathcal{L}_\text{mask}$ is defined as the average binary cross-entropy loss, only including k-th mask if the region is associated with the ground truth class k.</p>
+<div>
+$$
+\mathcal{L}_\text{mask} = - \frac{1}{m^2} \sum_{1 \leq i, j \leq m} \big[ y_{ij} \log \hat{y}^k_{ij} + (1-y_{ij}) \log (1- \hat{y}^k_{ij}) \big]
+$$
+</div>
+<p>where $y_{ij}$ is the label of a cell (i, j) in the true mask for the region of size m x m; $\hat{y}_{ij}^k$ is the predicted value of the same cell in the mask learned for the ground-truth class k.</p>
+<h1 id="summary-of-models-in-the-r-cnn-family">Summary of Models in the R-CNN family<a hidden class="anchor" aria-hidden="true" href="#summary-of-models-in-the-r-cnn-family">#</a></h1>
+<p>Here I illustrate model designs of R-CNN, Fast R-CNN, Faster R-CNN and Mask R-CNN. You can track how one model evolves to the next version by comparing the small differences.</p>
+<figure>
+	<img src="rcnn-family-summary.png" style="width: 100%;"  />
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2017detection3,
+  title   = &#34;Object Detection for Dummies Part 3: R-CNN Family&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2017&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Ross Girshick, Jeff Donahue, Trevor Darrell, and Jitendra Malik. <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Girshick_Rich_Feature_Hierarchies_2014_CVPR_paper.pdf">&ldquo;Rich feature hierarchies for accurate object detection and semantic segmentation.&rdquo;</a> In Proc. IEEE Conf. on computer vision and pattern recognition (CVPR), pp. 580-587. 2014.</p>
+<p>[2] Ross Girshick. <a href="https://arxiv.org/pdf/1504.08083.pdf">&ldquo;Fast R-CNN.&rdquo;</a> In Proc. IEEE Intl. Conf. on computer vision, pp. 1440-1448. 2015.</p>
+<p>[3] Shaoqing Ren, Kaiming He, Ross Girshick, and Jian Sun. <a href="http://papers.nips.cc/paper/5638-faster-r-cnn-towards-real-time-object-detection-with-region-proposal-networks.pdf">&ldquo;Faster R-CNN: Towards real-time object detection with region proposal networks.&rdquo;</a> In Advances in neural information processing systems (NIPS), pp. 91-99. 2015.</p>
+<p>[4] Kaiming He, Georgia Gkioxari, Piotr Dollár, and Ross Girshick. <a href="https://arxiv.org/pdf/1703.06870.pdf">&ldquo;Mask R-CNN.&rdquo;</a> arXiv preprint arXiv:1703.06870, 2017.</p>
+<p>[5] Joseph Redmon, Santosh Divvala, Ross Girshick, and Ali Farhadi. <a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Redmon_You_Only_Look_CVPR_2016_paper.pdf">&ldquo;You only look once: Unified, real-time object detection.&rdquo;</a> In Proc. IEEE Conf. on computer vision and pattern recognition (CVPR), pp. 779-788. 2016.</p>
+<p>[6] <a href="https://blog.athelas.com/a-brief-history-of-cnns-in-image-segmentation-from-r-cnn-to-mask-r-cnn-34ea83205de4">&ldquo;A Brief History of CNNs in Image Segmentation: From R-CNN to Mask R-CNN&rdquo;</a> by Athelas.</p>
+<p>[7] Smooth L1 Loss: <a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf">https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf</a></p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/object-detection/">Object-Detection</a></li>
+      <li><a href="https://lilianweng.github.io/tags/object-recognition/">Object-Recognition</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-model/">Vision-Model</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/">
+    <span class="title">« </span>
+    <br>
+    <span>The Multi-Armed Bandit Problem and Its Solutions</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/">
+    <span class="title"> »</span>
+    <br>
+    <span>Object Detection for Dummies Part 2: CNN, DPM and Overfeat</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on twitter"
+        href="https://twitter.com/intent/tweet/?text=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f&amp;hashtags=object-detection%2cobject-recognition%2cvision-model">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f&amp;title=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family&amp;summary=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f&title=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on whatsapp"
+        href="https://api.whatsapp.com/send?text=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Object Detection for Dummies Part 3: R-CNN Family on telegram"
+        href="https://telegram.me/share/url?text=Object%20Detection%20for%20Dummies%20Part%203%3a%20R-CNN%20Family&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-12-31-object-recognition-part-3%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

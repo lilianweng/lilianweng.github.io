@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Neural Architecture Search | Lil&#39;Log</title>
+<meta name="keywords" content="architecture, reinforcement-learning, evolution, auto-ML" />
+<meta name="description" content="
+Although most popular and successful model architectures are designed by human experts, it doesn&rsquo;t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2020-08-06-nas/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2020-08-06-nas/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Neural Architecture Search" />
+<meta property="og:description" content="
+Although most popular and successful model architectures are designed by human experts, it doesn&rsquo;t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2020-08-06-nas/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-08-06T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2020-08-06T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Neural Architecture Search"/>
+<meta name="twitter:description" content="
+Although most popular and successful model architectures are designed by human experts, it doesn&rsquo;t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Neural Architecture Search",
+      "item": "https://lilianweng.github.io/posts/2020-08-06-nas/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Neural Architecture Search",
+  "name": "Neural Architecture Search",
+  "description": " Although most popular and successful model architectures are designed by human experts, it doesn\u0026rsquo;t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.\n",
+  "keywords": [
+    "architecture", "reinforcement-learning", "evolution", "auto-ML"
+  ],
+  "articleBody": " Although most popular and successful model architectures are designed by human experts, it doesn’t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.\nAutomatically learning and evolving network topologies is not a new idea (Stanley \u0026 Miikkulainen, 2002). In recent years, the pioneering work by Zoph \u0026 Le 2017 and Baker et al. 2017 has attracted a lot of attention into the field of Neural Architecture Search (NAS), leading to many interesting ideas for better, faster and more cost-efficient NAS methods.\nAs I started looking into NAS, I found this nice survey very helpful by Elsken, et al 2019. They characterize NAS as a system with three major components, which is clean \u0026 concise, and also commonly adopted in other NAS papers.\nSearch space: The NAS search space defines a set of operations (e.g. convolution, fully-connected, pooling) and how operations can be connected to form valid network architectures. The design of search space usually involves human expertise, as well as unavoidably human biases. Search algorithm: A NAS search algorithm samples a population of network architecture candidates. It receives the child model performance metrics as rewards (e.g. high accuracy, low latency) and optimizes to generate high-performance architecture candidates. Evaluation strategy: We need to measure, estimate, or predict the performance of a large number of proposed child models in order to obtain feedback for the search algorithm to learn. The process of candidate evaluation could be very expensive and many new methods have been proposed to save time or computation resources. Three main components of Neural Architecture Search (NAS) models. (Image source: Elsken, et al. 2019 with customized annotation in red) Search Space The NAS search space defines a set of basic network operations and how operations can be connected to construct valid network architectures.\nSequential Layer-wise Operations The most naive way to design the search space for neural network architectures is to depict network topologies, either CNN or RNN, with a list of sequential layer-wise operations, as seen in the early work of Zoph \u0026 Le 2017 \u0026 Baker et al. 2017. The serialization of network representation requires a decent amount of expert knowledge, since each operation is associated with different layer-specific parameters and such associations need to be hardcoded. For example, after predicting a conv op, the model should output kernel size, stride size, etc; or after predicting an FC op, we need to see the number of units as the next prediction.\n(Top) A sequential representation of CNN. (Bottom) A sequential representation of the tree structure of a recurrent cell. (Image source: Zoph \u0026 Le 2017) To make sure the generated architecture is valid, additional rules might be needed (Zoph \u0026 Le 2017):\nIf a layer is not connected to any input layer then it is used as the input layer; At the final layer, take all layer outputs that have not been connected and concatenate them; If one layer has many input layers, then all input layers are concatenated in the depth dimension; If input layers to be concatenated have different sizes, we pad the small layers with zeros so that the concatenated layers have the same sizes. The skip connection can be predicted as well, using an attention-style mechanism. At layer $i$ , an anchor point is added with $i−1$ content-based sigmoids to indicate which of the previous layers to be connected. Each sigmoid takes as input the hidden states of the current node $h_i$ and $i-1$ previous nodes $h_j, j=1, \\dots, i-1$ .\n$$ P(\\text{Layer j is an input to layer i}) = \\text{sigmoid}(v^\\top \\tanh(\\mathbf{W}_\\text{prev} h_j + \\mathbf{W}_\\text{curr} h_i)) $$ The sequential search space has a lot of representation power, but it is very large and consumes a ton of computation resources to exhaustively cover the search space. In the experiments by Zoph \u0026 Le 2017, they were running 800 GPUs in parallel for 28 days and Baker et al. 2017 restricted the search space to contain at most 2 FC layers.\nCell-based Representation Inspired by the design of using repeated modules in successful vision model architectures (e.g. Inception, ResNet), the NASNet search space (Zoph et al. 2018) defines the architecture of a conv net as the same cell getting repeated multiple times and each cell contains several operations predicted by the NAS algorithm. A well-designed cell module enables transferability between datasets. It is also easy to scale down or up the model size by adjusting the number of cell repeats.\nPrecisely, the NASNet search space learns two types of cells for network construction:\nNormal Cell: The input and output feature maps have the same dimension. Reduction Cell: The output feature map has its width and height reduced by half. The NASNet search space constrains the architecture as a repeated stack of cells. The cell architecture is optimized via NAS algorithms. (Image source: Zoph et al. 2018) The predictions for each cell are grouped into $B$ blocks ($B=5$ in the NASNet paper), where each block has 5 prediction steps made by 5 distinct softmax classifiers corresponding to discrete choices of the elements of a block. Note that the NASNet search space does not have residual connections between cells and the model only learns skip connections on their own within blocks.\n(a) Each cell consists of $B$ blocks and each block is predicted by 5 discrete decisions. (b) An concrete example of what operations can be chosen in each decision step. During the experiments, they discovered that a modified version of DropPath, named ScheduledDropPath, significantly improves the final performance of NASNet experiments. DropPath stochastically drops out paths (i.e. edges with operations attached in NASNet) with a fixed probability. ScheduledDropPath is DropPath with a linearly increasing probability of path dropping during training time.\nElsken, et al (2019) point out three major advantages of the NASNet search space:\nThe search space size is reduced drastically; The motif-based architecture can be more easily transferred to different datasets. It demonstrates a strong proof of a useful design pattern of repeatedly stacking modules in architecture engineering. For example, we can build strong models by stacking residual blocks in CNN or stacking multi-headed attention blocks in Transformer. Hierarchical Structure To take advantage of already discovered well-designed network motifs, the NAS search space can be constrained as a hierarchical structure, as in Hierarchical NAS (HNAS; (Liu et al 2017)). It starts with a small set of primitives, including individual operations like convolution operation, pooling, identity, etc. Then small sub-graphs (or “motifs”) that consist of primitive operations are recursively used to form higher-level computation graphs.\nA computation motif at level $\\ell=1, \\dots, L$ can be represented by $(G^{(\\ell)}, \\mathcal{O}^{(\\ell)})$, where:\n$\\mathcal{O}^{(\\ell)}$ is a set of operations, $\\mathcal{O}^{(\\ell)} = \\{ o^{(\\ell)}_1, o^{(\\ell)}_2, \\dots \\}$ $G^{(\\ell)}$ is an adjacency matrix, where the entry $G_{ij}=k$ indicates that operation $o^{(\\ell)}_k$ is placed between node $i$ and $j$. The node indices follow topological ordering in DAG, where the index $1$ is the source and the maximal index is the sink node. (Top) Three level-1 primitive operations are composed into a level-2 motif. (Bottom) Three level-2 motifs are plugged into a base network structure and assembled into a level-3 motif. (Image source: Liu et al 2017) To build a network according to the hierarchical structure, we start from the lowest level $\\ell=1$ and recursively define the $m$-th motif operation at level $\\ell$ as\n$$ o^{(\\ell)}_m = \\text{assemble}\\Big( G_m^{(\\ell)}, \\mathcal{O}^{(\\ell-1)} \\Big) $$ A hierarchical representation becomes $\\Big( \\big\\{ \\{ G_m^{(\\ell)} \\}_{m=1}^{M_\\ell} \\big\\}_{\\ell=2}^L, \\mathcal{O}^{(1)} \\Big), \\forall \\ell=2, \\dots, L$, where $\\mathcal{O}^{(1)}$ contains a set of primitive operations.\nThe $\\text{assemble}()$ process is equivalent to sequentially compute the feature map of node $i$ by aggregating all the feature maps of its predecessor node $j$ following the topological ordering:\n$$ x_i = \\text{merge} \\big[ \\{ o^{(\\ell)}_{G^{(\\ell)}_{ij}}(x_j) \\}_{j \u003c i} \\big], i = 2, \\dots, \\vert G^{(\\ell)} \\vert $$ where $\\text{merge}[]$ is implemented as depth-wise concatenation in the paper.\nSame as NASNet, experiments in Liu et al (2017) focused on discovering good cell architecture within a predefined “macro” structure with repeated modules. They showed that the power of simple search methods (e.g. random search or evolutionary algorithms) can be substantially enhanced using well-designed search spaces.\nCai et al (2018b) propose a tree-structure search space using path-level network transformation. Each node in a tree structure defines an allocation scheme for splitting inputs for child nodes and a merge scheme for combining results from child nodes. The path-level network transformation allows replacing a single layer with a multi-branch motif if its corresponding merge scheme is add or concat.\nAn illustration of transforming a single layer to a tree-structured motif via path-level transformation operations. (Image source: Cai et al. 2018b) Memory-bank Representation A memory-bank representation of feed-forward networks is proposed by Brock et al. (2017) in SMASH. Instead of a graph of operations, they view a neural network as a system with multiple memory blocks which can read and write. Each layer operation is designed to: (1) read from a subset of memory blocks; (2) computes results; finally (3) write the results into another subset of blocks. For example, in a sequential model, a single memory block would get read and overwritten consistently.\nMemory-bank representation of several popular network architecture blocks. (Image source: Brock et al. 2017) Search Algorithms NAS search algorithms sample a population of child networks. It receives the child models’ performance metrics as rewards and learns to generate high-performance architecture candidates. You may a lot in common with the field of hyperparameter search.\nRandom Search Random search is the most naive baseline. It samples a valid architecture candidate from the search space at random and no learning model is involved. Random search has proved to be quite useful in hyperparameter search (Bergstra \u0026 Bengio 2012). With a well-designed search space, random search could be a very challenging baseline to beat.\nReinforcement Learning The initial design of NAS (Zoph \u0026 Le 2017) involves a RL-based controller for proposing child model architectures for evaluation. The controller is implemented as a RNN, outputting a variable-length sequence of tokens used for configuring a network architecture.\nA high level overview of NAS, containing a RNN controller and a pipeline for evaluating child models. (Image source: Zoph \u0026 Le 2017) The controller is trained as a RL task using REINFORCE.\nAction space: The action space is a list of tokens for defining a child network predicted by the controller (See more in the above section). The controller outputs action, $a_{1:T}$, where $T$ is the total number of tokens. Reward: The accuracy of a child network that can be achieved at convergence is the reward for training the controller, $R$. Loss: NAS optimizes the controller parameters $\\theta$ with a REINFORCE loss. We want to maximize the expected reward (high accuracy) with the gradient as follows. The nice thing here with policy gradient is that it works even when the reward is non-differentiable. $$ \\nabla_{\\theta} J(\\theta) = \\sum_{t=1}^T \\mathbb{E}[\\nabla_{\\theta} \\log P(a_t \\vert a_{1:(t-1)}; \\theta) R ] $$ MetaQNN (Baker et al. 2017) trains an agent to sequentially choose CNN layers using Q-learning with an $\\epsilon$-greedy exploration strategy and experience replay. The reward is the validation accuracy as well.\n$$ Q^{(t+1)}(s_t, a_t) = (1 - \\alpha)Q^{(t)}(s_t, a_t) + \\alpha (R_t + \\gamma \\max_{a \\in \\mathcal{A}} Q^{(t)}(s_{t+1}, a')) $$ where a state $s_t$ is a tuple of layer operation and related parameters. An action $a$ determines the connectivity between operations. The Q-value is proportional to how confident we are in two connected operations leading to high accuracy.\nOverview of MetaQNN - designing CNN models with Q-Learning. (Image source: Baker et al. 2017) Evolutionary Algorithms NEAT (short for NeuroEvolution of Augmenting Topologies) is an approach for evolving neural network topologies with genetic algorithm (GA), proposed by Stanley \u0026 Miikkulainen in 2002. NEAT evolves both connection weights and network topology together. Each gene encodes the full information for configuring a network, including node weights and edges. The population grows by applying mutation of both weights and connections, as well as crossover between two parent genes. For more in neuroevolution, please refer to the in-depth survey by Stanley et al. (2019).\nMutations in the NEAT algorithm. (Image source: Fig 3 \u0026 4 in Stanley \u0026 Miikkulainen, 2002) Real et al. (2018) adopt the evolutionary algorithms (EA) as a way to search for high-performance network architectures, named AmoebaNet. They apply the tournament selection method, which at each iteration picks a best candidate out of a random set of samples and places its mutated offspring back into the population. When the tournament size is $1$, it is equivalent to random selection.\nAmoebaNet modified the tournament selection to favor younger genotypes and always discard the oldest models within each cycle. Such an approach, named aging evolution, allows AmoebaNet to cover and explore more search space, rather than to narrow down on good performance models too early.\nPrecisely, in every cycle of the tournament selection with aging regularization (See Figure 11):\nSample $S$ models from the population and the one with highest accuracy is chosen as parent. A child model is produced by mutating parent. Then the child model is trained, evaluated and added back into the population. The oldest model is removed from the population. The algorithm of aging evolution. (Image source: Real et al. 2018) Two types of mutations are applied:\nHidden state mutation: randomly chooses a pairwise combination and rewires a random end such that there is no loop in the graph. Operation mutation: randomly replaces an existing operation with a random one. Two types of mutations in AmoebaNet. (Image source: Real et al. 2018) In their experiments, EA and RL work equally well in terms of the final validation accuracy, but EA has better anytime performance and is able to find smaller models. Here using EA in NAS is still expensive in terms of computation, as each experiment took 7 days with 450 GPUs.\nHNAS (Liu et al 2017) also employs the evolutionary algorithms (the original tournament selection) as their search strategy. In the hierarchical structure search space, each edge is an operation. Thus genotype mutation in their experiments is applied by replacing a random edge with a different operation. The replacement set includes an none op, so it can alter, remove and add an edge. The initial set of genotypes is created by applying a large number of random mutations on “trivial” motifs (all identity mappings).\nProgressive Decision Process Constructing a model architecture is a sequential process. Every additional operator or layer brings extra complexity. If we guide the search model to start the investigation from simple models and gradually evolve to more complex architectures, it is like to introduce “curriculum” into the search model’s learning process.\nProgressive NAS (PNAS; Liu, et al 2018) frames the problem of NAS as a progressive procedure for searching models of increasing complexity. Instead of RL or EA, PNAS adopts a Sequential Model-based Bayesian Optimization (SMBO) as the search strategy. PNAS works similar to A* search, as it searches for models from simple to hard while simultaneously learning a surrogate function to guide the search.\nA* search algorithm (“best-first search”) is a popular algorithm for path finding. The problem is framed as finding a path of smallest cost from a specific starting node to a given target node in a weighted graph. At each iteration, A* finds a path to extend by minimizing: $f(n)=g(n)+h(n)$, where $n$ is the next node, $g(n)$ is the cost from start to $n$, and $h(n)$ is the heuristic function that estimates the minimum cost of going from node $n$ to the goal.\nPNAS uses the NASNet search space. Each block is specified as a 5-element tuple and PNAS only considers the element-wise addition as the step 5 combination operator, no concatenation. Differently, instead of setting the number of blocks $B$ at a fixed number, PNAS starts with $B=1$, a model with only one block in a cell, and gradually increases $B$.\nThe performance on a validation set is used as feedback to train a surrogate model for predicting the performance of novel architectures. With this predictor, we can thus decide which models should be prioritized to be evaluated next. Since the performance predictor should be able to handle various-sized inputs, accuracy, and sample-efficient, they ended up using an RNN model.\nThe algorithm of Progressive NAS. (Image source: Liu, et al 2018) Gradient descent Using gradient descent to update the architecture search model requires an effort to make the process of choosing discrete operations differentiable. These approaches usually combine the learning of both architecture parameters and network weights together into one model. See more in the section on the “one-shot” approach.\nEvaluation Strategy We need to measure, estimate or predict the performance of every child model in order to obtain feedback for optimizing the search algorithm. The process of candidate evaluation could be very expensive and many new evaluation methods have been proposed to save time or computation. When evaluating a child model, we mostly care about its performance measured as accuracy on a validation set. Recent work has started looking into other factors of a model, such as model size and latency, as certain devices may have limitations on memory or demand fast response time.\nTraining from Scratch The most naive approach is to train every child network independently from scratch until convergence and then measure its accuracy on a validation set (Zoph \u0026 Le 2017). It provides solid performance numbers, but one complete train-converge-evaluate loop only generates a single data sample for training the RL controller (let alone RL is known to be sample-inefficient in general). Thus it is very expensive in terms of computation consumption.\nProxy Task Performance There are several approaches for using a proxy task performance as the performance estimator of a child network, which is generally cheaper and faster to calculate:\nTrain on a smaller dataset. Train for fewer epochs. Train and evaluate a down-scaled model in the search stage. For example, once a cell structure is learned, we can play with the number of cell repeats or scale up the number of filters (Zoph et al. 2018). Predict the learning curve. Baker et al (2018) model the prediction of validation accuracies as a time-series regression problem. The features for the regression model ($\\nu$-support vector machine regressions; $\\nu$-SVR) include the early sequences of accuracy per epoch, architecture parameters, and hyperparameters. Parameter Sharing Instead of training every child model independently from scratch. You may ask, ok, what if we fabricate dependency between them and find a way to reuse weights? Some researchers succeeded to make such approaches work.\nInspired by Net2net transformation, Cai et al (2017) proposed Efficient Architecture Search (EAS). EAS sets up an RL agent, known as a meta-controller, to predict function-preserving network transformation so as to grow the network depth or layer width. Because the network is growing incrementally, the weights of previously validated networks can be reused for further exploration. With inherited weights, newly constructed networks only need some light-weighted training.\nA meta-controller learns to generate network transformation actions given the current network architecture, which is specified with a variable-length string. In order to handle architecture configuration of a variable length, the meta-controller is implemented as a bi-directional recurrent network. Multiple actor networks output different transformation decisions:\nNet2WiderNet operation allows to replace a layer with a wider layer, meaning more units for fully-connected layers, or more filters for convolutional layers, while preserving the functionality. Net2DeeperNet operation allows to insert a new layer that is initialized as adding an identity mapping between two layers so as to preserve the functionality. Overview of the RL based meta-controller in Efficient Architecture Search (NAS). After encoding the architecture configuration, it outputs net2net transformation actions through two separate actor networks. (Image source: Cai et al 2017) With similar motivation, Efficient NAS (ENAS; Pham et al. 2018) speeds up NAS (i.e. 1000x less) by aggressively sharing parameters among child models. The core motivation behind ENAS is the observation that all of the sampled architecture graphs can be viewed as sub-graphs of a larger supergraph. All the child networks are sharing weights of this supergraph.\n(Left) The graph represents the entire search space for a 4-node recurrent cell, but only connections in red are active. (Middle) An example of how the left active sub-graph can be translated into a child model architecture. (Right) The network parameters produced by an RNN controller for the architecture in the middle. (Image source: Pham et al. 2018) ENAS alternates between training the shared model weights $\\omega$ and training the controller $\\theta$:\nThe parameters of the controller LSTM $\\theta$ are trained with REINFORCE, where the reward $R(\\mathbf{m}, \\omega)$ is computed on the validation set. The shared parameters of the child models $\\omega$ are trained with standard supervised learning loss. Note that different operators associated with the same node in the supergraph would have their own distinct parameters. Prediction-Based A routine child model evaluation loop is to update model weights via standard gradient descent. SMASH (Brock et al. 2017) proposes a different and interesting idea: Can we predict the model weights directly based on the network architecture parameters?\nThey employ a HyperNet (Ha et al 2016) to directly generate the weights of a model conditioned on an encoding of its architecture configuration. Then the model with HyperNet-generated weights is validated directly. Note that we don’t need extra training for every child model but we do need to train the HyperNet.\nThe algorithm of SMASH. (Image source: Brock et al. 2017) The correlation between model performance with SMASH-generated weights and true validation errors suggests that predicted weights can be used for model comparison, to some extent. We do need a HyperNet of large enough capacity, as the correlation would be corrupted if the HyperNet model is too small compared to the child model size.\nThe algorithm of SMASH. (Image source: Brock et al. 2017) SMASH can be viewed as another way to implement the idea of parameter sharing. One problem of SMASH as pointed out by Pham et al. (2018) is: The usage of HyperNet restricts the weights of SMASH child models to a low-rank space, because weights are generated via tensor products. In comparison, ENAS has no such restrictions.\nOne-Shot Approach: Search + Evaluation Running search \u0026 evaluation independently for a large population of child models is expensive. We have seen promising approaches like Brock et al. (2017) or Pham et al. (2018), where training a single model is enough for emulating any child model in the search space.\nThe one-shot architecture search extends the idea of weight sharing and further combines the learning of architecture generation together with weight parameters. The following approaches all treat child architectures as different sub-graphs of a supergraph with shared weights between common edges in the supergraph.\nBender et al (2018) construct a single large over-parameterized network, known as the One-Shot model, such that it contains every possible operation in the search space. With ScheduledDropPath (the dropout rate is increased over time, which is $r^{1/k}$ at the end of training, where $0 \u003c r \u003c 1$ is a hyperparam and $k$ is the number of incoming paths) and some carefully designed tricks (e.g. ghost batch normalization, L2 regularization only on the active architecture), the training of such a giant model can be stabilized enough and used for evaluating any child model sampled from the supergraph.\nThe architecture of the One-Shot model in Bender et al 2018. Each cell has $N$ choice blocks and each choice block can select up to 2 operations. Solid edges are used in every architecture, where dash lines are optional. (Image source: Bender et al 2018) Once the one-shot model is trained, it is used for evaluating the performance of many different architectures sampled at random by zeroing out or removing some operations. This sampling process can be replaced by RL or evolution.\nThey observed that the difference between the accuracy measured with the one-shot model and the accuracy of the same architecture after a small fine-tuning could be very large. Their hypothesis is that the one-shot model automatically learns to focus on the most useful operations in the network and comes to rely on these operations when they are available. Thus zeroing out useful operations lead to big reduction in model accuracy, while removing less important components only causes a small impact — Therefore, we see a larger variance in scores when using the one-shot model for evaluation.\nA stratified sample of models with different one-shot model accuracy versus their true validation accuracy as stand-alone models. (Image source: Bender et al 2018) Clearly designing such a search graph is not a trivial task, but it demonstrates a strong potential with the one-shot approach. It works well with only gradient descent and no additional algorithm like RL or EA is a must.\nSome believe that one main cause for inefficiency in NAS is to treat the architecture search as a black-box optimization and thus we fall into methods like RL, evolution, SMBO, etc. If we shift to rely on standard gradient descent, we could potentially make the search process more effectively. As a result, Liu et al (2019) propose Differentiable Architecture Search (DARTS). DARTS introduces a continuous relaxation on each path in the search supergraph, making it possible to jointly train architecture parameters and weights via gradient descent.\nLet’s use the directed acyclic graph (DAG) representation here. A cell is a DAG consisting of a topologically ordered sequence of $N$ nodes. Each node has a latent representation $x_i$ to be learned. Each edge $(i, j)$ is tied to some operation $o^{(i,j)} \\in \\mathcal{O}$ that transforms $x_j$ to compose $x_i$:\n$$ x_i = \\sum_{j \u003c i} o^{(i,j)}(x_j) $$ To make the search space continuous, DARTS relaxes the categorical choice of a particular operation as a softmax over all the operations and the task of architecture search is reduced to learn a set of mixing probabilities $\\alpha = \\{ \\alpha^{(i,j)} \\}$.\n$$ \\bar{o}^{(i,j)}(x) = \\sum_{o\\in\\mathcal{O}} \\frac{\\exp(\\alpha_{ij}^o)}{\\sum_{o'\\in\\mathcal{O}} \\exp(\\alpha^{o'}_{ij})} o(x) $$ where $\\alpha_{ij}$ is a vector of dimension $\\vert \\mathcal{O} \\vert$, containing weights between nodes $i$ and $j$ over different operations.\nThe bilevel optimization exists as we want to optimize both the network weights $w$ and the architecture representation $\\alpha$:\n$$ \\begin{aligned} \\min_\\alpha \u0026 \\mathcal{L}_\\text{validate} (w^*(\\alpha), \\alpha) \\\\ \\text{s.t.} \u0026 w^*(\\alpha) = \\arg\\min_w \\mathcal{L}_\\text{train} (w, \\alpha) \\end{aligned} $$ At step $k$, given the current architecture parameters $\\alpha_{k−1}$, we first optimize weights $w_k$ by moving $w_{k−1}$ in the direction of minimizing the training loss $\\mathcal{L}_\\text{train}(w_{k−1}, \\alpha_{k−1})$ with a learning rate $\\xi$. Next, while keeping the newly updated weights $w_k$ fixed, we update the mixing probabilities so as to minimize the validation loss after a single step of gradient descent w.r.t. the weights:\n$$ J_\\alpha = \\mathcal{L}_\\text{val}(w_k - \\xi \\nabla_w \\mathcal{L}_\\text{train}(w_k, \\alpha_{k-1}), \\alpha_{k-1}) $$ The motivation here is that we want to find an architecture with a low validation loss when its weights are optimized by gradient descent and the one-step unrolled weights serve as the surrogate for $w^∗(\\alpha)$.\nSide note: Earlier we have seen similar formulation in MAML where the two-step optimization happens between task losses and the meta-learner update, as well as framing Domain Randomization as a bilevel optimization for better transfer in the real environment.\nAn illustration of how DARTS applies continuous relaxation on edges in DAG supergraph and identifies the final model. (Image source: Liu et al 2019) $$ \\begin{aligned} \\text{Let }w'_k \u0026= w_k - \\xi \\nabla_w \\mathcal{L}_\\text{train}(w_k, \\alpha_{k-1}) \u0026 \\\\ J_\\alpha \u0026= \\mathcal{L}_\\text{val}(w_k - \\xi \\nabla_w \\mathcal{L}_\\text{train}(w_k, \\alpha_{k-1}), \\alpha_{k-1}) = \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) \u0026 \\\\ \\nabla_\\alpha J_\\alpha \u0026= \\nabla_{\\alpha_{k-1}} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) \\nabla_\\alpha \\alpha_{k-1} + \\nabla_{w'_k} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1})\\nabla_\\alpha w'_k \u0026 \\\\\u0026 \\text{; multivariable chain rule}\\\\ \u0026= \\nabla_{\\alpha_{k-1}} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) + \\nabla_{w'_k} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) \\big( - \\xi \\color{red}{\\nabla^2_{\\alpha, w} \\mathcal{L}_\\text{train}(w_k, \\alpha_{k-1})} \\big) \u0026 \\\\ \u0026\\approx \\nabla_{\\alpha_{k-1}} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) - \\xi \\nabla_{w'_k} \\mathcal{L}_\\text{val}(w'_k, \\alpha_{k-1}) \\color{red}{\\frac{\\nabla_\\alpha \\mathcal{L}_\\text{train}(w_k^+, \\alpha_{k-1}) - \\nabla_\\alpha \\mathcal{L}_\\text{train}(w_k^-, \\alpha_{k-1}) }{2\\epsilon}} \u0026 \\\\ \u0026 \\text{; apply numerical differentiation approximation} \\end{aligned} $$ where the red part is using numerical differentiation approximation where $w_k^+ = w_k + \\epsilon \\nabla_{w’_k} \\mathcal{L}_\\text{val}(w’_k, \\alpha_{k-1})$ and $w_k^- = w_k - \\epsilon \\nabla_{w’_k} \\mathcal{L}_\\text{val}(w’_k, \\alpha_{k-1})$.\nThe algorithm overview of DARTS. (Image source: Liu et al 2019) As another idea similar to DARTS, Stochastic NAS (Xie et al., 2019) applies a continuous relaxation by employing the concrete distribution (CONCRETE = CONtinuous relaxations of disCRETE random variables; Maddison et al 2017) and reparametrization tricks. The goal is same as DARTS, to make the discrete distribution differentiable and thus enable optimization by gradient descent.\nDARTS is able to greatly reduce the cost of GPU hours. Their experiments for searching for CNN cells have $N=7$ and only took 1.5 days with a single GPU. However, it suffers from the high GPU memory consumption issue due to its continuous representation of network architecture. In order to fit the model into the memory of a single GPU, they picked a small $N$.\nTo constrain the GPU memory consumption, ProxylessNAS (Cai et al., 2019) views NAS as a path-level pruning process in DAG and binarizes the architecture parameters to force only one path to be active between two nodes at a time. The probabilities for an edge being either masked out or not are then learned by sampling a few binarized architectures and using BinaryConnect (Courbariaux et al., 2015) to update the corresponding probabilities. ProxylessNAS demonstrates a strong connection between NAS and model compression. By using path-level compression, it is able to save memory consumption by one order of magnitude.\nLet’s continue with the graph representation. In a DAG adjacency matrix $G$ where $G_{ij}$ represents an edge between node $i$ and $j$ and its value can be chosen from the set of $\\vert \\mathcal{O} \\vert$ candidate primitive operations, $\\mathcal{O} = \\{ o_1, \\dots \\}$. The One-Shot model, DARTS and ProxylessNAS all consider each edge as a mixture of operations, $m_\\mathcal{O}$, but with different tweaks.\nIn One-Shot, $m_\\mathcal{O}(x)$ is the sum of all the operations. In DARTS, it is a weighted sum where weights are softmax over a real-valued architecture weighting vector $\\alpha$ of length $\\vert \\mathcal{O} \\vert$. ProxylessNAS transforms the softmax probabilities of $\\alpha$ into a binary gate and uses the binary gate to keep only one operation active at a time.\n$$ \\begin{aligned} m^\\text{one-shot}_\\mathcal{O}(x) \u0026= \\sum_{i=1}^{\\vert \\mathcal{O} \\vert} o_i(x) \\\\ m^\\text{DARTS}_\\mathcal{O}(x) \u0026= \\sum_{i=1}^{\\vert \\mathcal{O} \\vert} p_i o_i(x) = \\sum_{i=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\exp(\\alpha_i)}{\\sum_j \\exp(\\alpha_j)} o_i(x) \\\\ m^\\text{binary}_\\mathcal{O}(x) \u0026= \\sum_{i=1}^{\\vert \\mathcal{O} \\vert} g_i o_i(x) = \\begin{cases} o_1(x) \u0026 \\text{with probability }p_1, \\\\ \\dots \u0026\\\\ o_{\\vert \\mathcal{O} \\vert}(x) \u0026 \\text{with probability }p_{\\vert \\mathcal{O} \\vert} \\end{cases} \\\\ \\text{ where } g \u0026= \\text{binarize}(p_1, \\dots, p_N) = \\begin{cases} [1, 0, \\dots, 0] \u0026 \\text{with probability }p_1, \\\\ \\dots \u0026 \\\\ [0, 0, \\dots, 1] \u0026 \\text{with probability }p_N. \\\\ \\end{cases} \\end{aligned} $$ ProxylessNAS has two training steps running alternatively. (Image source: Cai et al., 2019) ProxylessNAS runs two training steps alternatively:\nWhen training weight parameters $w$, it freezes the architecture parameters $\\alpha$ and stochastically samples binary gates $g$ according to the above $m^\\text{binary}_\\mathcal{O}(x)$. The weight parameters can be updated with standard gradient descent. When training architecture parameters $\\alpha$, it freezes $w$, resets the binary gates and then updates $\\alpha$ on the validation set. Following the idea of BinaryConnect, the gradient w.r.t. architecture parameters can be approximately estimated using $\\partial \\mathcal{L} / \\partial g_i$ in replacement for $\\partial \\mathcal{L} / \\partial p_i$: $$ \\begin{aligned} \\frac{\\partial \\mathcal{L}}{\\partial \\alpha_i} \u0026= \\sum_{j=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\partial \\mathcal{L}}{\\partial p_j} \\frac{\\partial p_j}{\\partial \\alpha_i} \\approx \\sum_{j=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\partial \\mathcal{L}}{\\partial g_j} \\frac{\\partial p_j}{\\partial \\alpha_i} = \\sum_{j=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\partial \\mathcal{L}}{\\partial g_j} \\frac{\\partial \\frac{e^{\\alpha_j}}{\\sum_k e^{\\alpha_k}}}{\\partial \\alpha_i} \\\\ \u0026= \\sum_{j=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\partial \\mathcal{L}}{\\partial g_j} \\frac{\\sum_k e^{\\alpha_k} (\\mathbf{1}_{i=j} e^{\\alpha_j}) - e^{\\alpha_j} e^{\\alpha_i} }{(\\sum_k e^{\\alpha_k})^2} = \\sum_{j=1}^{\\vert \\mathcal{O} \\vert} \\frac{\\partial \\mathcal{L}}{\\partial g_j} p_j (\\mathbf{1}_{i=j} -p_i) \\end{aligned} $$ Instead of BinaryConnect, REINFORCE can also be used for parameter updates with the goal for maximizing the reward, while no RNN meta-controller is involved.\nComputing $\\partial \\mathcal{L} / \\partial g_i$ needs to calculate and store $o_i(x)$, which requires $\\vert \\mathcal{O} \\vert$ times GPU memory. To resolve this issue, they factorize the task of choosing one path out of $N$ into multiple binary selection tasks (Intuition: “if a path is the best choice, it should be better than any other path”). At every update step, only two paths are sampled while others are masked. These two selected paths are updated according to the above equation and then scaled properly so that other path weights are unchanged. After this process, one of the sampled paths is enhanced (path weight increases) and the other is attenuated (path weight decreases), while all other paths stay unaltered.\nBesides accuracy, ProxylessNAS also considers latency as an important metric to optimize, as different devices might have very different requirements on inference time latency (e.g. GPU, CPU, mobile). To make latency differentiable, they model latency as a continuous function of the network dimensions. The expected latency of a mixed operation can be written as $\\mathbb{E}[\\text{latency}] = \\sum_j p_j F(o_j)$, where $F(.)$ is a latency prediction model:\nAdd a differentiable latency loss into the training of ProxylessNAS. (Image source: Cai et al., 2019) What’s the Future? So far we have seen many interesting new ideas on automating the network architecture engineering through neural architecture search and many have achieved very impressive performance. However, it is a bit hard to do inference on why some architecture work well and how we can develop modules generalizable across tasks rather than being very dataset-specific.\nAs also noted in Elsken, et al (2019):\n“…, so far it provides little insights into why specific architectures work well and how similar the architectures derived in independent runs would be. Identifying common motifs, providing an understanding why those motifs are important for high performance, and investigating if these motifs generalize over different problems would be desirable.”\nIn the meantime, purely focusing on improvement over validation accuracy might not be enough (Cai et al., 2019). Devices like mobile phones for daily usage in general have limited memory and computation power. While AI applications are on the way to affect our daily life, it is unavoidable to be more device-specific.\nAnother interesting investigation is to consider unlabelled dataset and self-supervised learning for NAS. The size of labelled dataset is always limited and it is not easy to tell whether such a dataset has biases or big deviation from the real world data distribution.\nLiu et al (2020) delve into the question “Can we find high-quality neural architecture without human-annotated labels?” and proposed a new setup called Unsupervised Neural Architecture Search (UnNAS). The quality of the architecture needs to be estimated in an unsupervised fashion during the search phase. The paper experimented with three unsupervised pretext tasks: image rotation prediction, colorization, and solving the jigsaw puzzle.\nThey observed in a set of UnNAS experiments that:\nHigh rank correlation between supervised accuracy and pretext accuracy on the same dataset. Typically the rank correlation is higher than 0.8, regardless of the dataset, the search space, and the pretext task. High rank correlation between supervised accuracy and pretext accuracy across datasets. Better pretext accuracy translates to better supervised accuracy. Performance of UnNAS architecture is comparable to supervised counterparts, though not better yet. One hypothesis is that the architecture quality is correlated with image statistics. Because CIFAR-10 and ImageNet are all on the natural images, they are comparable and the results are transferable. UnNAS could potentially enable a much larger amount of unlabelled data into the search phase which captures image statistics better.\nHyperparameter search is a long-standing topic in the ML community. And NAS automates architecture engineering. Gradually we are trying to automate processes in ML which usually demand a lot of human efforts. Taking even one more step further, is it possible to automatically discover ML algorithms? AutoML-Zero (Real et al 2020) investigates this idea. Using aging evolutionary algorithms, AutoML-Zero automatically searches for whole ML algorithms using little restriction on the form with only simple mathematical operations as building blocks.\nIt learns three component functions. Each function only adopts very basic operations.\nSetup: initialize memory variables (weights). Learn: modify memory variables Predict: make a prediction from an input $x$. Algorithm evaluation on one task (Image source: Real et al 2020) Three types of operations are considered when mutating a parent genotype:\nInsert a random instruction or remove an instruction at a random location in a component function; Randomize all the instructions in a component function; Modify one of the arguments of an instruction by replacing it with a random choice (e.g. “swap the output address” or “change the value of a constant”) An illustration of evolutionary progress on projected binary CIFAR-10 with example code. (Image source: Real et al 2020) Appendix: Summary of NAS Papers Model name Search space Search algorithms Child model evaluation NEAT (2002) - Evolution (Genetic algorithm) - NAS (2017) Sequential layer-wise ops RL (REINFORCE) Train from scratch until convergence MetaQNN (2017) Sequential layer-wise ops RL (Q-learning with $\\epsilon$-greedy) Train for 20 epochs HNAS (2017) Hierarchical structure Evolution (Tournament selection) Train for a fixed number of iterations NASNet (2018) Cell-based RL (PPO) Train for 20 epochs AmoebaNet (2018) NASNet search space Evolution (Tournament selection with aging regularization) Train for 25 epochs EAS (2018a) Network transformation RL (REINFORCE) 2-stage training PNAS (2018) Reduced version of NASNet search space SMBO; Progressive search for architectures of increasing complexity Train for 20 epochs ENAS (2018) Both sequential and cell-based search space RL (REINFORCE) Train one model with shared weights SMASH (2017) Memory-bank representation Random search HyperNet predicts weights of evaluated architectures. One-Shot (2018) An over-parameterized one-shot model Random search (zero out some paths at random) Train the one-shot model DARTS (2019) NASNet search space Gradient descent (Softmax weights over operations) ProxylessNAS (2019) Tree structure architecture Gradient descent (BinaryConnect) or REINFORCE SNAS (2019) NASNet search space Gradient descent (concrete distribution) Citation Cited as:\nWeng, Lilian. (Aug 2020). Neural architecture search. Lil’Log. https://lilianweng.github.io/posts/2020-08-06-nas/.\nOr\n@article{weng2020nas, title = \"Neural Architecture Search\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2020\", month = \"Aug\", url = \"https://lilianweng.github.io/posts/2020-08-06-nas/\" } Reference [1] Thomas Elsken, Jan Hendrik Metzen, Frank Hutter. “Neural Architecture Search: A Survey” JMLR 20 (2019) 1-21.\n[2] Kenneth O. Stanley, et al. “Designing neural networks through neuroevolution” Nature Machine Intelligence volume 1, pages 24–35 (2019).\n[3] Kenneth O. Stanley \u0026 Risto Miikkulainen. “Evolving Neural Networks through Augmenting Topologies” Evolutionary Computation 10(2): 99-127 (2002).\n[4] Barret Zoph, Quoc V. Le. “Neural architecture search with reinforcement learning” ICLR 2017.\n[5] Bowen Baker, et al. “Designing Neural Network Architectures using Reinforcement Learning” ICLR 2017.\n[6] Bowen Baker, et al. “Accelerating neural architecture search using performance prediction” ICLR Workshop 2018.\n[7] Barret Zoph, et al. “Learning transferable architectures for scalable image recognition” CVPR 2018.\n[8] Hanxiao Liu, et al. “Hierarchical representations for efficient architecture search.” ICLR 2018.\n[9] Esteban Real, et al. “Regularized Evolution for Image Classifier Architecture Search” arXiv:1802.01548 (2018).\n[10] Han Cai, et al. [“Efficient architecture search by network transformation”] AAAI 2018a.\n[11] Han Cai, et al. “Path-Level Network Transformation for Efficient Architecture Search” ICML 2018b.\n[12] Han Cai, Ligeng Zhu \u0026 Song Han. “ProxylessNAS: Direct Neural Architecture Search on Target Task and Hardware” ICLR 2019.\n[13] Chenxi Liu, et al. “Progressive neural architecture search” ECCV 2018.\n[14] Hieu Pham, et al. “Efficient neural architecture search via parameter sharing” ICML 2018.\n[15] Andrew Brock, et al. “SMASH: One-shot model architecture search through hypernetworks.” ICLR 2018.\n[16] Gabriel Bender, et al. “Understanding and simplifying one-shot architecture search.” ICML 2018.\n[17] Hanxiao Liu, Karen Simonyan, Yiming Yang. “DARTS: Differentiable Architecture Search” ICLR 2019.\n[18] Sirui Xie, Hehui Zheng, Chunxiao Liu, Liang Lin. “SNAS: Stochastic Neural Architecture Search” ICLR 2019.\n[19] Chenxi Liu et al. “Are Labels Necessary for Neural Architecture Search?” ECCV 2020.\n[20] Esteban Real, et al. “AutoML-Zero: Evolving Machine Learning Algorithms From Scratch” ICML 2020.\n",
+  "wordCount" : "6620",
+  "inLanguage": "en",
+  "datePublished": "2020-08-06T00:00:00Z",
+  "dateModified": "2020-08-06T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2020-08-06-nas/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Neural Architecture Search
+    </h1>
+    <div class="post-meta">Date: August 6, 2020  |  Estimated Reading Time: 32 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#search-space" aria-label="Search Space">Search Space</a><ul>
+                        
+                <li>
+                    <a href="#sequential-layer-wise-operations" aria-label="Sequential Layer-wise Operations">Sequential Layer-wise Operations</a></li>
+                <li>
+                    <a href="#cell-based-representation" aria-label="Cell-based Representation">Cell-based Representation</a></li>
+                <li>
+                    <a href="#hierarchical-structure" aria-label="Hierarchical Structure">Hierarchical Structure</a></li>
+                <li>
+                    <a href="#memory-bank-representation" aria-label="Memory-bank Representation">Memory-bank Representation</a></li></ul>
+                </li>
+                <li>
+                    <a href="#search-algorithms" aria-label="Search Algorithms">Search Algorithms</a><ul>
+                        
+                <li>
+                    <a href="#random-search" aria-label="Random Search">Random Search</a></li>
+                <li>
+                    <a href="#reinforcement-learning" aria-label="Reinforcement Learning">Reinforcement Learning</a></li>
+                <li>
+                    <a href="#evolutionary-algorithms" aria-label="Evolutionary Algorithms">Evolutionary Algorithms</a></li>
+                <li>
+                    <a href="#progressive-decision-process" aria-label="Progressive Decision Process">Progressive Decision Process</a></li>
+                <li>
+                    <a href="#gradient-descent" aria-label="Gradient descent">Gradient descent</a></li></ul>
+                </li>
+                <li>
+                    <a href="#evaluation-strategy" aria-label="Evaluation Strategy">Evaluation Strategy</a><ul>
+                        
+                <li>
+                    <a href="#training-from-scratch" aria-label="Training from Scratch">Training from Scratch</a></li>
+                <li>
+                    <a href="#proxy-task-performance" aria-label="Proxy Task Performance">Proxy Task Performance</a></li>
+                <li>
+                    <a href="#parameter-sharing" aria-label="Parameter Sharing">Parameter Sharing</a></li>
+                <li>
+                    <a href="#prediction-based" aria-label="Prediction-Based">Prediction-Based</a></li></ul>
+                </li>
+                <li>
+                    <a href="#one-shot-approach-search--evaluation" aria-label="One-Shot Approach: Search &#43; Evaluation">One-Shot Approach: Search + Evaluation</a></li>
+                <li>
+                    <a href="#whats-the-future" aria-label="What&rsquo;s the Future?">What&rsquo;s the Future?</a></li>
+                <li>
+                    <a href="#appendix-summary-of-nas-papers" aria-label="Appendix: Summary of NAS Papers">Appendix: Summary of NAS Papers</a></li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#reference" aria-label="Reference">Reference</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Neural Architecture Search (NAS) automates network architecture engineering. It aims to learn a network topology that can achieve best performance on a certain task. By dissecting the methods for NAS into three components: search space, search algorithm and child model evolution strategy, this post reviews many interesting ideas for better, faster and more cost-efficient automatic neural architecture search. -->
+<p>Although most popular and successful model architectures are designed by human experts, it doesn&rsquo;t mean we have explored the entire network architecture space and settled down with the best option. We would have a better chance to find the optimal solution if we adopt a systematic and automatic way of learning high-performance model architectures.</p>
+<p>Automatically learning and evolving network topologies is not a new idea (<a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf">Stanley &amp; Miikkulainen, 2002</a>). In recent years, the pioneering work by <a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a> and <a href="https://arxiv.org/abs/1611.02167">Baker et al. 2017</a> has attracted a lot of attention into the field of Neural Architecture Search (NAS), leading to many interesting ideas for better, faster and more cost-efficient NAS methods.</p>
+<p>As I started looking into NAS, I found this nice survey very helpful by <a href="https://arxiv.org/abs/1808.05377">Elsken, et al 2019</a>. They characterize NAS as a system with three major components, which is clean &amp; concise, and also commonly adopted in other NAS papers.</p>
+<ol>
+<li><strong>Search space</strong>: The NAS search space defines a set of operations (e.g. convolution, fully-connected, pooling) and how operations can be connected to form valid network architectures. The design of search space usually involves human expertise, as well as unavoidably human biases.</li>
+<li><strong>Search algorithm</strong>: A NAS search algorithm samples a population of network architecture candidates. It receives the child model performance metrics as rewards (e.g. high accuracy, low latency) and optimizes to generate high-performance architecture candidates.</li>
+<li><strong>Evaluation strategy</strong>: We need to measure, estimate, or predict the performance of a large number of proposed child models in order to obtain feedback for the search algorithm to learn. The process of candidate evaluation could be very expensive and many new methods have been proposed to save time or computation resources.</li>
+</ol>
+<figure>
+	<img src="NAS-high-level.png" style="width: 80%;"  />
+	<figcaption>Three main components of Neural Architecture Search (NAS) models.  (Image source: <a href="https://arxiv.org/abs/1808.05377" target="_blank">Elsken, et al. 2019</a> with customized annotation in red)</figcaption>
+</figure>
+<h1 id="search-space">Search Space<a hidden class="anchor" aria-hidden="true" href="#search-space">#</a></h1>
+<p>The NAS search space defines a set of basic network operations and how operations can be connected to construct valid network architectures.</p>
+<h2 id="sequential-layer-wise-operations">Sequential Layer-wise Operations<a hidden class="anchor" aria-hidden="true" href="#sequential-layer-wise-operations">#</a></h2>
+<p>The most naive way to design the search space for neural network architectures is to depict network topologies, either CNN or RNN, with a list of <em>sequential layer-wise operations</em>, as seen in the early work of <a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a> &amp; <a href="https://arxiv.org/abs/1611.02167">Baker et al. 2017</a>. The serialization of network representation requires a decent amount of expert knowledge, since each operation is associated with different layer-specific parameters and such associations need to be hardcoded. For example, after predicting a <code>conv</code> op, the model should output kernel size, stride size, etc; or after predicting an <code>FC</code> op, we need to see the number of units as the next prediction.</p>
+<figure>
+	<img src="NAS-search-space.png" style="width: 100%;"  />
+	<figcaption>(Top) A sequential representation of CNN. (Bottom) A sequential representation of the tree structure of a recurrent cell. (Image source: <a href="https://arxiv.org/abs/1611.01578" target="_blank">Zoph & Le 2017</a>)</figcaption>
+</figure>
+<p>To make sure the generated architecture is valid, additional rules might be needed (<a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a>):</p>
+<ul>
+<li>If a layer is not connected to any input layer then it is used as the input layer;</li>
+<li>At the final layer, take all layer outputs that have not been connected and concatenate them;</li>
+<li>If one layer has many input layers, then all input layers are concatenated in the depth dimension;</li>
+<li>If input layers to be concatenated have different sizes, we pad the small layers with zeros so that the concatenated layers have the same sizes.</li>
+</ul>
+<p>The skip connection can be predicted as well, using an <a href="https://lilianweng.github.io/posts/2018-06-24-attention/">attention</a>-style mechanism. At layer $i$ , an anchor point is added with $i−1$ content-based sigmoids to indicate which of the previous layers to be connected. Each sigmoid takes as input the hidden states of the current node $h_i$ and $i-1$ previous nodes $h_j, j=1, \dots, i-1$ .</p>
+<div>
+$$
+P(\text{Layer j is an input to layer i}) = \text{sigmoid}(v^\top \tanh(\mathbf{W}_\text{prev} h_j + \mathbf{W}_\text{curr} h_i))
+$$
+</div>
+<p>The sequential search space has a lot of representation power, but it is very large and consumes a ton of computation resources to exhaustively cover the search space. In the experiments by <a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a>, they were running 800 GPUs in parallel for 28 days and <a href="https://arxiv.org/abs/1611.02167">Baker et al. 2017</a> restricted the search space to contain at most 2 <code>FC</code> layers.</p>
+<h2 id="cell-based-representation">Cell-based Representation<a hidden class="anchor" aria-hidden="true" href="#cell-based-representation">#</a></h2>
+<p>Inspired by the design of using repeated modules in successful vision model architectures (e.g. Inception, ResNet), the <em>NASNet search space</em> (<a href="https://arxiv.org/abs/1707.07012">Zoph et al. 2018</a>) defines the architecture of a conv net as the same cell getting repeated multiple times and each cell contains several operations predicted by the NAS algorithm. A well-designed cell module enables transferability between datasets. It is also easy to scale down or up the model size by adjusting the number of cell repeats.</p>
+<p>Precisely, the NASNet search space learns two types of cells for network construction:</p>
+<ol>
+<li><em>Normal Cell</em>: The input and output feature maps have the same dimension.</li>
+<li><em>Reduction Cell</em>: The output feature map has its width and height reduced by half.</li>
+</ol>
+<figure>
+	<img src="NASNet-search-space.png" style="width: 80%;"  />
+	<figcaption>The NASNet search space constrains the architecture as a repeated stack of cells. The cell architecture is optimized via NAS algorithms. (Image source: <a href="https://arxiv.org/abs/1707.07012" target="_blank">Zoph et al. 2018</a>)</figcaption>
+</figure>
+<p>The predictions for each cell are grouped into $B$ blocks ($B=5$ in the NASNet paper), where each block has 5 prediction steps made by 5 distinct softmax classifiers corresponding to discrete choices of the elements of a block. Note that the NASNet search space does not have residual connections between cells and the model only learns skip connections on their own within blocks.</p>
+<figure>
+	<img src="cell-prediction-steps.png" style="width: 100%;"  />
+	<figcaption>(a) Each cell consists of $B$ blocks and each block is predicted by 5 discrete decisions. (b) An concrete example of what operations can be chosen in each decision step.</figcaption>
+</figure>
+<p><a id="ScheduledDropPath"></a>During the experiments, they discovered that a modified version of <a href="https://arxiv.org/abs/1605.07648"><em>DropPath</em></a>, named <em>ScheduledDropPath</em>, significantly improves the final performance of NASNet experiments. DropPath stochastically drops out paths (i.e. edges with operations attached in NASNet) with a fixed probability. ScheduledDropPath is DropPath with a linearly increasing probability of path dropping during training time.</p>
+<p><a href="https://arxiv.org/abs/1808.05377">Elsken, et al (2019)</a> point out three major advantages of the NASNet search space:</p>
+<ol>
+<li>The search space size is reduced drastically;</li>
+<li>The <a href="https://en.wikipedia.org/wiki/Network_motif">motif</a>-based architecture can be more easily transferred to different datasets.</li>
+<li>It demonstrates a strong proof of a useful design pattern of repeatedly stacking modules in architecture engineering. For example, we can build strong models by stacking residual blocks in CNN or stacking multi-headed attention blocks in Transformer.</li>
+</ol>
+<h2 id="hierarchical-structure">Hierarchical Structure<a hidden class="anchor" aria-hidden="true" href="#hierarchical-structure">#</a></h2>
+<p>To take advantage of already discovered well-designed network <a href="https://en.wikipedia.org/wiki/Network_motif">motifs</a>, the NAS search space can be constrained as a hierarchical structure, as in <em>Hierarchical NAS</em> (<strong>HNAS</strong>; (<a href="https://arxiv.org/abs/1711.00436">Liu et al 2017</a>)). It starts with a small set of primitives, including individual operations like convolution operation, pooling, identity, etc. Then small sub-graphs (or &ldquo;motifs&rdquo;) that consist of primitive operations are recursively used to form higher-level computation graphs.</p>
+<p>A computation motif at level $\ell=1, \dots, L$ can be represented by $(G^{(\ell)}, \mathcal{O}^{(\ell)})$, where:</p>
+<ul>
+<li>$\mathcal{O}^{(\ell)}$ is a set of operations, $\mathcal{O}^{(\ell)} = \{ o^{(\ell)}_1, o^{(\ell)}_2, \dots \}$</li>
+<li>$G^{(\ell)}$ is an adjacency matrix, where the entry $G_{ij}=k$ indicates that operation $o^{(\ell)}_k$ is placed between node $i$ and $j$. The node indices follow <a href="https://en.wikipedia.org/wiki/Topological_sorting">topological ordering</a> in DAG, where the index $1$ is the source and the maximal index is the sink node.</li>
+</ul>
+<figure>
+	<img src="hierarchical-NAS-search-space.png" style="width: 100%;"  />
+	<figcaption>(Top) Three level-1 primitive operations are composed into a level-2 motif. (Bottom) Three level-2 motifs are plugged into a base network structure and assembled into a level-3 motif. (Image source: <a href="https://arxiv.org/abs/1711.00436" target="_blank">Liu et al 2017</a>)</figcaption>
+</figure>
+<p>To build a network according to the hierarchical structure, we start from the lowest level $\ell=1$ and recursively define the $m$-th motif operation at level $\ell$ as</p>
+<div>
+$$
+o^{(\ell)}_m = \text{assemble}\Big( G_m^{(\ell)}, \mathcal{O}^{(\ell-1)} \Big)
+$$ 
+</div>
+<p>A hierarchical representation becomes $\Big( \big\{ \{ G_m^{(\ell)} \}_{m=1}^{M_\ell} \big\}_{\ell=2}^L, \mathcal{O}^{(1)} \Big), \forall \ell=2, \dots, L$, where $\mathcal{O}^{(1)}$ contains a set of primitive operations.</p>
+<p>The $\text{assemble}()$ process is equivalent to sequentially compute the feature map of node $i$ by aggregating all the feature maps of its predecessor node $j$ following the topological ordering:</p>
+<div>
+$$
+x_i = \text{merge} \big[ \{ o^{(\ell)}_{G^{(\ell)}_{ij}}(x_j) \}_{j < i} \big], i = 2, \dots, \vert G^{(\ell)} \vert
+$$
+</div>
+<p>where $\text{merge}[]$ is implemented as depth-wise concatenation in the <a href="https://arxiv.org/abs/1711.00436">paper</a>.</p>
+<p>Same as NASNet, experiments in <a href="https://arxiv.org/abs/1711.00436">Liu et al (2017)</a> focused on discovering good cell architecture within a predefined &ldquo;macro&rdquo; structure with repeated modules. They showed that the power of simple search methods (e.g. random search or evolutionary algorithms) can be substantially enhanced using well-designed search spaces.</p>
+<p><a href="https://arxiv.org/abs/1806.02639">Cai et al (2018b)</a> propose a tree-structure search space using path-level network transformation. Each node in a tree structure defines an <em>allocation</em> scheme for splitting inputs for child nodes and a <em>merge</em> scheme for combining results from child nodes. The path-level network transformation allows replacing a single layer with a multi-branch motif if its corresponding merge scheme is add or concat.</p>
+<figure>
+	<img src="path-level-network-transformations.png" style="width: 100%;"  />
+	<figcaption>An illustration of transforming a single layer to a tree-structured motif via path-level transformation operations. (Image source: <a href="https://arxiv.org/abs/1806.02639" target="_blank">Cai et al. 2018b</a>)</figcaption>
+</figure>
+<h2 id="memory-bank-representation">Memory-bank Representation<a hidden class="anchor" aria-hidden="true" href="#memory-bank-representation">#</a></h2>
+<p>A memory-bank representation of feed-forward networks is proposed by <a href="https://arxiv.org/abs/1708.05344">Brock et al. (2017)</a> in <a href="#prediction-based">SMASH</a>. Instead of a graph of operations, they view a neural network as a system with multiple memory blocks which can read and write. Each layer operation is designed to: (1) read from a subset of memory blocks; (2) computes results; finally (3) write the results into another subset of blocks. For example, in a sequential model, a single memory block would get read and overwritten consistently.</p>
+<figure>
+	<img src="NAS-memory-bank-view-representation.png" style="width: 80%;"  />
+	<figcaption>Memory-bank representation of several popular network architecture blocks. (Image source: <a href="https://arxiv.org/abs/1708.05344" target="_blank">Brock et al. 2017</a>)</figcaption>
+</figure>
+<h1 id="search-algorithms">Search Algorithms<a hidden class="anchor" aria-hidden="true" href="#search-algorithms">#</a></h1>
+<p>NAS search algorithms sample a population of child networks. It receives the child models&rsquo; performance metrics as rewards and learns to generate high-performance architecture candidates. You may a lot in common with the field of hyperparameter search.</p>
+<h2 id="random-search">Random Search<a hidden class="anchor" aria-hidden="true" href="#random-search">#</a></h2>
+<p>Random search is the most naive baseline. It samples a valid architecture candidate from the search space <em>at random</em> and no learning model is involved. Random search has proved to be quite useful in hyperparameter search (<a href="http://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf">Bergstra &amp; Bengio 2012</a>). With a well-designed search space, random search could be a very challenging baseline to beat.</p>
+<h2 id="reinforcement-learning">Reinforcement Learning<a hidden class="anchor" aria-hidden="true" href="#reinforcement-learning">#</a></h2>
+<p>The initial design of <strong>NAS</strong> (<a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a>) involves a RL-based controller for proposing child model architectures for evaluation. The controller is implemented as a RNN, outputting a variable-length sequence of tokens used for configuring a network architecture.</p>
+<figure>
+	<img src="NAS.png" style="width: 60%;"  />
+	<figcaption>A high level overview of NAS, containing a RNN controller and a pipeline for evaluating child models. (Image source: <a href="https://arxiv.org/abs/1611.01578" target="_blank">Zoph & Le 2017</a>)</figcaption>
+</figure>
+<p>The controller is trained as a <em>RL task</em> using <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#reinforce">REINFORCE</a>.</p>
+<ul>
+<li><strong>Action space</strong>: The action space is a list of tokens for defining a child network predicted by the controller (See more in the above <a href="#sequential-layer-wise-operations">section</a>). The controller outputs <em>action</em>, $a_{1:T}$, where $T$ is the total number of tokens.</li>
+<li><strong>Reward</strong>: The accuracy of a child network that can be achieved at convergence is the reward for training the controller, $R$.</li>
+<li><strong>Loss</strong>: NAS optimizes the controller parameters $\theta$ with a REINFORCE loss. We want to maximize the expected reward (high accuracy) with the gradient as follows. The nice thing here with policy gradient is that it works even when the reward is non-differentiable.</li>
+</ul>
+<div>
+$$
+\nabla_{\theta} J(\theta) = \sum_{t=1}^T \mathbb{E}[\nabla_{\theta} \log P(a_t \vert a_{1:(t-1)}; \theta) R ]
+$$
+</div>
+<p><strong>MetaQNN</strong> (<a href="https://arxiv.org/abs/1611.02167">Baker et al. 2017</a>) trains an agent to sequentially choose CNN layers using <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#q-learning-off-policy-td-control"><em>Q-learning</em></a> with an <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#%CE%B5-greedy-algorithm">$\epsilon$-greedy</a> exploration strategy and experience replay. The reward is the validation accuracy as well.</p>
+<div>
+$$
+Q^{(t+1)}(s_t,  a_t) = (1 - \alpha)Q^{(t)}(s_t, a_t) + \alpha (R_t + \gamma \max_{a \in \mathcal{A}} Q^{(t)}(s_{t+1},  a'))
+$$
+</div>
+<p>where a state $s_t$ is a tuple of layer operation and related parameters. An action $a$ determines the connectivity between operations. The Q-value is proportional to how confident we are in two connected operations leading to high accuracy.</p>
+<figure>
+	<img src="MetaQNN.png" style="width: 100%;"  />
+	<figcaption>Overview of MetaQNN - designing CNN models with Q-Learning. (Image source: <a href="https://arxiv.org/abs/1611.02167" target="_blank">Baker et al. 2017</a>)</figcaption>
+</figure>
+<h2 id="evolutionary-algorithms">Evolutionary Algorithms<a hidden class="anchor" aria-hidden="true" href="#evolutionary-algorithms">#</a></h2>
+<p><strong>NEAT</strong> (short for <em>NeuroEvolution of Augmenting Topologies</em>) is an approach for evolving neural network topologies with <a href="https://en.wikipedia.org/wiki/Genetic_algorithm">genetic algorithm (GA)</a>, proposed by <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf">Stanley &amp; Miikkulainen</a> in 2002. NEAT evolves both connection weights and network topology together. Each gene encodes the full information for configuring a network, including node weights and edges. The population grows by applying mutation of both weights and connections, as well as crossover between two parent genes. For more in neuroevolution, please refer to the in-depth <a href="https://www.nature.com/articles/s42256-018-0006-z">survey</a> by Stanley et al. (2019).</p>
+<figure>
+	<img src="NEAT-mutations.png" style="width: 100%;"  />
+	<figcaption>Mutations in the NEAT algorithm. (Image source: Fig 3 & 4 in <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf" target="_blank">Stanley & Miikkulainen, 2002</a>)</figcaption>
+</figure>
+<p><a href="https://arxiv.org/abs/1802.01548">Real et al. (2018)</a> adopt the evolutionary algorithms (EA) as a way to search for high-performance network architectures, named <strong>AmoebaNet</strong>. They apply the <a href="https://en.wikipedia.org/wiki/Tournament_selection">tournament selection</a> method, which at each iteration picks a best candidate out of a random set of samples and places its mutated offspring back into the population. When the tournament size is $1$, it is equivalent to random selection.</p>
+<p><a href="aging-evolutionary-algorithms"></a>AmoebaNet modified the tournament selection to favor <em>younger</em> genotypes and always discard the oldest models within each cycle. Such an approach, named <em>aging evolution</em>, allows AmoebaNet to cover and explore more search space, rather than to narrow down on good performance models too early.</p>
+<p>Precisely, in every cycle of the tournament selection with aging regularization (See Figure 11):</p>
+<ol>
+<li>Sample $S$ models from the population and the one with highest accuracy is chosen as <em>parent</em>.</li>
+<li>A <em>child</em> model is produced by mutating <em>parent</em>.</li>
+<li>Then the child model is trained, evaluated and added back into the population.</li>
+<li>The oldest model is removed from the population.</li>
+</ol>
+<figure>
+	<img src="aging-evolution-algorithm.png" style="width: 60%;"  />
+	<figcaption>The algorithm of aging evolution. (Image source: <a href="https://arxiv.org/abs/1802.01548" target="_blank">Real et al. 2018</a>)</figcaption>
+</figure>
+<p>Two types of mutations are applied:</p>
+<ol>
+<li><em>Hidden state mutation</em>: randomly chooses a pairwise combination and rewires a random end such that there is no loop in the graph.</li>
+<li><em>Operation mutation</em>: randomly replaces an existing operation with a random one.</li>
+</ol>
+<figure>
+	<img src="AmoebaNet-mutations.png" style="width: 100%;"  />
+	<figcaption>Two types of mutations in AmoebaNet. (Image source: <a href="https://arxiv.org/abs/1802.01548" target="_blank">Real et al. 2018</a>)</figcaption>
+</figure>
+<p>In their experiments, EA and RL work equally well in terms of the final validation accuracy, but EA has better anytime performance and is able to find smaller models. Here using EA in NAS is still expensive in terms of computation, as each experiment took 7 days with 450 GPUs.</p>
+<p><strong>HNAS</strong> (<a href="https://arxiv.org/abs/1711.00436">Liu et al 2017</a>) also employs the evolutionary algorithms (the original tournament selection) as their search strategy. In the <a href="#hierarchical-structure">hierarchical structure</a> search space, each edge is an operation. Thus genotype mutation in their experiments is applied by replacing a random edge with a different operation. The replacement set includes an <code>none</code> op, so it can alter, remove and add an edge. The initial set of genotypes is created by applying a large number of random mutations on &ldquo;trivial&rdquo; motifs (all identity mappings).</p>
+<h2 id="progressive-decision-process">Progressive Decision Process<a hidden class="anchor" aria-hidden="true" href="#progressive-decision-process">#</a></h2>
+<p>Constructing a model architecture is a sequential process. Every additional operator or layer brings extra complexity. If we guide the search model to start the investigation from simple models and gradually evolve to more complex architectures, it is like to introduce <a href="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/">&ldquo;curriculum&rdquo;</a> into the search model&rsquo;s learning process.</p>
+<p><em>Progressive NAS</em> (<strong>PNAS</strong>; <a href="https://arxiv.org/abs/1712.00559">Liu, et al 2018</a>) frames the problem of NAS as a progressive procedure for searching models of increasing complexity. Instead of RL or EA, PNAS adopts a Sequential Model-based Bayesian Optimization (SMBO) as the search strategy. PNAS works similar to A* search, as it searches for models from simple to hard while simultaneously learning a surrogate function to guide the search.</p>
+<blockquote>
+<p><a href="https://en.wikipedia.org/wiki/A*_search_algorithm">A* search algorithm</a> (&ldquo;best-first search&rdquo;) is a popular algorithm for path finding. The problem is framed as finding a path of smallest cost from a specific starting node to a given target node in a weighted graph. At each iteration, A* finds a path to extend by minimizing: $f(n)=g(n)+h(n)$, where $n$ is the next node, $g(n)$ is the cost from start to $n$, and $h(n)$ is the heuristic function that estimates the minimum cost of going from node $n$ to the goal.</p>
+</blockquote>
+<p>PNAS uses the <a href="#cell-based-representation">NASNet</a> search space. Each block is specified as a 5-element tuple and PNAS only considers the element-wise addition as the step 5 combination operator, no concatenation. Differently, instead of setting the number of blocks $B$ at a fixed number, PNAS starts with $B=1$, a model with only one block in a cell, and gradually increases $B$.</p>
+<p>The performance on a validation set is used as feedback to train a <em>surrogate</em> model for <em>predicting</em> the performance of novel architectures. With this predictor, we can thus decide which models should be prioritized to be evaluated next. Since the performance predictor should be able to handle various-sized inputs, accuracy, and sample-efficient, they ended up using an RNN model.</p>
+<figure>
+	<img src="progressive-NAS-algorithm.png" style="width: 60%;"  />
+	<figcaption>The algorithm of Progressive NAS. (Image source: <a href="https://arxiv.org/abs/1712.00559" target="_blank">Liu, et al 2018</a>)</figcaption>
+</figure>
+<h2 id="gradient-descent">Gradient descent<a hidden class="anchor" aria-hidden="true" href="#gradient-descent">#</a></h2>
+<p>Using gradient descent to update the architecture search model requires an effort to make the process of choosing discrete operations differentiable. These approaches usually combine the learning of both architecture parameters and network weights together into one model. See more in the <a href="#one-shot-approach-search--evaluation">section</a> on the <em>&ldquo;one-shot&rdquo;</em> approach.</p>
+<h1 id="evaluation-strategy">Evaluation Strategy<a hidden class="anchor" aria-hidden="true" href="#evaluation-strategy">#</a></h1>
+<p>We need to measure, estimate or predict the performance of every child model in order to obtain feedback for optimizing the search algorithm. The process of candidate evaluation could be very expensive and many new evaluation methods have been proposed to save time or computation. When evaluating a child model, we mostly care about its performance measured as accuracy on a validation set. Recent work has started looking into other factors of a model, such as model size and latency, as certain devices may have limitations on memory or demand fast response time.</p>
+<h2 id="training-from-scratch">Training from Scratch<a hidden class="anchor" aria-hidden="true" href="#training-from-scratch">#</a></h2>
+<p>The most naive approach is to train every child network independently from scratch until <em>convergence</em> and then measure its accuracy on a validation set (<a href="https://arxiv.org/abs/1611.01578">Zoph &amp; Le 2017</a>). It provides solid performance numbers, but one complete train-converge-evaluate loop only generates a single data sample for training the RL controller (let alone RL is known to be sample-inefficient in general). Thus it is very expensive in terms of computation consumption.</p>
+<h2 id="proxy-task-performance">Proxy Task Performance<a hidden class="anchor" aria-hidden="true" href="#proxy-task-performance">#</a></h2>
+<p>There are several approaches for using a proxy task performance as the performance estimator of a child network, which is generally cheaper and faster to calculate:</p>
+<ul>
+<li>Train on a smaller dataset.</li>
+<li>Train for fewer epochs.</li>
+<li>Train and evaluate a down-scaled model in the search stage. For example, once a cell structure is learned, we can play with the number of cell repeats or scale up the number of filters (<a href="https://arxiv.org/abs/1707.07012">Zoph et al. 2018</a>).</li>
+<li>Predict the learning curve. <a href="https://arxiv.org/abs/1705.10823">Baker et al (2018)</a> model the prediction of validation accuracies as a time-series regression problem. The features for the regression model ($\nu$-support vector machine regressions; $\nu$-SVR) include the early sequences of accuracy per epoch, architecture parameters, and hyperparameters.</li>
+</ul>
+<h2 id="parameter-sharing">Parameter Sharing<a hidden class="anchor" aria-hidden="true" href="#parameter-sharing">#</a></h2>
+<p>Instead of training every child model independently from scratch. You may ask, ok, what if we fabricate dependency between them and find a way to reuse weights? Some researchers succeeded to make such approaches work.</p>
+<p>Inspired by <a href="https://arxiv.org/abs/1511.05641">Net2net</a> transformation, <a href="https://arxiv.org/abs/1707.04873">Cai et al (2017)</a> proposed <em>Efficient Architecture Search</em> (<strong>EAS</strong>). EAS sets up an RL agent, known as a meta-controller, to predict function-preserving network transformation so as to grow the network depth or layer width. Because the network is growing incrementally, the weights of previously validated networks can be <em>reused</em> for further exploration. With inherited weights, newly constructed networks only need some light-weighted training.</p>
+<p>A meta-controller learns to generate <em>network transformation actions</em> given the current network architecture, which is specified with a variable-length string. In order to handle architecture configuration of a variable length, the meta-controller is implemented as a bi-directional recurrent network. Multiple actor networks output different transformation decisions:</p>
+<ol>
+<li><em>Net2WiderNet</em> operation allows to replace a layer with a wider layer, meaning more units for fully-connected layers, or more filters for convolutional layers, while preserving the functionality.</li>
+<li><em>Net2DeeperNet</em> operation allows to insert a new layer that is initialized as adding an identity mapping between two layers so as to preserve the functionality.</li>
+</ol>
+<figure>
+	<img src="EAS-meta-controller.png" style="width: 100%;"  />
+	<figcaption>Overview of the RL based meta-controller in Efficient Architecture Search (NAS). After encoding the architecture configuration, it outputs net2net transformation actions through two separate actor networks. (Image source: <a href="https://arxiv.org/abs/1707.04873" target="_blank">Cai et al 2017</a>)</figcaption>
+</figure>
+<p><a id="ENAS"></a>With similar motivation, <em>Efficient NAS</em> (<strong>ENAS</strong>; <a href="https://arxiv.org/abs/1802.03268">Pham et al. 2018</a>) speeds up NAS (i.e. 1000x less) by aggressively sharing parameters among child models. The core motivation behind ENAS is the observation that all of the sampled architecture graphs can be viewed as <em>sub-graphs</em> of a larger <em>supergraph</em>. All the child networks are sharing weights of this supergraph.</p>
+<figure>
+	<img src="ENAS-example.png" style="width: 100%;"  />
+	<figcaption>(Left) The graph represents the entire search space for a 4-node recurrent cell, but only connections in red are active. (Middle) An example of how the left active sub-graph can be translated into a child model architecture. (Right) The network parameters produced by an RNN controller for the architecture in the middle. (Image source: <a href="https://arxiv.org/abs/1802.03268" target="_blank">Pham et al. 2018</a>)</figcaption>
+</figure>
+<p>ENAS alternates between training the shared model weights $\omega$ and training the controller $\theta$:</p>
+<ol>
+<li>The parameters of the controller LSTM $\theta$ are trained with <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/#reinforce">REINFORCE</a>, where the reward $R(\mathbf{m}, \omega)$ is computed on the validation set.</li>
+<li>The shared parameters of the child models $\omega$ are trained with standard supervised learning loss. Note that different operators associated with the same node in the supergraph would have their own distinct parameters.</li>
+</ol>
+<h2 id="prediction-based">Prediction-Based<a hidden class="anchor" aria-hidden="true" href="#prediction-based">#</a></h2>
+<p>A routine child model evaluation loop is to update model weights via standard gradient descent. SMASH (<a href="https://arxiv.org/abs/1708.05344">Brock et al. 2017</a>) proposes a different and interesting idea: <em>Can we predict the model weights directly based on the network architecture parameters?</em></p>
+<p>They employ a <a href="https://blog.otoro.net/2016/09/28/hyper-networks/">HyperNet</a> (<a href="https://arxiv.org/abs/1609.09106">Ha et al 2016</a>) to directly generate the weights of a model conditioned on an encoding of its architecture configuration. Then the model with HyperNet-generated weights is validated directly. Note that we don&rsquo;t need extra training for every child model but we do need to train the HyperNet.</p>
+<figure>
+	<img src="SMASH-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm of SMASH. (Image source: <a href="https://arxiv.org/abs/1708.05344" target="_blank">Brock et al. 2017</a>)</figcaption>
+</figure>
+<p>The correlation between model performance with SMASH-generated weights and true validation errors suggests that predicted weights can be used for model comparison, to some extent. We do need a HyperNet of large enough capacity, as the correlation would be corrupted if the HyperNet model is too small compared to the child model size.</p>
+<figure>
+	<img src="SMASH-error-correlation.png" style="width: 100%;"  />
+	<figcaption>The algorithm of SMASH. (Image source: <a href="https://arxiv.org/abs/1708.05344" target="_blank">Brock et al. 2017</a>)</figcaption>
+</figure>
+<p>SMASH can be viewed as another way to implement the idea of <a href="#parameter-sharing">parameter sharing</a>. One problem of SMASH as pointed out by <a href="https://arxiv.org/abs/1802.03268">Pham et al. (2018)</a> is: The usage of HyperNet restricts the weights of SMASH child models to a <em>low-rank space</em>, because weights are generated via tensor products. In comparison, <a href="#ENAS">ENAS</a> has no such restrictions.</p>
+<h1 id="one-shot-approach-search--evaluation">One-Shot Approach: Search + Evaluation<a hidden class="anchor" aria-hidden="true" href="#one-shot-approach-search--evaluation">#</a></h1>
+<p>Running search &amp; evaluation independently for a large population of child models is expensive. We have seen promising approaches like <a href="https://arxiv.org/abs/1708.05344">Brock et al. (2017)</a> or <a href="https://arxiv.org/abs/1802.03268">Pham et al. (2018)</a>, where training a single model is enough for emulating any child model in the search space.</p>
+<p>The <strong>one-shot</strong> architecture search extends the idea of weight sharing and further combines the learning of architecture generation together with weight parameters. The following approaches all treat child architectures as different sub-graphs of a supergraph with shared weights between common edges in the supergraph.</p>
+<p><a href="http://proceedings.mlr.press/v80/bender18a/bender18a.pdf">Bender et al (2018)</a> construct a single large over-parameterized network, known as the <strong>One-Shot model</strong>, such that it contains every possible operation in the search space. With <a href="#ScheduledDropPath">ScheduledDropPath</a> (the dropout rate is increased over time, which is $r^{1/k}$ at the end of training, where $0 &lt; r &lt; 1$ is a hyperparam and $k$ is the number of incoming paths) and some carefully designed tricks (e.g. ghost batch normalization, L2 regularization only on the active architecture), the training of such a giant model can be stabilized enough and used for evaluating any child model sampled from the supergraph.</p>
+<figure>
+	<img src="one-shot-model-architecture.png" style="width: 100%;"  />
+	<figcaption>The architecture of the One-Shot model in <a href="http://proceedings.mlr.press/v80/bender18a/bender18a.pdf" target="_blank">Bender et al 2018</a>. Each cell has $N$ choice blocks and each choice block can select up to 2 operations. Solid edges are used in every architecture, where dash lines are optional. (Image source: <a href="http://proceedings.mlr.press/v80/bender18a/bender18a.pdf" target="_blank">Bender et al 2018</a>)</figcaption>
+</figure>
+<p>Once the one-shot model is trained, it is used for evaluating the performance of many different architectures sampled at random by zeroing out or removing some operations. This sampling process can be replaced by RL or evolution.</p>
+<p>They observed that the difference between the accuracy measured with the one-shot model and the accuracy of the same architecture after a small fine-tuning could be very large. Their hypothesis is that the one-shot model automatically learns to focus on the <em>most useful</em> operations in the network and comes to <em>rely on</em> these operations when they are available. Thus zeroing out useful operations lead to big reduction in model accuracy, while removing less important components only causes a small impact &mdash; Therefore, we see a larger variance in scores when using the one-shot model for evaluation.</p>
+<figure>
+	<img src="one-shot-model-accuracy-correlation.png" style="width: 50%;"  />
+	<figcaption>A stratified sample of models with different one-shot model accuracy versus their true validation accuracy as stand-alone models. (Image source: <a href="http://proceedings.mlr.press/v80/bender18a/bender18a.pdf" target="_blank">Bender et al 2018</a>)</figcaption>
+</figure>
+<p>Clearly designing such a search graph is not a trivial task, but it demonstrates a strong potential with the one-shot approach. It works well with only gradient descent and no additional algorithm like RL or EA is a must.</p>
+<p>Some believe that one main cause for inefficiency in NAS is to treat the architecture search as a <em>black-box optimization</em> and thus we fall into methods like RL, evolution, SMBO, etc. If we shift to rely on standard gradient descent, we could potentially make the search process more effectively. As a result, <a href="https://arxiv.org/abs/1806.09055">Liu et al (2019)</a> propose <em>Differentiable Architecture Search</em> (<strong>DARTS</strong>). DARTS introduces a continuous relaxation on each path in the search supergraph, making it possible to jointly train architecture parameters and weights via gradient descent.</p>
+<p>Let&rsquo;s use the directed acyclic graph (DAG) representation here. A cell is a DAG consisting of a topologically ordered sequence of $N$ nodes. Each node has a latent representation $x_i$ to be learned. Each edge $(i, j)$ is tied to some operation $o^{(i,j)} \in \mathcal{O}$ that transforms $x_j$ to compose $x_i$:</p>
+<div>
+$$
+x_i = \sum_{j < i} o^{(i,j)}(x_j)
+$$
+</div>
+<p>To make the search space continuous, DARTS relaxes the categorical choice of a particular operation as a softmax over all the operations and the task of architecture search is reduced to learn a set of mixing probabilities $\alpha = \{ \alpha^{(i,j)} \}$.</p>
+<div>
+$$
+\bar{o}^{(i,j)}(x) = \sum_{o\in\mathcal{O}} \frac{\exp(\alpha_{ij}^o)}{\sum_{o'\in\mathcal{O}} \exp(\alpha^{o'}_{ij})} o(x)
+$$
+</div>
+<p>where $\alpha_{ij}$ is a vector of dimension $\vert \mathcal{O} \vert$, containing weights between nodes $i$ and $j$ over different operations.</p>
+<p>The bilevel optimization exists as we want to optimize both the network weights $w$ and the architecture representation $\alpha$:</p>
+<div>
+$$
+\begin{aligned}
+\min_\alpha & \mathcal{L}_\text{validate} (w^*(\alpha), \alpha) \\
+\text{s.t.} & w^*(\alpha) = \arg\min_w \mathcal{L}_\text{train} (w, \alpha)
+\end{aligned}
+$$
+</div>
+<p>At step $k$, given the current architecture parameters $\alpha_{k−1}$, we first optimize weights $w_k$ by moving $w_{k−1}$ in the direction of minimizing the training loss $\mathcal{L}_\text{train}(w_{k−1}, \alpha_{k−1})$ with a learning rate $\xi$. Next, while keeping the newly updated weights $w_k$ fixed, we update the mixing probabilities so as to minimize the validation loss <em>after a single step of gradient descent w.r.t. the weights</em>:</p>
+<div>
+$$
+J_\alpha = \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1})
+$$
+</div>
+<p>The motivation here is that we want to find an architecture with a low validation loss when its weights are optimized by gradient descent and the one-step unrolled weights serve as the <em>surrogate</em> for $w^∗(\alpha)$.</p>
+<blockquote>
+<p>Side note: Earlier we have seen similar formulation in <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/#maml">MAML</a> where the two-step optimization happens between task losses and the meta-learner update, as well as framing <a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/#dr-as-optimization">Domain Randomization</a> as a bilevel optimization for better transfer in the real environment.</p>
+</blockquote>
+<figure>
+	<img src="DARTS-illustration.png" style="width: 100%;"  />
+	<figcaption>An illustration of how DARTS applies continuous relaxation on edges in DAG supergraph and identifies the final model. (Image source: <a href="https://arxiv.org/abs/1806.09055" target="_blank">Liu et al 2019</a>)</figcaption>
+</figure>
+<div>
+$$
+\begin{aligned}
+\text{Let }w'_k &= w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}) & \\
+J_\alpha &= \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1}) = \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) & \\
+\nabla_\alpha J_\alpha 
+&= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) \nabla_\alpha \alpha_{k-1} + \nabla_{w'_k} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1})\nabla_\alpha w'_k & \\& \text{; multivariable chain rule}\\
+&= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) + \nabla_{w'_k} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) \big( - \xi \color{red}{\nabla^2_{\alpha, w} \mathcal{L}_\text{train}(w_k, \alpha_{k-1})} \big) & \\
+&\approx \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) - \xi \nabla_{w'_k} \mathcal{L}_\text{val}(w'_k, \alpha_{k-1}) \color{red}{\frac{\nabla_\alpha \mathcal{L}_\text{train}(w_k^+, \alpha_{k-1}) - \nabla_\alpha \mathcal{L}_\text{train}(w_k^-, \alpha_{k-1}) }{2\epsilon}} & \\
+& \text{; apply numerical differentiation approximation}
+\end{aligned}
+$$
+</div>
+<p>where the red part is using numerical differentiation approximation where $w_k^+ = w_k + \epsilon \nabla_{w&rsquo;_k} \mathcal{L}_\text{val}(w&rsquo;_k, \alpha_{k-1})$ and $w_k^- = w_k - \epsilon \nabla_{w&rsquo;_k} \mathcal{L}_\text{val}(w&rsquo;_k, \alpha_{k-1})$.</p>
+<figure>
+	<img src="DARTS-algorithm.png" style="width: 100%;"  />
+	<figcaption>The algorithm overview of DARTS. (Image source: <a href="https://arxiv.org/abs/1806.09055" target="_blank">Liu et al 2019</a>)</figcaption>
+</figure>
+<p>As another idea similar to DARTS, Stochastic NAS (<a href="https://arxiv.org/abs/1812.09926">Xie et al., 2019</a>) applies a continuous relaxation by employing the concrete distribution (CONCRETE = CONtinuous relaxations of disCRETE random variables; <a href="https://arxiv.org/abs/1611.00712">Maddison et al 2017</a>) and reparametrization tricks. The goal is same as DARTS, to make the discrete distribution differentiable and thus enable optimization by gradient descent.</p>
+<!--- TBA: maybe add more details on SNAS -->
+<p>DARTS is able to greatly reduce the cost of GPU hours. Their experiments for searching for CNN cells have $N=7$ and only took 1.5 days with a single GPU. However, it suffers from the high GPU memory consumption issue due to its continuous representation of network architecture. In order to fit the model into the memory of a single GPU, they picked a small $N$.</p>
+<p>To constrain the GPU memory consumption, <strong>ProxylessNAS</strong> (<a href="https://arxiv.org/abs/1812.00332">Cai et al., 2019</a>) views NAS as a path-level pruning process in DAG and binarizes the architecture parameters to force only one path to be active between two nodes at a time. The probabilities for an edge being either masked out or not are then learned by sampling a few binarized architectures and using <em>BinaryConnect</em> (<a href="https://arxiv.org/abs/1511.00363">Courbariaux et al., 2015</a>) to update the corresponding probabilities. ProxylessNAS demonstrates a strong connection between NAS and model compression. By using path-level compression, it is able to save memory consumption by one order of magnitude.</p>
+<p>Let&rsquo;s continue with the graph representation. In a DAG adjacency matrix $G$ where $G_{ij}$ represents an edge between node $i$ and $j$ and its value can be chosen from the set of $\vert \mathcal{O} \vert$ candidate primitive operations, $\mathcal{O} = \{ o_1, \dots \}$. The One-Shot model, DARTS and ProxylessNAS all consider each edge as a mixture of operations, $m_\mathcal{O}$, but with different tweaks.</p>
+<p>In One-Shot, $m_\mathcal{O}(x)$ is the sum of all the operations. In DARTS, it is a weighted sum where weights are softmax over a real-valued architecture weighting vector $\alpha$ of length $\vert \mathcal{O} \vert$. ProxylessNAS transforms the softmax probabilities of $\alpha$ into a binary gate and uses the binary gate to keep only one operation active at a time.</p>
+<div>
+$$
+\begin{aligned}
+m^\text{one-shot}_\mathcal{O}(x) &= \sum_{i=1}^{\vert \mathcal{O} \vert} o_i(x) \\
+m^\text{DARTS}_\mathcal{O}(x) &= \sum_{i=1}^{\vert \mathcal{O} \vert} p_i o_i(x) = \sum_{i=1}^{\vert \mathcal{O} \vert} \frac{\exp(\alpha_i)}{\sum_j \exp(\alpha_j)} o_i(x) \\
+m^\text{binary}_\mathcal{O}(x) &= \sum_{i=1}^{\vert \mathcal{O} \vert} g_i o_i(x) = \begin{cases}
+o_1(x) & \text{with probability }p_1, \\
+\dots &\\
+o_{\vert \mathcal{O} \vert}(x) & \text{with probability }p_{\vert \mathcal{O} \vert}
+\end{cases} \\
+\text{ where } g &= \text{binarize}(p_1, \dots, p_N) = \begin{cases}
+[1, 0, \dots, 0] & \text{with probability }p_1, \\
+\dots & \\
+[0, 0, \dots, 1] & \text{with probability }p_N. \\
+\end{cases}
+\end{aligned}
+$$
+</div>
+<figure>
+	<img src="proxylessNAS-training.png" style="width: 100%;"  />
+	<figcaption>ProxylessNAS has two training steps running alternatively. (Image source: <a href="https://arxiv.org/abs/1812.00332" target="_blank">Cai et al., 2019</a>)</figcaption>
+</figure>
+<p>ProxylessNAS runs two training steps alternatively:</p>
+<ol>
+<li>When training weight parameters $w$, it freezes the architecture parameters $\alpha$ and stochastically samples binary gates $g$ according to the above $m^\text{binary}_\mathcal{O}(x)$. The weight parameters can be updated with standard gradient descent.</li>
+<li>When training architecture parameters $\alpha$, it freezes $w$, resets the binary gates and then updates $\alpha$ on the validation set. Following the idea of <em>BinaryConnect</em>,  the gradient w.r.t. architecture parameters can be approximately estimated using $\partial \mathcal{L} / \partial g_i$ in replacement for $\partial \mathcal{L} / \partial p_i$:</li>
+</ol>
+<div>
+$$
+\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial \alpha_i} 
+&= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial p_j} \frac{\partial p_j}{\partial \alpha_i} 
+\approx \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial p_j}{\partial \alpha_i} 
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial \frac{e^{\alpha_j}}{\sum_k e^{\alpha_k}}}{\partial \alpha_i} \\
+&= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\sum_k e^{\alpha_k} (\mathbf{1}_{i=j} e^{\alpha_j}) - e^{\alpha_j} e^{\alpha_i} }{(\sum_k e^{\alpha_k})^2}
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} p_j (\mathbf{1}_{i=j} -p_i)
+\end{aligned}
+$$
+</div>
+<p>Instead of BinaryConnect, REINFORCE can also be used for parameter updates with the goal for maximizing the reward, while no RNN meta-controller is involved.</p>
+<p>Computing $\partial \mathcal{L} / \partial g_i$ needs to calculate and store $o_i(x)$, which requires $\vert \mathcal{O} \vert$ times GPU memory. To resolve this issue, they factorize the task of choosing one path out of $N$ into multiple binary selection tasks (Intuition: &ldquo;if a path is the best choice, it should be better than any other path&rdquo;). At every update step, only two paths are sampled while others are masked. These two selected paths are updated according to the above equation and then scaled properly so that other path weights are unchanged. After this process, one of the sampled paths is enhanced (path weight increases) and the other is attenuated (path weight decreases), while all other paths stay unaltered.</p>
+<p>Besides accuracy, ProxylessNAS also considers <em>latency</em> as an important metric to optimize, as different devices might have very different requirements on inference time latency (e.g. GPU, CPU, mobile). To make latency differentiable, they model latency as a continuous function of the network dimensions. The expected latency of a mixed operation can be written as $\mathbb{E}[\text{latency}] = \sum_j p_j F(o_j)$, where $F(.)$ is a latency prediction model:</p>
+<figure>
+	<img src="proxylessNAS-latency.png" style="width: 100%;"  />
+	<figcaption>Add a differentiable latency loss into the training of ProxylessNAS.  (Image source: <a href="https://arxiv.org/abs/1812.00332" target="_blank">Cai et al., 2019</a>)</figcaption>
+</figure>
+<h1 id="whats-the-future">What&rsquo;s the Future?<a hidden class="anchor" aria-hidden="true" href="#whats-the-future">#</a></h1>
+<p>So far we have seen many interesting new ideas on automating the network architecture engineering through neural architecture search and many have achieved very impressive performance. However, it is a bit hard to do inference on <em>why</em> some architecture work well and how we can develop modules generalizable across tasks rather than being very dataset-specific.</p>
+<p>As also noted in <a href="https://arxiv.org/abs/1808.05377">Elsken, et al (2019)</a>:</p>
+<blockquote>
+<p>&ldquo;&hellip;, so far it provides little insights into why specific architectures work well and how similar the architectures derived in independent runs would be. Identifying common motifs, providing an understanding why those motifs are important for high performance, and investigating if these motifs generalize over different problems would be desirable.&rdquo;</p>
+</blockquote>
+<p>In the meantime, purely focusing on improvement over validation accuracy might not be enough (<a href="https://arxiv.org/abs/1812.00332">Cai et al., 2019</a>). Devices like mobile phones for daily usage in general have limited memory and computation power. While AI applications are on the way to affect our daily life, it is unavoidable to be more <em>device-specific</em>.</p>
+<p>Another interesting investigation is to consider <em>unlabelled dataset</em> and <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/">self-supervised learning</a> for NAS. The size of labelled dataset is always limited and it is not easy to tell whether such a dataset has biases or big deviation from the real world data distribution.</p>
+<p><a href="https://arxiv.org/abs/2003.12056">Liu et al (2020)</a> delve into the question <em>&ldquo;Can we find high-quality neural architecture without human-annotated labels?&rdquo;</em> and proposed a new setup called <em>Unsupervised Neural Architecture Search</em> (<strong>UnNAS</strong>). The quality of the architecture needs to be estimated in an unsupervised fashion during the search phase. The paper experimented with three unsupervised <a href="https://lilianweng.github.io/posts/2019-11-10-self-supervised/#images-based">pretext tasks</a>: image rotation prediction, colorization, and solving the jigsaw puzzle.</p>
+<p>They observed in a set of UnNAS experiments that:</p>
+<ol>
+<li>High rank correlation between supervised accuracy and pretext accuracy <em>on the same dataset</em>. Typically the rank correlation is higher than 0.8, regardless of the dataset, the search space, and the pretext task.</li>
+<li>High rank correlation between supervised accuracy and pretext accuracy <em>across datasets</em>.</li>
+<li>Better pretext accuracy translates to better supervised accuracy.</li>
+<li>Performance of UnNAS architecture is comparable to supervised counterparts, though not better yet.</li>
+</ol>
+<p>One hypothesis is that the architecture quality is correlated with image statistics. Because CIFAR-10 and ImageNet are all on the natural images, they are comparable and the results are transferable. UnNAS could potentially enable a much larger amount of unlabelled data into the search phase which captures image statistics better.</p>
+<p>Hyperparameter search is a long-standing topic in the ML community. And NAS automates architecture engineering. Gradually we are trying to automate processes in ML which usually demand a lot of human efforts. Taking even one more step further, is it possible to automatically discover ML algorithms? <strong>AutoML-Zero</strong> (<a href="https://arxiv.org/abs/2003.03384">Real et al 2020</a>) investigates this idea. Using <a href="#aging-evolutionary-algorithms">aging evolutionary algorithms</a>, AutoML-Zero automatically searches for whole ML algorithms using little restriction on the form with only simple mathematical operations as building blocks.</p>
+<p>It learns three component functions. Each function only adopts very basic operations.</p>
+<ul>
+<li><code>Setup</code>: initialize memory variables (weights).</li>
+<li><code>Learn</code>: modify memory variables</li>
+<li><code>Predict</code>: make a prediction from an input $x$.</li>
+</ul>
+<figure>
+	<img src="AutoML-zero-evaluation.png" style="width: 70%;"  />
+	<figcaption>Algorithm evaluation on one task (Image source: <a href="https://arxiv.org/abs/2003.03384" target="_blank">Real et al 2020</a>)</figcaption>
+</figure>
+<p>Three types of operations are considered when mutating a parent genotype:</p>
+<ol>
+<li>Insert a random instruction or remove an instruction at a random location in a component function;</li>
+<li>Randomize all the instructions in a component function;</li>
+<li>Modify one of the arguments of an instruction by replacing it with a random choice (e.g. &ldquo;swap the output address&rdquo; or &ldquo;change the value of a constant&rdquo;)</li>
+</ol>
+<figure>
+	<img src="AutoML-zero-progress.png" style="width: 100%;"  />
+	<figcaption>An illustration of evolutionary progress on projected binary CIFAR-10 with example code. (Image source: <a href="https://arxiv.org/abs/2003.03384" target="_blank">Real et al 2020</a>)</figcaption>
+</figure>
+<h1 id="appendix-summary-of-nas-papers">Appendix: Summary of NAS Papers<a hidden class="anchor" aria-hidden="true" href="#appendix-summary-of-nas-papers">#</a></h1>
+<table class="info">
+    <thead>
+        <tr>
+            <th>Model name</th>
+            <th>Search space</th>
+            <th>Search algorithms</th>
+            <th>Child model evaluation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf">NEAT (2002)</a></td>
+            <td>-</td>
+            <td>Evolution (Genetic algorithm)</td>
+            <td>-</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1611.01578">NAS (2017)</a></td>
+            <td>Sequential layer-wise ops</td>
+            <td>RL (REINFORCE)</td>
+            <td>Train from scratch until convergence</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1611.02167">MetaQNN (2017)</a></td>
+            <td>Sequential layer-wise ops</td>
+            <td>RL (Q-learning with $\epsilon$-greedy)</td>
+            <td>Train for 20 epochs</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1711.00436">HNAS (2017)</a></td>
+            <td>Hierarchical structure</td>
+            <td>Evolution (Tournament selection)</td>
+            <td>Train for a fixed number of iterations</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1707.07012">NASNet (2018)</a></td>
+            <td>Cell-based</td>
+            <td>RL (PPO)</td>
+            <td>Train for 20 epochs</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1802.01548">AmoebaNet (2018)</a></td>
+            <td>NASNet search space</td>
+            <td>Evolution (Tournament selection with aging regularization)</td>
+            <td>Train for 25 epochs</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1707.04873">EAS (2018a)</a></td>
+            <td>Network transformation</td>
+            <td>RL (REINFORCE)</td>
+            <td>2-stage training</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1712.00559">PNAS (2018)</a></td>
+            <td>Reduced version of NASNet search space</td>
+            <td>SMBO; Progressive search for architectures of increasing complexity</td>
+            <td>Train for 20 epochs</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1802.03268">ENAS (2018)</a></td>
+            <td>Both sequential and cell-based search space</td>
+            <td>RL (REINFORCE)</td>
+            <td>Train one model with shared weights</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1708.05344">SMASH (2017)</a></td>
+            <td>Memory-bank representation</td>
+            <td>Random search</td>
+            <td>HyperNet predicts weights of evaluated architectures.</td>
+        </tr>
+        <tr>
+            <td><a href="http://proceedings.mlr.press/v80/bender18a.html">One-Shot (2018)</a></td>
+            <td>An over-parameterized one-shot model</td>
+            <td>Random search (zero out some paths at random)</td>
+            <td>Train the one-shot model</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1806.09055">DARTS (2019)</a></td>
+            <td>NASNet search space</td>
+            <td colspan="2">Gradient descent (Softmax weights over operations)</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1812.00332">ProxylessNAS (2019)</a></td>
+            <td>Tree structure architecture</td>
+            <td colspan="2">Gradient descent (BinaryConnect) or REINFORCE</td>
+        </tr>
+        <tr>
+            <td><a href="https://arxiv.org/abs/1812.09926">SNAS (2019)</a></td>
+            <td>NASNet search space</td>
+            <td colspan="2">Gradient descent (concrete distribution)</td>
+        </tr>
+    </tbody>
+</table>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Aug 2020). Neural architecture search. Lil&rsquo;Log. https://lilianweng.github.io/posts/2020-08-06-nas/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2020nas,
+  title   = &#34;Neural Architecture Search&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2020&#34;,
+  month   = &#34;Aug&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2020-08-06-nas/&#34;
+}
+</code></pre><h1 id="reference">Reference<a hidden class="anchor" aria-hidden="true" href="#reference">#</a></h1>
+<p>[1] Thomas Elsken, Jan Hendrik Metzen, Frank Hutter. <a href="https://arxiv.org/abs/1808.05377">&ldquo;Neural Architecture Search: A Survey&rdquo;</a> JMLR 20 (2019) 1-21.</p>
+<p>[2] Kenneth O. Stanley, et al. <a href="https://www.nature.com/articles/s42256-018-0006-z">&ldquo;Designing neural networks through neuroevolution&rdquo;</a> Nature Machine Intelligence volume 1, pages 24–35 (2019).</p>
+<p>[3] Kenneth O. Stanley &amp; Risto Miikkulainen. <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf">&ldquo;Evolving Neural Networks through Augmenting Topologies&rdquo;</a> Evolutionary Computation 10(2): 99-127 (2002).</p>
+<p>[4] Barret Zoph, Quoc V. Le. <a href="https://arxiv.org/abs/1611.01578">&ldquo;Neural architecture search with reinforcement learning&rdquo;</a> ICLR 2017.</p>
+<p>[5] Bowen Baker, et al. <a href="https://arxiv.org/abs/1611.02167">&ldquo;Designing Neural Network Architectures using Reinforcement Learning&rdquo;</a> ICLR 2017.</p>
+<p>[6] Bowen Baker, et al. <a href="https://arxiv.org/abs/1705.10823">&ldquo;Accelerating neural architecture search using performance prediction&rdquo;</a> ICLR Workshop 2018.</p>
+<p>[7] Barret Zoph, et al. <a href="https://arxiv.org/abs/1707.07012">&ldquo;Learning transferable architectures for scalable image recognition&rdquo;</a> CVPR 2018.</p>
+<p>[8] Hanxiao Liu, et al. <a href="https://arxiv.org/abs/1711.00436">&ldquo;Hierarchical representations for efficient architecture search.&rdquo;</a> ICLR 2018.</p>
+<p>[9] Esteban Real, et al. <a href="https://arxiv.org/abs/1802.01548">&ldquo;Regularized Evolution for Image Classifier Architecture Search&rdquo;</a> arXiv:1802.01548 (2018).</p>
+<p>[10] Han Cai, et al. [&ldquo;Efficient architecture search by network transformation&rdquo;] AAAI 2018a.</p>
+<p>[11] Han Cai, et al. <a href="https://arxiv.org/abs/1806.02639">&ldquo;Path-Level Network Transformation for Efficient Architecture Search&rdquo;</a> ICML 2018b.</p>
+<p>[12] Han Cai, Ligeng Zhu &amp; Song Han. <a href="https://arxiv.org/abs/1812.00332">&ldquo;ProxylessNAS: Direct Neural Architecture Search on Target Task and Hardware&rdquo;</a> ICLR 2019.</p>
+<p>[13] Chenxi Liu, et al. <a href="https://arxiv.org/abs/1712.00559">&ldquo;Progressive neural architecture search&rdquo;</a> ECCV 2018.</p>
+<p>[14] Hieu Pham, et al. <a href="https://arxiv.org/abs/1802.03268">&ldquo;Efficient neural architecture search via parameter sharing&rdquo;</a> ICML 2018.</p>
+<p>[15] Andrew Brock, et al. <a href="https://arxiv.org/abs/1708.05344">&ldquo;SMASH: One-shot model architecture search through hypernetworks.&rdquo;</a> ICLR 2018.</p>
+<p>[16] Gabriel Bender, et al. <a href="http://proceedings.mlr.press/v80/bender18a.html">&ldquo;Understanding and simplifying one-shot architecture search.&rdquo;</a> ICML 2018.</p>
+<p>[17] Hanxiao Liu, Karen Simonyan, Yiming Yang. <a href="https://arxiv.org/abs/1806.09055">&ldquo;DARTS: Differentiable Architecture Search&rdquo;</a> ICLR 2019.</p>
+<p>[18] Sirui Xie, Hehui Zheng, Chunxiao Liu, Liang Lin. <a href="https://arxiv.org/abs/1812.09926">&ldquo;SNAS: Stochastic Neural Architecture Search&rdquo;</a> ICLR 2019.</p>
+<p>[19] Chenxi Liu et al. <a href="https://arxiv.org/abs/2003.12056">&ldquo;Are Labels Necessary for Neural Architecture Search?&rdquo;</a> ECCV 2020.</p>
+<p>[20] Esteban Real, et al. <a href="https://arxiv.org/abs/2003.03384">&ldquo;AutoML-Zero: Evolving Machine Learning Algorithms From Scratch&rdquo;</a> ICML 2020.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/architecture/">Architecture</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/evolution/">Evolution</a></li>
+      <li><a href="https://lilianweng.github.io/tags/auto-ml/">Auto-ML</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2020-10-29-odqa/">
+    <span class="title">« </span>
+    <br>
+    <span>How to Build an Open-Domain Question Answering System?</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/">
+    <span class="title"> »</span>
+    <br>
+    <span>Exploration Strategies in Deep Reinforcement Learning</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on twitter"
+        href="https://twitter.com/intent/tweet/?text=Neural%20Architecture%20Search&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f&amp;hashtags=architecture%2creinforcement-learning%2cevolution%2cauto-ML">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f&amp;title=Neural%20Architecture%20Search&amp;summary=Neural%20Architecture%20Search&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f&title=Neural%20Architecture%20Search">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on whatsapp"
+        href="https://api.whatsapp.com/send?text=Neural%20Architecture%20Search%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Neural Architecture Search on telegram"
+        href="https://telegram.me/share/url?text=Neural%20Architecture%20Search&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2020-08-06-nas%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

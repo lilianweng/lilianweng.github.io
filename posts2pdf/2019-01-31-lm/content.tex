@@ -1,0 +1,1370 @@
+\section{Generalized Language Models}\label{generalized-language-models}
+
+Date: January 31, 2019 \textbar{} Estimated Reading Time: 36 min \textbar{} Author: Lilian Weng
+
+{Table of Contents}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[cove]{CoVe}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[nmt-recap]{NMT Recap}
+  \item
+    \hyperref[use-cove-in-downstream-tasks]{Use CoVe in Downstream Tasks}
+  \end{itemize}
+\item
+  \hyperref[elmo]{ELMo}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[bidirectional-language-model]{Bidirectional Language Model}
+  \item
+    \hyperref[elmo-representations]{ELMo Representations}
+  \item
+    \hyperref[use-elmo-in-downstream-tasks]{Use ELMo in Downstream Tasks}
+  \end{itemize}
+\item
+  \hyperref[cross-view-training]{Cross-View Training}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[model-architecture]{Model Architecture}
+  \item
+    \hyperref[multi-task-learning]{Multi-Task Learning}
+  \item
+    \hyperref[use-cvt-in-downstream-tasks]{Use CVT in Downstream Tasks}
+  \end{itemize}
+\item
+  \hyperref[ulmfit]{ULMFiT}
+\item
+  \hyperref[gpt]{GPT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[transformer-decoder-as-language-model]{Transformer Decoder as Language Model}
+  \item
+    \hyperref[byte-pair-encoding]{Byte Pair Encoding}
+  \item
+    \hyperref[supervised-fine-tuning]{Supervised Fine-Tuning}
+  \end{itemize}
+\item
+  \hyperref[bert]{BERT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[pre-training-tasks]{Pre-training Tasks}
+  \item
+    \hyperref[input-embedding]{Input Embedding}
+  \item
+    \hyperref[use-bert-in-downstream-tasks]{Use BERT in Downstream Tasks}
+  \end{itemize}
+\item
+  \hyperref[albert]{ALBERT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[factorized-embedding-parameterization]{Factorized Embedding Parameterization}
+  \item
+    \hyperref[cross-layer-parameter-sharing]{Cross-layer Parameter Sharing}
+  \item
+    \hyperref[sentence-order-prediction-sop]{Sentence-Order Prediction (SOP)}
+  \end{itemize}
+\item
+  \hyperref[gpt-2]{GPT-2}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[zero-shot-transfer]{Zero-Shot Transfer}
+  \item
+    \hyperref[bpe-on-byte-sequences]{BPE on Byte Sequences}
+  \item
+    \hyperref[model-modifications]{Model Modifications}
+  \end{itemize}
+\item
+  \hyperref[roberta]{RoBERTa}
+\item
+  \hyperref[t5]{T5}
+\item
+  \hyperref[gpt-3]{GPT-3}
+\item
+  \hyperref[xlnet]{XLNet}
+\item
+  \hyperref[bart]{BART}
+\item
+  \hyperref[electra]{ELECTRA}
+\item
+  \hyperref[summary]{Summary}
+\item
+  \hyperref[metric-perplexity]{Metric: Perplexity}
+\item
+  \hyperref[common-tasks-and-datasets]{Common Tasks and Datasets}
+\item
+  \hyperref[reference]{Reference}
+\end{itemize}
+
+{{[}Updated on 2019-02-14: add \hyperref[ulmfit]{ULMFiT} and \hyperref[gpt-2]{GPT-2}.{]}}\\
+{{[}Updated on 2020-02-29: add \hyperref[albert]{ALBERT}.{]}}\\
+{{[}Updated on 2020-10-25: add \hyperref[roberta]{RoBERTa}.{]}}\\
+{{[}Updated on 2020-12-13: add \hyperref[t5]{T5}.{]}}\\
+{{[}Updated on 2020-12-30: add \hyperref[gpt-3]{GPT-3}.{]}}\\
+{{[}Updated on 2021-11-13: add \hyperref[xlnet]{XLNet}, \hyperref[bart]{BART} and \hyperref[electra]{ELECTRA}; Also updated the \hyperref[summary]{Summary} section.{]}}
+
+\hfill\break
+
+\begin{figure}
+\centering
+\includegraphics{elmo-and-bert.png}
+\caption{I guess they are Elmo \& Bert? (Image source: \href{https://www.youtube.com/watch?v=l5einDQ-Ttc}{here})}
+\end{figure}
+
+We have seen amazing progress in NLP in 2018. Large-scale pre-trained language modes like \href{https://blog.openai.com/language-unsupervised/}{OpenAI GPT} and \href{https://arxiv.org/abs/1810.04805}{BERT} have achieved great performance on a variety of language tasks using generic model architectures. The idea is similar to how ImageNet classification pre-training helps many vision tasks (*). Even better than vision classification pre-training, this simple and powerful approach in NLP does not require labeled data for pre-training, allowing us to experiment with increased training scale, up to our very limit.
+
+\emph{(*) He et al. (2018) \href{https://arxiv.org/abs/1811.08883}{found} that pre-training might not be necessary for image segmentation task.}
+
+In my previous NLP \href{https://lilianweng.github.io/posts/2017-10-15-word-embedding/}{post on word embedding}, the introduced embeddings are not context-specific --- they are learned based on word concurrency but not sequential context. So in two sentences, ``\emph{I am eating an apple}'' and ``\emph{I have an Apple phone}'', two ``apple'' words refer to very different things but they would still share the same word embedding vector.
+
+Despite this, early adoption of word embeddings in problem-solving is to use them as additional features for an existing task-specific model and in a way the improvement is bounded.
+
+In this post, we will discuss how various approaches were proposed to make embeddings dependent on context, and to make them easier and cheaper to be applied to downstream tasks in general form.
+
+\section{\texorpdfstring{CoVe\hyperref[cove]{\#}}{CoVe\#}}\label{cove}
+
+\textbf{CoVe} (\href{https://arxiv.org/abs/1708.00107}{McCann et al. 2017}), short for \textbf{Contextual Word Vectors}, is a type of word embeddings learned by an encoder in an \href{https://lilianweng.github.io/posts/2018-06-24-attention/\#born-for-translation}{attentional seq-to-seq} machine translation model. Different from traditional word embeddings introduced \href{https://lilianweng.github.io/posts/2017-10-15-word-embedding/}{here}, CoVe word representations are functions of the entire input sentence.
+
+\subsection{\texorpdfstring{NMT Recap\hyperref[nmt-recap]{\#}}{NMT Recap\#}}\label{nmt-recap}
+
+Here the Neural Machine Translation (\href{https://github.com/THUNLP-MT/MT-Reading-List}{NMT}) model is composed of a standard, two-layer, bidirectional LSTM encoder and an attentional two-layer unidirectional LSTM decoder. It is pre-trained on the English-German translation task. The encoder learns and optimizes the embedding vectors of English words in order to translate them to German. With the intuition that the encoder should capture high-level semantic and syntactic meanings before transforming words into another language, the encoder output is used to provide contextualized word embeddings for various downstream language tasks.
+
+\begin{figure}
+\centering
+\includegraphics{nmt-recap.png}
+\caption{The NMT base model used in CoVe.}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  A sequence of \$n\$ words in source language (English): \$x = {[}x\_1, \textbackslash dots, x\_n{]}\$.
+\item
+  A sequence of \$m\$ words in target language (German): \$y = {[}y\_1, \textbackslash dots, y\_m{]}\$.
+\item
+  The \href{https://lilianweng.github.io/posts/2017-10-15-word-embedding/\#glove-global-vectors}{GloVe} vectors of source words: \$\textbackslash text\{GloVe\}(x)\$.
+\item
+  Randomly initialized embedding vectors of target words: \$z = {[}z\_1, \textbackslash dots, z\_m{]}\$.
+\item
+  The biLSTM encoder outputs a sequence of hidden states: \$h = {[}h\_1, \textbackslash dots, h\_n{]} = \textbackslash text\{biLSTM\}(\textbackslash text\{GloVe\}(x))\$ and \$h\_t = {[}\textbackslash overrightarrow\{h\}\_t; \textbackslash overleftarrow\{h\}\_t{]}\$ where the forward LSTM computes \$\textbackslash overrightarrow\{h\}\_t = \textbackslash text\{LSTM\}(x\_t, \textbackslash overrightarrow\{h\}\_\{t-1\})\$ and the backward computation gives us \$\textbackslash overleftarrow\{h\}\_t = \textbackslash text\{LSTM\}(x\_t, \textbackslash overleftarrow\{h\}\_\{t-1\})\$.
+\item
+  The attentional decoder outputs a distribution over words: \$p(y\_t \textbackslash mid H, y\_1, \textbackslash dots, y\_\{t-1\})\$ where \$H\$ is a stack of hidden states \$\textbackslash\{h\textbackslash\}\$ along the time dimension:
+\end{itemize}
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash text\{decoder hidden state: \} s\_t \&= \textbackslash text\{LSTM\}({[}z\_\{t-1\}; \textbackslash tilde\{h\}\_\{t-1\}{]}, s\_\{t-1\}) \textbackslash\textbackslash{} \textbackslash text\{attention weights: \} \textbackslash alpha\_t \&= \textbackslash text\{softmax\}(H(W\_1 s\_t + b\_1)) \textbackslash\textbackslash{} \textbackslash text\{context-adjusted hidden state: \} \textbackslash tilde\{h\}\_t \&= \textbackslash tanh(W\_2{[}H\^{}\textbackslash top\textbackslash alpha\_t;s\_t{]} + b\_2) \textbackslash\textbackslash{} \textbackslash text\{decoder output: \} p(y\_t\textbackslash mid H, y\_1, \textbackslash dots, y\_\{t-1\}) \&= \textbackslash text\{softmax\}(W\_\textbackslash text\{out\} \textbackslash tilde\{h\}\_t + b\_\textbackslash text\{out\}) \textbackslash end\{aligned\} \$\$
+
+\subsection{\texorpdfstring{Use CoVe in Downstream Tasks\hyperref[use-cove-in-downstream-tasks]{\#}}{Use CoVe in Downstream Tasks\#}}\label{use-cove-in-downstream-tasks}
+
+The hidden states of NMT encoder are defined as \textbf{context vectors} for other language tasks:
+
+\$\$ \textbackslash text\{CoVe\}(x) = \textbackslash text\{biLSTM\}(\textbackslash text\{GloVe\}(x)) \$\$
+
+The paper proposed to use the concatenation of GloVe and CoVe for question-answering and classification tasks. GloVe learns from the ratios of global word co-occurrences, so it has no sentence context, while CoVe is generated by processing text sequences is able to capture the contextual information.
+
+\$\$ v = {[}\textbackslash text\{GloVe\}(x); \textbackslash text\{CoVe\}(x){]} \$\$
+
+Given a downstream task, we first generate the concatenation of GloVe + CoVe vectors of input words and then feed them into the task-specific models as additional features.
+
+\begin{figure}
+\centering
+\includegraphics{CoVe.png}
+\caption{The CoVe embeddings are generated by an encoder trained for machine translation task. The encoder can be plugged into any downstream task-specific model. (Image source: \href{https://arxiv.org/abs/1708.00107}{original paper})}
+\end{figure}
+
+\textbf{Summary}: The limitation of CoVe is obvious: (1) pre-training is bounded by available datasets on the supervised translation task; (2) the contribution of CoVe to the final performance is constrained by the task-specific model architecture.
+
+In the following sections, we will see that ELMo overcomes issue (1) by unsupervised pre-training and OpenAI GPT \& BERT further overcome both problems by unsupervised pre-training + using generative model architecture for different downstream tasks.
+
+\section{\texorpdfstring{ELMo\hyperref[elmo]{\#}}{ELMo\#}}\label{elmo}
+
+\textbf{ELMo}, short for \textbf{Embeddings from Language Model} (\href{https://arxiv.org/abs/1802.05365}{Peters, et al, 2018}) learns contextualized word representation by pre-training a language model in an \emph{unsupervised} way.
+
+\subsection{\texorpdfstring{Bidirectional Language Model\hyperref[bidirectional-language-model]{\#}}{Bidirectional Language Model\#}}\label{bidirectional-language-model}
+
+The bidirectional Language Model (\textbf{biLM}) is the foundation for ELMo. While the input is a sequence of \$n\$ tokens, \$(x\_1, \textbackslash dots, x\_n)\$, the language model learns to predict the probability of next token given the history.
+
+In the forward pass, the history contains words before the target token,
+
+\$\$ p(x\_1, \textbackslash dots, x\_n) = \textbackslash prod\_\{i=1\}\^{}n p(x\_i \textbackslash mid x\_1, \textbackslash dots, x\_\{i-1\}) \$\$
+
+In the backward pass, the history contains words after the target token,
+
+\$\$ p(x\_1, \textbackslash dots, x\_n) = \textbackslash prod\_\{i=1\}\^{}n p(x\_i \textbackslash mid x\_\{i+1\}, \textbackslash dots, x\_n) \$\$
+
+The predictions in both directions are modeled by multi-layer LSTMs with hidden states \$\textbackslash overrightarrow\{\textbackslash mathbf\{h\}\}\_\{i,\textbackslash ell\}\$ and \$\textbackslash overleftarrow\{\textbackslash mathbf\{h\}\}\_\{i,\textbackslash ell\}\$ for input token \$x\_i\$ at the layer level \$\textbackslash ell=1,\textbackslash dots,L\$. The final layer's hidden state \$\textbackslash mathbf\{h\}\_\{i,L\} = {[}\textbackslash overrightarrow\{\textbackslash mathbf\{h\}\}\_\{i,L\}; \textbackslash overleftarrow\{\textbackslash mathbf\{h\}\}\_\{i,L\}{]}\$ is used to output the probabilities over tokens after softmax normalization. They share the embedding layer and the softmax layer, parameterized by \$\textbackslash Theta\_e\$ and \$\textbackslash Theta\_s\$ respectively.
+
+\begin{figure}
+\centering
+\includegraphics{ELMo-biLSTM.png}
+\caption{The biLSTM base model of ELMo. (Image source: recreated based on the figure in {[}"Neural Networks, Types, and Functional Programming"{]}(http://colah.github.io/posts/2015-09-NN-Types-FP/) by Christopher Olah.)}
+\end{figure}
+
+The model is trained to minimize the negative log likelihood (= maximize the log likelihood for true words) in both directions:
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\} = - \textbackslash sum\_\{i=1\}\^{}n \textbackslash Big( \textbackslash log p(x\_i \textbackslash mid x\_1, \textbackslash dots, x\_\{i-1\}; \textbackslash Theta\_e, \textbackslash overrightarrow\{\textbackslash Theta\}\_\textbackslash text\{LSTM\}, \textbackslash Theta\_s) + \textbackslash\textbackslash{} \textbackslash log p(x\_i \textbackslash mid x\_\{i+1\}, \textbackslash dots, x\_n; \textbackslash Theta\_e, \textbackslash overleftarrow\{\textbackslash Theta\}\_\textbackslash text\{LSTM\}, \textbackslash Theta\_s) \textbackslash Big) \textbackslash end\{aligned\} \$\$
+
+\subsection{\texorpdfstring{ELMo Representations\hyperref[elmo-representations]{\#}}{ELMo Representations\#}}\label{elmo-representations}
+
+On top of a \$L\$-layer biLM, ELMo stacks all the hidden states across layers together by learning a task-specific linear combination. The hidden state representation for the token \$x\_i\$ contains \$2L+1\$ vectors:
+
+\$\$ R\_i = \textbackslash\{ \textbackslash mathbf\{h\}\_\{i,\textbackslash ell\} \textbackslash mid \textbackslash ell = 0, \textbackslash dots, L \textbackslash\} \$\$
+
+where \$\textbackslash mathbf\{h\}\_\{0, \textbackslash ell\}\$ is the embedding layer output and \$\textbackslash mathbf\{h\}\_\{i, \textbackslash ell\} = {[}\textbackslash overrightarrow\{\textbackslash mathbf\{h\}\}\_\{i,\textbackslash ell\}; \textbackslash overleftarrow\{\textbackslash mathbf\{h\}\}\_\{i,\textbackslash ell\}{]}\$.
+
+The weights, \$\textbackslash mathbf\{s\}\^{}\textbackslash text\{task\}\$, in the linear combination are learned for each end task and normalized by softmax. The scaling factor \$\textbackslash gamma\^{}\textbackslash text\{task\}\$ is used to correct the misalignment between the distribution of biLM hidden states and the distribution of task specific representations.
+
+\$\$ v\_i = f(R\_i; \textbackslash Theta\^{}\textbackslash text\{task\}) = \textbackslash gamma\^{}\textbackslash text\{task\} \textbackslash sum\_\{\textbackslash ell=0\}\^{}L s\^{}\textbackslash text\{task\}\_i \textbackslash mathbf\{h\}\_\{i,\textbackslash ell\} \$\$
+
+To evaluate what kind of information is captured by hidden states across different layers, ELMo is applied on semantic-intensive and syntax-intensive tasks respectively using representations in different layers of biLM:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Semantic task}: The \emph{word sense disambiguation (WSD)} task emphasizes the meaning of a word given a context. The biLM top layer is better at this task than the first layer.
+\item
+  \textbf{Syntax task}: The \emph{\href{https://en.wikipedia.org/wiki/Part-of-speech_tagging}{part-of-speech} (POS) tagging} task aims to infer the grammatical role of a word in one sentence. A higher accuracy can be achieved by using the biLM first layer than the top layer.
+\end{itemize}
+
+The comparison study indicates that syntactic information is better represented at lower layers while semantic information is captured by higher layers. Because different layers tend to carry different type of information, \emph{stacking them together helps}.
+
+\subsection{\texorpdfstring{Use ELMo in Downstream Tasks\hyperref[use-elmo-in-downstream-tasks]{\#}}{Use ELMo in Downstream Tasks\#}}\label{use-elmo-in-downstream-tasks}
+
+Similar to how \hyperref[use-cove-in-downstream-tasks]{CoVe} can help different downstream tasks, ELMo embedding vectors are included in the input or lower levels of task-specific models. Moreover, for some tasks (i.e., \hyperref[nli]{SNLI} and \hyperref[qa]{SQuAD}, but not \hyperref[srl]{SRL}), adding them into the output level helps too.
+
+The improvements brought up by ELMo are largest for tasks with a small supervised dataset. With ELMo, we can also achieve similar performance with much less labeled data.
+
+\textbf{Summary}: The language model pre-training is unsupervised and theoretically the pre-training can be scaled up as much as possible since the unlabeled text corpora are abundant. However, it still has the dependency on task-customized models and thus the improvement is only incremental, while searching for a good model architecture for every task remains non-trivial.
+
+\section{\texorpdfstring{Cross-View Training\hyperref[cross-view-training]{\#}}{Cross-View Training\#}}\label{cross-view-training}
+
+In ELMo the unsupervised pre-training and task-specific learning happen for two independent models in two separate training stages. \textbf{Cross-View Training} (abbr. \textbf{CVT}; \href{https://arxiv.org/abs/1809.08370}{Clark et al., 2018}) combines them into one unified semi-supervised learning procedure where the representation of a biLSTM encoder is improved by both supervised learning with labeled data and unsupervised learning with unlabeled data on auxiliary tasks.
+
+\subsection{\texorpdfstring{Model Architecture\hyperref[model-architecture]{\#}}{Model Architecture\#}}\label{model-architecture}
+
+The model consists of a two-layer bidirectional LSTM encoder and a primary prediction module. During training, the model is fed with labeled and unlabeled data batches alternatively.
+
+\begin{itemize}
+\tightlist
+\item
+  On \emph{labeled examples}, all the model parameters are updated by standard supervised learning. The loss is the standard cross entropy.
+\item
+  On \emph{unlabeled examples}, the primary prediction module still can produce a ``soft'' target, even though we cannot know exactly how accurate they are. In a couple of auxiliary tasks, the predictor only sees and processes a restricted view of the input, such as only using encoder hidden state representation in one direction. The auxiliary task outputs are expected to match the primary prediction target for a full view of input.\\
+  In this way, the encoder is forced to distill the knowledge of the full context into partial representation. At this stage, the biLSTM encoder is backpropagated but the primary prediction module is \emph{fixed}. The loss is to minimize the distance between auxiliary and primary predictions.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{CVT.png}
+\caption{The overview of semi-supervised language model cross-view training. (Image source: \href{https://arxiv.org/abs/1809.08370}{original paper})}
+\end{figure}
+
+\subsection{\texorpdfstring{Multi-Task Learning\hyperref[multi-task-learning]{\#}}{Multi-Task Learning\#}}\label{multi-task-learning}
+
+When training for multiple tasks simultaneously, CVT adds several extra primary prediction models for additional tasks. They all share the same sentence representation encoder. During supervised training, once one task is randomly selected, parameters in its corresponding predictor and the representation encoder are updated. With unlabeled data samples, the encoder is optimized jointly across all the tasks by minimizing the differences between auxiliary outputs and primary prediction for every task.
+
+The multi-task learning encourages better generality of representation and in the meantime produces a nice side-product: all-tasks-labeled examples from unlabeled data. They are precious data labels considering that cross-task labels are useful but fairly rare.
+
+\subsection{\texorpdfstring{Use CVT in Downstream Tasks\hyperref[use-cvt-in-downstream-tasks]{\#}}{Use CVT in Downstream Tasks\#}}\label{use-cvt-in-downstream-tasks}
+
+Theoretically the primary prediction module can take any form, generic or task-specific design. The examples presented in the CVT paper include both cases.
+
+In sequential tagging tasks (classification for every token) like \hyperref[ner]{NER} or \hyperref[pos]{POS} tagging, the predictor module contains two fully connected layers and a softmax layer on the output to produce a probability distribution over class labels. For each token \$\textbackslash mathbf\{x\}\_i\$, we take the corresponding hidden states in two layers, \$\textbackslash mathbf\{h\}\_1\^{}\{(i)\}\$ and \$\textbackslash mathbf\{h\}\_2\^{}\{(i)\}\$:
+
+\$\$ \textbackslash begin\{aligned\} p\_\textbackslash theta(y\_i \textbackslash mid \textbackslash mathbf\{x\}\_i) \&= \textbackslash text\{NN\}(\textbackslash mathbf\{h\}\^{}\{(i)\}) \textbackslash\textbackslash{} \&= \textbackslash text\{NN\}({[}\textbackslash mathbf\{h\}\_1\^{}\{(i)\}; \textbackslash mathbf\{h\}\_2\^{}\{(i)\}{]}) \textbackslash\textbackslash{} \&= \textbackslash text\{softmax\} \textbackslash big( \textbackslash mathbf\{W\}\textbackslash cdot\textbackslash text\{ReLU\}(\textbackslash mathbf\{W\textquotesingle\}\textbackslash cdot{[}\textbackslash mathbf\{h\}\_1\^{}\{(i)\}; \textbackslash mathbf\{h\}\_2\^{}\{(i)\}{]}) + \textbackslash mathbf\{b\} \textbackslash big) \textbackslash end\{aligned\} \$\$
+
+The auxiliary tasks are only fed with forward or backward LSTM state in the first layer. Because they only observe partial context, either on the left or right, they have to learn like a language model, trying to predict the next token given the context. The \texttt{fwd} and \texttt{bwd} auxiliary tasks only take one direction. The \texttt{future} and \texttt{past} tasks take one step further in forward and backward direction, respectively.
+
+\$\$ \textbackslash begin\{aligned\} p\_\textbackslash theta\^{}\textbackslash text\{fwd\}(y\_i \textbackslash mid \textbackslash mathbf\{x\}\_i) \&= \textbackslash text\{NN\}\^{}\textbackslash text\{fwd\}(\textbackslash overrightarrow\{\textbackslash mathbf\{h\}\}\^{}\{(i)\}) \textbackslash\textbackslash{} p\_\textbackslash theta\^{}\textbackslash text\{bwd\}(y\_i \textbackslash mid \textbackslash mathbf\{x\}\_i) \&= \textbackslash text\{NN\}\^{}\textbackslash text\{bwd\}(\textbackslash overleftarrow\{\textbackslash mathbf\{h\}\}\^{}\{(i)\}) \textbackslash\textbackslash{} p\_\textbackslash theta\^{}\textbackslash text\{future\}(y\_i \textbackslash mid \textbackslash mathbf\{x\}\_i) \&= \textbackslash text\{NN\}\^{}\textbackslash text\{future\}(\textbackslash overrightarrow\{\textbackslash mathbf\{h\}\}\^{}\{(i-1)\}) \textbackslash\textbackslash{} p\_\textbackslash theta\^{}\textbackslash text\{past\}(y\_i \textbackslash mid \textbackslash mathbf\{x\}\_i) \&= \textbackslash text\{NN\}\^{}\textbackslash text\{past\}(\textbackslash overleftarrow\{\textbackslash mathbf\{h\}\}\^{}\{(i+1)\}) \textbackslash end\{aligned\} \$\$
+
+\begin{figure}
+\centering
+\includegraphics{CVT-example.png}
+\caption{The sequential tagging task depends on four auxiliary prediction models, their inputs only involving hidden states in one direction: forward, backward, future and past. (Image source: \href{https://arxiv.org/abs/1809.08370}{original paper})}
+\end{figure}
+
+Note that if the primary prediction module has dropout, the dropout layer works as usual when training with labeled data, but it is not applied when generating ``soft'' target for auxiliary tasks during training with unlabeled data.
+
+In the machine translation task, the primary prediction module is replaced with a standard unidirectional LSTM decoder with attention. There are two auxiliary tasks: (1) apply dropout on the attention weight vector by randomly zeroing out some values; (2) predict the future word in the target sequence. The primary prediction for auxiliary tasks to match is the best predicted target sequence produced by running the fixed primary decoder on the input sequence with \href{https://en.wikipedia.org/wiki/Beam_search}{beam search}.
+
+\section{\texorpdfstring{ULMFiT\hyperref[ulmfit]{\#}}{ULMFiT\#}}\label{ulmfit}
+
+The idea of using generative pretrained LM + task-specific fine-tuning was first explored in ULMFiT (\href{https://arxiv.org/abs/1801.06146}{Howard \& Ruder, 2018}), directly motivated by the success of using ImageNet pre-training for computer vision tasks. The base model is \href{https://arxiv.org/abs/1708.02182}{AWD-LSTM}.
+
+ULMFiT follows three steps to achieve good transfer learning results on downstream language classification tasks:
+
+\begin{enumerate}
+\item
+  \emph{General LM pre-training}: on Wikipedia text.
+\item
+  \emph{Target task LM fine-tuning}: ULMFiT proposed two training techniques for stabilizing the fine-tuning process. See below.
+\end{enumerate}
+
+\begin{itemize}
+\item
+  \textbf{Discriminative fine-tuning} is motivated by the fact that different layers of LM capture different types of information (see \hyperref[elmo-representations]{discussion} above). ULMFiT proposed to tune each layer with different learning rates, \$\textbackslash\{\textbackslash eta\^{}1, \textbackslash dots, \textbackslash eta\^{}\textbackslash ell, \textbackslash dots, \textbackslash eta\^{}L\textbackslash\}\$, where \$\textbackslash eta\$ is the base learning rate for the first layer, \$\textbackslash eta\^{}\textbackslash ell\$ is for the \$\textbackslash ell\$-th layer and there are \$L\$ layers in total.
+\item
+  \textbf{Slanted triangular learning rates (STLR)} refer to a special learning rate scheduling that first linearly increases the learning rate and then linearly decays it. The increase stage is short so that the model can converge to a parameter space suitable for the task fast, while the decay period is long allowing for better fine-tuning.
+\end{itemize}
+
+\begin{enumerate}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  \emph{Target task classifier fine-tuning}: The pretrained LM is augmented with two standard feed-forward layers and a softmax normalization at the end to predict a target label distribution.
+\end{enumerate}
+
+\begin{itemize}
+\item
+  \textbf{Concat pooling} extracts max-polling and mean-pooling over the history of hidden states and concatenates them with the final hidden state.
+\item
+  \textbf{Gradual unfreezing} helps to avoid catastrophic forgetting by gradually unfreezing the model layers starting from the last one. First the last layer is unfrozen and fine-tuned for one epoch. Then the next lower layer is unfrozen. This process is repeated until all the layers are tuned.
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics{ULMFiT.png}
+\caption{Three training stages of ULMFiT. (Image source: \href{https://arxiv.org/abs/1801.06146}{original paper})}
+\end{figure}
+
+\section{\texorpdfstring{GPT\hyperref[gpt]{\#}}{GPT\#}}\label{gpt}
+
+Following the similar idea of ELMo, OpenAI \textbf{GPT}, short for \textbf{Generative Pre-training Transformer} (\href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{Radford et al., 2018}), expands the unsupervised language model to a much larger scale by training on a giant collection of free text corpora. Despite of the similarity, GPT has two major differences from ELMo.
+
+\begin{enumerate}
+\tightlist
+\item
+  The model architectures are different: ELMo uses a shallow concatenation of independently trained left-to-right and right-to-left multi-layer LSTMs, while GPT is a multi-layer transformer decoder.
+\item
+  The use of contextualized embeddings in downstream tasks are different: ELMo feeds embeddings into models customized for specific tasks as additional features, while GPT fine-tunes the same base model for all end tasks.
+\end{enumerate}
+
+\subsection{\texorpdfstring{Transformer Decoder as Language Model\hyperref[transformer-decoder-as-language-model]{\#}}{Transformer Decoder as Language Model\#}}\label{transformer-decoder-as-language-model}
+
+Compared to the \href{https://arxiv.org/abs/1706.03762}{original transformer} architecture, the \href{https://arxiv.org/abs/1801.10198}{transformer decoder} model discards the encoder part, so there is only one single input sentence rather than two separate source and target sequences.
+
+This model applies multiple transformer blocks over the embeddings of input sequences. Each block contains a masked \emph{multi-headed self-attention} layer and a \emph{pointwise feed-forward} layer. The final output produces a distribution over target tokens after softmax normalization.
+
+\begin{figure}
+\centering
+\includegraphics{OpenAI-GPT-transformer-decoder.png}
+\caption{The transformer decoder model architecture in OpenAI GPT.}
+\end{figure}
+
+The loss is the negative log-likelihood, same as \hyperref[elmo]{ELMo}, but without backward computation. Let's say, the context window of the size \$k\$ is located before the target word and the loss would look like:
+
+\$\$ \textbackslash mathcal\{L\}\_\textbackslash text\{LM\} = -\textbackslash sum\_\{i\} \textbackslash log p(x\_i\textbackslash mid x\_\{i-k\}, \textbackslash dots, x\_\{i-1\}) \$\$
+
+\subsection{\texorpdfstring{Byte Pair Encoding\hyperref[byte-pair-encoding]{\#}}{Byte Pair Encoding\#}}\label{byte-pair-encoding}
+
+\textbf{Byte Pair Encoding} (\href{https://arxiv.org/abs/1508.07909}{\textbf{BPE}}) is used to encode the input sequences. BPE was originally proposed as a data compression algorithm in 1990s and then was adopted to solve the open-vocabulary issue in machine translation, as we can easily run into rare and unknown words when translating into a new language. Motivated by the intuition that rare and unknown words can often be decomposed into multiple subwords, BPE finds the best word segmentation by iteratively and greedily merging frequent pairs of characters.
+
+\subsection{\texorpdfstring{Supervised Fine-Tuning\hyperref[supervised-fine-tuning]{\#}}{Supervised Fine-Tuning\#}}\label{supervised-fine-tuning}
+
+The most substantial upgrade that OpenAI GPT proposed is to get rid of the task-specific model and use the pre-trained language model directly!
+
+Let's take classification as an example. Say, in the labeled dataset, each input has \$n\$ tokens, \$\textbackslash mathbf\{x\} = (x\_1, \textbackslash dots, x\_n)\$, and one label \$y\$. GPT first processes the input sequence \$\textbackslash mathbf\{x\}\$ through the pre-trained transformer decoder and the last layer output for the last token \$x\_n\$ is \$\textbackslash mathbf\{h\}\_L\^{}\{(n)\}\$. Then with only one new trainable weight matrix \$\textbackslash mathbf\{W\}\_y\$, it can predict a distribution over class labels.
+
+
+\includegraphics{GPT-classification.png}
+\end{minipage}
+\hfill
+
+\$\$ P(y\textbackslash mid x\_1, \textbackslash dots, x\_n) = \textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\_L\^{}\{(n)\}\textbackslash mathbf\{W\}\_y) \$\$
+\end{minipage}
+\hfill
+
+The loss is to minimize the negative log-likelihood for true labels. In addition, adding the LM loss as an auxiliary loss is found to be beneficial, because:
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  (1) it helps accelerate convergence during training and
+\item
+  (2) it is expected to improve the generalization of the supervised model.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{cls\} \&= \textbackslash sum\_\{(\textbackslash mathbf\{x\}, y) \textbackslash in \textbackslash mathcal\{D\}\} \textbackslash log P(y\textbackslash mid x\_1, \textbackslash dots, x\_n) = \textbackslash sum\_\{(\textbackslash mathbf\{x\}, y) \textbackslash in \textbackslash mathcal\{D\}\} \textbackslash log \textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\_L\^{}\{(n)\}(\textbackslash mathbf\{x\})\textbackslash mathbf\{W\}\_y) \textbackslash\textbackslash{} \textbackslash mathcal\{L\}\_\textbackslash text\{LM\} \&= -\textbackslash sum\_\{i\} \textbackslash log p(x\_i\textbackslash mid x\_\{i-k\}, \textbackslash dots, x\_\{i-1\}) \textbackslash\textbackslash{} \textbackslash mathcal\{L\} \&= \textbackslash mathcal\{L\}\_\textbackslash text\{cls\} + \textbackslash lambda \textbackslash mathcal\{L\}\_\textbackslash text\{LM\} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+With similar designs, no customized model structure is needed for other end tasks (see Fig. 7). If the task input contains multiple sentences, a special delimiter token (\texttt{\$}) is added between each pair of sentences. The embedding for this delimiter token is a new parameter we need to learn, but it should be pretty minimal.
+\end{minipage}
+\hfill
+
+For the sentence similarity task, because the ordering does not matter, both orderings are included. For the multiple choice task, the context is paired with every answer candidate.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{GPT-downstream-tasks.png}
+\caption{Training objects in slightly modified GPT transformer models for downstream tasks. (Image source: \href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{original paper})}
+\end{subfigure}
+\hfill
+
+\textbf{Summary}: It is super neat and encouraging to see that such a general framework is capable to beat SOTA on most language tasks at that time (June 2018). At the first stage, generative pre-training of a language model can absorb as much free text as possible. Then at the second stage, the model is fine-tuned on specific tasks with a small labeled dataset and a minimal set of new parameters to learn.
+\end{minipage}
+\hfill
+
+One limitation of GPT is its uni-directional nature --- the model is only trained to predict the future left-to-right context.
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{BERT\hyperref[bert]{\#}}{BERT\#}}\label{bert}
+\end{minipage}
+\hfill
+
+\textbf{BERT}, short for \textbf{Bidirectional Encoder Representations from Transformers} (\href{https://arxiv.org/abs/1810.04805}{Devlin, et al., 2019}) is a direct descendant to \hyperref[gpt]{GPT}: train a large language model on free text and then fine-tune on specific tasks without customized network architectures.
+\end{minipage}
+\hfill
+
+Compared to GPT, the largest difference and improvement of BERT is to make training \textbf{bi-directional}. The model learns to predict both context on the left and right. The paper according to the ablation study claimed that:
+\end{minipage}
+\hfill
+
+\begin{quote}
+``bidirectional nature of our model is the single most important new contribution''
+\end{quote}
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Pre-training Tasks\hyperref[pre-training-tasks]{\#}}{Pre-training Tasks\#}}\label{pre-training-tasks}
+\end{minipage}
+\hfill
+
+The model architecture of BERT is a multi-layer bidirectional Transformer encoder.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{transformer-encoder-2.png}
+\caption{Recap of Transformer Encoder model architecture. (Image source: \href{https://arxiv.org/abs/1706.03762}{Transformer paper})}
+\end{subfigure}
+\hfill
+
+To encourage the bi-directional prediction and sentence-level understanding, BERT is trained with two tasks instead of the basic language task (that is, to predict the next token given context).
+\end{minipage}
+\hfill
+
+*\phantomsection\label{MLM}{}\textbf{Task 1: Mask language model (MLM)}
+\end{minipage}
+\hfill
+
+\begin{quote}
+From \href{https://en.wikipedia.org/wiki/Cloze_test}{Wikipedia}: ``A cloze test (also cloze deletion test) is an exercise, test, or assessment consisting of a portion of language with certain items, words, or signs removed (cloze text), where the participant is asked to replace the missing language item. \ldots{} The exercise was first described by W.L. Taylor in 1953.''
+\end{quote}
+\end{minipage}
+\hfill
+
+It is unsurprising to believe that a representation that learns the context around a word rather than just after the word is able to better capture its meaning, both syntactically and semantically. BERT encourages the model to do so by training on the \emph{``mask language model'' task}:
+\end{minipage}
+\hfill
+
+\begin{enumerate}
+\tightlist
+\item
+  Randomly mask 15\% of tokens in each sequence. Because if we only replace masked tokens with a special placeholder \texttt{{[}MASK{]}}, the special token would never be encountered during fine-tuning. Hence, BERT employed several heuristic tricks:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    (a) with 80\% probability, replace the chosen words with \texttt{{[}MASK{]}};
+  \item
+    (b) with 10\% probability, replace with a random word;
+  \item
+    (c) with 10\% probability, keep it the same.
+  \end{itemize}
+\item
+  The model only predicts the missing words, but it has no information on which words have been replaced or which words should be predicted. The output size is only 15\% of the input size.
+\end{enumerate}
+\end{minipage}
+\hfill
+
+\phantomsection\label{NSP}{}\textbf{Task 2: Next sentence prediction}
+\end{minipage}
+\hfill
+
+Motivated by the fact that many downstream tasks involve the understanding of relationships between sentences (i.e., \hyperref[qa]{QA}, \hyperref[nli]{NLI}), BERT added another auxiliary task on training a \emph{binary classifier} for telling whether one sentence is the next sentence of the other:
+\end{minipage}
+\hfill
+
+\begin{enumerate}
+\tightlist
+\item
+  Sample sentence pairs (A, B) so that:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    (a) 50\% of the time, B follows A;
+  \item
+    (b) 50\% of the time, B does not follow A.
+  \end{itemize}
+\item
+  The model processes both sentences and output a binary label indicating whether B is the next sentence of A.
+\end{enumerate}
+\end{minipage}
+\hfill
+
+The training data for both auxiliary tasks above can be trivially generated from any monolingual corpus. Hence the scale of training is unbounded. The training loss is the sum of the mean masked LM likelihood and mean next sentence prediction likelihood.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{language-model-comparison.png}
+\caption{Comparison of BERT, OpenAI GPT and ELMo model architectures. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
+\end{subfigure}
+\hfill
+
+\subsection{\texorpdfstring{Input Embedding\hyperref[input-embedding]{\#}}{Input Embedding\#}}\label{input-embedding}
+\end{minipage}
+\hfill
+
+The input embedding is the sum of three parts:
+\end{minipage}
+\hfill
+
+\begin{enumerate}
+\tightlist
+\item
+  \emph{WordPiece tokenization embeddings}: The \href{https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/37842.pdf}{WordPiece} \href{https://arxiv.org/pdf/1609.08144.pdf}{model} was originally proposed for Japanese or Korean segmentation problem. Instead of using naturally split English word, they can be further divided into smaller sub-word units so that it is more effective to handle rare or unknown words. Please read \href{https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/37842.pdf}{linked} \href{https://arxiv.org/pdf/1609.08144.pdf}{papers} for the optimal way to split words if interested.
+\item
+  \emph{Segment embeddings}: If the input contains two sentences, they have sentence A embeddings and sentence B embeddings respectively and they are separated by a special character \texttt{{[}SEP{]}}; Only sentence A embeddings are used if the input only contains one sentence.
+\item
+  \emph{Position embeddings}: Positional embeddings are learned rather than hard-coded.
+\end{enumerate}
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{BERT-input-embedding.png}
+\caption{BERT input representation. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
+\end{subfigure}
+\hfill
+
+Note that the first token is always forced to be \texttt{{[}CLS{]}} --- a placeholder that will be used later for prediction in downstream tasks.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Use BERT in Downstream Tasks\hyperref[use-bert-in-downstream-tasks]{\#}}{Use BERT in Downstream Tasks\#}}\label{use-bert-in-downstream-tasks}
+\end{minipage}
+\hfill
+
+BERT fine-tuning requires only a few new parameters added, just like OpenAI GPT.
+\end{minipage}
+\hfill
+
+For classification tasks, we get the prediction by taking the final hidden state of the special first token \texttt{{[}CLS{]}}, \$\textbackslash mathbf\{h\}\^{}\textbackslash text\{{[}CLS{]}\}\_L\$, and multiplying it with a small weight matrix, \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{{[}CLS{]}\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{cls\})\$.
+\end{minipage}
+\hfill
+
+For \hyperref[qa]{QA} tasks like SQuAD, we need to predict the text span in the given paragraph for an given question. BERT predicts two probability distributions of every token, being the start and the end of the text span. Only two new small matrices, \$\textbackslash mathbf\{W\}\_\textbackslash text\{s\}\$ and \$\textbackslash mathbf\{W\}\_\textbackslash text\{e\}\$, are newly learned during fine-tuning and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{(i)\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{s\})\$ and \$\textbackslash text\{softmax\}(\textbackslash mathbf\{h\}\^{}\textbackslash text\{(i)\}\_L \textbackslash mathbf\{W\}\_\textbackslash text\{e\})\$ define two probability distributions.
+\end{minipage}
+\hfill
+
+Overall the add-on part for end task fine-tuning is very minimal --- one or two weight matrices to convert the Transform hidden states to an interpretable format. Check the paper for implementation details for other cases.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{BERT-downstream-tasks.png}
+\caption{Training objects in slightly modified BERT models for downstream tasks. (Image source: \href{https://arxiv.org/abs/1810.04805}{original paper})}
+\end{subfigure}
+\hfill
+
+A summary table compares differences between fine-tuning of \hyperref[gpt]{OpenAI GPT} and BERT.
+\end{minipage}
+\hfill
+
+\textbar{} \textbar{} \textbf{OpenAI GPT} \textbar{} \textbf{BERT} \textbar{} \textbar{} Special char \textbar{} \texttt{{[}SEP{]}} and \texttt{{[}CLS{]}} are only introduced at fine-tuning stage. \textbar{} \texttt{{[}SEP{]}} and \texttt{{[}CLS{]}} and sentence A/B embeddings are learned at the pre-training stage. \textbar{} \textbar{} Training process \textbar{} 1M steps, batch size 32k words. \textbar{} 1M steps, batch size 128k words. \textbar{} \textbar{} Fine-tuning \textbar{} lr = 5e-5 for all fine-tuning tasks. \textbar{} Use task-specific lr for fine-tuning. \textbar{}
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{ALBERT\hyperref[albert]{\#}}{ALBERT\#}}\label{albert}
+\end{minipage}
+\hfill
+
+\textbf{ALBERT} (\href{https://arxiv.org/abs/1909.11942}{Lan, et al. 2019}), short for \textbf{A Lite BERT}, is a light-weighted version of \hyperref[BERT]{BERT} model. An ALBERT model can be trained 1.7x faster with 18x fewer parameters, compared to a BERT model of similar configuration. ALBERT incorporates three changes as follows: the first two help reduce parameters and memory consumption and hence speed up the training speed, while the third one proposes a more chanllenging training task to replace the next sentence prediction (NSP) objective.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Factorized Embedding Parameterization\hyperref[factorized-embedding-parameterization]{\#}}{Factorized Embedding Parameterization\#}}\label{factorized-embedding-parameterization}
+\end{minipage}
+\hfill
+
+In BERT, the WordPiece tokenization embedding size \$E\$ is configured to be the same as the hidden state size \$H\$. That is saying, if we want to increase the model size (larger \$H\$), we need to learn a larger tokenization embedding too, which is expensive because it depends on the vocabulary size (\$V\$).
+\end{minipage}
+\hfill
+
+Conceptually, because the tokenization embedding is expected to learn \emph{context-independent} representation and the hidden states are \emph{context-dependent}, it makes sense to separate the size of the hidden layers from the size of vocabulary embedding. Using factorized embedding parameterization, the large vocabulary embedding matrix of size \$V \textbackslash times H\$ is decomposed into two small matrices of size \$V \textbackslash times E\$ and \$E \textbackslash times H\$. Given \$H \textbackslash gt E\$ or even \$H \textbackslash gg E\$, factorization can result in significant parameter reduction.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Cross-layer Parameter Sharing\hyperref[cross-layer-parameter-sharing]{\#}}{Cross-layer Parameter Sharing\#}}\label{cross-layer-parameter-sharing}
+\end{minipage}
+\hfill
+
+Parameter sharing across layers can happen in many ways: (a) only share feed-forward part; (b) only share attention parameters; or (c) share all the parameters. This technique reduces the number of parameters by a ton and does not damage the performance too much.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Sentence-Order Prediction (SOP)\hyperref[sentence-order-prediction-sop]{\#}}{Sentence-Order Prediction (SOP)\#}}\label{sentence-order-prediction-sop}
+\end{minipage}
+\hfill
+
+Interestingly, the \hyperref[NSP]{next sentence prediction (NSP)} task of BERT turned out to be too easy. ALBERT instead adopted a sentence-order prediction (SOP) \href{https://lilianweng.github.io/posts/2019-11-10-self-supervised/}{self-supervised} loss,
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  Positive sample: two consecutive segments from the same document.
+\item
+  Negative sample: same as above, but the segment order is switched.
+\end{itemize}
+\end{minipage}
+\hfill
+
+For the NSP task, the model can make reasonable predictions if it is able to detect topics when A and B are from different contexts. In comparison, SOP is harder as it requires the model to fully understand the coherence and ordering between segments.
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{GPT-2\hyperref[gpt-2]{\#}}{GPT-2\#}}\label{gpt-2}
+\end{minipage}
+\hfill
+
+The \href{https://blog.openai.com/better-language-models/}{OpenAI} \href{https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf}{GPT-2} language model is a direct successor to \hyperref[gpt]{GPT}. GPT-2 has 1.5B parameters, 10x more than the original GPT, and it achieves SOTA results on 7 out of 8 tested language modeling datasets in a \emph{zero-shot transfer setting} without any task-specific fine-tuning. The pre-training dataset contains 8 million Web pages collected by crawling qualified outbound links from \href{https://www.reddit.com/}{Reddit}. Large improvements by OpenAI GPT-2 are specially noticeable on small datasets and datasets used for measuring \emph{long-term dependency}.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Zero-Shot Transfer\hyperref[zero-shot-transfer]{\#}}{Zero-Shot Transfer\#}}\label{zero-shot-transfer}
+\end{minipage}
+\hfill
+
+The pre-training task for GPT-2 is solely language modeling. All the downstream language tasks are framed as predicting conditional probabilities and there is no task-specific fine-tuning.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  Text generation is straightforward using LM.
+\item
+  Machine translation task, for example, English to Chinese, is induced by conditioning LM on pairs of ``English sentence = Chinese sentence'' and ``the target English sentence ='' at the end.
+
+  \begin{itemize}
+  \tightlist
+  \item
+    For example, the conditional probability to predict might look like: \texttt{P(?\ \textbar{}\ I\ like\ green\ apples.\ =\ 我喜欢绿苹果。\ A\ cat\ meows\ at\ him.\ =\ 一只猫对他喵。It\ is\ raining\ cats\ and\ dogs.\ =")}
+  \end{itemize}
+\item
+  QA task is formatted similar to translation with pairs of questions and answers in the context.
+\item
+  Summarization task is induced by adding \texttt{TL;DR:} after the articles in the context.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{BPE on Byte Sequences\hyperref[bpe-on-byte-sequences]{\#}}{BPE on Byte Sequences\#}}\label{bpe-on-byte-sequences}
+\end{minipage}
+\hfill
+
+Same as the original GPT, GPT-2 uses \hyperref[byte-pair-encoding]{BPE} but on \href{https://en.wikipedia.org/wiki/UTF-8}{UTF-8} byte sequences. Each byte can represent 256 different values in 8 bits, while UTF-8 can use up to 4 bytes for one character, supporting up to \$2\^{}\{31\}\$ characters in total. Therefore, with byte sequence representation we only need a vocabulary of size 256 and do not need to worry about pre-processing, tokenization, etc. Despite of the benefit, current byte-level LMs still have non-negligible performance gap with the SOTA word-level LMs.
+\end{minipage}
+\hfill
+
+BPE merges frequently co-occurred byte pairs in a greedy manner. To prevent it from generating multiple versions of common words (i.e. \texttt{dog.}, \texttt{dog!} and \texttt{dog?} for the word \texttt{dog}), GPT-2 prevents BPE from merging characters across categories (thus \texttt{dog} would not be merged with punctuations like \texttt{.}, \texttt{!} and \texttt{?}). This tricks help increase the quality of the final byte segmentation.
+\end{minipage}
+\hfill
+
+Using the byte sequence representation, GPT-2 is able to assign a probability to any Unicode string, regardless of any pre-processing steps.
+\end{minipage}
+\hfill
+
+\subsection{\texorpdfstring{Model Modifications\hyperref[model-modifications]{\#}}{Model Modifications\#}}\label{model-modifications}
+\end{minipage}
+\hfill
+
+Compared to GPT, other than having many more transformer layers and parameters, GPT-2 incorporates only a few architecture modifications:
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://arxiv.org/abs/1607.06450}{Layer normalization} was moved to the input of each sub-block, similar to a residual unit of type \href{https://arxiv.org/abs/1603.05027}{``building block''} (differently from the original type \href{https://arxiv.org/abs/1512.03385}{``bottleneck''}, it has batch normalization applied before weight layers).
+\item
+  An additional layer normalization was added after the final self-attention block.
+\item
+  A modified initialization was constructed as a function of the model depth.
+\item
+  The weights of residual layers were initially scaled by a factor of \$1/ \textbackslash sqrt\{N\}\$ where N is the number of residual layers.
+\item
+  Use larger vocabulary size and context size.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{RoBERTa\hyperref[roberta]{\#}}{RoBERTa\#}}\label{roberta}
+\end{minipage}
+\hfill
+
+\textbf{RoBERTa} (short for \textbf{R}obustly \textbf{o}ptimized \textbf{BERT} \textbf{a}pproach; \href{https://arxiv.org/abs/1907.11692}{Liu, et al. 2019}) refers to a new receipt for training BERT to achieve better results, as they found that the original BERT model is significantly undertrained. The receipt contains the following learnings:
+\end{minipage}
+\hfill
+
+\begin{enumerate}
+\tightlist
+\item
+  Train for longer with bigger batch size.
+\item
+  Remove the \hyperref[nsp]{next sentence prediction (NSP)} task.
+\item
+  Use longer sequences in training data format. The paper found that using individual sentences as inputs hurts downstream performance. Instead we should use multiple sentences sampled contiguously to form longer segments.
+\item
+  Change the masking pattern dynamically. The original BERT applies masking once during the data preprocessing stage, resulting in a static mask across training epochs. RoBERTa applies masks in 10 different ways across 40 epochs.
+\end{enumerate}
+\end{minipage}
+\hfill
+
+RoBERTa also added a new dataset \href{https://commoncrawl.org/2016/10/news-dataset-available/}{CommonCrawl News} and further confirmed that pretraining with \emph{more data helps} improve the performance on downstream tasks. It was trained with the \hyperref[bpe-on-byte-sequences]{BPE on byte sequences}, same as in \hyperref[gpt-2]{GPT-2}. They also found that choices of hyperparameters have a big impact on the model performance.
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{T5\hyperref[t5]{\#}}{T5\#}}\label{t5}
+\end{minipage}
+\hfill
+
+The language model \textbf{T5} is short for \textbf{``Text-to-Text Transfer Transformer''} (\href{https://arxiv.org/abs/1910.10683}{Raffel et al., 2020}). The encoder-decoder implementation follows the \href{https://arxiv.org/abs/1706.03762}{original Transformer} architecture: tokens → embedding → encoder → decoder → output. T5 adopts the framework ``Natural Language Decathlon'' (\href{https://arxiv.org/abs/1806.08730}{McCann et al., 2018}), where many common NLP tasks are translated into question-answering over a context. Instead of an explicit QA format, T5 uses short task prefixes to distinguish task intentions and separately fine-tunes the model on every individual task. The text-to-text framework enables easier transfer learning evaluation with the same model on a diverse set of tasks.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{T5.png}
+\caption{A diagram of T5 task evaluation. The text-to-text framework casts every task into a generic form: feeding input text to predict some target text. (Image source: \href{https://arxiv.org/abs/1910.10683}{Raffel et al., 2020})}
+\end{subfigure}
+\hfill
+
+The model is trained on Web corpus extracted from Apr 2019 with various filters applied. The model is fine-tuned for each downstream task separately via ``adapter layers'' (add an extra layer for training) or ``gradual unfreezing'' (see \hyperref[ulmfit]{ULMFiT}). Both fine-tuning approaches only update partial parameters while keeping the majority of the model parameters unchanged. T5-11B achieved SOTA results on many NLP tasks.
+\end{minipage}
+\hfill
+
+As the authors mentioned in the paper ``\ldots our goal is not to propose new methods but instead to provide a comprehensive perspective on where the field stands'', the T5 long paper described a lot of training setup and evaluation processes in detail, a good read for people who are interested in training a LM from scratch.
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{GPT-3\hyperref[gpt-3]{\#}}{GPT-3\#}}\label{gpt-3}
+\end{minipage}
+\hfill
+
+\textbf{GPT-3} (\href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020}) has the same architecture as \hyperref[gpt-2]{GPT-2} but contains 175B parameters, 10x larger than GPT-2 (1.5B). In addition, GPT-3 uses alternating dense and locally banded sparse attention patterns, same as in \href{https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/\#sparse-attention-matrix-factorization-sparse-transformers}{sparse transformer}. In order to fit such a huge model across multiple GPUs, GPT-3 is trained with partitions along both width and depth dimension. The training data is a filtered version of Common Crawl mixed with a few other high-quality curated datasets. To avoid the contamination that downstream tasks might appear in the training data, the authors attempted to remove all the overlaps with all the studied benchmark dataset from the training dataset. Unfortunately the filtering process is not perfect due to a bug.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{GPT3-train-data.png}
+\caption{Training datasets for GPT-3. Note that the occurrence of each dataset during training is not proportional to the dataset size. (Table source: \href{https://arxiv.org/abs/2005.14165}{Brown et al., 2020})}
+\end{subfigure}
+\hfill
+
+For all the downstream evaluation, GPT-3 is tested in the few-shot setting without any gradient-based fine-tuning. Here the few-shot examples are provided as part of the prompt. GPT-3 achieves strong performance on many NLP datasets, comparable with fine-tuned BERT models.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{GPT3-eval.png}
+\caption{The evaluation performance increases with the model size and the number of examples. (Image source: \href{https://papers.nips.cc/paper/2020/hash/1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html}{Brown et al., 2020})}
+\end{subfigure}
+\hfill
+
+\section{\texorpdfstring{XLNet\hyperref[xlnet]{\#}}{XLNet\#}}\label{xlnet}
+\end{minipage}
+\hfill
+
+The \emph{Autoregressive (AR)} model such as GPT and \emph{autoencoder (AE)} model such as BERT are two most common ways for language modeling. However, each has their own disadvantages: AR does not learn the bidirectional context, which is needed by downstream tasks like reading comprehension and AE assumes masked positions are independent given all other unmasked tokens which oversimplifies the long context dependency.
+\end{minipage}
+\hfill
+
+\textbf{XLNet} (\href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019}) generalizes the AE method to incorporate the benefits of AR. XLNet proposed the \textbf{permutation language modeling} objective. For a text sequence, it samples a factorization order \$\textbackslash mathbf\{z\}\$ and decomposes the likelihood \$p\_\textbackslash theta(\textbackslash mathbf\{x\})\$ according to this factorization order,
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{XLNet\} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash sum\_\{t=1\}\^{}T \textbackslash log p\_\textbackslash theta (X\_\{z\_t\} = x \textbackslash mid \textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\textbackslash Big{]} \textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash log \textbackslash frac\{ \textbackslash exp(e(x)\^{}\textbackslash top \textbackslash color\{red\}\{h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\}) \}\{ \textbackslash sum\_\{x\textquotesingle\} \textbackslash exp(e(x\textquotesingle)\^{}\textbackslash top \textbackslash color\{red\}\{h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\})\}) \} \textbackslash Big{]} \textbackslash\textbackslash{} \&= - \textbackslash mathbb\{E\}\_\{\textbackslash mathbf\{z\} \textbackslash sim \textbackslash mathcal\{Z\}\_T\} \textbackslash Big{[} \textbackslash log \textbackslash frac\{ \textbackslash exp(e(x)\^{}\textbackslash top \textbackslash color\{blue\}\{g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}, z\_t)\}) \}\{ \textbackslash sum\_\{x\textquotesingle\} \textbackslash exp(e(x\textquotesingle)\^{}\textbackslash top \textbackslash color\{blue\}\{g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}, z\_t)\}) \} \textbackslash Big{]} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+where \$\textbackslash mathcal\{Z\}\_T\$ is a set of all possible permutation of length \$T\$; \$z\_t\$ and \$\textbackslash mathbf\{z\}\_\{\textless t\}\$ denote the \$t\$-th element and the first \$t-1\$ elements of a permutation \$\textbackslash mathbf\{z\} \textbackslash in \textbackslash mathcal\{Z\}\_T\$.
+\end{minipage}
+\hfill
+
+Note that the naive representation of the hidden state of the context, \$h\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\})\$ in red, does not depend on which position the model tries to predict, as the permutation breaks the default ordering. Therefore, XLNet re-parameterized it to a function of the target position too, \$g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\}, z\_t)\$ in blue.
+\end{minipage}
+\hfill
+
+However, two different requirements on \$g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\}, z\_t)\$ lead to a two-stream self-attention design to accommodate:
+\end{minipage}
+\hfill
+
+\begin{enumerate}
+\tightlist
+\item
+  When predicting \$x\_\{z\_t\}\$, it should only encode the position \$z\_t\$ but not the content \$x\_\{z\_t\}\$; otherwise it is trivial. This is wrapped into the ``query representation'' \$g\_\{z\_t\} = g\_\textbackslash theta (\textbackslash mathbf\{x\}\_\{\textbackslash mathbf\{z\}\_\{\textless t\}\}, z\_t)\$ does not encode \$x\_\{z\_t\}\$.
+\item
+  When predicting \$x\_j\$ where \$j \textgreater{} t\$, it should encode the content \$x\_\{z\_t\}\$ as well to provide the full context. This is the ``content representation'' \$h\_\{z\_t\} = h\_\textbackslash theta(\textbackslash mathbf\{x\}\_\{\textbackslash leq t\})\$.
+\end{enumerate}
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{XLNet-two-stream-attention.png}
+\caption{The illustration of two-stream self-attention mechanism in XLNet. (Image source: \href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019})}
+\end{subfigure}
+\hfill
+
+Conceptually, the two streams of representations are updated as follows,
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} g\_\{z\_t\}\^{}\{(m)\} \&\textbackslash gets \textbackslash text\{Attention\}(Q = g\^{}\{(m-1)\}\_\{z\_t\}, KV=\textbackslash mathbf\{h\}\^{}\{(m-1)\}\_\{\textbackslash color\{red\}\{\textbackslash mathbf\{z\}\_\{\textless\{t\}\}\}\}; \textbackslash theta) \&\textbackslash text\{(query stream: use \}z\_t\textbackslash text\{ but cannot see \}x\_\{z\_t\}\textbackslash text\{)\}\textbackslash\textbackslash{} h\_\{z\_t\}\^{}\{(m)\} \&\textbackslash gets \textbackslash text\{Attention\}(Q = h\^{}\{(m-1)\}\_\{z\_t\}, KV=\textbackslash mathbf\{h\}\^{}\{(m-1)\}\_\{\textbackslash color\{blue\}\{\textbackslash mathbf\{z\}\_\{\textbackslash leq t\}\}\}; \textbackslash theta) \&\textbackslash text\{(content stream: use both \}x\_\{z\_t\}\textbackslash text\{ and \}x\_\{z\_t\}\textbackslash text\{)\}\textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+Given the difficulty of optimization in permutation language modeling, XLNet is set to only predict the last chunk of tokens in a factorization order.
+\end{minipage}
+\hfill
+
+The name in XLNet actually comes from \href{https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/\#longer-attention-span-transformer-xl}{Transformer-XL}. It incorporates the design of Transformer-XL to extend the attention span by reusing hidden states from previous segments.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{XLNet-glue.png}
+\caption{Comparison of model performance of XLNet with a couple other language models on GLUE, all single-task, no ensembles. (Image source: \href{https://arxiv.org/abs/1906.08237}{Yang et al. 2019})}
+\end{subfigure}
+\hfill
+
+\section{\texorpdfstring{BART\hyperref[bart]{\#}}{BART\#}}\label{bart}
+\end{minipage}
+\hfill
+
+\textbf{BART} (\href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019}) is a denoising autoencoder to recover the original text from a randomly corrupted version. It combines \textbf{B}idirectional and \textbf{A}uto\textbf{R}egressive \textbf{T}ransformer: precisely, jointly training BERT-like bidirectional encoder and GPT-like autoregressive decoder together. The loss is simply just to minimize the negative log-likelihood.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{BART.png}
+\caption{A schematic comparison of BART with BERT and GPT. (Image source: \href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019})}
+\end{subfigure}
+\hfill
+
+They experimented with a variety of noising transformations, including token masking, token deletion, text infilling (i.e. A randomly sampled text span, which may contain multiple tokens, is replaced with a \texttt{{[}MASK{]}} token), sentence permutation, documentation rotation (i.e. A document is rotated to begin with a random token.). The best noising approach they discovered is text infilling and sentence shuffling.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{BART-perf.png}
+\caption{Comparison of different language modeling pre-training objectives. (Image source: \href{https://arxiv.org/abs/1910.13461}{Lewis et al., 2019})}
+\end{subfigure}
+\hfill
+
+Learnings from their experiments:
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  The performance of pre-training methods varies significantly across downstream tasks.
+\item
+  Token masking is crucial, as the performance is poor when only sentence permutation or documentation rotation is applied.
+\item
+  Left-to-right pre-training improves generation.
+\item
+  Bidirectional encoders are crucial for SQuAD.
+\item
+  The pre-training objective is not the only important factor. Architectural improvements such as relative-position embeddings or segment-level recurrence matter too.
+\item
+  Autoregressive language models perform best on ELI5.
+\item
+  BART achieves the most consistently strong performance.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{ELECTRA\hyperref[electra]{\#}}{ELECTRA\#}}\label{electra}
+\end{minipage}
+\hfill
+
+Most current pre-training large language models demand a lot of computation resources, raising concerns about their cost and accessibility. \textbf{ELECTRA} (``Efficiently Learning an Encoder that Classifies Token Replacements Accurately''; \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020}) aims to improve the \emph{pre-training efficiency}, which frames the language modeling as a discrimination task instead of generation task.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{ELECTRA-overview.png}
+\caption{Illustration of ELECTRA model architecture. (Image source: \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020})}
+\end{subfigure}
+\hfill
+
+ELECTRA proposes a new pretraining task, called ``Replaced Token Detection'' (RTD). Let's randomly sample \$k\$ positions to be masked. Each selected token in the original text is replaced by a plausible alternative predicted by a small language model, known as the generator \$G\$. The discriminator \$D\$ predicts whether each token is original or replaced.
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash boldsymbol\{m\} \&= {[}m\_1, \textbackslash dots, m\_k{]} \textbackslash text\{ where \} m\_i \textbackslash sim \textbackslash text\{unif\}\textbackslash\{1, n\textbackslash\}\textbackslash text\{ for \} i=1, \textbackslash dots, k \textbackslash\textbackslash{} \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\} \&= \textbackslash text\{REPLACE\}(\textbackslash boldsymbol\{x\}, \textbackslash boldsymbol\{m\}, \textbackslash texttt\{{[}MASK{]}\}) \textbackslash\textbackslash{} \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\} \&= \textbackslash text\{REPLACE\}(\textbackslash boldsymbol\{x\}, \textbackslash boldsymbol\{m\}, \textbackslash tilde\{\textbackslash boldsymbol\{x\}\}) \textbackslash text\{ where \} \textbackslash tilde\{x\}\_t \textbackslash sim p\_G(x\_i \textbackslash mid \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\}) \textbackslash text\{ for \} i \textbackslash in \textbackslash boldsymbol\{m\} \textbackslash\textbackslash{} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+The loss for the generator is the negative log-likelihood just as in other language models. The loss for the discriminator is the cross-entropy. Note that the generator is not adversarially trained to fool the discriminator but simply to optimize the NLL, since their experiments show negative results.
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} \textbackslash mathcal\{L\}\_\textbackslash text\{MLM\}(\textbackslash mathbf\{x\}, \textbackslash theta\_G) \&= \textbackslash mathbb\{E\}\textbackslash Big(\textbackslash sum\_\{i \textbackslash in \textbackslash boldsymbol\{m\}\} -\textbackslash log p\_G (x\_i \textbackslash mid \textbackslash boldsymbol\{x\}\^{}\textbackslash text\{masked\} )\textbackslash Big) \textbackslash\textbackslash{} \textbackslash mathcal\{L\}\_\textbackslash text\{Disc\}(\textbackslash mathbf\{x\}, \textbackslash theta\_D) \&= \textbackslash mathbb\{E\}\textbackslash Big( - \textbackslash mathbb\{1\}{[}x\^{}\textbackslash text\{corrupt\}\_t = x\_t{]} \textbackslash log D(\textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\}, t) - \textbackslash mathbb\{1\}{[}x\^{}\textbackslash text\{corrupt\}\_t \textbackslash neq x\_t{]} \textbackslash log (1 - \textbackslash log D(\textbackslash boldsymbol\{x\}\^{}\textbackslash text\{corrupt\}, t)) \textbackslash Big) \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+They found it more beneficial to only share the embeddings between generator \& discriminator while using a small generator (1/4 to 1/2 the discriminator size), rather than sharing all the weights (i.e. two models have to be the same size then). In addition, joint training of the generator and discriminator works better than two-stage training of each alternatively.
+\end{minipage}
+\hfill
+
+After pretraining the generator is discarded and only the ELECTRA discriminator is fine-tuned further for downstream tasks. The following table shows ELECTRA's performance on the GLUE dev set.
+\end{minipage}
+\hfill
+
+\centering
+\includegraphics{ELECTRA-perf.png}
+\caption{Comparison of ELECTRA with other language models on the GLUE dev set. (Image source: \href{https://arxiv.org/abs/2003.10555}{Clark et al. 2020})}
+\end{subfigure}
+\hfill
+
+\section{\texorpdfstring{Summary\hyperref[summary]{\#}}{Summary\#}}\label{summary}
+\end{minipage}
+\hfill
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+& Base model & Pretraining Tasks \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+CoVe & seq2seq NMT model & supervised learning using translation dataset. \\
+ELMo & two-layer biLSTM & next token prediction \\
+CVT & two-layer biLSTM & semi-supervised learning using both labeled and unlabeled datasets \\
+ULMFiT & AWD-LSTM & autoregressive pretraining on Wikitext-103 \\
+GPT & Transformer decoder & next token prediction \\
+BERT & Transformer encoder & mask language model + next sentence prediction \\
+ALBERT & same as BERT but light-weighted & mask language model + sentence order prediction \\
+GPT-2 & Transformer decoder & next token prediction \\
+RoBERTa & same as BERT & mask language model (dynamic masking) \\
+T5 & Transformer encoder + decoder & pre-trained on a multi-task mixture of unsupervised and supervised tasks and for which each task is converted into a text-to-text format. \\
+GPT-3 & Transformer decoder & next token prediction \\
+XLNet & same as BERT & permutation language modeling \\
+BART & BERT encoder + GPT decoder & reconstruct text from a noised version \\
+ELECTRA & same as BERT & replace token detection \\
+\end{longtable}
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{Metric: Perplexity\hyperref[metric-perplexity]{\#}}{Metric: Perplexity\#}}\label{metric-perplexity}
+\end{minipage}
+\hfill
+
+Perplexity is often used as an intrinsic evaluation metric for gauging how well a language model can capture the real word distribution conditioned on the context.
+\end{minipage}
+\hfill
+
+A \href{https://en.wikipedia.org/wiki/Perplexity}{perplexity} of a discrete proability distribution \$p\$ is defined as the exponentiation of the entropy:
+\end{minipage}
+\hfill
+
+\$\$ 2\^{}\{H(p)\} = 2\^{}\{-\textbackslash sum\_x p(x) \textbackslash log\_2 p(x)\} \$\$
+\end{minipage}
+\hfill
+
+Given a sentence with \$N\$ words, \$s = (w\_1, \textbackslash dots, w\_N)\$, the entropy looks as follows, simply assuming that each word has the same frequency, \$\textbackslash frac\{1\}\{N\}\$:
+\end{minipage}
+\hfill
+
+\$\$ H(s) = -\textbackslash sum\_\{i=1\}\^{}N P(w\_i) \textbackslash log\_2 p(w\_i) = -\textbackslash sum\_\{i=1\}\^{}N \textbackslash frac\{1\}\{N\} \textbackslash log\_2 p(w\_i) \$\$
+\end{minipage}
+\hfill
+
+The perplexity for the sentence becomes:
+\end{minipage}
+\hfill
+
+\$\$ \textbackslash begin\{aligned\} 2\^{}\{H(s)\} \&= 2\^{}\{-\textbackslash frac\{1\}\{N\} \textbackslash sum\_\{i=1\}\^{}N \textbackslash log\_2 p(w\_i)\} = (2\^{}\{\textbackslash sum\_\{i=1\}\^{}N \textbackslash log\_2 p(w\_i)\})\^{}\{-\textbackslash frac\{1\}\{N\}\} = (p(w\_1) \textbackslash dots p(w\_N))\^{}\{-\textbackslash frac\{1\}\{N\}\} \textbackslash end\{aligned\} \$\$
+\end{minipage}
+\hfill
+
+A good language model should predict high word probabilities. Therefore, the smaller perplexity the better.
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{Common Tasks and Datasets\hyperref[common-tasks-and-datasets]{\#}}{Common Tasks and Datasets\#}}\label{common-tasks-and-datasets}
+\end{minipage}
+\hfill
+
+\phantomsection\label{qa}{} \textbf{Question-Answering}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://rajpurkar.github.io/SQuAD-explorer/}{SQuAD} (Stanford Question Answering Dataset): A reading comprehension dataset, consisting of questions posed on a set of Wikipedia articles, where the answer to every question is a span of text.
+\item
+  \href{http://www.qizhexie.com/data/RACE_leaderboard}{RACE} (ReAding Comprehension from Examinations): A large-scale reading comprehension dataset with more than 28,000 passages and nearly 100,000 questions. The dataset is collected from English examinations in China, which are designed for middle school and high school students.
+\item
+  See \href{https://lilianweng.github.io/posts/2020-10-29-odqa/\#appendix-qa-datasets}{more QA datasets in a later post}.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Commonsense Reasoning}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://cs.rochester.edu/nlp/rocstories/}{Story Cloze Test}: A commonsense reasoning framework for evaluating story understanding and generation. The test requires a system to choose the correct ending to multi-sentence stories from two options.
+\item
+  \href{https://rowanzellers.com/swag/}{SWAG} (Situations With Adversarial Generations): multiple choices; contains 113k sentence-pair completion examples that evaluate grounded common-sense inference
+\end{itemize}
+\end{minipage}
+\hfill
+
+\phantomsection\label{nli}{} \textbf{Natural Language Inference (NLI)}: also known as \textbf{Text Entailment}, an exercise to discern in logic whether one sentence can be inferred from another.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://aclweb.org/aclwiki/Textual_Entailment_Resource_Pool}{RTE} (Recognizing Textual Entailment): A set of datasets initiated by text entailment challenges.
+\item
+  \href{https://nlp.stanford.edu/projects/snli/}{SNLI} (Stanford Natural Language Inference): A collection of 570k human-written English sentence pairs manually labeled for balanced classification with the labels \texttt{entailment}, \texttt{contradiction}, and \texttt{neutral}.
+\item
+  \href{https://www.nyu.edu/projects/bowman/multinli/}{MNLI} (Multi-Genre NLI): Similar to SNLI, but with a more diverse variety of text styles and topics, collected from transcribed speech, popular fiction, and government reports.
+\item
+  \href{https://gluebenchmark.com/tasks}{QNLI} (Question NLI): Converted from SQuAD dataset to be a binary classification task over pairs of (question, sentence).
+\item
+  \href{http://data.allenai.org/scitail/}{SciTail}: An entailment dataset created from multiple-choice science exams and web sentences.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\phantomsection\label{ner}{} \textbf{Named Entity Recognition (NER)}: labels sequences of words in a text which are the names of things, such as person and company names, or gene and protein names
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://www.clips.uantwerpen.be/conll2003/}{CoNLL 2003 NER task}: consists of newswire from the Reuters, concentrating on four types of named entities: persons, locations, organizations and names of miscellaneous entities.
+\item
+  \href{https://catalog.ldc.upenn.edu/LDC2013T19}{OntoNotes 5.0}: This corpus contains text in English, Arabic and Chinese, tagged with four different entity types (PER, LOC, ORG, MISC).
+\item
+  \href{https://trec.nist.gov/data/reuters/reuters.html}{Reuters Corpus}: A large collection of Reuters News stories.
+\item
+  Fine-Grained NER (FGN)
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Sentiment Analysis}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://nlp.stanford.edu/sentiment/index.html}{SST} (Stanford Sentiment Treebank)
+\item
+  \href{http://ai.stanford.edu/~amaas/data/sentiment/}{IMDb}: A large dataset of movie reviews with binary sentiment classification labels.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\phantomsection\label{srl}{} \textbf{Semantic Role Labeling (SRL)}: models the predicate-argument structure of a sentence, and is often described as answering ``Who did what to whom''.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://www.lsi.upc.edu/~srlconll/}{CoNLL-2004 \& CoNLL-2005}
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Sentence similarity}: also known as \emph{paraphrase detection}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://www.microsoft.com/en-us/download/details.aspx?id=52398}{MRPC} (MicRosoft Paraphrase Corpus): It contains pairs of sentences extracted from news sources on the web, with annotations indicating whether each pair is semantically equivalent.
+\item
+  \href{https://data.quora.com/First-Quora-Dataset-Release-Question-Pairs}{QQP} (Quora Question Pairs) STS Benchmark: Semantic Textual Similarity
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Sentence Acceptability}: a task to annotate sentences for grammatical acceptability.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://nyu-mll.github.io/CoLA/}{CoLA} (Corpus of Linguistic Acceptability): a binary single-sentence classification task.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Text Chunking}: To divide a text in syntactically correlated parts of words.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://www.clips.uantwerpen.be/conll2000/chunking/}{CoNLL-2000}
+\end{itemize}
+\end{minipage}
+\hfill
+
+\phantomsection\label{pos}{} \textbf{Part-of-Speech (POS) Tagging}: tag parts of speech to each token, such as noun, verb, adjective, etc. the Wall Street Journal portion of the Penn Treebank (Marcus et al., 1993).
+\end{minipage}
+\hfill
+
+\textbf{Machine Translation}: See \href{https://nlp.stanford.edu/projects/nmt/}{Standard NLP} page.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  WMT 2015 English-Czech data (Large)
+\item
+  WMT 2014 English-German data (Medium)
+\item
+  IWSLT 2015 English-Vietnamese data (Small)
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Coreference Resolution}: cluster mentions in text that refer to the same underlying real world entities.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://conll.cemantix.org/2012/data.html}{CoNLL-2012}
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Long-range Dependency}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{http://clic.cimec.unitn.it/lambada/}{LAMBADA} (LAnguage Modeling Broadened to Account for Discourse Aspects): A collection of narrative passages extracted from the BookCorpus and the task is to predict the last word, which require at least 50 tokens of context for a human to successfully predict.
+\item
+  \href{https://research.fb.com/downloads/babi/}{Children's Book Test}: is built from books that are freely available in \href{https://www.gutenberg.org/}{Project Gutenberg}. The task is to predict the missing word among 10 candidates.
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Multi-task benchmark}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  GLUE multi-task benchmark: \href{https://gluebenchmark.com/}{https://gluebenchmark.com}
+\item
+  decaNLP benmark: \href{https://decanlp.com/}{https://decanlp.com}
+\end{itemize}
+\end{minipage}
+\hfill
+
+\textbf{Unsupervised pretraining dataset}
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://googlebooks.byu.edu/}{Books corpus}: The corpus contains ``over 7,000 unique unpublished books from a variety of genres including Adventure, Fantasy, and Romance.''
+\item
+  \href{http://www.statmt.org/lm-benchmark/}{1B Word Language Model Benchmark}
+\item
+  \href{https://en.wikipedia.org/wiki/Wikipedia:Database_download\#English-language_Wikipedia}{English Wikipedia}: \textasciitilde2500M words
+\end{itemize}
+\end{minipage}
+\hfill
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+\end{minipage}
+\hfill
+
+Cited as:
+\end{minipage}
+\hfill
+
+\begin{verbatim}
+@article{weng2019LM,
+  title   = "Generalized Language Models",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2019",
+  url     = "https://lilianweng.github.io/posts/2019-01-31-lm/"
+}
+\end{verbatim}
+\end{minipage}
+\hfill
+
+\section{\texorpdfstring{Reference\hyperref[reference]{\#}}{Reference\#}}\label{reference}
+\end{minipage}
+\hfill
+
+{[}1{]} Bryan McCann, et al. \href{https://arxiv.org/abs/1708.00107}{``Learned in translation: Contextualized word vectors.''} NIPS. 2017.
+\end{minipage}
+\hfill
+
+{[}2{]} Kevin Clark et al. \href{https://arxiv.org/abs/1809.08370}{``Semi-Supervised Sequence Modeling with Cross-View Training.''} EMNLP 2018.
+\end{minipage}
+\hfill
+
+{[}3{]} Matthew E. Peters, et al. \href{https://arxiv.org/abs/1802.05365}{``Deep contextualized word representations.''} NAACL-HLT 2017.
+\end{minipage}
+\hfill
+
+{[}4{]} OpenAI Blog \href{https://blog.openai.com/language-unsupervised/}{``Improving Language Understanding with Unsupervised Learning''}, June 11, 2018.
+\end{minipage}
+\hfill
+
+{[}5{]} OpenAI Blog \href{https://blog.openai.com/better-language-models/}{``Better Language Models and Their Implications.''} Feb 14, 2019.
+\end{minipage}
+\hfill
+
+{[}6{]} Jeremy Howard and Sebastian Ruder. \href{https://arxiv.org/abs/1801.06146}{``Universal language model fine-tuning for text classification.''} ACL 2018.
+\end{minipage}
+\hfill
+
+{[}7{]} Alec Radford et al. \href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{``Improving Language Understanding by Generative Pre-Training''}. OpenAI Blog, June 11, 2018.
+\end{minipage}
+\hfill
+
+{[}8{]} Jacob Devlin, et al. \href{https://arxiv.org/abs/1810.04805}{``BERT: Pre-training of deep bidirectional transformers for language understanding.''} arXiv:1810.04805 (2018).
+\end{minipage}
+\hfill
+
+{[}9{]} Mike Schuster, and Kaisuke Nakajima. \href{https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/37842.pdf}{``Japanese and Korean voice search.''} ICASSP. 2012.
+\end{minipage}
+\hfill
+
+{[}10{]} Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation
+\end{minipage}
+\hfill
+
+{[}11{]} Ashish Vaswani, et al. \href{https://arxiv.org/abs/1706.03762}{``Attention is all you need.''} NIPS 2017.
+\end{minipage}
+\hfill
+
+{[}12{]} Peter J. Liu, et al. \href{https://arxiv.org/abs/1801.10198}{``Generating wikipedia by summarizing long sequences.''} ICLR 2018.
+\end{minipage}
+\hfill
+
+{[}13{]} Sebastian Ruder. \href{http://ruder.io/10-exciting-ideas-of-2018-in-nlp/}{``10 Exciting Ideas of 2018 in NLP''} Dec 2018.
+\end{minipage}
+\hfill
+
+{[}14{]} Alec Radford, et al. \href{https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf}{``Language Models are Unsupervised Multitask Learners.''}. 2019.
+\end{minipage}
+\hfill
+
+{[}15{]} Rico Sennrich, et al. \href{https://arxiv.org/abs/1508.07909}{``Neural machine translation of rare words with subword units.''} arXiv preprint arXiv:1508.07909. 2015.
+\end{minipage}
+\hfill
+
+{[}16{]} Zhenzhong Lan, et al. \href{https://arxiv.org/abs/1909.11942}{``ALBERT: A Lite BERT for Self-supervised Learning of Language Representations.''} arXiv Preprint arXiv:1909.11942 (2019).
+\end{minipage}
+\hfill
+
+{[}17{]} Yinhan Liu, et al. \href{https://arxiv.org/abs/1907.11692}{``RoBERTa: A Robustly Optimized BERT Pretraining Approach.''} arXiv Preprint arXiv:1907.11692 (2019).
+\end{minipage}
+\hfill
+
+{[}18{]} Tom B Brown, et al. \href{https://arxiv.org/abs/2005.14165}{``Language Models are Few-Shot Learners''} NeuriPS 2020.
+\end{minipage}
+\hfill
+
+{[}19{]} Zhilin Yang et al. \href{https://arxiv.org/abs/1906.08237}{``XLNet: Generalized Autoregressive Pretraining for Language Understanding.''} NeuriPS 2019.
+\end{minipage}
+\hfill
+
+{[}20{]} Mike Lewis et al. \href{https://arxiv.org/abs/1910.13461}{``BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension.''} ACL 2020.
+\end{minipage}
+\hfill
+
+{[}21{]} Kevin Clark et al. \href{https://arxiv.org/abs/2003.10555}{``ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators.''} ICLR 2020.
+\end{minipage}
+\hfill
+
+{[}22{]} Colin Raffel, et al. \href{https://arxiv.org/abs/1910.10683}{``Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer''} JMLR 2020.
+\end{minipage}
+\hfill
+
+\begin{itemize}
+\tightlist
+\item
+  \href{https://lilianweng.github.io/tags/architecture/}{Architecture}
+\item
+  \href{https://lilianweng.github.io/tags/nlp/}{Nlp}
+\item
+  \href{https://lilianweng.github.io/tags/long-read/}{Long-Read}
+\item
+  \href{https://lilianweng.github.io/tags/transformer/}{Transformer}
+\item
+  \href{https://lilianweng.github.io/tags/attention/}{Attention}
+\item
+  \href{https://lilianweng.github.io/tags/language-model/}{Language-Model}
+\end{itemize}
+\end{minipage}
+\hfill
+
+\href{https://lilianweng.github.io/posts/2019-03-14-overfit/}{{« }\\
+{Are Deep Neural Networks Dramatically Overfitted?}} \href{https://lilianweng.github.io/posts/2018-12-27-object-recognition-part-4/}{{ »}\\
+{Object Detection Part 4: Fast Detection Models}}
+\end{minipage}
+\hfill
+

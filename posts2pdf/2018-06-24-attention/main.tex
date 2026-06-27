@@ -1,0 +1,174 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{verbatim}
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8}
+\graphicspath{{assets/}}
+
+% Header/Footer
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt} % Fix fancyhdr warning
+\fancyhf{}
+\lhead{Attention? Attention!}
+\rhead{Lilian Weng}
+\cfoot{\thepage}
+
+% Section formatting
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\hypersetup{
+    pdftitle={Attention? Attention!},
+    pdfauthor={Lilian Weng},
+    pdfkeywords={architecture, attention, transformer, rnn},
+    pdfsubject={Attention mechanisms in deep learning},
+    pdfcreator={LaTeX with hyperref package},
+    pdfproducer={pdflatex},
+    pdfstartview={FitH},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+
+\title{Attention? Attention!}
+\date{This PDF conversion (v1) was generated on \today\footnotemark}
+
+\begin{document}
+
+\maketitle
+\begin{center}
+    Online version: \url{https://lilianweng.github.io/posts/2018-06-24-attention/} \\
+    \textbf{Date:} June 24, 2018 \quad
+    \textbf{Estimated Reading Time:} 21 min \quad
+    \textbf{Author:} Lilian Weng
+\end{center}
+
+% Updates
+\textbf{[Updated on 2018-10-28:} Add \hyperref[pointer-network]{Pointer Network} and the \href{https://github.com/lilianweng/transformer-tensorflow}{link} to my implementation of Transformer.]
+\newline
+\textbf{[Updated on 2018-11-06:} Add a \href{https://github.com/lilianweng/transformer-tensorflow}{link} to the implementation of Transformer model.]
+\newline
+\textbf{[Updated on 2018-11-18:} Add \hyperref[neural-turing-machines]{Neural Turing Machines}.]
+\newline
+\textbf{[Updated on 2019-07-18:} Correct the mistake on using the term ``self-attention'' when introducing the \href{https://arxiv.org/abs/1502.03044}{show-attention-tell} paper; moved it to \hyperref[self-attention]{Self-Attention} section.]
+\newline
+\textbf{[Updated on 2020-04-07:} A follow-up post on improved Transformer models is \href{https://lilianweng.github.io/posts/2020-04-07-the-transformer-family/}{here}.]
+
+\footnotetext{This file was prepared by Sakura (\href{mailto:bili\_sakura@zju.edu.cn}{bili\_sakura@zju.edu.cn}). Please contact for any issues or copyright concerns. The original source of this file is \url{https://lilianweng.github.io/posts/2018-06-24-attention/}.}
+
+\newpage
+\tableofcontents
+\newpage
+\vspace{1em}
+\n\input{content.tex}\n\n\section*{Citation}
+Please cite this work as:
+
+\begin{tcolorbox}[colback=black!5!white, colframe=black!80!white, boxrule=0.5pt, arc=2mm, left=1mm, right=1mm, top=1mm, bottom=1mm]
+  Weng, Lilian. ``\textcolor{cyan}{Attention? Attention!}''. Lil'Log (June 2018). \href{https://lilianweng.github.io/posts/2018-06-24-attention/}{https://lilianweng.github.io/posts/2018-06-24-attention/}
+\end{tcolorbox}
+
+Or use the BibTeX citation:
+
+\begin{tcolorbox}[
+    colback=black!5!white,
+    colframe=black!80!white,
+    boxrule=0.5pt,
+    arc=2mm,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    listing only,
+    listing options={
+      basicstyle=\ttfamily\footnotesize,
+      breaklines=true,
+      literate={\{}{{\char`\{}}1 {\}}{{\char`\}}}1
+    }
+  ]
+  @article\{weng2018,
+
+    title   = \{Attention? Attention!\},
+
+    author  = \{Weng, Lilian\},
+
+    journal = \{lilianweng.github.io\},
+
+    year    = \{2018\},
+
+    month   = \{June\},
+
+    url     = \{https://lilianweng.github.io/posts/2018-06-24-attention/\}
+
+  \}
+\end{tcolorbox}
+
+\section*{References}
+
+\begin{enumerate}
+    \item \href{http://www.wildml.com/2016/01/attention-and-memory-in-deep-learning-and-nlp/}{``Attention and Memory in Deep Learning and NLP.''} -- Jan 3, 2016 by Denny Britz
+    \item \href{https://github.com/tensorflow/nmt}{``Neural Machine Translation (seq2seq) Tutorial''}
+    \item Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. \href{https://arxiv.org/pdf/1409.0473.pdf}{``Neural machine translation by jointly learning to align and translate.''} ICLR 2015.
+    \item Kelvin Xu, Jimmy Ba, Ryan Kiros, Kyunghyun Cho, Aaron Courville, Ruslan Salakhudinov, Rich Zemel, and Yoshua Bengio. \href{http://proceedings.mlr.press/v37/xuc15.pdf}{``Show, attend and tell: Neural image caption generation with visual attention.''} ICML, 2015.
+    \item Ilya Sutskever, Oriol Vinyals, and Quoc V. Le. \href{https://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf}{``Sequence to sequence learning with neural networks.''} NIPS 2014.
+    \item Thang Luong, Hieu Pham, Christopher D. Manning. \href{https://arxiv.org/pdf/1508.04025.pdf}{``Effective Approaches to Attention-based Neural Machine Translation.''} EMNLP 2015.
+    \item Denny Britz, Anna Goldie, Thang Luong, and Quoc Le. \href{https://arxiv.org/abs/1703.03906}{``Massive exploration of neural machine translation architectures.''} ACL 2017.
+    \item Ashish Vaswani, et al. \href{http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf}{``Attention is all you need.''} NIPS 2017.
+    \item Jianpeng Cheng, Li Dong, and Mirella Lapata. \href{https://arxiv.org/pdf/1601.06733.pdf}{``Long short-term memory-networks for machine reading.''} EMNLP 2016.
+    \item Xiaolong Wang, et al. \href{https://arxiv.org/pdf/1711.07971.pdf}{``Non-local Neural Networks.''} CVPR 2018
+    \item Han Zhang, Ian Goodfellow, Dimitris Metaxas, and Augustus Odena. \href{https://arxiv.org/pdf/1805.08318.pdf}{``Self-Attention Generative Adversarial Networks.''} arXiv preprint arXiv:1805.08318 (2018).
+    \item Nikhil Mishra, Mostafa Rohaninejad, Xi Chen, and Pieter Abbeel. \href{https://arxiv.org/abs/1707.03141}{``A simple neural attentive meta-learner.''} ICLR 2018.
+    \item \href{https://deepmind.com/blog/wavenet-generative-model-raw-audio/}{``WaveNet: A Generative Model for Raw Audio''} -- Sep 8, 2016 by DeepMind.
+    \item Oriol Vinyals, Meire Fortunato, and Navdeep Jaitly. \href{https://arxiv.org/abs/1506.03134}{``Pointer networks.''} NIPS 2015.
+    \item Alex Graves, Greg Wayne, and Ivo Danihelka. \href{https://arxiv.org/abs/1410.5401}{``Neural turing machines.''} arXiv preprint arXiv:1410.5401 (2014).
+\end{enumerate}
+  
+\vspace{2em}
+\noindent
+\textbf{Tags:}
+\href{https://lilianweng.github.io/posts/2018-06-24-attention/}{architecture} \quad
+\href{https://lilianweng.github.io/posts/2018-06-24-attention/}{attention} \quad
+\href{https://lilianweng.github.io/posts/2018-06-24-attention/}{transformer} \quad
+\href{https://lilianweng.github.io/posts/2018-06-24-attention/}{rnn}
+
+\vspace{2em}
+\noindent
+\begin{minipage}{0.48\textwidth}
+    \raggedright
+    \textbf{\href{https://lilianweng.github.io/}{\textlangle\quad Lil'Log}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \raggedleft
+    \textbf{\href{https://lilianweng.github.io/}{Lil'Log \quad\textrangle}}
+\end{minipage}
+\vspace{2em}
+
+% --- Social Share Links (text only) ---
+\begin{center}
+  \vspace{1em}
+  \textbf{Share this article:}
+  \href{https://twitter.com/intent/tweet/?text=Attention%3f%20Attention%21&url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f&hashtags=architecture,attention,transformer,rnn}{Twitter} \textbar{}
+  \href{https://www.linkedin.com/shareArticle?mini=true&url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f&title=Attention%3f%20Attention%21&summary=Attention%3f%20Attention%21&source=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f}{LinkedIn} \textbar{}
+  \href{https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f&title=Attention%3f%20Attention%21}{Reddit} \textbar{}
+  \href{https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f}{Facebook} \textbar{}
+  \href{https://api.whatsapp.com/send?text=Attention%3f%20Attention%21%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f}{WhatsApp} \textbar{}
+  \href{https://telegram.me/share/url?text=Attention%3f%20Attention%21&url=https%3a%2f%2flilianweng.github.io%2fposts%2f2018-06-24-attention%2f}{Telegram}
+\end{center}
+
+\vspace{2em}
+
+
+\end{document}

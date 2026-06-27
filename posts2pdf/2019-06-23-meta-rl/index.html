@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Meta Reinforcement Learning | Lil&#39;Log</title>
+<meta name="keywords" content="meta-learning, reinforcement-learning" />
+<meta name="description" content="
+In my earlier post on meta-learning, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to &ldquo;meta-learn&rdquo; Reinforcement Learning (RL) tasks by developing an agent that can solve unseen tasks fast and efficiently.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2019-06-23-meta-rl/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Meta Reinforcement Learning" />
+<meta property="og:description" content="
+In my earlier post on meta-learning, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to &ldquo;meta-learn&rdquo; Reinforcement Learning (RL) tasks by developing an agent that can solve unseen tasks fast and efficiently." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2019-06-23-meta-rl/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2019-06-23T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2019-06-23T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Meta Reinforcement Learning"/>
+<meta name="twitter:description" content="
+In my earlier post on meta-learning, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to &ldquo;meta-learn&rdquo; Reinforcement Learning (RL) tasks by developing an agent that can solve unseen tasks fast and efficiently."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Meta Reinforcement Learning",
+      "item": "https://lilianweng.github.io/posts/2019-06-23-meta-rl/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Meta Reinforcement Learning",
+  "name": "Meta Reinforcement Learning",
+  "description": " In my earlier post on meta-learning, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to \u0026ldquo;meta-learn\u0026rdquo; Reinforcement Learning (RL) tasks by developing an agent that can solve unseen tasks fast and efficiently.\n",
+  "keywords": [
+    "meta-learning", "reinforcement-learning"
+  ],
+  "articleBody": " In my earlier post on meta-learning, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to “meta-learn” Reinforcement Learning (RL) tasks by developing an agent that can solve unseen tasks fast and efficiently.\nTo recap, a good meta-learning model is expected to generalize to new tasks or new environments that have never been encountered during training. The adaptation process, essentially a mini learning session, happens at test with limited exposure to the new configurations. Even without any explicit fine-tuning (no gradient backpropagation on trainable variables), the meta-learning model autonomously adjusts internal hidden states to learn.\nTraining RL algorithms can be notoriously difficult sometimes. If the meta-learning agent could become so smart that the distribution of solvable unseen tasks grows extremely broad, we are on track towards general purpose methods — essentially building a “brain” which would solve all kinds of RL problems without much human interference or manual feature engineering. Sounds amazing, right? 💖\nOn the Origin of Meta-RL Back in 2001 I encountered a paper written in 2001 by Hochreiter et al. when reading Wang et al., 2016. Although the idea was proposed for supervised learning, there are so many resemblances to the current approach to meta-RL.\nThe meta-learning system consists of the supervisory and the subordinate systems. The subordinate system is a recurrent neural network that takes as input both the observation at the current time step, $x\\_t$ and the label at the last time step, $y\\_{t-1}$. (Image source: Hochreiter et al., 2001) Hochreiter’s meta-learning model is a recurrent network with LSTM cell. LSTM is a good choice because it can internalize a history of inputs and tune its own weights effectively through BPTT. The training data contains $K$ sequences and each sequence is consist of $N$ samples generated by a target function $f_k(.), k=1, \\dots, K$,\n$$ \\{\\text{input: }(\\mathbf{x}^k_i, \\mathbf{y}^k_{i-1}) \\to \\text{label: }\\mathbf{y}^k_i\\}_{i=1}^N \\text{ where }\\mathbf{y}^k_i = f_k(\\mathbf{x}^k_i) $$ Noted that the last label $\\mathbf{y}^k_{i-1}$ is also provided as an auxiliary input so that the function can learn the presented mapping.\nIn the experiment of decoding two-dimensional quadratic functions, $a x_1^2 + b x_2^2 + c x_1 x_2 + d x_1 + e x_2 + f$, with coefficients $a$-$f$ are randomly sampled from [-1, 1], this meta-learning system was able to approximate the function after seeing only ~35 examples.\nProposal in 2016 In the modern days of DL, Wang et al. (2016) and Duan et al. (2017) simultaneously proposed the very similar idea of Meta-RL (it is called RL^2 in the second paper). A meta-RL model is trained over a distribution of MDPs, and at test time, it is able to learn to solve a new task quickly. The goal of meta-RL is ambitious, taking one step further towards general algorithms.\nDefine Meta-RL Meta Reinforcement Learning, in short, is to do meta-learning in the field of reinforcement learning. Usually the train and test tasks are different but drawn from the same family of problems; i.e., experiments in the papers included multi-armed bandit with different reward probabilities, mazes with different layouts, same robots but with different physical parameters in simulator, and many others.\nFormulation Let’s say we have a distribution of tasks, each formularized as an MDP (Markov Decision Process), $M_i \\in \\mathcal{M}$. An MDP is determined by a 4-tuple, $M_i= \\langle \\mathcal{S}, \\mathcal{A}, P_i, R_i \\rangle$:\nSymbol Meaning $\\mathcal{S}$ A set of states. $\\mathcal{A}$ A set of actions. $P_i: \\mathcal{S} \\times \\mathcal{A} \\times \\mathcal{S} \\to \\mathbb{R}_{+}$ Transition probability function. $R_i: \\mathcal{S} \\times \\mathcal{A} \\to \\mathbb{R}$ Reward function. (RL^2 paper adds an extra parameter, horizon $T$, into the MDP tuple to emphasize that each MDP should have a finite horizon.)\nNote that common state $\\mathcal{S}$ and action space $\\mathcal{A}$ are used above, so that a (stochastic) policy: $\\pi_\\theta: \\mathcal{S} \\times \\mathcal{A} \\to \\mathbb{R}_{+}$ would get inputs compatible across different tasks. The test tasks are sampled from the same distribution $\\mathcal{M}$ or slightly modified version.\nIllustration of meta-RL, containing two optimization loops. The outer loop samples a new environment in every iteration and adjusts parameters that determine the agent's behavior. In the inner loop, the agent interacts with the environment and optimizes for the maximal reward. (Image source: Botvinick, et al. 2019) Main Differences from RL The overall configure of meta-RL is very similar to an ordinary RL algorithm, except that the last reward $r_{t-1}$ and the last action $a_{t-1}$ are also incorporated into the policy observation in addition to the current state $s_t$.\nIn RL: $\\pi_\\theta(s_t) \\to$ a distribution over $\\mathcal{A}$ In meta-RL: $\\pi_\\theta(a_{t-1}, r_{t-1}, s_t) \\to$ a distribution over $\\mathcal{A}$ The intention of this design is to feed a history into the model so that the policy can internalize the dynamics between states, rewards, and actions in the current MDP and adjust its strategy accordingly. This is well aligned with the setup in Hochreiter’s system. Both meta-RL and RL^2 implemented an LSTM policy and the LSTM’s hidden states serve as a memory for tracking characteristics of the trajectories. Because the policy is recurrent, there is no need to feed the last state as inputs explicitly.\nThe training procedure works as follows:\nSample a new MDP, $M_i \\sim \\mathcal{M}$; Reset the hidden state of the model; Collect multiple trajectories and update the model weights; Repeat from step 1. In the meta-RL paper, different actor-critic architectures all use a recurrent model. Last reward and last action are additional inputs. The observation is fed into the LSTM either as a one-hot vector or as an embedding vector after passed through an encoder model. (Image source: Wang et al., 2016) As described in the RL^2 paper, illustration of the procedure of the model interacting with a series of MDPs in training time . (Image source: Duan et al., 2017) Key Components There are three key components in Meta-RL:\n⭐ A Model with Memory A recurrent neural network maintains a hidden state. Thus, it could acquire and memorize the knowledge about the current task by updating the hidden state during rollouts. Without memory, meta-RL would not work.\n⭐ Meta-learning Algorithm A meta-learning algorithm refers to how we can update the model weights to optimize for the purpose of solving an unseen task fast at test time. In both Meta-RL and RL^2 papers, the meta-learning algorithm is the ordinary gradient descent update of LSTM with hidden state reset between a switch of MDPs.\n⭐ A Distribution of MDPs While the agent is exposed to a variety of environments and tasks during training, it has to learn how to adapt to different MDPs.\nAccording to Botvinick et al. (2019), one source of slowness in RL training is weak inductive bias ( = “a set of assumptions that the learner uses to predict outputs given inputs that it has not encountered”). As a general ML rule, a learning algorithm with weak inductive bias will be able to master a wider range of variance, but usually, will be less sample-efficient. Therefore, to narrow down the hypotheses with stronger inductive biases help improve the learning speed.\nIn meta-RL, we impose certain types of inductive biases from the task distribution and store them in memory. Which inductive bias to adopt at test time depends on the algorithm. Together, these three key components depict a compelling view of meta-RL: Adjusting the weights of a recurrent network is slow but it allows the model to work out a new task fast with its own RL algorithm implemented in its internal activity dynamics.\nMeta-RL interestingly and not very surprisingly matches the ideas in the AI-GAs (“AI-Generating Algorithms”) paper by Jeff Clune (2019). He proposed that one efficient way towards building general AI is to make learning as automatic as possible. The AI-GAs approach involves three pillars: (1) meta-learning architectures, (2) meta-learning algorithms, and (3) automatically generated environments for effective learning.\nThe topic of designing good recurrent network architectures is a bit too broad to be discussed here, so I will skip it. Next, let’s look further into another two components: meta-learning algorithms in the context of meta-RL and how to acquire a variety of training MDPs.\nMeta-Learning Algorithms for Meta-RL My previous post on meta-learning has covered several classic meta-learning algorithms. Here I’m gonna include more related to RL.\nOptimizing Model Weights for Meta-learning Both MAML (Finn, et al. 2017) and Reptile (Nichol et al., 2018) are methods on updating model parameters in order to achieve good generalization performance on new tasks. See an earlier post section on MAML and Reptile.\nMeta-learning Hyperparameters The return function in an RL problem, $G_t^{(n)}$ or $G_t^\\lambda$, involves a few hyperparameters that are often set heuristically, like the discount factor $\\gamma$ and the bootstrapping parameter $\\lambda$. Meta-gradient RL (Xu et al., 2018) considers them as meta-parameters, $\\eta=\\{\\gamma, \\lambda \\}$, that can be tuned and learned online while an agent is interacting with the environment. Therefore, the return becomes a function of $\\eta$ and dynamically adapts itself to a specific task over time.\n$$ \\begin{aligned} G_\\eta^{(n)}(\\tau_t) \u0026= R_{t+1} + \\gamma R_{t+2} + \\dots + \\gamma^{n-1}R_{t+n} + \\gamma^n v_\\theta(s_{t+n}) \u0026 \\scriptstyle{\\text{; n-step return}} \\\\ G_\\eta^{\\lambda}(\\tau_t) \u0026= (1-\\lambda) \\sum_{n=1}^\\infty \\lambda^{n-1} G_\\eta^{(n)} \u0026 \\scriptstyle{\\text{; λ-return, mixture of n-step returns}} \\end{aligned} $$ During training, we would like to update the policy parameters with gradients as a function of all the information in hand, $\\theta’ = \\theta + f(\\tau, \\theta, \\eta)$, where $\\theta$ are the current model weights, $\\tau$ is a sequence of trajectories, and $\\eta$ are the meta-parameters.\nMeanwhile, let’s say we have a meta-objective function $J(\\tau, \\theta, \\eta)$ as a performance measure. The training process follows the principle of online cross-validation, using a sequence of consecutive experiences:\nStarting with parameter $\\theta$, the policy $\\pi_\\theta$ is updated on the first batch of samples $\\tau$, resulting in $\\theta’$. Then we continue running the policy $\\pi_{\\theta’}$ to collect a new set of experiences $\\tau’$, just following $\\tau$ consecutively in time. The performance is measured as $J(\\tau’, \\theta’, \\bar{\\eta})$ with a fixed meta-parameter $\\bar{\\eta}$. The gradient of meta-objective $J(\\tau’, \\theta’, \\bar{\\eta})$ w.r.t. $\\eta$ is used to update $\\eta$: $$ \\begin{aligned} \\Delta \\eta \u0026= -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\eta} \\\\ \u0026= -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\theta'} \\frac{d\\theta'}{d\\eta} \u0026 \\scriptstyle{\\text{ ; single variable chain rule.}} \\\\ \u0026= -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\theta'} \\frac{\\partial (\\theta + f(\\tau, \\theta, \\eta))}{\\partial\\eta} \\\\ \u0026= -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\theta'} \\Big(\\frac{d\\theta}{d\\eta} + \\frac{\\partial f(\\tau, \\theta, \\eta)}{\\partial\\theta}\\frac{d\\theta}{d\\eta} + \\frac{\\partial f(\\tau, \\theta, \\eta)}{\\partial\\eta}\\frac{d\\eta}{d\\eta} \\Big) \u0026 \\scriptstyle{\\text{; multivariable chain rule.}}\\\\ \u0026= -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\theta'} \\Big( \\color{red}{\\big(\\mathbf{I} + \\frac{\\partial f(\\tau, \\theta, \\eta)}{\\partial\\theta}\\big)}\\frac{d\\theta}{d\\eta} + \\frac{\\partial f(\\tau, \\theta, \\eta)}{\\partial\\eta}\\Big) \u0026 \\scriptstyle{\\text{; secondary gradient term in red.}} \\end{aligned} $$ where $\\beta$ is the learning rate for $\\eta$.\nThe meta-gradient RL algorithm simplifies the computation by setting the secondary gradient term to zero, $\\mathbf{I} + \\partial g(\\tau, \\theta, \\eta)/\\partial\\theta = 0$ — this choice prefers the immediate effect of the meta-parameters $\\eta$ on the parameters $\\theta$. Eventually we get:\n$$ \\Delta \\eta = -\\beta \\frac{\\partial J(\\tau', \\theta', \\bar{\\eta})}{\\partial \\theta'} \\frac{\\partial f(\\tau, \\theta, \\eta)}{\\partial\\eta} $$ Experiments in the paper adopted the meta-objective function same as $TD(\\lambda)$ algorithm, minimizing the error between the approximated value function $v_\\theta(s)$ and the $\\lambda$-return:\n$$ \\begin{aligned} J(\\tau, \\theta, \\eta) \u0026= (G^\\lambda_\\eta(\\tau) - v_\\theta(s))^2 \\\\ J(\\tau', \\theta', \\bar{\\eta}) \u0026= (G^\\lambda_{\\bar{\\eta}}(\\tau') - v_{\\theta'}(s'))^2 \\end{aligned} $$ Meta-learning the Loss Function In policy gradient algorithms, the expected total reward is maximized by updating the policy parameters $\\theta$ in the direction of estimated gradient (Schulman et al., 2016),\n$$ g = \\mathbb{E}[\\sum_{t=0}^\\infty \\Psi_t \\nabla_\\theta \\log \\pi_\\theta (a_t \\mid s_t)] $$ where the candidates for $\\Psi_t$ include the trajectory return $G_t$, the Q value $Q(s_t, a_t)$, or the advantage value $A(s_t, a_t)$. The corresponding surrogate loss function for the policy gradient can be reverse-engineered:\n$$ L_\\text{pg} = \\mathbb{E}[\\sum_{t=0}^\\infty \\Psi_t \\log \\pi_\\theta (a_t \\mid s_t)] $$ This loss function is a measure over a history of trajectories, $(s_0, a_0, r_0, \\dots, s_t, a_t, r_t, \\dots)$. Evolved Policy Gradient (EPG; Houthooft, et al, 2018) takes a step further by defining the policy gradient loss function as a temporal convolution (1-D convolution) over the agent’s past experience, $L_\\phi$. The parameters $\\phi$ of the loss function network are evolved in a way that an agent can achieve higher returns.\nSimilar to many meta-learning algorithms, EPG has two optimization loops:\nIn the internal loop, an agent learns to improve its policy $\\pi_\\theta$. In the outer loop, the model updates the parameters $\\phi$ of the loss function $L_\\phi$. Because there is no explicit way to write down a differentiable equation between the return and the loss, EPG turned to Evolutionary Strategies (ES). A general idea is to train a population of $N$ agents, each of them is trained with the loss function $L_{\\phi + \\sigma \\epsilon_i}$ parameterized with $\\phi$ added with a small Gaussian noise $\\epsilon_i \\sim \\mathcal{N}(0, \\mathbf{I})$ of standard deviation $\\sigma$. During the inner loop’s training, EPG tracks a history of experience and updates the policy parameters according to the loss function $L_{\\phi + \\sigma\\epsilon_i}$ for each agent:\n$$ \\theta_i \\leftarrow \\theta - \\alpha_\\text{in} \\nabla_\\theta L_{\\phi + \\sigma \\epsilon_i} (\\pi_\\theta, \\tau_{t-K, \\dots, t}) $$ where $\\alpha_\\text{in}$ is the learning rate of the inner loop and $\\tau_{t-K, \\dots, t}$ is a sequence of $M$ transitions up to the current time step $t$.\nOnce the inner loop policy is mature enough, the policy is evaluated by the mean return $\\bar{G}_{\\phi+\\sigma\\epsilon_i}$ over multiple randomly sampled trajectories. Eventually, we are able to estimate the gradient of $\\phi$ according to NES numerically (Salimans et al, 2017). While repeating this process, both the policy parameters $\\theta$ and the loss function weights $\\phi$ are being updated simultaneously to achieve higher returns.\n$$ \\phi \\leftarrow \\phi + \\alpha_\\text{out} \\frac{1}{\\sigma N} \\sum_{i=1}^N \\epsilon_i G_{\\phi+\\sigma\\epsilon_i} $$ where $\\alpha_\\text{out}$ is the learning rate of the outer loop.\nIn practice, the loss $L_\\phi$ is bootstrapped with an ordinary policy gradient (such as REINFORCE or PPO) surrogate loss $L_\\text{pg}$, $\\hat{L} = (1-\\alpha) L_\\phi + \\alpha L_\\text{pg}$. The weight $\\alpha$ is annealing from 1 to 0 gradually during training. At test time, the loss function parameter $\\phi$ stays fixed and the loss value is computed over a history of experience to update the policy parameters $\\theta$.\nMeta-learning the Exploration Strategies The exploitation vs exploration dilemma is a critical problem in RL. Common ways to do exploration include $\\epsilon$-greedy, random noise on actions, or stochastic policy with built-in randomness on the action space.\nMAESN (Gupta et al, 2018) is an algorithm to learn structured action noise from prior experience for better and more effective exploration. Simply adding random noise on actions cannot capture task-dependent or time-correlated exploration strategies. MAESN changes the policy to condition on a per-task random variable $z_i \\sim \\mathcal{N}(\\mu_i, \\sigma_i)$, for $i$-th task $M_i$, so we would have a policy $a \\sim \\pi_\\theta(a\\mid s, z_i)$. The latent variable $z_i$ is sampled once and fixed during one episode. Intuitively, the latent variable determines one type of behavior (or skills) that should be explored more at the beginning of a rollout and the agent would adjust its actions accordingly. Both the policy parameters and latent space are optimized to maximize the total task rewards. In the meantime, the policy learns to make use of the latent variables for exploration.\nIn addition, the loss function includes a KL divergence between the learned latent variable and a unit Gaussian prior, $D_\\text{KL}(\\mathcal{N}(\\mu_i, \\sigma_i)|\\mathcal{N}(0, \\mathbf{I}))$. On one hand, it restricts the learned latent space not too far from a common prior. On the other hand, it creates the variational evidence lower bound (ELBO) for the reward function. Interestingly the paper found that $(\\mu_i, \\sigma_i)$ for each task are usually close to the prior at convergence.\nThe policy is conditioned on a latent variable variable $z\\_i \\sim \\mathcal{N}(\\mu, \\sigma)$ that is sampled once every episode. Each task has different hyperparameters for the latent variable distribution, $(\\mu\\_i, \\sigma\\_i)$ and they are optimized in the outer loop. (Image source: Gupta et al, 2018) Episodic Control A major criticism of RL is on its sample inefficiency. A large number of samples and small learning steps are required for incremental parameter adjustment in RL in order to maximize generalization and avoid catastrophic forgetting of earlier learning (Botvinick et al., 2019).\nEpisodic control (Lengyel \u0026 Dayan, 2008) is proposed as a solution to avoid forgetting and improve generalization while training at a faster speed. It is partially inspired by hypotheses on instance-based hippocampal learning.\nAn episodic memory keeps explicit records of past events and uses these records directly as point of reference for making new decisions (i.e. just like metric-based meta-learning). In MFEC (Model-Free Episodic Control; Blundell et al., 2016), the memory is modeled as a big table, storing the state-action pair $(s, a)$ as key and the corresponding Q-value $Q_\\text{EC}(s, a)$ as value. When receiving a new observation $s$, the Q value is estimated in an non-parametric way as the average Q-value of top $k$ most similar samples:\n$$ \\hat{Q}_\\text{EC}(s, a) = \\begin{cases} Q_\\text{EC}(s, a) \u0026 \\text{if } (s,a) \\in Q_\\text{EC}, \\\\ \\frac{1}{k} \\sum_{i=1}^k Q(s^{(i)}, a) \u0026 \\text{otherwise} \\end{cases} $$ where $s^{(i)}, i=1, \\dots, k$ are top $k$ states with smallest distances to the state $s$. Then the action that yields the highest estimated Q value is selected. Then the memory table is updated according to the return received at $s_t$:\n$$ Q_\\text{EC}(s, a) \\leftarrow \\begin{cases} \\max\\{Q_\\text{EC}(s_t, a_t), G_t\\} \u0026 \\text{if } (s,a) \\in Q_\\text{EC}, \\\\ G_t \u0026 \\text{otherwise} \\end{cases} $$ As a tabular RL method, MFEC suffers from large memory consumption and a lack of ways to generalize among similar states. The first one can be fixed with an LRU cache. Inspired by metric-based meta-learning, especially Matching Networks (Vinyals et al., 2016), the generalization problem is improved in a follow-up algorithm, NEC (Neural Episodic Control; Pritzel et al., 2016).\nThe episodic memory in NEC is a Differentiable Neural Dictionary (DND), where the key is a convolutional embedding vector of input image pixels and the value stores estimated Q value. Given an inquiry key, the output is a weighted sum of values of top similar keys, where the weight is a normalized kernel measure between the query key and the selected key in the dictionary. This sounds like a hard attention machanism.\nFig. 6 Illustrations of episodic memory module in NEC and two operations on a differentiable neural dictionary. (Image source: Pritzel et al., 2016) Further, Episodic LSTM (Ritter et al., 2018) enhances the basic LSTM architecture with a DND episodic memory, which stores task context embeddings as keys and the LSTM cell states as values. The stored hidden states are retrieved and added directly to the current cell state through the same gating mechanism within LSTM:\nIllustration of the episodic LSTM architecture. The additional structure of episodic memory is in bold. (Image source: Ritter et al., 2018) $$ \\begin{aligned} \\mathbf{c}_t \u0026= \\mathbf{i}_t \\circ \\mathbf{c}_\\text{in} + \\mathbf{f}_t \\circ \\mathbf{c}_{t-1} + \\color{green}{\\mathbf{r}_t \\circ \\mathbf{c}_\\text{ep}} \u0026\\\\ \\mathbf{i}_t \u0026= \\sigma(\\mathbf{W}_{i} \\cdot [\\mathbf{h}_{t-1}, \\mathbf{x}_t] + \\mathbf{b}_i) \u0026 \\scriptstyle{\\text{; input gate}} \\\\ \\mathbf{f}_t \u0026= \\sigma(\\mathbf{W}_{f} \\cdot [\\mathbf{h}_{t-1}, \\mathbf{x}_t] + \\mathbf{b}_f) \u0026 \\scriptstyle{\\text{; forget gate}} \\\\ \\color{green}{\\mathbf{r}_t} \u0026 \\color{green}{=} \\color{green}{\\sigma(\\mathbf{W}_{r} \\cdot [\\mathbf{h}_{t-1}, \\mathbf{x}_t] + \\mathbf{b}_r)} \u0026 \\scriptstyle{\\text{; reinstatement gate}} \\end{aligned} $$ where $\\mathbf{c}_t$ and $\\mathbf{h}_t$ are hidden and cell state at time $t$; $\\mathbf{i}_t$, $\\mathbf{f}_t$ and $\\mathbf{r}_t$ are input, forget and reinstatement gates, respectively; $\\mathbf{c}_\\text{ep}$ is the retrieved cell state from episodic memory. The newly added episodic memory components are marked in green.\nThis architecture provides a shortcut to the prior experience through context-based retrieval. Meanwhile, explicitly saving the task-dependent experience in an external memory avoids forgetting. In the paper, all the experiments have manually designed context vectors. How to construct an effective and efficient format of task context embeddings for more free-formed tasks would be an interesting topic.\nOverall the capacity of episodic control is limited by the complexity of the environment. It is very rare for an agent to repeatedly visit exactly the same states in a real-world task, so properly encoding the states is critical. The learned embedding space compresses the observation data into a lower dimension space and, in the meantime, two states being close in this space are expected to demand similar strategies.\nTraining Task Acquisition Among three key components, how to design a proper distribution of tasks is the less studied and probably the most specific one to meta-RL itself. As described above, each task is a MDP: $M_i = \\langle \\mathcal{S}, \\mathcal{A}, P_i, R_i \\rangle \\in \\mathcal{M}$. We can build a distribution of MDPs by modifying:\nThe reward configuration: Among different tasks, same behavior might get rewarded differently according to $R_i$. Or, the environment: The transition function $P_i$ can be reshaped by initializing the environment with varying shifts between states. Task Generation by Domain Randomization Randomizing parameters in a simulator is an easy way to obtain tasks with modified transition functions. If interested in learning further, check my last post on domain randomization.\nEvolutionary Algorithm on Environment Generation Evolutionary algorithm is a gradient-free heuristic-based optimization method, inspired by natural selection. A population of solutions follows a loop of evaluation, selection, reproduction, and mutation. Eventually, good solutions survive and thus get selected.\nPOET (Wang et al, 2019), a framework based on the evolutionary algorithm, attempts to generate tasks while the problems themselves are being solved. The implementation of POET is only specifically designed for a simple 2D bipedal walker environment but points out an interesting direction. It is noteworthy that the evolutionary algorithm has had some compelling applications in Deep Learning like EPG and PBT (Population-Based Training; Jaderberg et al, 2017).\nAn example bipedal walking environment (top) and an overview of POET (bottom). (Image source: POET blog post) The 2D bipedal walking environment is evolving: from a simple flat surface to a much more difficult trail with potential gaps, stumps, and rough terrains. POET pairs the generation of environmental challenges and the optimization of agents together so as to (a) select agents that can resolve current challenges and (b) evolve environments to be solvable. The algorithm maintains a list of environment-agent pairs and repeats the following:\nMutation: Generate new environments from currently active environments. Note that here types of mutation operations are created just for bipedal walker and a new environment would demand a new set of configurations. Optimization: Train paired agents within their respective environments. Selection: Periodically attempt to transfer current agents from one environment to another. Copy and update the best performing agent for every environment. The intuition is that skills learned in one environment might be helpful for a different environment. The procedure above is quite similar to PBT, but PBT mutates and evolves hyperparameters instead. To some extent, POET is doing domain randomization, as all the gaps, stumps and terrain roughness are controlled by some randomization probability parameters. Different from DR, the agents are not exposed to a fully randomized difficult environment all at once, but instead they are learning gradually with a curriculum configured by the evolutionary algorithm.\nLearning with Random Rewards An MDP without a reward function $R$ is known as a Controlled Markov process (CMP). Given a predefined CMP, $\\langle \\mathcal{S}, \\mathcal{A}, P\\rangle$, we can acquire a variety of tasks by generating a collection of reward functions $\\mathcal{R}$ that encourage the training of an effective meta-learning policy.\nGupta et al. (2018) proposed two unsupervised approaches for growing the task distribution in the context of CMP. Assuming there is an underlying latent variable $z \\sim p(z)$ associated with every task, it parameterizes/determines a reward function: $r_z(s) = \\log D(z|s)$, where a “discriminator” function $D(.)$ is used to extract the latent variable from the state. The paper described two ways to construct a discriminator function:\nSample random weights $\\phi_\\text{rand}$ of the discriminator, $D_{\\phi_\\text{rand}}(z \\mid s)$. Learn a discriminator function to encourage diversity-driven exploration. This method is introduced in more details in another sister paper “DIAYN” (Eysenbach et al., 2018). DIAYN, short for “Diversity is all you need”, is a framework to encourage a policy to learn useful skills without a reward function. It explicitly models the latent variable $z$ as a skill embedding and makes the policy conditioned on $z$ in addition to state $s$, $\\pi_\\theta(a \\mid s, z)$. (Ok, this part is same as MAESN unsurprisingly, as the papers are from the same group.) The design of DIAYN is motivated by a few hypotheses:\nSkills should be diverse and lead to visitations of different states. → maximize the mutual information between states and skills, $I(S; Z)$ Skills should be distinguishable by states, not actions. → minimize the mutual information between actions and skills, conditioned on states $I(A; Z \\mid S)$ The objective function to maximize is as follows, where the policy entropy is also added to encourage diversity:\n$$ \\begin{aligned} \\mathcal{F}(\\theta) \u0026= I(S; Z) + H[A \\mid S] - I(A; Z \\mid S) \u0026 \\\\ \u0026= (H(Z) - H(Z \\mid S)) + H[A \\mid S] - (H[A\\mid S] - H[A\\mid S, Z]) \u0026 \\\\ \u0026= H[A\\mid S, Z] \\color{green}{- H(Z \\mid S) + H(Z)} \u0026 \\\\ \u0026= H[A\\mid S, Z] + \\mathbb{E}_{z\\sim p(z), s\\sim\\rho(s)}[\\log p(z \\mid s)] - \\mathbb{E}_{z\\sim p(z)}[\\log p(z)] \u0026 \\scriptstyle{\\text{; can infer skills from states \u0026 p(z) is diverse.}} \\\\ \u0026\\ge H[A\\mid S, Z] + \\mathbb{E}_{z\\sim p(z), s\\sim\\rho(s)}[\\color{red}{\\log D_\\phi(z \\mid s) - \\log p(z)}] \u0026 \\scriptstyle{\\text{; according to Jensen's inequality; \"pseudo-reward\" in red.}} \\end{aligned} $$ where $I(.)$ is mutual information and $H[.]$ is entropy measure. We cannot integrate all states to compute $p(z \\mid s)$, so approximate it with $D_\\phi(z \\mid s)$ — that is the diversity-driven discriminator function.\nDIAYN Algorithm. (Image source: Eysenbach et al., 2019) Once the discriminator function is learned, sampling a new MDP for training is strainght-forward: First, sample a latent variable, $z \\sim p(z)$ and construct a reward function $r_z(s) = \\log(D(z \\vert s))$. Pairing the reward function with a predefined CMP creates a new MDP.\nCited as:\n@article{weng2019metaRL, title = \"Meta Reinforcement Learning\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2019\", url = \"https://lilianweng.github.io/posts/2019-06-23-meta-rl/\" } References [1] Richard S. Sutton. “The Bitter Lesson.” March 13, 2019.\n[2] Sepp Hochreiter, A. Steven Younger, and Peter R. Conwell. “Learning to learn using gradient descent.” Intl. Conf. on Artificial Neural Networks. 2001.\n[3] Jane X Wang, et al. “Learning to reinforcement learn.” arXiv preprint arXiv:1611.05763 (2016).\n[4] Yan Duan, et al. “RL $^ 2$: Fast Reinforcement Learning via Slow Reinforcement Learning.” ICLR 2017.\n[5] Matthew Botvinick, et al. “Reinforcement Learning, Fast and Slow” Cell Review, Volume 23, Issue 5, P408-422, May 01, 2019.\n[6] Jeff Clune. “AI-GAs: AI-generating algorithms, an alternate paradigm for producing general artificial intelligence” arXiv preprint arXiv:1905.10985 (2019).\n[7] Zhongwen Xu, et al. “Meta-Gradient Reinforcement Learning” NIPS 2018.\n[8] Rein Houthooft, et al. “Evolved Policy Gradients.” NIPS 2018.\n[9] Tim Salimans, et al. “Evolution strategies as a scalable alternative to reinforcement learning.” arXiv preprint arXiv:1703.03864 (2017).\n[10] Abhishek Gupta, et al. “Meta-Reinforcement Learning of Structured Exploration Strategies.” NIPS 2018.\n[11] Alexander Pritzel, et al. “Neural episodic control.” Proc. Intl. Conf. on Machine Learning, Volume 70, 2017.\n[12] Charles Blundell, et al. “Model-free episodic control.” arXiv preprint arXiv:1606.04460 (2016).\n[13] Samuel Ritter, et al. “Been there, done that: Meta-learning with episodic recall.” ICML, 2018.\n[14] Rui Wang et al. “Paired Open-Ended Trailblazer (POET): Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions” arXiv preprint arXiv:1901.01753 (2019).\n[15] Uber Engineering Blog: “POET: Endlessly Generating Increasingly Complex and Diverse Learning Environments and their Solutions through the Paired Open-Ended Trailblazer.” Jan 8, 2019.\n[16] Abhishek Gupta, et al.“Unsupervised meta-learning for Reinforcement Learning” arXiv preprint arXiv:1806.04640 (2018).\n[17] Eysenbach, Benjamin, et al. “Diversity is all you need: Learning skills without a reward function.” ICLR 2019.\n[18] Max Jaderberg, et al. “Population Based Training of Neural Networks.” arXiv preprint arXiv:1711.09846 (2017).\n",
+  "wordCount" : "4588",
+  "inLanguage": "en",
+  "datePublished": "2019-06-23T00:00:00Z",
+  "dateModified": "2019-06-23T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2019-06-23-meta-rl/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Meta Reinforcement Learning
+    </h1>
+    <div class="post-meta">Date: June 23, 2019  |  Estimated Reading Time: 22 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#on-the-origin-of-meta-rl" aria-label="On the Origin of Meta-RL">On the Origin of Meta-RL</a><ul>
+                        
+                <li>
+                    <a href="#back-in-2001" aria-label="Back in 2001">Back in 2001</a></li>
+                <li>
+                    <a href="#proposal-in-2016" aria-label="Proposal in 2016">Proposal in 2016</a></li></ul>
+                </li>
+                <li>
+                    <a href="#define-meta-rl" aria-label="Define Meta-RL">Define Meta-RL</a><ul>
+                        
+                <li>
+                    <a href="#formulation" aria-label="Formulation">Formulation</a></li>
+                <li>
+                    <a href="#main-differences-from-rl" aria-label="Main Differences from RL">Main Differences from RL</a></li>
+                <li>
+                    <a href="#key-components" aria-label="Key Components">Key Components</a></li></ul>
+                </li>
+                <li>
+                    <a href="#meta-learning-algorithms-for-meta-rl" aria-label="Meta-Learning Algorithms for Meta-RL">Meta-Learning Algorithms for Meta-RL</a><ul>
+                        
+                <li>
+                    <a href="#optimizing-model-weights-for-meta-learning" aria-label="Optimizing Model Weights for Meta-learning">Optimizing Model Weights for Meta-learning</a></li>
+                <li>
+                    <a href="#meta-learning-hyperparameters" aria-label="Meta-learning Hyperparameters">Meta-learning Hyperparameters</a></li>
+                <li>
+                    <a href="#meta-learning-the-loss-function" aria-label="Meta-learning the Loss Function">Meta-learning the Loss Function</a></li>
+                <li>
+                    <a href="#meta-learning-the-exploration-strategies" aria-label="Meta-learning the Exploration Strategies">Meta-learning the Exploration Strategies</a></li>
+                <li>
+                    <a href="#episodic-control" aria-label="Episodic Control">Episodic Control</a></li></ul>
+                </li>
+                <li>
+                    <a href="#training-task-acquisition" aria-label="Training Task Acquisition">Training Task Acquisition</a><ul>
+                        
+                <li>
+                    <a href="#task-generation-by-domain-randomization" aria-label="Task Generation by Domain Randomization">Task Generation by Domain Randomization</a></li>
+                <li>
+                    <a href="#evolutionary-algorithm-on-environment-generation" aria-label="Evolutionary Algorithm on Environment Generation">Evolutionary Algorithm on Environment Generation</a></li>
+                <li>
+                    <a href="#learning-with-random-rewards" aria-label="Learning with Random Rewards">Learning with Random Rewards</a></li></ul>
+                </li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- Meta-RL is meta-learning on reinforcement learning tasks. After trained over a distribution of tasks, the agent is able to solve a new task by developing a new RL algorithm with its internal activity dynamics. This post starts with the origin of meta-RL and then dives into three key components of meta-RL. -->
+<p>In my earlier post on <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/">meta-learning</a>, the problem is mainly defined in the context of few-shot classification. Here I would like to explore more into cases when we try to &ldquo;meta-learn&rdquo; <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/">Reinforcement Learning (RL)</a> tasks by developing an agent that can solve unseen tasks fast and efficiently.</p>
+<p>To recap, a good meta-learning model is expected to generalize to new tasks or new environments that have never been encountered during training. The adaptation process, essentially a <em>mini learning session</em>, happens at test with limited exposure to the new configurations. Even without any explicit fine-tuning (no gradient backpropagation on trainable variables), the meta-learning model autonomously adjusts internal hidden states to learn.</p>
+<p>Training RL algorithms can be notoriously difficult sometimes. If the meta-learning agent could become so smart that the distribution of solvable unseen tasks grows extremely broad, we are on track towards <a href="http://incompleteideas.net/IncIdeas/BitterLesson.html">general purpose methods</a> &mdash; essentially building a &ldquo;brain&rdquo; which would solve all kinds of RL problems without much human interference or manual feature engineering. Sounds amazing, right? 💖</p>
+<h1 id="on-the-origin-of-meta-rl">On the Origin of Meta-RL<a hidden class="anchor" aria-hidden="true" href="#on-the-origin-of-meta-rl">#</a></h1>
+<h2 id="back-in-2001">Back in 2001<a hidden class="anchor" aria-hidden="true" href="#back-in-2001">#</a></h2>
+<p>I encountered a paper  written in 2001 by <a href="http://snowedin.net/tmp/Hochreiter2001.pdf">Hochreiter et al.</a> when reading <a href="https://arxiv.org/pdf/1611.05763.pdf">Wang et al., 2016</a>. Although the idea was proposed for supervised learning, there are so many resemblances to the current approach to meta-RL.</p>
+<figure>
+	<img src="Hochreiter-meta-learning.png" style="width: 100%;"  />
+	<figcaption>The meta-learning system consists of the supervisory and the subordinate systems. The subordinate system is a recurrent neural network that takes as input both the observation at the current time step, $x\_t$ and the label at the last time step, $y\_{t-1}$. (Image source: <a href="http://snowedin.net/tmp/Hochreiter2001.pdf" target="_blank">Hochreiter et al., 2001</a>)</figcaption>
+</figure>
+<p>Hochreiter&rsquo;s meta-learning model is a recurrent network with LSTM cell. LSTM is a good choice because it can internalize a history of inputs and tune its own weights effectively through <a href="https://en.wikipedia.org/wiki/Backpropagation_through_time">BPTT</a>. The training data contains $K$ sequences and each sequence is consist of $N$ samples generated by a target function $f_k(.), k=1, \dots, K$,</p>
+<div>
+$$
+\{\text{input: }(\mathbf{x}^k_i, \mathbf{y}^k_{i-1}) \to \text{label: }\mathbf{y}^k_i\}_{i=1}^N
+\text{ where }\mathbf{y}^k_i = f_k(\mathbf{x}^k_i)
+$$ 
+</div>
+<p>Noted that <em>the last label</em> $\mathbf{y}^k_{i-1}$ is also provided as an auxiliary input so that the function can learn the presented mapping.</p>
+<p>In the experiment of decoding two-dimensional quadratic functions, $a x_1^2 + b x_2^2 + c x_1 x_2 + d x_1 + e x_2 + f$, with coefficients $a$-$f$ are randomly sampled from [-1, 1], this meta-learning system was able to approximate the function after seeing only ~35 examples.</p>
+<h2 id="proposal-in-2016">Proposal in 2016<a hidden class="anchor" aria-hidden="true" href="#proposal-in-2016">#</a></h2>
+<p>In the modern days of DL, <a href="https://arxiv.org/abs/1611.05763">Wang et al.</a> (2016) and <a href="https://arxiv.org/abs/1611.02779">Duan et al.</a> (2017) simultaneously proposed the very similar idea of <strong>Meta-RL</strong> (it is called <strong>RL^2</strong> in the second paper). A meta-RL model is trained over a distribution of MDPs, and at test time, it is able to learn to solve a new task quickly. The goal of meta-RL is ambitious, taking one step further towards general algorithms.</p>
+<h1 id="define-meta-rl">Define Meta-RL<a hidden class="anchor" aria-hidden="true" href="#define-meta-rl">#</a></h1>
+<p><em>Meta Reinforcement Learning</em>, in short, is to do <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/">meta-learning</a> in the field of <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/">reinforcement learning</a>. Usually the train and test tasks are different but drawn from the same family of problems; i.e., experiments in the papers included multi-armed bandit with different reward probabilities, mazes with different layouts, same robots but with different physical parameters in simulator, and many others.</p>
+<h2 id="formulation">Formulation<a hidden class="anchor" aria-hidden="true" href="#formulation">#</a></h2>
+<p>Let&rsquo;s say we have a distribution of tasks, each formularized as an <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#markov-decision-processes">MDP</a> (Markov Decision Process), $M_i \in \mathcal{M}$. An MDP is determined by a 4-tuple, $M_i= \langle \mathcal{S}, \mathcal{A}, P_i, R_i \rangle$:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Symbol</th>
+          <th>Meaning</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>$\mathcal{S}$</td>
+          <td>A set of states.</td>
+      </tr>
+      <tr>
+          <td>$\mathcal{A}$</td>
+          <td>A set of actions.</td>
+      </tr>
+      <tr>
+          <td>$P_i: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \to \mathbb{R}_{+}$</td>
+          <td>Transition probability function.</td>
+      </tr>
+      <tr>
+          <td>$R_i: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$</td>
+          <td>Reward function.</td>
+      </tr>
+  </tbody>
+</table>
+<p>(RL^2 paper adds an extra parameter, horizon $T$, into the MDP tuple to emphasize that each MDP should have a finite horizon.)</p>
+<p>Note that common state $\mathcal{S}$ and action space $\mathcal{A}$ are used above, so that a (stochastic) policy: $\pi_\theta: \mathcal{S} \times \mathcal{A} \to \mathbb{R}_{+}$ would get inputs compatible across different tasks. The test tasks are sampled from the same distribution $\mathcal{M}$ or slightly modified version.</p>
+<figure>
+	<img src="meta-RL-illustration.png" style="width: 100%;"  />
+	<figcaption>Illustration of meta-RL, containing two optimization loops. The outer loop samples a new environment in every iteration and adjusts parameters that determine the agent's behavior. In the inner loop, the agent interacts with the environment and optimizes for the maximal reward. (Image source: <a href="https://www.cell.com/action/showPdf?pii=S1364-6613%2819%2930061-0" target="_blank">Botvinick, et al. 2019</a>)</figcaption>
+</figure>
+<h2 id="main-differences-from-rl">Main Differences from RL<a hidden class="anchor" aria-hidden="true" href="#main-differences-from-rl">#</a></h2>
+<p>The overall configure of meta-RL is very similar to an ordinary RL algorithm, except that <strong>the last reward</strong> $r_{t-1}$ and <strong>the last action</strong> $a_{t-1}$ are also incorporated into the policy observation in addition to the current state $s_t$.</p>
+<ul>
+<li>In RL: $\pi_\theta(s_t) \to$  a distribution over $\mathcal{A}$</li>
+<li>In meta-RL: $\pi_\theta(a_{t-1}, r_{t-1}, s_t) \to$  a distribution over $\mathcal{A}$</li>
+</ul>
+<p>The intention of this design is to feed a history into the model so that the policy can internalize the dynamics between states, rewards, and actions in the current MDP and adjust its strategy accordingly. This is well aligned with the setup in <a href="#back-in-2001">Hochreiter&rsquo;s system</a>. Both meta-RL and RL^2 implemented an LSTM policy and the LSTM&rsquo;s hidden states serve as a <em>memory</em> for tracking characteristics of the trajectories. Because the policy is recurrent, there is no need to feed the last state as inputs explicitly.</p>
+<p>The training procedure works as follows:</p>
+<ol>
+<li>Sample a new MDP, $M_i \sim \mathcal{M}$;</li>
+<li><strong>Reset the hidden state</strong> of the model;</li>
+<li>Collect multiple trajectories and update the model weights;</li>
+<li>Repeat from step 1.</li>
+</ol>
+<figure>
+	<img src="L2RL.png" style="width: 68%;"  />
+	<figcaption>In the meta-RL paper, different actor-critic architectures all use a recurrent model. Last reward and last action are additional inputs. The observation is fed into the LSTM either as a one-hot vector or as an embedding vector after passed through an encoder model. (Image source: <a href="https://arxiv.org/abs/1611.05763" target="_blank">Wang et al., 2016</a>)</figcaption>
+</figure>
+<figure>
+	<img src="RL_2.png" style="width: 100%;"  />
+	<figcaption>As described in the RL^2 paper, illustration of the procedure of the model interacting with a series of MDPs in training time . (Image source: <a href="https://arxiv.org/abs/1611.02779" target="_blank">Duan et al., 2017</a>)</figcaption>
+</figure>
+<h2 id="key-components">Key Components<a hidden class="anchor" aria-hidden="true" href="#key-components">#</a></h2>
+<p>There are three key components in Meta-RL:</p>
+<blockquote>
+<p>⭐ <strong>A Model with Memory</strong>
+<br/>
+A recurrent neural network maintains a hidden state. Thus, it could acquire and memorize the knowledge about the current task by updating the hidden state during rollouts. Without memory, meta-RL would not work.</p>
+</blockquote>
+<blockquote>
+<p>⭐ <strong>Meta-learning Algorithm</strong>
+<br/>
+A meta-learning algorithm refers to how we can update the model weights to optimize for the purpose of solving an unseen task fast at test time. In both Meta-RL and RL^2 papers, the meta-learning algorithm is the ordinary gradient descent update of LSTM with hidden state reset between a switch of MDPs.</p>
+</blockquote>
+<blockquote>
+<p>⭐ <strong>A Distribution of MDPs</strong>
+<br />
+While the agent is exposed to a variety of environments and tasks during training, it has to learn how to adapt to different MDPs.</p>
+</blockquote>
+<p>According to <a href="https://www.cell.com/action/showPdf?pii=S1364-6613%2819%2930061-0">Botvinick et al.</a> (2019), one source of slowness in RL training is <em>weak <a href="https://en.wikipedia.org/wiki/Inductive_bias">inductive bias</a></em> ( = &ldquo;a set of assumptions that the learner uses to predict outputs given inputs that it has not encountered&rdquo;). As a general ML rule, a learning algorithm with weak inductive bias will be able to master a wider range of variance, but usually, will be less sample-efficient. Therefore, to narrow down the hypotheses with stronger inductive biases help improve the learning speed.</p>
+<p>In meta-RL, we impose certain types of inductive biases from the <em>task distribution</em> and store them in <em>memory</em>. Which inductive bias to adopt at test time depends on the <em>algorithm</em>. Together, these three key components depict a compelling view of meta-RL: Adjusting the weights of a recurrent network is slow but it allows the model to work out a new task fast with its own RL algorithm implemented in its internal activity dynamics.</p>
+<p>Meta-RL interestingly and not very surprisingly matches the ideas in the <a href="https://arxiv.org/abs/1905.10985">AI-GAs</a> (&ldquo;AI-Generating Algorithms&rdquo;) paper by Jeff Clune (2019). He proposed that one efficient way towards building general AI is to make learning as automatic as possible. The AI-GAs approach involves three pillars: (1) meta-learning architectures, (2) meta-learning algorithms, and (3) automatically generated environments for effective learning.</p>
+<hr>
+<p>The topic of designing good recurrent network architectures is a bit too broad to be discussed here, so I will skip it. Next, let&rsquo;s look further into another two components: meta-learning algorithms in the context of meta-RL and how to acquire a variety of training MDPs.</p>
+<h1 id="meta-learning-algorithms-for-meta-rl">Meta-Learning Algorithms for Meta-RL<a hidden class="anchor" aria-hidden="true" href="#meta-learning-algorithms-for-meta-rl">#</a></h1>
+<p>My previous <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/">post</a> on meta-learning has covered several classic meta-learning algorithms. Here I&rsquo;m gonna include more related to RL.</p>
+<h2 id="optimizing-model-weights-for-meta-learning">Optimizing Model Weights for Meta-learning<a hidden class="anchor" aria-hidden="true" href="#optimizing-model-weights-for-meta-learning">#</a></h2>
+<p>Both MAML (<a href="https://arxiv.org/abs/1703.03400">Finn, et al. 2017</a>) and Reptile (<a href="https://arxiv.org/abs/1803.02999">Nichol et al., 2018</a>) are methods on updating model parameters in order to achieve good generalization performance on new tasks. See an earlier post <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/#optimization-based">section</a> on MAML and Reptile.</p>
+<h2 id="meta-learning-hyperparameters">Meta-learning Hyperparameters<a hidden class="anchor" aria-hidden="true" href="#meta-learning-hyperparameters">#</a></h2>
+<p>The <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#value-function">return</a> function in an RL problem, $G_t^{(n)}$ or $G_t^\lambda$, involves a few hyperparameters that are often set heuristically, like the discount factor <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#value-function">$\gamma$</a> and the bootstrapping parameter <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/#combining-td-and-mc-learning">$\lambda$</a>.
+Meta-gradient RL (<a href="http://papers.nips.cc/paper/7507-meta-gradient-reinforcement-learning.pdf">Xu et al., 2018</a>) considers them as <em>meta-parameters</em>, $\eta=\{\gamma, \lambda \}$, that can be tuned and learned <em>online</em> while an agent is interacting with the environment. Therefore, the return becomes a function of $\eta$ and dynamically adapts itself to a specific task over time.</p>
+<div>
+$$
+\begin{aligned}
+G_\eta^{(n)}(\tau_t) &= R_{t+1} + \gamma R_{t+2} + \dots + \gamma^{n-1}R_{t+n} + \gamma^n v_\theta(s_{t+n}) & \scriptstyle{\text{; n-step return}} \\
+G_\eta^{\lambda}(\tau_t) &= (1-\lambda) \sum_{n=1}^\infty \lambda^{n-1} G_\eta^{(n)} & \scriptstyle{\text{; λ-return, mixture of n-step returns}}
+\end{aligned}
+$$
+</div>
+<p>During training, we would like to update the policy parameters with gradients as a function of all the information in hand, $\theta&rsquo; = \theta + f(\tau, \theta, \eta)$, where $\theta$ are the current model weights, $\tau$ is a sequence of trajectories, and $\eta$ are the meta-parameters.</p>
+<p>Meanwhile, let&rsquo;s say we have a meta-objective function $J(\tau, \theta, \eta)$ as a performance measure. The training process follows the principle of online cross-validation, using a sequence of consecutive experiences:</p>
+<ol>
+<li>Starting with parameter $\theta$, the policy $\pi_\theta$ is updated on the first batch of samples $\tau$, resulting in $\theta&rsquo;$.</li>
+<li>Then we continue running the policy $\pi_{\theta&rsquo;}$ to collect a new set of experiences $\tau&rsquo;$, just following $\tau$ consecutively in time. The performance is measured as $J(\tau&rsquo;, \theta&rsquo;, \bar{\eta})$ with a fixed meta-parameter $\bar{\eta}$.</li>
+<li>The gradient of meta-objective $J(\tau&rsquo;, \theta&rsquo;, \bar{\eta})$ w.r.t. $\eta$ is used to update $\eta$:</li>
+</ol>
+<div>
+$$
+\begin{aligned}
+\Delta \eta
+&= -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \eta} \\
+&= -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \theta'} \frac{d\theta'}{d\eta} & \scriptstyle{\text{ ; single variable chain rule.}} \\
+&= -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \theta'} \frac{\partial (\theta + f(\tau, \theta, \eta))}{\partial\eta}  \\
+&= -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \theta'} \Big(\frac{d\theta}{d\eta} + \frac{\partial f(\tau, \theta, \eta)}{\partial\theta}\frac{d\theta}{d\eta} + \frac{\partial f(\tau, \theta, \eta)}{\partial\eta}\frac{d\eta}{d\eta} \Big) & \scriptstyle{\text{; multivariable chain rule.}}\\
+&= -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \theta'} \Big( \color{red}{\big(\mathbf{I} + \frac{\partial f(\tau, \theta, \eta)}{\partial\theta}\big)}\frac{d\theta}{d\eta} + \frac{\partial f(\tau, \theta, \eta)}{\partial\eta}\Big) & \scriptstyle{\text{; secondary gradient term in red.}}
+\end{aligned}
+$$
+</div>
+<p>where $\beta$ is the learning rate for $\eta$.</p>
+<p>The meta-gradient RL algorithm simplifies the computation by setting the secondary gradient term to zero, $\mathbf{I} + \partial g(\tau, \theta, \eta)/\partial\theta = 0$ &mdash; this choice prefers the immediate effect of the meta-parameters $\eta$ on the parameters $\theta$. Eventually we get:</p>
+<div>
+$$
+\Delta \eta = -\beta \frac{\partial J(\tau', \theta', \bar{\eta})}{\partial \theta'} \frac{\partial f(\tau, \theta, \eta)}{\partial\eta}
+$$
+</div>
+<p>Experiments in the paper adopted the meta-objective function same as $TD(\lambda)$ algorithm, minimizing the error between the approximated value function $v_\theta(s)$ and the $\lambda$-return:</p>
+<div>
+$$
+\begin{aligned}
+J(\tau, \theta, \eta) &= (G^\lambda_\eta(\tau) - v_\theta(s))^2 \\
+J(\tau', \theta', \bar{\eta}) &= (G^\lambda_{\bar{\eta}}(\tau') - v_{\theta'}(s'))^2
+\end{aligned}
+$$
+</div>
+<h2 id="meta-learning-the-loss-function">Meta-learning the Loss Function<a hidden class="anchor" aria-hidden="true" href="#meta-learning-the-loss-function">#</a></h2>
+<p>In policy gradient algorithms, the expected total reward is maximized by updating the policy parameters $\theta$ in the direction of estimated gradient (<a href="https://arxiv.org/abs/1506.02438">Schulman et al., 2016</a>),</p>
+<div>
+$$
+g = \mathbb{E}[\sum_{t=0}^\infty \Psi_t \nabla_\theta \log \pi_\theta (a_t \mid s_t)]
+$$
+</div>
+<p>where the candidates for $\Psi_t$ include the trajectory return $G_t$, the Q value $Q(s_t, a_t)$, or the advantage value $A(s_t, a_t)$. The corresponding surrogate loss function for the policy gradient can be reverse-engineered:</p>
+<div>
+$$
+L_\text{pg} = \mathbb{E}[\sum_{t=0}^\infty \Psi_t \log \pi_\theta (a_t \mid s_t)]
+$$
+</div>
+<p>This loss function is a measure over a history of trajectories, $(s_0, a_0, r_0, \dots, s_t, a_t, r_t, \dots)$. <strong>Evolved Policy Gradient</strong> (<strong>EPG</strong>; <a href="https://papers.nips.cc/paper/7785-evolved-policy-gradients.pdf">Houthooft, et al, 2018</a>) takes a step further by defining the policy gradient loss function as a temporal convolution (1-D convolution) over the agent&rsquo;s past experience, $L_\phi$. The parameters $\phi$ of the loss function network are evolved in a way that an agent can achieve higher returns.</p>
+<p>Similar to many meta-learning algorithms, EPG has two optimization loops:</p>
+<ul>
+<li>In the internal loop, an agent learns to improve its policy $\pi_\theta$.</li>
+<li>In the outer loop, the model updates the parameters $\phi$ of the loss function $L_\phi$. Because there is no explicit way to write down a differentiable equation between the return and the loss, EPG turned to <a href="https://en.wikipedia.org/wiki/Evolution_strategy"><em>Evolutionary Strategies</em></a> (ES).</li>
+</ul>
+<p>A general idea is to train a population of $N$ agents, each of them is trained with the loss function $L_{\phi + \sigma \epsilon_i}$ parameterized with $\phi$ added with a small Gaussian noise $\epsilon_i \sim \mathcal{N}(0, \mathbf{I})$ of standard deviation $\sigma$. During the inner loop&rsquo;s training, EPG tracks a history of experience and updates the policy parameters according to the loss function $L_{\phi + \sigma\epsilon_i}$ for each agent:</p>
+<div>
+$$
+\theta_i \leftarrow \theta - \alpha_\text{in} \nabla_\theta L_{\phi + \sigma \epsilon_i} (\pi_\theta, \tau_{t-K, \dots, t})
+$$
+</div>
+<p>where $\alpha_\text{in}$ is the learning rate of the inner loop and $\tau_{t-K, \dots, t}$ is a sequence of $M$ transitions up to the current time step $t$.</p>
+<p>Once the inner loop policy is mature enough, the policy is evaluated by the mean return $\bar{G}_{\phi+\sigma\epsilon_i}$ over multiple randomly sampled trajectories. Eventually, we are able to estimate the gradient of $\phi$ according to <a href="http://blog.otoro.net/2017/10/29/visual-evolution-strategies/">NES</a> numerically (<a href="https://arxiv.org/abs/1703.03864">Salimans et al, 2017</a>). While repeating this process, both the policy parameters $\theta$ and the loss function weights $\phi$ are being updated simultaneously to achieve higher returns.</p>
+<div>
+$$
+\phi \leftarrow \phi + \alpha_\text{out} \frac{1}{\sigma N} \sum_{i=1}^N \epsilon_i G_{\phi+\sigma\epsilon_i}
+$$
+</div>
+<p>where $\alpha_\text{out}$ is the learning rate of the outer loop.</p>
+<p>In practice, the loss $L_\phi$ is bootstrapped with an ordinary policy gradient (such as REINFORCE or PPO) surrogate loss $L_\text{pg}$, $\hat{L} = (1-\alpha) L_\phi + \alpha L_\text{pg}$. The weight $\alpha$ is annealing from 1 to 0 gradually during training. At test time, the loss function parameter $\phi$ stays fixed and the loss value is computed over a history of experience to update the policy parameters $\theta$.</p>
+<h2 id="meta-learning-the-exploration-strategies">Meta-learning the Exploration Strategies<a hidden class="anchor" aria-hidden="true" href="#meta-learning-the-exploration-strategies">#</a></h2>
+<p>The <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/#exploitation-vs-exploration">exploitation vs exploration</a> dilemma is a critical problem in RL. Common ways to do exploration include $\epsilon$-greedy, random noise on actions, or stochastic policy with built-in randomness on the action space.</p>
+<p><strong>MAESN</strong> (<a href="http://papers.nips.cc/paper/7776-meta-reinforcement-learning-of-structured-exploration-strategies.pdf">Gupta et al, 2018</a>) is an algorithm to learn structured action noise from prior experience for better and more effective exploration. Simply adding random noise on actions cannot capture task-dependent or time-correlated exploration strategies. MAESN changes the policy to condition on a per-task random variable $z_i \sim \mathcal{N}(\mu_i, \sigma_i)$, for $i$-th task $M_i$, so we would have a policy $a \sim \pi_\theta(a\mid s, z_i)$.
+The latent variable $z_i$ is sampled once and fixed during one episode. Intuitively, the latent variable determines one type of behavior (or skills) that should be explored more at the beginning of a rollout and the agent would adjust its actions accordingly. Both the policy parameters and latent space are optimized to maximize the total task rewards. In the meantime, the policy learns to make use of the latent variables for exploration.</p>
+<p>In addition,  the loss function includes a KL divergence between the learned latent variable and a unit Gaussian prior, $D_\text{KL}(\mathcal{N}(\mu_i, \sigma_i)|\mathcal{N}(0, \mathbf{I}))$. On one hand, it restricts the learned latent space not too far from a common prior. On the other hand, it creates the variational evidence lower bound (<a href="http://users.umiacs.umd.edu/~xyang35/files/understanding-variational-lower.pdf">ELBO</a>) for the reward function. Interestingly the paper found that $(\mu_i, \sigma_i)$ for each task are usually close to the prior at convergence.</p>
+<figure>
+	<img src="MAESN.png" style="width: 82%;"  />
+	<figcaption>The policy is conditioned on a latent variable variable $z\_i \sim \mathcal{N}(\mu, \sigma)$ that is sampled once every episode. Each task has different hyperparameters for the latent variable distribution, $(\mu\_i, \sigma\_i)$ and they are optimized in the outer loop. (Image source: <a href="http://papers.nips.cc/paper/7776-meta-reinforcement-learning-of-structured-exploration-strategies.pdf" target="_blank">Gupta et al, 2018</a>)</figcaption>
+</figure>
+<h2 id="episodic-control">Episodic Control<a hidden class="anchor" aria-hidden="true" href="#episodic-control">#</a></h2>
+<p>A major criticism of RL is on its sample inefficiency. A large number of samples and small learning steps are required for incremental parameter adjustment in RL in order to maximize generalization and avoid catastrophic forgetting of earlier learning (<a href="https://www.cell.com/trends/cognitive-sciences/fulltext/S1364-6613(19)30061-0">Botvinick et al., 2019</a>).</p>
+<p><strong>Episodic control</strong> (<a href="http://papers.nips.cc/paper/3311-hippocampal-contributions-to-control-the-third-way.pdf">Lengyel &amp; Dayan, 2008</a>) is proposed as a solution to avoid forgetting and improve generalization while training at a faster speed. It is partially inspired by hypotheses on instance-based <a href="https://en.wikipedia.org/wiki/Hippocampus">hippocampal</a> learning.</p>
+<p>An <em>episodic memory</em> keeps explicit records of past events and uses these records directly as point of reference for making new decisions (i.e. just like <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/#metric-based">metric-based</a> meta-learning). In <strong>MFEC</strong> (Model-Free Episodic Control; <a href="https://arxiv.org/abs/1606.04460">Blundell et al., 2016</a>), the memory is modeled as a big table, storing the state-action pair $(s, a)$ as key and the corresponding Q-value $Q_\text{EC}(s, a)$ as value. When receiving a new observation $s$, the Q value is estimated in an non-parametric way as the average Q-value of top $k$ most similar samples:</p>
+<div>
+$$
+\hat{Q}_\text{EC}(s, a) = 
+\begin{cases}
+Q_\text{EC}(s, a)                      & \text{if } (s,a) \in Q_\text{EC}, \\
+\frac{1}{k} \sum_{i=1}^k Q(s^{(i)}, a) & \text{otherwise}
+\end{cases}
+$$
+</div>
+<p>where $s^{(i)}, i=1, \dots, k$ are top $k$ states with smallest distances to the state $s$. Then the action that yields the highest estimated Q value is selected. Then the memory table is updated according to the return received at $s_t$:</p>
+<div>
+$$
+Q_\text{EC}(s, a) \leftarrow
+\begin{cases}
+\max\{Q_\text{EC}(s_t, a_t), G_t\}  & \text{if } (s,a) \in Q_\text{EC}, \\
+G_t                                 & \text{otherwise}
+\end{cases}
+$$
+</div>
+<p>As a tabular RL method, MFEC suffers from large memory consumption and a lack of ways to generalize among similar states. The first one can be fixed with an LRU cache. Inspired by <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/#metric-based">metric-based</a> meta-learning, especially Matching Networks (<a href="http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf">Vinyals et al., 2016</a>), the generalization problem is improved in a follow-up algorithm, <strong>NEC</strong> (Neural Episodic Control; <a href="https://arxiv.org/abs/1703.01988">Pritzel et al., 2016</a>).</p>
+<p>The episodic memory in NEC is a Differentiable Neural Dictionary (<strong>DND</strong>), where the key is a convolutional embedding vector of input image pixels and the value stores estimated Q value. Given an inquiry key, the output is a weighted sum of values of top similar keys, where the weight is a normalized kernel measure between the query key and the selected key in the dictionary. This sounds like a hard <a href="https://lilianweng.github.io/posts/2018-06-24-attention/">attention</a> machanism.</p>
+<figure>
+	<img src="neural-episodic-control.png" style="width: 100%;"  />
+	<figcaption>Fig. 6 Illustrations of episodic memory module in NEC and two operations on a differentiable neural dictionary. (Image source: <a href="https://arxiv.org/abs/1703.01988" target="_blank">Pritzel et al., 2016</a>)</figcaption>
+</figure>
+<p>Further, <strong>Episodic LSTM</strong> (<a href="https://arxiv.org/abs/1805.09692">Ritter et al., 2018</a>) enhances the basic LSTM architecture with a DND episodic memory, which stores task context embeddings as keys and the LSTM cell states as values. The stored hidden states are retrieved and added directly to the current cell state through the same gating mechanism within LSTM:</p>
+<figure>
+	<img src="episodic-LSTM.png" style="width: 77%;"  />
+	<figcaption>Illustration of the episodic LSTM architecture. The additional structure of episodic memory is in bold. (Image source: <a href="https://arxiv.org/abs/1805.09692" target="_blank">Ritter et al., 2018</a>)</figcaption>
+</figure>
+<div>
+$$
+\begin{aligned}
+\mathbf{c}_t &= \mathbf{i}_t \circ \mathbf{c}_\text{in} + \mathbf{f}_t \circ \mathbf{c}_{t-1} + \color{green}{\mathbf{r}_t \circ \mathbf{c}_\text{ep}} &\\
+\mathbf{i}_t &= \sigma(\mathbf{W}_{i} \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i) & \scriptstyle{\text{; input gate}} \\
+\mathbf{f}_t &= \sigma(\mathbf{W}_{f} \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f) & \scriptstyle{\text{; forget gate}} \\
+\color{green}{\mathbf{r}_t} & \color{green}{=} \color{green}{\sigma(\mathbf{W}_{r} \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_r)} & \scriptstyle{\text{; reinstatement gate}}
+\end{aligned}
+$$
+</div>
+<p>where $\mathbf{c}_t$ and $\mathbf{h}_t$ are hidden and cell state at time $t$; $\mathbf{i}_t$, $\mathbf{f}_t$ and $\mathbf{r}_t$ are input, forget and reinstatement gates, respectively; $\mathbf{c}_\text{ep}$ is the retrieved cell state from episodic memory. The newly added episodic memory components are marked in green.</p>
+<p>This architecture provides a shortcut to the prior experience through context-based retrieval. Meanwhile, explicitly saving the task-dependent experience in an external memory avoids forgetting. In the paper, all the experiments have manually designed context vectors. How to construct an effective and efficient format of task context embeddings for more free-formed tasks would be an interesting topic.</p>
+<p>Overall the capacity of episodic control is limited by the complexity of the environment. It is very rare for an agent to repeatedly visit exactly the same states in a real-world task, so properly encoding the states is critical. The learned embedding space compresses the observation data into a lower dimension space and, in the meantime, two states being close in this space are expected to demand similar strategies.</p>
+<h1 id="training-task-acquisition">Training Task Acquisition<a hidden class="anchor" aria-hidden="true" href="#training-task-acquisition">#</a></h1>
+<p>Among three key components, how to design a proper distribution of tasks is the less studied and probably the most specific one to meta-RL itself. As described <a href="#formulation">above</a>, each task is a MDP: $M_i = \langle \mathcal{S}, \mathcal{A}, P_i, R_i \rangle \in \mathcal{M}$. We can build a distribution of MDPs by modifying:</p>
+<ul>
+<li>The <em>reward configuration</em>: Among different tasks, same behavior might get rewarded differently according to $R_i$.</li>
+<li>Or, the <em>environment</em>: The transition function $P_i$ can be reshaped by initializing the environment with varying shifts between states.</li>
+</ul>
+<h2 id="task-generation-by-domain-randomization">Task Generation by Domain Randomization<a hidden class="anchor" aria-hidden="true" href="#task-generation-by-domain-randomization">#</a></h2>
+<p>Randomizing parameters in a simulator is an easy way to obtain tasks with modified transition functions. If interested in learning further, check my last <a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/">post</a> on <strong>domain randomization</strong>.</p>
+<h2 id="evolutionary-algorithm-on-environment-generation">Evolutionary Algorithm on Environment Generation<a hidden class="anchor" aria-hidden="true" href="#evolutionary-algorithm-on-environment-generation">#</a></h2>
+<p><a href="https://en.wikipedia.org/wiki/Evolutionary_algorithm">Evolutionary algorithm</a> is a gradient-free heuristic-based optimization method, inspired by natural selection. A population of solutions follows a loop of evaluation, selection, reproduction, and mutation. Eventually, good solutions survive and thus get selected.</p>
+<p><strong>POET</strong> (<a href="https://arxiv.org/abs/1901.01753">Wang et al, 2019</a>), a framework based on the evolutionary algorithm, attempts to generate tasks while the problems themselves are being solved. The implementation of POET is only specifically designed for a simple 2D <a href="https://gym.openai.com/envs/BipedalWalkerHardcore-v2/">bipedal walker</a> environment but points out an interesting direction. It is noteworthy that the evolutionary algorithm has had some compelling applications in Deep Learning like <a href="#meta-learning-the-loss-function">EPG</a> and PBT (Population-Based Training; <a href="https://arxiv.org/abs/1711.09846"> Jaderberg et al, 2017</a>).</p>
+<figure>
+	<img src="POET.png" style="width: 100%;"  />
+	<figcaption>An example bipedal walking environment (top) and an overview of POET (bottom). (Image source: <a href="https://eng.uber.com/poet-open-ended-deep-learning/" target="_blank">POET blog post</a>)</figcaption>
+</figure>
+<p>The 2D bipedal walking environment is evolving: from a simple flat surface to a much more difficult trail with potential gaps, stumps, and rough terrains. POET pairs the generation of environmental challenges and the optimization of agents together so as to (a) select agents that can resolve current challenges and (b) evolve environments to be solvable. The algorithm maintains a list of <em>environment-agent pairs</em> and repeats the following:</p>
+<ol>
+<li><em>Mutation</em>: Generate new environments from currently active environments. Note that here types of mutation operations are created just for bipedal walker and a new environment would demand a new set of configurations.</li>
+<li><em>Optimization</em>: Train paired agents within their respective environments.</li>
+<li><em>Selection</em>: Periodically attempt to transfer current agents from one environment to another. Copy and update the best performing agent for every environment. The intuition is that skills learned in one environment might be helpful for a different environment.</li>
+</ol>
+<p>The procedure above is quite similar to <a href="https://arxiv.org/abs/1711.09846">PBT</a>, but PBT mutates and evolves hyperparameters instead. To some extent, POET is doing <a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/">domain randomization</a>, as all the gaps, stumps and terrain roughness are controlled by some randomization probability parameters. Different from DR, the agents are not exposed to a fully randomized difficult environment all at once, but instead they are learning gradually with a curriculum configured by the evolutionary algorithm.</p>
+<h2 id="learning-with-random-rewards">Learning with Random Rewards<a hidden class="anchor" aria-hidden="true" href="#learning-with-random-rewards">#</a></h2>
+<p>An MDP without a reward function $R$ is known as a <em>Controlled Markov process</em> (CMP). Given a predefined CMP, $\langle \mathcal{S}, \mathcal{A}, P\rangle$, we can acquire a variety of tasks by generating a collection of reward functions $\mathcal{R}$ that encourage the training of an effective meta-learning policy.</p>
+<p><a href="https://arxiv.org/abs/1806.04640">Gupta et al. (2018)</a> proposed two unsupervised approaches  for growing the task distribution in the context of CMP. Assuming there is an underlying latent variable $z \sim p(z)$ associated with every task, it parameterizes/determines a reward function: $r_z(s) = \log D(z|s)$, where a &ldquo;discriminator&rdquo; function $D(.)$ is used to extract the latent variable from the state. The paper described two ways to construct a discriminator function:</p>
+<ul>
+<li>Sample random weights $\phi_\text{rand}$ of the discriminator, $D_{\phi_\text{rand}}(z \mid s)$.</li>
+<li>Learn a discriminator function to encourage diversity-driven exploration. This method is introduced in more details in another sister paper &ldquo;DIAYN&rdquo; (<a href="https://arxiv.org/abs/1802.06070">Eysenbach et al., 2018</a>).</li>
+</ul>
+<p>DIAYN, short for &ldquo;Diversity is all you need&rdquo;, is a framework to encourage a policy to learn useful skills without a reward function. It explicitly models the latent variable $z$ as a <em>skill</em> embedding and makes the policy conditioned on $z$ in addition to state $s$, $\pi_\theta(a \mid s, z)$. (Ok, this part is same as <a href="#meta-learning-the-exploration-strategies">MAESN</a> unsurprisingly, as the papers are from the same group.) The design of DIAYN is motivated by a few hypotheses:</p>
+<ul>
+<li>Skills should be diverse and lead to visitations of different states. → maximize the mutual information between states and skills, $I(S; Z)$</li>
+<li>Skills should be distinguishable by states, not actions. → minimize the mutual information between actions and skills, conditioned on states $I(A; Z \mid S)$</li>
+</ul>
+<p>The objective function to maximize is as follows, where the policy entropy is also added to encourage diversity:</p>
+<div>
+$$
+\begin{aligned}
+\mathcal{F}(\theta) 
+&= I(S; Z) + H[A \mid S] - I(A; Z \mid S) &  \\
+&= (H(Z) - H(Z \mid S)) + H[A \mid S] - (H[A\mid S] - H[A\mid S, Z]) & \\
+&= H[A\mid S, Z] \color{green}{- H(Z \mid S) + H(Z)} & \\
+&= H[A\mid S, Z] + \mathbb{E}_{z\sim p(z), s\sim\rho(s)}[\log p(z \mid s)] - \mathbb{E}_{z\sim p(z)}[\log p(z)] & \scriptstyle{\text{; can infer skills from states & p(z) is diverse.}} \\
+&\ge H[A\mid S, Z] + \mathbb{E}_{z\sim p(z), s\sim\rho(s)}[\color{red}{\log D_\phi(z \mid s) - \log p(z)}] & \scriptstyle{\text{; according to Jensen's inequality; "pseudo-reward" in red.}}
+\end{aligned}
+$$
+</div>
+<p>where $I(.)$ is mutual information and $H[.]$ is entropy measure. We cannot integrate all states to compute $p(z \mid s)$, so approximate it with $D_\phi(z \mid s)$ &mdash; that is the diversity-driven discriminator function.</p>
+<figure>
+	<img src="DIAYN.png" style="width: 100%;"  />
+	<figcaption>DIAYN Algorithm. (Image source: <a href="https://arxiv.org/abs/1802.06070" target="_blank">Eysenbach et al., 2019</a>)</figcaption>
+</figure>
+<p>Once the discriminator function is learned, sampling a new MDP for training is strainght-forward: First, sample a latent variable, $z \sim p(z)$ and construct a reward function $r_z(s) = \log(D(z \vert s))$. Pairing the reward function with a predefined CMP creates a new MDP.</p>
+<!--
+---
+ So far, experiments of meta-RL are still limited to a collection of very similar tasks, originated from the same family; such as multi-armed bandit with different reward probabilities, mazes with different layouts, or same robots but with different physical parameters in simulator. I'm looking forward to more research demonstrating the power of meta-RL over a more diverse set of tasks. 
+-->
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2019metaRL,
+  title   = &#34;Meta Reinforcement Learning&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2019&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2019-06-23-meta-rl/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Richard S. Sutton. <a href="http://incompleteideas.net/IncIdeas/BitterLesson.html">&ldquo;The Bitter Lesson.&rdquo;</a> March 13, 2019.</p>
+<p>[2] Sepp Hochreiter, A. Steven Younger, and Peter R. Conwell. <a href="http://snowedin.net/tmp/Hochreiter2001.pdf">&ldquo;Learning to learn using gradient descent.&rdquo;</a> Intl. Conf. on Artificial Neural Networks. 2001.</p>
+<p>[3] Jane X Wang, et al. <a href="https://arxiv.org/abs/1611.05763">&ldquo;Learning to reinforcement learn.&rdquo;</a> arXiv preprint arXiv:1611.05763 (2016).</p>
+<p>[4] Yan Duan, et al. <a href="https://arxiv.org/abs/1611.02779">&ldquo;RL $^ 2$: Fast Reinforcement Learning via Slow Reinforcement Learning.&rdquo;</a> ICLR 2017.</p>
+<p>[5] Matthew Botvinick, et al. <a href="https://www.cell.com/trends/cognitive-sciences/fulltext/S1364-6613(19)30061-0">&ldquo;Reinforcement Learning, Fast and Slow&rdquo;</a> Cell Review, Volume 23, Issue 5, P408-422, May 01, 2019.</p>
+<p>[6] Jeff Clune. <a href="https://arxiv.org/abs/1905.10985">&ldquo;AI-GAs: AI-generating algorithms, an alternate paradigm for producing general artificial intelligence&rdquo;</a> arXiv preprint arXiv:1905.10985 (2019).</p>
+<p>[7] Zhongwen Xu, et al. <a href="http://papers.nips.cc/paper/7507-meta-gradient-reinforcement-learning.pdf">&ldquo;Meta-Gradient Reinforcement Learning&rdquo;</a> NIPS 2018.</p>
+<p>[8] Rein Houthooft, et al. <a href="https://papers.nips.cc/paper/7785-evolved-policy-gradients.pdf">&ldquo;Evolved Policy Gradients.&rdquo;</a> NIPS 2018.</p>
+<p>[9] Tim Salimans, et al. <a href="https://arxiv.org/abs/1703.03864">&ldquo;Evolution strategies as a scalable alternative to reinforcement learning.&rdquo;</a> arXiv preprint arXiv:1703.03864 (2017).</p>
+<p>[10] Abhishek Gupta, et al. <a href="http://papers.nips.cc/paper/7776-meta-reinforcement-learning-of-structured-exploration-strategies.pdf">&ldquo;Meta-Reinforcement Learning of Structured Exploration Strategies.&rdquo;</a> NIPS 2018.</p>
+<p>[11] Alexander Pritzel, et al. <a href="https://arxiv.org/abs/1703.01988">&ldquo;Neural episodic control.&rdquo;</a> Proc. Intl. Conf. on Machine Learning, Volume 70, 2017.</p>
+<p>[12] Charles Blundell, et al. <a href="https://arxiv.org/abs/1606.04460">&ldquo;Model-free episodic control.&rdquo;</a> arXiv preprint arXiv:1606.04460 (2016).</p>
+<p>[13] Samuel Ritter, et al. <a href="https://arxiv.org/abs/1805.09692">&ldquo;Been there, done that: Meta-learning with episodic recall.&rdquo;</a> ICML, 2018.</p>
+<p>[14] Rui Wang et al. <a href="https://arxiv.org/abs/1901.01753">&ldquo;Paired Open-Ended Trailblazer (POET): Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions&rdquo;</a> arXiv preprint arXiv:1901.01753 (2019).</p>
+<p>[15] Uber Engineering Blog: <a href="https://eng.uber.com/poet-open-ended-deep-learning/">&ldquo;POET: Endlessly Generating Increasingly Complex and Diverse Learning Environments and their Solutions through the Paired Open-Ended Trailblazer.&rdquo;</a> Jan 8, 2019.</p>
+<p>[16] Abhishek Gupta, et al.<a href="https://arxiv.org/abs/1806.04640">&ldquo;Unsupervised meta-learning for Reinforcement Learning&rdquo;</a> arXiv preprint arXiv:1806.04640 (2018).</p>
+<p>[17] Eysenbach, Benjamin, et al. <a href="https://arxiv.org/abs/1802.06070">&ldquo;Diversity is all you need: Learning skills without a reward function.&rdquo;</a> ICLR 2019.</p>
+<p>[18] Max Jaderberg, et al. <a href="https://arxiv.org/abs/1711.09846">&ldquo;Population Based Training of Neural Networks.&rdquo;</a> arXiv preprint arXiv:1711.09846 (2017).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/meta-learning/">Meta-Learning</a></li>
+      <li><a href="https://lilianweng.github.io/tags/reinforcement-learning/">Reinforcement-Learning</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/">
+    <span class="title">« </span>
+    <br>
+    <span>Evolution Strategies</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/">
+    <span class="title"> »</span>
+    <br>
+    <span>Domain Randomization for Sim2Real Transfer</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on twitter"
+        href="https://twitter.com/intent/tweet/?text=Meta%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f&amp;hashtags=meta-learning%2creinforcement-learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f&amp;title=Meta%20Reinforcement%20Learning&amp;summary=Meta%20Reinforcement%20Learning&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f&title=Meta%20Reinforcement%20Learning">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on whatsapp"
+        href="https://api.whatsapp.com/send?text=Meta%20Reinforcement%20Learning%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Meta Reinforcement Learning on telegram"
+        href="https://telegram.me/share/url?text=Meta%20Reinforcement%20Learning&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2019-06-23-meta-rl%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

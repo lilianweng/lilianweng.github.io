@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Generalized Visual Language Models | Lil&#39;Log</title>
+<meta name="keywords" content="language-model, vision-language-model, vision-model" />
+<meta name="description" content="Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to extend pre-trained generalized language models to be capable of consuming visual signals.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2022-06-09-vlm/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2022-06-09-vlm/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Generalized Visual Language Models" />
+<meta property="og:description" content="Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to extend pre-trained generalized language models to be capable of consuming visual signals." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2022-06-09-vlm/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-06-09T15:10:30-07:00" />
+<meta property="article:modified_time" content="2022-06-09T15:10:30-07:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Generalized Visual Language Models"/>
+<meta name="twitter:description" content="Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to extend pre-trained generalized language models to be capable of consuming visual signals."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Generalized Visual Language Models",
+      "item": "https://lilianweng.github.io/posts/2022-06-09-vlm/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Generalized Visual Language Models",
+  "name": "Generalized Visual Language Models",
+  "description": "Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to extend pre-trained generalized language models to be capable of consuming visual signals.\n",
+  "keywords": [
+    "language-model", "vision-language-model", "vision-model"
+  ],
+  "articleBody": "Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to extend pre-trained generalized language models to be capable of consuming visual signals.\nI roughly group such vision language models (VLMs) into four buckets:\nTranslating images into embedding features that can be jointly trained with token embeddings. Learning good image embeddings that can work as a prefix for a frozen, pre-trained language model. Using a specially designed cross-attention mechanism to fuse visual information into layers of the language model. Combine vision and language models without any training. Jointly Training with Image and Text One straightforward approach to fuse visual information into language models is to treat images as normal text tokens and train the model on a sequence of joint representations of both text and images. Precisely, images are divided into multiple smaller patches and each patch is treated as one “token” in the input sequence.\nVisualBERT (Li et al. 2019) feeds both text inputs and image regions into BERT such that it is able to discover the internal alignment between images and text with self-attention mechanism.\nVisualBERT is trained on the combination of both text and image embeddings. (Image source: Li et al. 2019) Similar to text embedding in BERT, each visual embedding in VisualBERT also sums up three types of embeddings, tokenized features $f_o$, segmentation embedding $f_s$ and position embedding $f_p$, precisely:\n$f_o$ is a visual feature vector computed for a bounding region of the image by a convolutional neural network; $f_s$ is a segment embedding to indicate whether the embedding is for vision not for text; $f_p$ is a position embedding used for aligning the order of bounding regions. The model is trained on MS COCO image caption dataset with both text and image as inputs to predict text captions, using two visually-grounded language model objectives:\nMLM with the image. The model needs to predict masked text tokens, while image embeddings always stay not masked. Sentence-image prediction. When provided with an image and two associated captions, one of two captions might be a random unrelated caption with 50% probability. The model is asked to distinguish these two situations. According to ablation experiments, the most important configuration is to fuse visual information early on into the transformer layers and to pretrain the model on the COCO caption dataset. Initialization from a pre-trained BERT and the adoption of the sentence-image prediction training objective have relatively small impacts.\nAblation study results of VisualBERT on NLVR. (Image source: Li et al. 2019) VisualBERT outperforms SoTA at the time on NLVR and Flickr30K, but still has some performance gap with SoTA on VQA.\nSimVLM (Simple Visual Language Model; Wang et al. 2022) is a simple prefix language model, where the prefix sequence is processed with bi-directional attention like BERT, but the main input sequence only has causal attention like GPT. Images are encoded as prefix tokens such that the model can fully consume the visual information and then generates associated text in an autoregressive manner.\nInspired by ViT and CoAtNet, SimVLM splits the image into smaller patches in a flatten 1D sequence of patches. They use the convolutional stage consisting of the first 3 blocks of ResNet to extract contextualized patches and this setup is found to work better than a naive linear projection.\nTraining architecture for SimVLM, where the image patches are processed by the cross-attention encoder and the text decoder has causal attention. (Image source: Wang et al. 2022) Training data for SimVLM consists of a large number of image-text pairs from ALIGN (Jia et al. 2021) and text-only data from C4 dataset (Raffel et al. 2019). They mix the two pretraining datasets within each batch, containing 4,096 image-text pairs (ALIGN) and 512 text-only documents (C4).\nAccording to ablation studies, it is important to have both image-text and text-only data for training. The PrefixLM objective outperforms both span corruption and naive LM.\nAblation study results of SimVLM on VQA. (Image source: Wang et al. 2022) CM3 (Causally-Masked Multimodal Modeling; Aghajanyan, et al. 2022) is a hyper-text language model, learning to generate the content (hypertext markup, hyperlinks and images) of large scale HTML web pages of CC-NEWS and Wikipedia articles. The resulting CM3 models can generate rich structured, multi-modal outputs while conditioning on arbitrary masked document contexts.\nArchitecture-wise, CM3 is an autoregressive model. However, in order to combine causal and masked language modeling, CM3 also masks out a small number of long token spans and tries to generate them at the end of the sequences.\nIllustration of how a causally masked language model works. (Image source: Aghajanyan, et al. 2022) The training dataset for CM3 contains close to 1T Web data. During preprocessing, images are first downloaded from src and resized to 256 x 256 with random cropping. Then they are tokenized by VQVAE-GAN, resulting in 256 tokens per image. These tokens, joined with spaces, are inserted back into the src attribute.\nCM3 can be used to complete several types of tasks by prompt engineering:\nImage in-filling: Infilling Prompt: Conditional image in-filling: Conditional Infilling Prompt: Conditional image generation: Conditional Generation Prompt: ",
+  "wordCount" : "5082",
+  "inLanguage": "en",
+  "datePublished": "2022-06-09T15:10:30-07:00",
+  "dateModified": "2022-06-09T15:10:30-07:00",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2022-06-09-vlm/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Generalized Visual Language Models
+    </h1>
+    <div class="post-meta">Date: June 9, 2022  |  Estimated Reading Time: 24 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#jointly-training-with-image-and-text" aria-label="Jointly Training with Image and Text">Jointly Training with Image and Text</a></li>
+                <li>
+                    <a href="#learned-image-embedding-as-frozen-lm-prefix" aria-label="Learned Image Embedding as (Frozen) LM Prefix">Learned Image Embedding as (Frozen) LM Prefix</a></li>
+                <li>
+                    <a href="#text-image-cross-attention-fuse-mechanisms" aria-label="Text-Image Cross-Attention Fuse Mechanisms">Text-Image Cross-Attention Fuse Mechanisms</a></li>
+                <li>
+                    <a href="#no-training" aria-label="No Training">No Training</a><ul>
+                        
+                <li>
+                    <a href="#decoding-guided-with-vision-based-scores" aria-label="Decoding Guided with Vision-based Scores">Decoding Guided with Vision-based Scores</a></li>
+                <li>
+                    <a href="#language-as-communication-interface" aria-label="Language as Communication Interface">Language as Communication Interface</a></li></ul>
+                </li>
+                <li>
+                    <a href="#datasets" aria-label="Datasets">Datasets</a><ul>
+                        
+                <li>
+                    <a href="#image-caption-datasets" aria-label="Image Caption Datasets">Image Caption Datasets</a></li>
+                <li>
+                    <a href="#pair-image-text-datasets" aria-label="Pair Image-Text Datasets">Pair Image-Text Datasets</a></li></ul>
+                </li>
+                <li>
+                    <a href="#evaluation-tasks" aria-label="Evaluation Tasks">Evaluation Tasks</a><ul>
+                        
+                <li>
+                    <a href="#visual-question-answering" aria-label="Visual Question-Answering">Visual Question-Answering</a></li>
+                <li>
+                    <a href="#visual-language-reasoning" aria-label="Visual Language Reasoning">Visual Language Reasoning</a></li>
+                <li>
+                    <a href="#video-qa-and-understanding" aria-label="Video QA and Understanding">Video QA and Understanding</a></li></ul>
+                </li>
+                <li>
+                    <a href="#citation" aria-label="Citation">Citation</a></li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><p>Processing images to generate text, such as image captioning and visual question-answering, has been studied for years. Traditionally such systems rely on an object detection network as a vision encoder to capture visual features and then produce text via a text decoder. Given a large amount of existing literature, in this post, I would like to only focus on one approach for solving vision language tasks, which is to <em>extend pre-trained <a href="https://lilianweng.github.io/posts/2019-01-31-lm/">generalized language models</a> to be capable of consuming visual signals</em>.</p>
+<p>I roughly group such vision language models (VLMs) into four buckets:</p>
+<ol>
+<li>Translating images into embedding features that can be jointly trained with token embeddings.</li>
+<li>Learning good image embeddings that can work as a prefix for a frozen, pre-trained language model.</li>
+<li>Using a specially designed cross-attention mechanism to fuse visual information into layers of the language model.</li>
+<li>Combine vision and language models without any training.</li>
+</ol>
+<h1 id="jointly-training-with-image-and-text">Jointly Training with Image and Text<a hidden class="anchor" aria-hidden="true" href="#jointly-training-with-image-and-text">#</a></h1>
+<p>One straightforward approach to fuse visual information into language models is to treat images as normal text tokens and train the model on a sequence of joint representations of both text and images. Precisely, images are divided into multiple smaller patches and each patch is treated as one &ldquo;token&rdquo; in the input sequence.</p>
+<p><strong>VisualBERT</strong> (<a href="https://arxiv.org/abs/1908.03557">Li et al. 2019</a>) feeds both text inputs and image regions into <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#bert">BERT</a> such that it is able to discover the internal alignment between images and text with self-attention mechanism.</p>
+<figure>
+	<img src="VisualBERT-arch.png" style="width: 100%;"  />
+	<figcaption>VisualBERT is trained on the combination of both text and image embeddings. (Image source: <a href="https://arxiv.org/abs/1908.03557" target="_blank">Li et al. 2019</a>)</figcaption>
+</figure>
+<p>Similar to <a href="https://lilianweng.github.io/posts/2019-01-31-lm/#input-embedding">text embedding in BERT</a>, each visual embedding in VisualBERT also sums up three types of embeddings, tokenized features $f_o$, segmentation embedding $f_s$ and position embedding $f_p$, precisely:</p>
+<ol>
+<li>$f_o$ is a visual feature vector computed for a bounding region of the image by a convolutional neural network;</li>
+<li>$f_s$ is a segment embedding to indicate whether the embedding is for vision not for text;</li>
+<li>$f_p$ is a position embedding used for aligning the order of bounding regions.</li>
+</ol>
+<p>The model is trained on MS COCO image caption dataset with both text and image as inputs to predict text captions, using two visually-grounded language model objectives:</p>
+<ol>
+<li><em><a href="https://lilianweng.github.io/posts/2019-01-31-lm/#pre-training-tasks">MLM</a> with the image</em>. The model needs to predict masked text tokens, while image embeddings always stay not masked.</li>
+<li><em>Sentence-image prediction</em>. When provided with an image and two associated captions, one of two captions might be a random unrelated caption with 50% probability. The model is asked to distinguish these two situations.</li>
+</ol>
+<p>According to ablation experiments, the most important configuration is to fuse visual information early on into the transformer layers and to pretrain the model on the COCO caption dataset. Initialization from a pre-trained BERT and the adoption of the sentence-image prediction training objective have relatively small impacts.</p>
+<figure>
+	<img src="VisualBERT-ablation.png" style="width: 50%;"  />
+	<figcaption>Ablation study results of VisualBERT on NLVR. <br/>(Image source: <a href="https://arxiv.org/abs/1908.03557" target="_blank">Li et al. 2019</a>)</figcaption>
+</figure>
+<p>VisualBERT outperforms SoTA at the time on NLVR and Flickr30K, but still has some performance gap with SoTA on VQA.</p>
+<p><strong>SimVLM</strong> (Simple Visual Language Model; <a href="https://arxiv.org/abs/2108.10904">Wang et al. 2022</a>) is a simple <em>prefix language model</em>, where the prefix sequence is processed with bi-directional attention like BERT, but the main input sequence only has causal attention like <a href="#gpt">GPT</a>. Images are encoded as prefix tokens such that the model can fully consume the visual information and then generates associated text in an autoregressive manner.</p>
+<p>Inspired by <a href="https://arxiv.org/abs/2010.11929">ViT</a> and <a href="https://arxiv.org/abs/2106.04803">CoAtNet</a>, SimVLM splits the image into smaller patches in a flatten 1D sequence of patches. They use the convolutional stage consisting of the first 3 blocks of ResNet to extract contextualized patches and this setup is found to work better than a naive linear projection.</p>
+<figure>
+	<img src="SimVLM-arch.png" style="width: 100%;"  />
+	<figcaption>Training architecture for SimVLM, where the image patches are processed by the cross-attention encoder and the text decoder has causal attention. (Image source: <a href="https://arxiv.org/abs/2108.10904" target="_blank">Wang et al. 2022</a>)</figcaption>
+</figure>
+<p>Training data for SimVLM consists of a large number of image-text pairs from ALIGN (<a href="https://arxiv.org/abs/2102.05918">Jia et al. 2021</a>) and text-only data from C4 dataset (<a href="https://arxiv.org/abs/1910.10683">Raffel et al. 2019</a>). They mix the two pretraining datasets within each batch, containing 4,096 image-text pairs (ALIGN) and 512 text-only documents (C4).</p>
+<p>According to ablation studies, it is important to have both image-text and text-only data for training. The PrefixLM objective outperforms both <a href="https://arxiv.org/abs/1910.10683">span corruption</a> and naive LM.</p>
+<figure>
+	<img src="SimVLM-ablation.png" style="width: 45%;"  />
+	<figcaption>Ablation study results of SimVLM on VQA. <br/>(Image source: <a href="https://arxiv.org/abs/2108.10904" target="_blank">Wang et al. 2022</a>)</figcaption>
+</figure>
+<p><strong>CM3</strong> (Causally-Masked Multimodal Modeling; <a href="https://arxiv.org/abs/2201.07520">Aghajanyan, et al. 2022</a>) is a hyper-text language model, learning to generate the content (hypertext markup, hyperlinks and images) of large scale HTML web pages of CC-NEWS and Wikipedia articles. The resulting CM3 models can generate rich structured, multi-modal outputs while conditioning on arbitrary masked document contexts.</p>
+<p>Architecture-wise, CM3 is an autoregressive model. However, in order to combine causal and masked language modeling, CM3 also masks out a small number of long token spans and tries to generate them at the <em>end</em> of the sequences.</p>
+<figure>
+	<img src="CM3-arch.png" style="width: 100%;"  />
+	<figcaption>Illustration of how a causally masked language model works. <br/>(Image source: <a href="https://arxiv.org/abs/2201.07520" target="_blank">Aghajanyan, et al. 2022</a>)</figcaption>
+</figure>
+<p>The training dataset for CM3 contains close to 1T Web data. During preprocessing, images are first downloaded from <code>src</code> and resized to 256 x 256 with random cropping. Then they are tokenized by <a href="https://arxiv.org/abs/2012.09841">VQVAE-GAN</a>, resulting in 256 tokens per image. These tokens, joined with spaces, are inserted back into the <code>src</code> attribute.</p>
+<p>CM3 can be used to complete several types of tasks by prompt engineering:</p>
+<ul>
+<li>Image in-filling:</li>
+</ul>
+<pre tabindex="0"><code>Infilling Prompt: &lt;figure&gt;
+	&lt;img src=&#34;{prefix}&lt;mask:0&gt;{postfix}&#34;&gt;&lt;mask:0&gt;
+</code></pre><ul>
+<li>Conditional image in-filling:</li>
+</ul>
+<pre tabindex="0"><code>Conditional Infilling Prompt:
+&lt;figure&gt;
+	&lt;img alt=&#34;Photo: {text}&#34; src=&#34;{prefix}&lt;mask:0&gt;{postfix}&#34;&gt;&lt;mask:0&gt;
+</code></pre><ul>
+<li>Conditional image generation:</li>
+</ul>
+<pre tabindex="0"><code>Conditional Generation Prompt: &lt;figure&gt;
+	&lt;img alt=&#34;{prompt}
+</code></pre><ul>
+<li>Image captions:</li>
+</ul>
+<pre tabindex="0"><code>Captioning Masked Prompt #1: 
+&lt;figure&gt;
+	&lt;img alt=&#34;Photo: A photo taken of&lt;mask:0&gt;&#34; src=&#34;{image}&#34;&gt;
+
+Captioning Causal Prompt #1: 
+&lt;figure&gt;
+	&lt;img src=&#34;{image}&#34; title=&#34;Photo: A photo taken of
+</code></pre><ul>
+<li>Entity disambiguation</li>
+</ul>
+<pre tabindex="0"><code>Original: Manetho writes that these kings ruled from &lt;a title=&#34;Memphis, Egypt&#34;&gt;Memphis&lt;/a&gt;
+
+Prompt: Manetho writes that these kings ruled from &lt;a title=&#34;&lt;mask:0&gt;&#34;&gt;Memphis&lt;/a&gt;...&lt;mask:0&gt;
+
+Target: Manetho writes that these kings ruled from &lt;a title=&#34;&lt;mask:0&gt;&#34;&gt;Memphis&lt;/a&gt;...&lt;mask:0&gt; Memphis, Egypt
+</code></pre><h1 id="learned-image-embedding-as-frozen-lm-prefix">Learned Image Embedding as (Frozen) LM Prefix<a hidden class="anchor" aria-hidden="true" href="#learned-image-embedding-as-frozen-lm-prefix">#</a></h1>
+<p>What if we don’t want to change the language model parameters when adapting it to handle visual signals? Instead we learn such an embedding space for images that it is compatible with the language model’s.</p>
+<p>Inspired by <a href="https://arxiv.org/abs/2101.00190">prefix</a> or <a href="https://arxiv.org/abs/2104.08691">prompt</a> <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#prefix-tuning">tuning</a>, both <strong>Frozen</strong> (<a href="https://arxiv.org/abs/2106.13884">Tsimpoukelli et al. 2021</a>) and <strong>ClipCap</strong> (<a href="https://arxiv.org/abs/2111.09734">Mokady, Hertz &amp; Hertz, 2021</a>) only update the parameters of the vision module during training to produce image embeddings that can work with a pretrained, <em>frozen</em> language model. Both are trained with aligned image caption <a href="#image-caption-datasets">datasets</a> to produce the next text token in caption conditioned on the image and previous text tokens. The powerful language capability is retained by freezing LM parameters. In addition, even though such setup is trained with limited image caption data, they can also rely on the encyclopedic knowledge of the language model at test time.</p>
+<p>The vision encoder of Frozen is based on NF-ResNet-50 and uses the final output vector of the NF-Resnet after the global pooling layer. The Frozen VLM can be used as a multi-model few-shot learner to adapt to new tasks at test time for zero-shot or few-shot transfer with a sequence of interleaved images and text.</p>
+<figure>
+	<img src="Frozen-arch.png" style="width: 100%;"  />
+	<figcaption>Illustration of Frozen model (left) training architecture and (right) testing pipeline. (Image source: <a href="https://arxiv.org/abs/2106.13884" target="_blank">Tsimpoukelli et al. 2021</a>)</figcaption>
+</figure>
+<p>Experiments showed that fine-tuning the pre-trained LM interestingly leads to worse performance on VQA tasks. It is important to initialize the language model from a pre-trained version, as training from scratch (${Frozen}_\text{scratch}$) does not show any meaningful progress. The baseline ${Frozen}_\text{train-blind}$ blacks out the image but still can achieve decent performance because of the innate power of the pre-trained LM.</p>
+<figure>
+	<img src="Frozen-results.png" style="width: 100%;"  />
+	<figcaption>Performance of different versions of Frozen on (left) VQAv2 and (right) OKVQA, trained on Conceptual Captions. "Frozen scratch" does not load a pre-trained LM and is trained from scratch. "Frozen finetuned" has the language model finetuned, while "Frozen" keeps LM frozen. "Frozen train-blind" blacks out the image. (Image source: <a href="https://arxiv.org/abs/2106.13884" target="_blank">Tsimpoukelli et al. 2021</a>)</figcaption>
+</figure>
+<p>ClipCap relies on <a href="https://lilianweng.github.io/posts/2021-05-31-contrastive/#clip">CLIP</a> (<a href="https://arxiv.org/abs/2103.00020">Radford et al. 2021</a>) for vision encoding, but it needs to be processed by a light mapping network $F$ such that image embedding vectors are translated into the same semantic space as the pre-trained LM. The network $F$ maps CLIP embeddings into a sequence of $k$ embedding vectors, each with the same dimension as a word embedding in GPT2. Increasing the prefix size $k$ helps improve the performance. Both CLIP vision encoder and the LM are <em>frozen</em> during training and only the mapping network $F$ is learned. They found that when LM is frozen, $F$ should be a transformer, with 8 multi-head self-attention layers with 8 heads each, but when LM can be fine-tuned, a MLP is enough.</p>
+<p>Even though ClipCap only trains such a minimum set of parameters, it still achieves decent performance on image captioning tasks, comparable with SoTA at the time (e.g. <a href="https://arxiv.org/abs/2004.06165">Oscar</a>, <a href="https://arxiv.org/abs/1909.11059">VLP</a>, <a href="https://arxiv.org/abs/1707.07998">BUTD</a>). Hence they postulate that &ldquo;the CLIP space already encapsulates the required information, and adapting it towards specific styles does not contribute to flexibility.&rdquo;</p>
+<figure>
+	<img src="ClipCap-arch.png" style="width: 100%;"  />
+	<figcaption>Overview of ClipCap training pipeline where only the mapping network needs to be train to transform CLIP image embedding to work with the pre-trained LM. (Image source: <a href="https://arxiv.org/abs/2111.09734" target="_blank">Mokady, Hertz & Hertz, 2021</a>)</figcaption>
+</figure>
+<p>The fun fact is - because ClipCap translates CLIP image embeddings into LM space, the processed prefixes can be even interpreted as words.</p>
+<figure>
+	<img src="ClipCap-words.png" style="width: 100%;"  />
+	<figcaption>The learned image embedding can be interpreted as text, containing words related to the image context. (Image source: <a href="https://arxiv.org/abs/2111.09734" target="_blank">Mokady, Hertz & Hertz, 2021</a>)</figcaption>
+</figure>
+<h1 id="text-image-cross-attention-fuse-mechanisms">Text-Image Cross-Attention Fuse Mechanisms<a hidden class="anchor" aria-hidden="true" href="#text-image-cross-attention-fuse-mechanisms">#</a></h1>
+<p>To more efficiently fuse visual information into different layers of the language model, we can consider a specially designed cross-attention fuse mechanism to balance the mixture of text generation capacity and visual information.</p>
+<p><strong>VisualGPT</strong> (<a href="https://arxiv.org/abs/2102.10407">Chen et al. 2021</a>) employs a self-resurrecting encoder-decoder attention mechanism to quickly adapt the pre-trained LM with a small amount of in-domain image-text data.</p>
+<figure>
+	<img src="VisualGPT.png" style="width: 62%;"  />
+	<figcaption>Illustration of VisualGPT architecture. (Image source: <a href="https://arxiv.org/abs/2102.10407" target="_blank">Chen et al. 2021</a>)</figcaption>
+</figure>
+<p>Let $I$ be the output of a visual encoder and $H$ be the hidden state of the LM decoder. VisualGPT introduced a self-resurrecting activation unit (SRAU) to control the tradeoff between a mixture of pre-trained linguistic information $H$ and visual component, $\text{EncDecAttn}(H, I)$ via two complementary gates $B^\text{vis}$ and $B^\text{lan}$:</p>
+<p>$$
+\begin{aligned}
+&amp; B^\text{vis} \otimes \text{EncDecAttn}(H, I) + B^\text{lan} \otimes H \\
+\text{where }
+&amp; B^\text{vis}[i,j] = \sigma(H[i,j]) \mathbb{1}[\sigma(H[i,j]) &gt; \tau] \\
+&amp; B^\text{lan}[i,j] = (1 - \sigma(H[i,j])) \mathbb{1}[1 - \sigma(H[i,j]) &gt; \tau] \\
+\end{aligned}
+$$
+where $\otimes$ is element-wise multiplication and $[i,j]$ denotes one element in the matrix. $\tau$ is a predefined threshold hyperparameter.</p>
+<figure>
+	<img src="VisualGPT-results.png" style="width: 100%;"  />
+	<figcaption>Comparison of different models trained on 0.1% and 1% of the MS COCO and Conceptual Caption datasets. (Image source: <a href="https://arxiv.org/abs/2102.10407" target="_blank">Chen et al. 2021</a>)</figcaption>
+</figure>
+<p><strong>VC-GPT</strong> (Visual Conditioned GPT; <a href="https://arxiv.org/abs/2201.12723">Luo et al. 2022</a>) combines a pretrained visual transformer (CLIP-ViT) as visual encoder and a pretrained LM as language decoder.</p>
+<figure>
+	<img src="VC-GPT.png" style="width: 100%;"  />
+	<figcaption>Illustration of VC-GPT training framework. <br/>(Image source: <a href="https://arxiv.org/abs/2201.12723" target="_blank">Luo et al. 2022</a>)</figcaption>
+</figure>
+<p>The CLIP-ViT takes a sequence of image patches as inputs and outputs representation for each patch. To avoid catastrophic forgetting, instead of injecting the visual information directly into GPT2, VC-GPT introduces extra cross-attention layers on top of the output of visual encoder and language decoder. Then a <em>self-ensemble</em> module linearly combines the single model language decoder logits $h^G$ and cross-model vision-language fused module logits $h^\text{fuse}$. The self-ensemble module (see &ldquo;VC-GPT w/o SE&rdquo; in Fig. 13) is important for the performance.</p>
+<p>$$
+\text{logits} = W^G h^G + W^\text{fuse}h^\text{fuse}
+$$</p>
+<p>where $W^G$ is a linear projection of the language decoder, initialized by the word embedding matrix of GPT2 and $W^\text{fuse}$ is a linear projection of the fusion module and initialized randomly.</p>
+<figure>
+	<img src="VC-GPT-results.png" style="width: 75%;"  />
+	<figcaption>Performance of VC-GPT on the MS COCO test set, in comparison with other end-to-end image captioning baseline models. Metric abbreviation:  C = CIDEr; B = BLEU; M = METEOR; S = SPICE. (Image source: <a href="https://arxiv.org/abs/2201.12723" target="_blank">Luo et al. 2022</a>)</figcaption>
+</figure>
+<p><strong>MERLOT</strong> (<a href="https://arxiv.org/abs/2106.02636">Zellers, et al. 2021</a>) is trained with 6 millions of YouTube videos with transcribed speech (<a href="https://rowanzellers.com/merlot/#data">YT-Temporal-180M</a>) to learn both spatial (frame-level) and temporal (video-level) objectives and demonstrated strong performance on VQA and visual reasoning tasks when fine-tuned.</p>
+<p>Each video $\mathcal{V}$ is split into multiple segments $\{ \boldsymbol{s}_t \}$, each segment $\boldsymbol{s}_t$ containing an image frame $\mathbf{I}_t$ extracted from the middle timestep and $L=32$ tokens of words associated. Images are encoded by a learned image encoder and words are encoded using a learned embedding. Then both are encoded together within a joint vision-language transformer.</p>
+<p>There are 3 learning objectives in MERLOT:</p>
+<ol>
+<li><em>Masked language modeling</em> (MLM) is useful especially because in videos, people tend to ramble, resulting in many repeated keywords or filler words.</li>
+<li><em>Contrastive frame-caption matching</em> uses the language-only part from the joint vision-language transformer. Matched representations for each frame $\mathbf{I}_t$ and caption $\boldsymbol{w}_t$ are treated as positive examples, while the negative examples come from all other frame-caption pairs in the minibatch.</li>
+<li><em>Temporal reordering</em> learns temporal reasoning: scramble random $i$ frames and replace the segment-level position embeddings with a random and unique position embedding. The random position embeddings are learned, allowing the model to unshuffle these &ldquo;&lsquo;shuffled&rsquo;&rdquo; frames conditioned on correctly-ordered ones. The loss is to predict whether $t_i &lt; t_j$ or $t_j &lt; t_i$ for each frame-frame pair.</li>
+</ol>
+<figure>
+	<img src="MERLOT.png" style="width: 100%;"  />
+	<figcaption>Illustration of MERLOT training framework: (Left) contrastive frame-caption matching training; (Right) joint vision-language transformer is trained with MLM loss, as well as on the temporal reordering task to unshuffle scrambled video frames. (Image source: <a href="https://arxiv.org/abs/2106.02636" target="_blank">Zellers, et al. 2021</a>)</figcaption>
+</figure>
+<p>Ablation studies showed that it is important to (1) train on videos instead of images, (2) scale up the size and diversity of the training dataset and (3) use diverse objectives to encourage full-stack multimodal reasoning.</p>
+<p><strong>Flamingo</strong> (<a href="https://arxiv.org/abs/2204.14198">Alayrac et al. 2022</a>) is a visual language model that accepts text interleaved with images/videos and outputs free-form text. Flamingo connects a pretrained LM and a pretrained vision encoder (i.e. CLIP image encoder) via a transformer-based mapper. To more efficiently incorporate vision signals, Flamingo adopts a <a href="https://arxiv.org/abs/2103.03206">Perceiver</a>-based architecture to produce a few hundreds of tokens out of a large number of visual input features and then use cross-attention layers interleaved with the LM layers to fuse visual information into the language decoding process. The training objective is an autoregressive, NLL loss.</p>
+<ul>
+<li>The Perceiver resampler receives spatio-temporal features from the vision encoder of image/video inputs to produce fixed-size visual tokens.</li>
+<li>The frozen LM is equipped with newly initialized cross-attention layers interleaved between the pretrained LM layers. Thus the LM can generate text conditioned on the above visual tokens.</li>
+</ul>
+<p>Similar to ClipCap, both pretrained models are <em>frozen</em> during training and thus Flamingo is only trained to harmoniously connect existing, powerful language and vision models together. Tha main difference between ClipCap and Flamingo is that the former treats the image embedding as simple prefix for LM, while the latter uses the gated cross-attention-dense layer to fuse image information. In addition, Flamingo incorporates a lot more training data than ClipCap.</p>
+<figure>
+	<img src="Flamingo.png" style="width: 100%;"  />
+	<figcaption>Overview of the Flamingo model. (Image source: <a href="https://arxiv.org/abs/2204.14198" target="_blank">Alayrac et al. 2022</a>)</figcaption>
+</figure>
+<figure>
+	<img src="Flamingo-cross-attention.png" style="width: 100%;"  />
+	<figcaption>The architecture illustration and pseudo code of the gated cross-attention-dense layer in Flamingo. (Image source: <a href="https://arxiv.org/abs/2204.14198" target="_blank">Alayrac et al. 2022</a>)</figcaption>
+</figure>
+<p>To easily handle text with interleaved images, masking in Flamingo is designed such that text token only cross-attends to visual tokens corresponding to the <em>last</em> preceding image, largely reducing the number of visual tokens that a certain text token can see. They found this works better than allowing text tokens to attend to all preceding images directly. Text still can attend to all previous images because there is a causal self-attention dependency in the text encoder. This design can deal with an arbitrary number of images in the context.</p>
+<p>They scraped 43 million webpages from the Internet, named MultiModal MassiveWeb (M3W) dataset, containing text with interleaved images. In addition, Flamingo is also trained on paired image/text and video/text datasets, including <a href="#pair-image-text-datasets">ALIGN, LTIP and VTP</a>.</p>
+<p>Data processing of the Internet dataset includes:</p>
+<ul>
+<li>The input Web page text is processed by inserting <code>&lt;image&gt;</code> tags at the location of visual inputs, as well as special tokens, <code>&lt;BOS&gt;</code> (beginning of sentence) and <code>&lt;EOC&gt;</code> (end of chunks; always at the end of the document, before any image tag).</li>
+<li>From each document, they sample a random subsequence of $L = 256$ tokens and take up to $N = 5$ images included in the sampled sequence (using only the first $N$ within that sampled subsequence if there are more, or padding to $N$ if fewer)</li>
+<li>A function $\phi: [1,L] \to [0,N]$ is computed to track the text and image interleaving order, which assigns to each text position the index of the last image/video appearing before this position; 0 if no preceding visual data.</li>
+</ul>
+<p>Since Flamingo is trained on a mixture of three different datasets, it optimizes for a weighted sum of dataset-specific NLL losses. Tuning the dataset weights is very important for the final performance. In practice, instead of round-robin between datasets, they actually sample one batch from each dataset and apply a weighted sum of these gradients in each update. Gradient accumulation across different heterogeneous datasets can be viewed as a mean to stabilize training, as it reduces the gradient variance between each update.</p>
+<p>At test time, Flamingo naturally supports few-shot learning since it can work with any sequence of interleaved text and images. And more examples in the context contribute to better performance.</p>
+<figure>
+	<img src="Flamingo-fewshot.png" style="width: 75%;"  />
+	<figcaption>Larger model sizes and more few-shot examples lead to better performance. (Image source: <a href="https://arxiv.org/abs/2204.14198" target="_blank">Alayrac et al. 2022</a>)</figcaption>
+</figure>
+<p>Flamingo outperforms SoTA fine-tuned models on 6 out of the 16 tasks despite even when not using any fine-tuning but only few-shot prompting. Fine-tuning Flamingo is expensive and it is difficult to do hyperparemeter tuning, but it does lead to better results.</p>
+<figure>
+	<img src="Flamingo-results.png" style="width: 100%;"  />
+	<figcaption>Performance of Flamingo model using different numbers of shots and of different sizes, in comparison with SoTA fine-tuned baseline. (Image source: <a href="https://arxiv.org/abs/2204.14198" target="_blank">Alayrac et al. 2022</a>)</figcaption>
+</figure>
+<p><strong>CoCa</strong> (Contrastive Captioner; <a href="https://arxiv.org/abs/2205.01917">Yu &amp; Wang et al., 2022</a>) captures both the merits of contrastive learning and image-to-caption generation. It is a model jointly trained with contrastive loss on CLIP-style representation and generative loss on image captioning, achieving SoTA zero-shot transfer on a variety of multi-modal evaluation tasks.</p>
+<figure>
+	<img src="CoCa-arch.png" style="width: 70%;"  />
+	<figcaption>Overview of CoCa training framework. <br/>(Image source: <a href="https://arxiv.org/abs/2205.01917" target="_blank">Yu & Wang et al., 2022</a>)</figcaption>
+</figure>
+<p>CoCa is pretrained from <em>scratch</em>, using web-scale alt-text data <a href="#pair-image-text-datasets">ALIGN</a> and annotated images by treating all labels as texts in <a href="#pair-image-text-datasets">JTB-3B</a>.</p>
+<p>There are two major training components in CoCa. The final loss is a weighted sum of the following two losses, with weight scalars $\lambda_\text{cap}=2.0, \lambda_\text{con} = 1.0$.:</p>
+<ol>
+<li>$\mathcal{L}_\text{con}$ -  <em>Dual-encoder contrastive learning</em> optimizes the symmetric contrastive learning loss, similar to CLIP.</li>
+<li>$\mathcal{L}_\text{cap}$ - <em>Encoder-decoder captioning</em> has the decoder predict the caption based on the latent encoded features from the image encoder, by optimizing an autoregressive loss. The text decoder is decoupled into two components, <em>unimodal</em> and <em>multimodal</em>; a good balance is to split the decoder by half for these two components:
+<ul>
+<li>The bottom unimodal component encodes the input text with causally-masked self-attention.</li>
+<li>The top multimodal component applies both causally-masked self-attention and cross-attention to the output of the vision encoder.</li>
+</ul>
+</li>
+</ol>
+<p>CoCa performs better than the contrastive-only model and on par with the captioning-only model on VQA. Captioning loss is found to be beneficial to the zero-shot classification capacity too.</p>
+<figure>
+	<img src="CoCa.png" style="width: 100%;"  />
+	<figcaption>Illustration of how CoCa can be used to solve various downstream tasks at test time. (Image source: <a href="https://arxiv.org/abs/2205.01917" target="_blank">Yu & Wang et al., 2022</a>)</figcaption>
+</figure>
+<p>They use task-specific attention pooling, or attention pooler, as a natural task adapter, as they found that a single pooled image embedding helps visual recognition tasks (e.g. ImageNet classification), while a more fine-grained embedding helps multimodal understanding tasks (e.g. VQA). A pooler is a single multi-head attention layer with $n_\text{query}$ learnable queries (note that $\mathbf{X} \in \mathbb{R}^{L \times d}$, $\mathbf{W}^q \in \mathbb{R}^{d \times d_q}$, and $d_k = d_q$), with the encoder output as both keys and values. CoCa uses attentional poolers in pretraining for generative loss $n_\text{query} = 256$ and contrastive loss $n_\text{query} = 1$. This enables the model to obtain strong performance as a <em>frozen</em> encoder where we only learn a new pooler to aggregate features.</p>
+<figure>
+	<img src="CoCa-code.png" style="width: 100%;"  />
+	<figcaption>Pseudo code for CoCa architecture and training. <br/>(Image source: <a href="https://arxiv.org/abs/2205.01917" target="_blank">Yu & Wang et al., 2022</a>)</figcaption>
+</figure>
+<h1 id="no-training">No Training<a hidden class="anchor" aria-hidden="true" href="#no-training">#</a></h1>
+<p>Finally it is possible to solve vision language tasks by stitching pretrained language and vision models together without training any additional parameters.</p>
+<h2 id="decoding-guided-with-vision-based-scores">Decoding Guided with Vision-based Scores<a hidden class="anchor" aria-hidden="true" href="#decoding-guided-with-vision-based-scores">#</a></h2>
+<p><strong>MAGiC</strong> (iMAge-Guided text generatIon with CLIP; <a href="https://arxiv.org/abs/2205.02655">Su et al. 2022</a>) does <a href="https://lilianweng.github.io/posts/2021-01-02-controllable-text-generation/#guided-decoding">guided decoding</a> according to a CLIP-based score named <em>magic score</em> to sample the next token, without fine-tuning. The generated text is encouraged to be relevant to the given image, while still stay coherent to the previously generated text.</p>
+<p>The next token $x_t$ at a time step $t$ is selected according to the following equation. Model confidence and degeneration penalty (<a href="https://arxiv.org/abs/2202.06417">Su et al. 2022</a>) are added to avoid corrupted generation from LM.</p>
+<p>$$
+\begin{aligned}
+&amp; x_t = \arg\max_{v \in \mathcal{V}^{(k)}} \big\{ (1-\alpha) \underbrace{p(v \vert \boldsymbol{x}_{&lt;t})}_\text{model confidence} - \alpha \underbrace{\max_{1 \leq j \leq t-1} { \text{cosine}(h_v, h_{x_j})}}_\text{degeneration penalty} + \beta \underbrace{f_\text{magic}(v \vert \mathcal{I}, \boldsymbol{x}_{&lt;t}, \mathcal{V}^{(k)})}_\text{magic score} \big\} \\
+\text{where } &amp; f_\text{magic} ( v \vert \mathcal{I}, \mathbf{x}_{&lt;t}, \mathcal{V}^{(k)} )
+= \frac{ \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:v])) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:z])) }
+= \frac{ \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:v])\big) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:z])\big) }
+\end{aligned}
+$$</p>
+<p>where $\mathcal{I}$ is the input image; $\mathcal{V}^{(k)}$ contains top-$k$ possible tokens predicted by the language model $p$; $\boldsymbol{x}_{&lt;t}$ refers to the past generated tokens before time step $t$; $h_v$ is the representation of the token $v$ computed by LM conditioned on the concatenation of $\boldsymbol{x}_{&lt;t}$ and $v$; $h^\text{image}(.)$ and $h^\text{text}(.)$ are embeddings generated by CLIP image and text encoders, respectively.</p>
+<p>MAGiC has decent performance compared to other unsupervised approaches, but still has big gaps with supervised methods.</p>
+<figure>
+	<img src="MAGiC-results.png" style="width: 100%;"  />
+	<figcaption>Image captioning performance on COCO and Flickr30k. (Image source: <a href="https://arxiv.org/abs/2205.02655" target="_blank">Su et al. 2022</a>)</figcaption>
+</figure>
+<h2 id="language-as-communication-interface">Language as Communication Interface<a hidden class="anchor" aria-hidden="true" href="#language-as-communication-interface">#</a></h2>
+<p>For knowledge-based VQA tasks, PICa (Prompts GPT-3 via the use of Image Captions; <a href="https://arxiv.org/abs/2109.05014">Yang et al. 2021</a>) first converts the images into captions or tags and then uses few-shot examples to prompt GPT3 to provide answers. Image captions or tags are extracted by some existing models (e.g. <a href="https://openaccess.thecvf.com/content/CVPR2021/html/Zhang_VinVL_Revisiting_Visual_Representations_in_Vision-Language_Models_CVPR_2021_paper.html">VinVL</a>) or Azure Tagging API. And GPT3 is considered as an unstructured, implicit knowledge base.</p>
+<figure>
+	<img src="PICa-fewshot.png" style="width: 100%;"  />
+	<figcaption>How PICa works for $n$-shot VQA at inference time. (Image source: <a href="https://arxiv.org/abs/2109.05014" target="_blank">Yang et al. 2021</a>)</figcaption>
+</figure>
+<p>PICa explored two ways to improve few-shot examples to achieve better results:</p>
+<ul>
+<li>In-context examples are selected based on how <em>similar</em> they are to the question using CLIP embedding.</li>
+<li><em>Multi-query ensembling</em> is to prompt the model multiple times to get multiple answers and the one with highest logprob is selected.</li>
+</ul>
+<p>This simple approach with only 16 examples improved SoTA on OK-VQA by +8.6 points and got decent performance on VQAv2.</p>
+<figure>
+	<img src="PICa-OKVQA.png" style="width: 100%;"  />
+	<figcaption>Performance of PICa on OK-VQA. "PICa-Base" has random in-context examples, while "PICa-Full" incorporates both similar in-context example selection and multi-query ensembling. (Image source: <a href="https://arxiv.org/abs/2109.05014" target="_blank">Yang et al. 2021</a>)</figcaption>
+</figure>
+<p><strong>Socratic Models</strong> (SM) (<a href="https://arxiv.org/abs/2204.00598">Zeng et al. 2022</a>) is a framework to <em>compose</em> multiple pretrained models for different modality via language (prompting) into one model without further training. Here language is considered as the intermediate representation by which different models can exchange information. The key idea is to use <em>multi-model multimodal prompting</em>, in which output of a non-language model is inserted into a language prompt and then it is used for LM for reasoning.</p>
+<p>Let’s examine a concrete example. Given an ego-centric video (images + audio), SM can produce a summary of the person’s activity using <span style="color: royalblue">text-to-text LM</span>, <span style="color: green"> image-to-text VLM</span> and <span style="color: mediumorchid">speech-to-text ALM</span>. They are chained as follows:</p>
+<figure>
+	<img src="SM-example.png" style="width: 40%;"  />
+	<figcaption>(Image source: <a href="https://arxiv.org/abs/2204.00598" target="_blank">Zeng et al. 2022</a>)</figcaption>
+</figure>
+<ol>
+<li>the VLM detects <span style="color: green">visual entities</span>;</li>
+<li>the LM suggests <span style="color: royalblue">sounds</span> that may be heard;</li>
+<li>the ALM chooses the <span style="color: royalblue; text-decoration: underline; text-decoration-color: mediumorchid;">most likely sound</span>;</li>
+<li>the LM suggests possible <span style="color: royalblue">activities</span>;</li>
+<li>the VLM ranks the <span style="color: royalblue; text-decoration: underline; text-decoration-color: green;">most likely activity</span>;</li>
+<li>the LM generates a <span style="color: royalblue">summary</span> of the Socratic interaction.</li>
+</ol>
+<figure>
+	<img src="SM-caption-example.png" style="width: 100%;"  />
+	<figcaption>Illustration of the Socratic Model solution for image captioning. (Image source: <a href="https://arxiv.org/abs/2204.00598" target="_blank">Zeng et al. 2022</a>)</figcaption>
+</figure>
+<p>SM can generate image captions by first using VLM to zero-shot predict different place categories, object categories, image type and the number of people; and then the VLM-filled language prompt is fed into a causal LM to generate caption candidates. The Socratic approach still has performance gap with ClipCap on image captioning but pretty decent given it does not involve any training.</p>
+<figure>
+	<img src="SM-caption.png" style="width: 70%;"  />
+	<figcaption>Comparison of image captioning performance of different models on random 100 COCO text examples. (Image source: <a href="https://arxiv.org/abs/2204.00598" target="_blank">Zeng et al. 2022</a>)</figcaption>
+</figure>
+<p>SM framework is very flexible and can be used on a lot more complicated tasks other than image captions. For example, the egocentric perception (User inputs + VLM + LM + ALM) task is to take as inputs egocentric videos to (1) summarize content; (2) answer free-form reasoning questions; (3) and do forecasting.</p>
+<figure>
+	<img src="SM-egocentric.png" style="width: 90%;"  />
+	<figcaption>The Socratic Model approach for generating captions and question answering based on the egocentric videos. (Image source: <a href="https://arxiv.org/abs/2204.00598" target="_blank">Zeng et al. 2022</a>)</figcaption>
+</figure>
+<h1 id="datasets">Datasets<a hidden class="anchor" aria-hidden="true" href="#datasets">#</a></h1>
+<h2 id="image-caption-datasets">Image Caption Datasets<a hidden class="anchor" aria-hidden="true" href="#image-caption-datasets">#</a></h2>
+<ul>
+<li><em>MS COCO</em> (<a href="https://arxiv.org/abs/1504.00325">Chen et al. 2015</a>): contains 328K images and each paired with 5 independent captions.</li>
+<li><em>NoCaps</em> (<a href="https://arxiv.org/abs/1812.08658">Agrawal et al., 2019</a>) is designed to measure generalization to unseen classes and concepts, where in-domain contains images portraying only COCO classes, near-domain contains both COCO and novel classes, and out-of-domain consists of only novel classes.</li>
+<li><em>Conceptual Captions</em> (<a href="https://aclanthology.org/P18-1238/">Sharma et al. 2018</a>) contains 3 million pairs of images and captions, mined from the web and post-processed. To focus on the concepts, specific entities in this dataset are replaced with general notions (e.g. a politician’s name is replaced with &ldquo;politician&rdquo;)</li>
+<li><em>Crisscrossed Captions (CxC)</em> (<a href="https://arxiv.org/abs/2004.15020">Parekh et al. 2021</a>) contains 247,315 human-labeled annotations including positive and negative associations between image pairs, caption pairs and image-caption pairs.</li>
+<li><em>Concadia</em> (<a href="https://arxiv.org/abs/2104.08376">Kreiss et al. 2021</a>) is a Wikipedia-based dataset containing 96,918 images with corresponding English-language descriptions, captions, and surrounding context.</li>
+</ul>
+<h2 id="pair-image-text-datasets">Pair Image-Text Datasets<a hidden class="anchor" aria-hidden="true" href="#pair-image-text-datasets">#</a></h2>
+<p>(*) Not a public dataset.</p>
+<ul>
+<li><em>ALIGN</em> (<a href="https://arxiv.org/abs/2102.05918">Jia et al., 2021</a>) contains 1.8 billion images with alt-text. The dataset is large but noisy with only minimal frequency-based filtration.</li>
+<li>(*) <em>LTIP</em> (Long text &amp; image pairs; <a href="https://arxiv.org/abs/2204.14198">Alayrac et al. 2022</a>): 312 million images, paired with descriptive captions.</li>
+<li>(*) <em>VTP</em> (Video &amp; text pairs; <a href="https://arxiv.org/abs/2204.14198">Alayrac et al. 2022</a>): 27 million short videos (~22 seconds on average), paired with descriptive captions.</li>
+<li>(*) <em>JFT-300M</em> / <em>JFT-3B</em> are internal Google datasets, containing 300M / 3B images annotated with a class-hierarchy of around 30k labels via a semi-automatic pipeline. Thus the data and associated labels are noisy.</li>
+</ul>
+<h1 id="evaluation-tasks">Evaluation Tasks<a hidden class="anchor" aria-hidden="true" href="#evaluation-tasks">#</a></h1>
+<h2 id="visual-question-answering">Visual Question-Answering<a hidden class="anchor" aria-hidden="true" href="#visual-question-answering">#</a></h2>
+<p>Given an image and a question, the task is to correctly answer the question.</p>
+<ul>
+<li><em>VQAv2</em> (<a href="https://arxiv.org/abs/1612.00837">Goyal et al., 2017</a>) contains 1+ million questions about 200K images from COCO.</li>
+<li><em>OK-VQA</em> (<a href="https://arxiv.org/abs/1906.00067">Marino et al. 2019</a>) contains 14K open-ended questions that require outside knowledge (e.g. from Wikipedia).
+<ul>
+<li><em>A-OKVQA</em>: the augmented successor of OK-VQA, with no overlapped questions with OK-VAQ.</li>
+</ul>
+</li>
+<li><em>TextVQA</em> (<a href="https://arxiv.org/abs/1904.08920">Singh, et al. 2019</a>) contains 45,336 questions on 28,408 images that require reasoning about text to answer.</li>
+<li><em>VizWiz</em> (<a href="https://arxiv.org/abs/1802.08218">Gurari, et al. 2018</a>) contains over 31,000 visual questions originating from blind people who each took a picture using a mobile phone and recorded a spoken question about it, together with 10 crowdsourced answers per visual question.</li>
+</ul>
+<h2 id="visual-language-reasoning">Visual Language Reasoning<a hidden class="anchor" aria-hidden="true" href="#visual-language-reasoning">#</a></h2>
+<ul>
+<li><em>VCR</em> (Visual Commonsense Reasoning; <a href="https://arxiv.org/abs/1811.10830">Zellers et al. 2018</a>) contains 290k multiple choice QA questions derived from 110k movie scenes, with focus on visual commonsense.</li>
+<li><em>NLVR2</em> (Natural Language for Visual Reasoning; <a href="https://arxiv.org/abs/1811.00491">Suhr et al. 2019</a>) contains 100k+ examples of sentences paired with web images and the task is to determine whether a natural language caption is true about a pair of images, with a focus on semantic diversity.</li>
+<li><em>Flickr30K</em> (<a href="https://arxiv.org/abs/1509.04942">Jia et al. 2015</a>) contains 30k images collected from Flickr and 250k annotations and the task is to select the bounding regions given spans of a sentence.</li>
+<li><em>SNLI-VE</em> (Visual Entailment; <a href="https://arxiv.org/abs/1901.06706">Xie et al. 2019</a>) is built on top of SNLI and Flickr30K and the task is to reason about the relationship between an image premise and a text hypothesis.</li>
+</ul>
+<h2 id="video-qa-and-understanding">Video QA and Understanding<a hidden class="anchor" aria-hidden="true" href="#video-qa-and-understanding">#</a></h2>
+<ul>
+<li><em>MSR-VTT</em> (MSR Video to Text; <a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/06/cvpr16.msr-vtt.tmei_-1.pdf">Xu et al. 2016</a>) contains 10K web video clips with 41.2 hours and 200K clip-sentence pairs in total; the task is to translate videos to text.</li>
+<li><em>ActivityNet-QA</em> (<a href="https://arxiv.org/abs/1906.02467">Yu et al. 2019</a>) contains 58,000 human-annotated QA pairs on 5,800 videos derived from the popular <a href="http://activity-net.org/index.html">ActivityNet</a> dataset.</li>
+<li><em>TGIF</em> (Tumblr GIF; <a href="https://arxiv.org/abs/1604.02748">Li et al. .2016</a>) contains 100K animated GIFs and 120K sentences describing visual content of the animated GIFs, randomly selected posts published between May and June of 2015 on Tumblr.
+<ul>
+<li><em>TGIF-QA</em> contains 165K QA pairs for the animated GIFs from the TGIF dataset.</li>
+</ul>
+</li>
+<li><em>LSMDC</em> (Large Scale Movie Description Challenge; <a href="https://arxiv.org/abs/1501.02530">Rohrbach et al. 2015</a>) contains 118,081 short video clips extracted from 202 movies. Each video has a caption, either extracted from the movie script or from transcribed DVS (descriptive video services) for the visually impaired.</li>
+<li><em>TVQA</em> (<a href="https://arxiv.org/abs/1809.01696">Lei et al. 2018</a>)  / <em>TVQA+</em> (<a href="https://arxiv.org/abs/1904.11574">Lei et al. 2019</a>) is a large-scale video QA dataset based on 6 popular TV shows (Friends, The Big Bang Theory, How I Met Your Mother, House M.D., Grey&rsquo;s Anatomy, Castle). It consists of 152.5K QA pairs from 21.8K video clips, spanning over 460 hours of video.</li>
+<li><em>DramaQA</em> (<a href="https://arxiv.org/abs/2005.03356">Choi et al. 2020</a>) is a large-scale video QA dataset based on a Korean popular TV show, &ldquo;Another Miss Oh&rdquo;. This dataset contains four levels of QA on difficulty and multi-level character-centered story descriptions.</li>
+<li><em>VLEP</em> (Video-and-Language Event Prediction; <a href="https://arxiv.org/abs/2010.07999">Lei et al. 2020</a>) contains 28,726 future event prediction examples (along with their rationales) from 10,234 diverse TV Show and YouTube Lifestyle Vlog video clips.</li>
+</ul>
+<h1 id="citation">Citation<a hidden class="anchor" aria-hidden="true" href="#citation">#</a></h1>
+<p>Cited as:</p>
+<blockquote>
+<p>Weng, Lilian. (Jun 2022). Generalized visual language models. Lil&rsquo;Log. https://lilianweng.github.io/posts/2022-06-09-vlm/.</p>
+</blockquote>
+<p>Or</p>
+<pre tabindex="0"><code>@article{weng2022vlm,
+  title   = &#34;Generalized Visual Language Models&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;Lil&#39;Log&#34;,
+  year    = &#34;2022&#34;,
+  month   = &#34;Jun&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2022-06-09-vlm/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Li et al. <a href="https://arxiv.org/abs/1908.03557">&ldquo;VisualBERT: A Simple and Performant Baseline for Vision and Language.&rdquo;</a> arXiv preprint:1908.03557 (2019).</p>
+<p>[2] Wang et al. <a href="https://arxiv.org/abs/2108.10904">&ldquo;SimVLM: Simple Visual Language Model Pretraining with Weak Supervision.&rdquo;</a> ICLR 2022.</p>
+<p>[3] Aghajanyan, et al. <a href="https://arxiv.org/abs/2201.07520">&ldquo;CM3: A Causal Masked Multimodal Model of the Internet.&rdquo;</a> arXiv preprint arXiv: 2201.07520 (2022).</p>
+<p>[4] Tsimpoukelli et al. <a href="https://arxiv.org/abs/2106.13884">&ldquo;Multimodal Few-Shot Learning with Frozen Language Models.&rdquo;</a> NeuriPS 2021.</p>
+<p>[5] Mokady, Hertz &amp; Hertz. <a href="https://arxiv.org/abs/2111.09734">&ldquo;ClipCap: CLIP Prefix for Image Captioning.&rdquo;</a> 2021.</p>
+<p>[6] Chen et al. <a href="https://arxiv.org/abs/2102.10407">&ldquo;VisualGPT: Data-efficient Adaptation of Pretrained Language Models for Image Captioning.&rdquo;</a> arXiv preprint arXiv:2111.09734 (2021).</p>
+<p>[7] Luo et al. <a href="https://arxiv.org/abs/2201.12723">&ldquo;A Frustratingly Simple Approach for End-to-End Image Captioning.&rdquo;</a> arXiv preprint arXiv:2201.12723 (2022).</p>
+<p>[8] Zellers et al. <a href="https://arxiv.org/abs/2106.02636">&ldquo;MERLOT: Multimodal neural script knowledge models.&rdquo;</a> NeuriPS 2021.</p>
+<p>[9] Alayrac et al. <a href="https://arxiv.org/abs/2204.14198">&ldquo;Flamingo: a Visual Language Model for Few-Shot Learning.&rdquo;</a> arXiv preprint arXiv:2204.14198 (2022).</p>
+<p>[10] Yu &amp; Wang et al. <a href="https://arxiv.org/abs/2205.01917">&ldquo;CoCa: Contrastive Captioners are Image-Text Foundation Models.&rdquo;</a> arXiv preprint arXiv:2205.01917 (2022).</p>
+<p>[11] Yang et al. <a href="https://arxiv.org/abs/2109.05014">&ldquo;An Empirical Study of GPT-3 for Few-Shot Knowledge-Based VQA.&rdquo;</a> arXiv preprint arXiv:2109.05014 (2021).</p>
+<p>[12] Su et al. <a href="https://arxiv.org/abs/2205.02655">&ldquo;Language models can see: Plugging visual controls in text generation.&rdquo;</a> arXiv preprint arXiv:2205.02655 (2022).</p>
+<p>[13] Zeng et al. <a href="https://arxiv.org/abs/2204.00598">&ldquo;Socratic Models: Composing Zero-Shot Multimodal Reasoning with Language.&rdquo;</a> arXiv preprint arXiv:2204.00598 (2022).</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/language-model/">Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-language-model/">Vision-Language-Model</a></li>
+      <li><a href="https://lilianweng.github.io/tags/vision-model/">Vision-Model</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2022-09-08-ntk/">
+    <span class="title">« </span>
+    <br>
+    <span>Some Math behind Neural Tangent Kernel</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2022-04-15-data-gen/">
+    <span class="title"> »</span>
+    <br>
+    <span>Learning with not Enough Data Part 3: Data Generation</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on twitter"
+        href="https://twitter.com/intent/tweet/?text=Generalized%20Visual%20Language%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f&amp;hashtags=language-model%2cvision-language-model%2cvision-model">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f&amp;title=Generalized%20Visual%20Language%20Models&amp;summary=Generalized%20Visual%20Language%20Models&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f&title=Generalized%20Visual%20Language%20Models">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on whatsapp"
+        href="https://api.whatsapp.com/send?text=Generalized%20Visual%20Language%20Models%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Generalized Visual Language Models on telegram"
+        href="https://telegram.me/share/url?text=Generalized%20Visual%20Language%20Models&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2022-06-09-vlm%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

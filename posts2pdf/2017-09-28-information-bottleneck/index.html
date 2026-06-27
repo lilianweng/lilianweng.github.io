@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Anatomize Deep Learning with Information Theory | Lil&#39;Log</title>
+<meta name="keywords" content="information-theory, foundation" />
+<meta name="description" content="
+Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.
+Recently I watched the talk &ldquo;Information Theory in Deep Learning&rdquo; by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the Information Bottleneck (IB) method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input.">
+<meta name="author" content="Lilian Weng">
+<link rel="canonical" href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/" />
+<link crossorigin="anonymous" href="/assets/css/stylesheet.min.51b2420ff5ea1215cdf584af7ba59d5fea94201c33f25109d6448c7271631316.css" integrity="sha256-UbJCD/XqEhXN9YSve6WdX&#43;qUIBwz8lEJ1kSMcnFjExY=" rel="preload stylesheet" as="style">
+<script defer crossorigin="anonymous" src="/assets/js/highlight.min.2eadbb982468c11a433a3e291f01326f2ba43f065e256bf792dbd79640a92316.js" integrity="sha256-Lq27mCRowRpDOj4pHwEybyukPwZeJWv3ktvXlkCpIxY="
+    onload="hljs.initHighlightingOnLoad();"></script>
+<link rel="icon" href="https://lilianweng.github.io/favicon_wine.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://lilianweng.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://lilianweng.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://lilianweng.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://lilianweng.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/" />
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --hljs-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-track {
+                background: 0 0;
+            }
+
+            .list:not(.dark)::-webkit-scrollbar-thumb {
+                border-color: var(--theme);
+            }
+        }
+
+    </style>
+</noscript>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-HFT45VFBX6"></script>
+      <script>
+        var doNotTrack = false;
+        if ( false ) {
+          var dnt = (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack);
+          var doNotTrack = (dnt == "1" || dnt == "yes");
+        }
+        if (!doNotTrack) {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-HFT45VFBX6');
+        }
+      </script><meta property="og:title" content="Anatomize Deep Learning with Information Theory" />
+<meta property="og:description" content="
+Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.
+Recently I watched the talk &ldquo;Information Theory in Deep Learning&rdquo; by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the Information Bottleneck (IB) method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2017-09-28T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-09-28T00:00:00&#43;00:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Anatomize Deep Learning with Information Theory"/>
+<meta name="twitter:description" content="
+Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.
+Recently I watched the talk &ldquo;Information Theory in Deep Learning&rdquo; by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the Information Bottleneck (IB) method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://lilianweng.github.io/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Anatomize Deep Learning with Information Theory",
+      "item": "https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Anatomize Deep Learning with Information Theory",
+  "name": "Anatomize Deep Learning with Information Theory",
+  "description": " Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.\nRecently I watched the talk \u0026ldquo;Information Theory in Deep Learning\u0026rdquo; by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the Information Bottleneck (IB) method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input.\n",
+  "keywords": [
+    "information-theory", "foundation"
+  ],
+  "articleBody": " Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.\nRecently I watched the talk “Information Theory in Deep Learning” by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the Information Bottleneck (IB) method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input.\nMost of the materials in this post are from Prof Tishby’s talk and related papers.\nBasic Concepts Markov Chain\nA Markov process is a “memoryless” (also called “Markov Property”) stochastic process. A Markov chain is a type of Markov process containing multiple discrete states. That is being said, the conditional probability of future states of the process is only determined by the current state and does not depend on the past states.\nKullback–Leibler (KL) Divergence\nKL divergence measures how one probability distribution $p$ diverges from a second expected probability distribution $q$. It is asymmetric.\n$$ \\begin{aligned} D_{KL}(p \\| q) \u0026= \\sum_x p(x) \\log \\frac{p(x)}{q(x)} \\\\ \u0026= - \\sum_x p(x)\\log q(x) + \\sum_x p(x)\\log p(x) \\\\ \u0026= H(P, Q) - H(P) \\end{aligned} $$ $D_{KL}$ achieves the minimum zero when $p(x)$ == $q(x)$ everywhere.\nMutual Information\nMutual information measures the mutual dependence between two variables. It quantifies the “amount of information” obtained about one random variable through the other random variable. Mutual information is symmetric.\n$$ \\begin{aligned} I(X;Y) \u0026= D_{KL}[p(x,y) \\| p(x)p(y)] \\\\ \u0026= \\sum_{x \\in X, y \\in Y} p(x, y) \\log(\\frac{p(x, y)}{p(x)p(y)}) \\\\ \u0026= \\sum_{x \\in X, y \\in Y} p(x, y) \\log(\\frac{p(x|y)}{p(x)}) \\\\ \u0026= H(X) - H(X|Y) \\\\ \\end{aligned} $$ Data Processing Inequality (DPI)\nFor any markov chain: $X \\to Y \\to Z$, we would have $I(X; Y) \\geq I(X; Z)$.\nA deep neural network can be viewed as a Markov chain, and thus when we are moving down the layers of a DNN, the mutual information between the layer and the input can only decrease.\nReparametrization invariance\nFor two invertible functions $\\phi$, $\\psi$, the mutual information still holds: $I(X; Y) = I(\\phi(X); \\psi(Y))$.\nFor example, if we shuffle the weights in one layer of DNN, it would not affect the mutual information between this layer and another.\nDeep Neural Networks as Markov Chains The training data contains sampled observations from the joint distribution of $X$ and $Y$. The input variable $X$ and weights of hidden layers are all high-dimensional random variable. The ground truth target $Y$ and the predicted value $\\hat{Y}$ are random variables of smaller dimensions in the classification settings.\nThe structure of a deep neural network, which consists of the target label $Y$, input layer $X$, hidden layers $h\\_1, \\dots, h\\_m$ and the final prediction $\\hat{Y}$. (Image source: Tishby and Zaslavsky, 2015) If we label the hidden layers of a DNN as $h_1, h_2, \\dots, h_m$ as in Fig. 1, we can view each layer as one state of a Markov Chain: $ h_i \\to h_{i+1}$. According to DPI, we would have:\n$$ \\begin{aligned} H(X) \\geq I(X; h_1) \\geq I(X; h_2) \\geq \\dots \\geq I(X; h_m) \\geq I(X; \\hat{Y}) \\\\ I(X; Y) \\geq I(h_1; Y) \\geq I(h_2; Y) \\geq \\dots \\geq I(h_m; Y) \\geq I(\\hat{Y}; Y) \\end{aligned} $$ A DNN is designed to learn how to describe $X$ to predict $Y$ and eventually, to compress $X$ to only hold the information related to $Y$. Tishby describes this processing as “successive refinement of relevant information”.\nInformation Plane Theorem A DNN has successive internal representations of $X$, a set of hidden layers $\\{T_i\\}$. The information plane theorem characterizes each layer by its encoder and decoder information. The encoder is a representation of the input data $X$, while the decoder translates the information in the current layer to the target ouput $Y$.\nPrecisely, in an information plane plot:\nX-axis: The sample complexity of $T_i$ is determined by the encoder mutual information $I(X; T_i)$. Sample complexity refers to how many samples you need to achieve certain accuracy and generalization. Y-axis: The accuracy (generalization error) is determined by the decoder mutual information $I(T_i; Y)$. The encoder vs decoder mutual information of DNN hidden layers of 50 experiments. Different layers are color-coders, with green being the layer right next to the input and the orange being the furthest. There are three snapshots, at the initial epoch, 400 epochs and 9000 epochs respectively. (Image source: Shwartz-Ziv and Tishby, 2017) Each dot in marks the encoder/ decoder mutual information of one hidden layer of one network simulation (no regularization is applied; no weights decay, no dropout, etc.). They move up as expected because the knowledge about the true labels is increasing (accuracy increases). At the early stage, the hidden layers learn a lot about the input $X$, but later they start to compress to forget some information about the input. Tishby believes that “the most important part of learning is actually forgetting”. Check out this nice video that demonstrates how the mutual information measures of layers are changing in epoch time.\nHere is an aggregated view of Fig 2. The compression happens after the generalization error becomes very small. (Image source: Tishby’ talk 15:15) Two Optimization Phases Tracking the normalized mean and standard deviation of each layer’s weights in time also reveals two optimization phases of the training process.\nThe norm of mean and standard deviation of each layer's weight gradients for each layer as a function of training epochs. Different layers are color-coded. (Image source: Shwartz-Ziv and Tishby, 2017) Among early epochs, the mean values are three magnitudes larger than the standard deviations. After a sufficient number of epochs, the error saturates and the standard deviations become much noisier afterward. The further a layer is away from the output, the noisier it gets, because the noises can get amplified and accumulated through the back-prop process (not due to the width of the layer).\nLearning Theory “Old” Generalization Bounds The generalization bounds defined by the classic learning theory is:\n$$ \\epsilon^2 \u003c \\frac{\\log|H_\\epsilon| + \\log{1/\\delta}}{2m} $$ $\\epsilon$: The difference between the training error and the generalization error. The generalization error measures how accurate the prediction of an algorithm is for previously unseen data. $H_\\epsilon$: $\\epsilon$-cover of the hypothesis class. Typically we assume the size $\\vert H_\\epsilon \\vert \\sim (1/\\epsilon)^d$. $\\delta$: Confidence. $m$: The number of training samples. $d$: The VC dimension of the hypothesis. This definition states that the difference between the training error and the generalization error is bounded by a function of the hypothesis space size and the dataset size. The bigger the hypothesis space gets, the bigger the generalization error becomes. I recommend this tutorial on ML theory, part1 and part2, if you are interested in reading more on generalization bounds.\nHowever, it does not work for deep learning. The larger a network is, the more parameters it needs to learn. With this generalization bounds, larger networks (larger $d$) would have worse bounds. This is contrary to the intuition that larger networks are able to achieve better performance with higher expressivity.\n“New” Input compression bound To solve this counterintuitive observation, Tishby et al. proposed a new input compression bound for DNN.\nFirst let us have $T_\\epsilon$ as an $\\epsilon$-partition of the input variable $X$. This partition compresses the input with respect to the homogeneity to the labels into small cells. The cells in total can cover the whole input space. If the prediction outputs binary values, we can replace the cardinality of the hypothesis, $\\vert H_\\epsilon \\vert$, with $2^{\\vert T_\\epsilon \\vert}$.\n$$ |H_\\epsilon| \\sim 2^{|X|} \\to 2^{|T_\\epsilon|} $$ When $X$ is large, the size of $X$ is approximately $2^{H(X)}$. Each cell in the $\\epsilon$-partition is of size $2^{H(X \\vert T_\\epsilon)}$. Therefore we have $\\vert T_\\epsilon \\vert \\sim \\frac{2^{H(X)}}{2^{H(X \\vert T_\\epsilon)}} = 2^{I(T_\\epsilon; X)}$. Then the input compression bound becomes:\n$$ \\epsilon^2 \u003c \\frac{2^{I(T_\\epsilon; X)} + \\log{1/\\delta}}{2m} $$ The black line is the optimal achievable information bottleneck (IB) limit. The red line corresponds to the upper bound on the out-of-sample IB distortion, when trained on a finite sample set. $\\Delta C$ is the complexity gap and $\\Delta G$ is the generalization gap. (Recreated based on Tishby’ talk 24:50) Network Size and Training Data Size The Benefit of More Hidden Layers Having more layers give us computational benefits and speed up the training process for good generalization.\nThe optimization time is much shorter (fewer epochs) with more hidden layers. (Image source: Shwartz-Ziv and Tishby, 2017) Compression through stochastic relaxation: According to the diffusion equation, the relaxation time of layer $k$ is proportional to the exponential of this layer’s compression amount $\\Delta S_k$: $\\Delta t_k \\sim \\exp(\\Delta S_k)$. We can compute the layer compression as $\\Delta S_k = I(X; T_k) - I(X; T_{k-1})$. Because $\\exp(\\sum_k \\Delta S_k) \\geq \\sum_k \\exp(\\Delta S_k)$, we would expect an exponential decrease in training epochs with more hidden layers (larger $k$).\nThe Benefit of More Training Samples Fitting more training data requires more information captured by the hidden layers. With increased training data size, the decoder mutual information (recall that this is directly related to the generalization error), $I(T; Y)$, is pushed up and gets closer to the theoretical information bottleneck bound. Tishby emphasized that It is the mutual information, not the layer size or the VC dimension, that determines generalization, different from standard theories.\nThe training data of different sizes is color-coded. The information plane of multiple converged networks are plotted. More training data leads to better generalization. (Image source: Shwartz-Ziv and Tishby, 2017) Cited as:\n@article{weng2017infotheory, title = \"Anatomize Deep Learning with Information Theory\", author = \"Weng, Lilian\", journal = \"lilianweng.github.io\", year = \"2017\", url = \"https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/\" } References [1] Naftali Tishby. Information Theory of Deep Learning\n[2] Machine Learning Theory - Part 1: Introduction\n[3] Machine Learning Theory - Part 2: Generalization Bounds\n[4] New Theory Cracks Open the Black Box of Deep Learning by Quanta Magazine.\n[5] Naftali Tishby and Noga Zaslavsky. “Deep learning and the information bottleneck principle.” IEEE Information Theory Workshop (ITW), 2015.\n[6] Ravid Shwartz-Ziv and Naftali Tishby. “Opening the Black Box of Deep Neural Networks via Information.” arXiv preprint arXiv:1703.00810, 2017.\n",
+  "wordCount" : "1733",
+  "inLanguage": "en",
+  "datePublished": "2017-09-28T00:00:00Z",
+  "dateModified": "2017-09-28T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "Lilian Weng"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Lil'Log",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://lilianweng.github.io/favicon_wine.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class="" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.body.classList.add('dark');
+    } else if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
+    }
+
+</script>
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[', '\\]']],
+      processEscapes: true,
+      processEnvironments: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  window.addEventListener('load', (event) => {
+      document.querySelectorAll("mjx-container").forEach(function(x){
+        x.parentElement.classList += 'has-jax'})
+    });
+
+</script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://lilianweng.github.io/" accesskey="h" title="Lil&#39;Log (Alt + H)">Lil&#39;Log</a>
+            <span class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </span>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://lilianweng.github.io/" title="Posts">
+                    <span>Posts</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/archives" title="Archive">
+                    <span>Archive</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://lilianweng.github.io/faq" title="FAQ">
+                    <span>FAQ</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    
+    <h1 class="post-title">
+      Anatomize Deep Learning with Information Theory
+    </h1>
+    <div class="post-meta">Date: September 28, 2017  |  Estimated Reading Time: 9 min  |  Author: Lilian Weng
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#basic-concepts" aria-label="Basic Concepts">Basic Concepts</a></li>
+                <li>
+                    <a href="#deep-neural-networks-as-markov-chains" aria-label="Deep Neural Networks as Markov Chains">Deep Neural Networks as Markov Chains</a><ul>
+                        
+                <li>
+                    <a href="#information-plane-theorem" aria-label="Information Plane Theorem">Information Plane Theorem</a></li>
+                <li>
+                    <a href="#two-optimization-phases" aria-label="Two Optimization Phases">Two Optimization Phases</a></li></ul>
+                </li>
+                <li>
+                    <a href="#learning-theory" aria-label="Learning Theory">Learning Theory</a><ul>
+                        
+                <li>
+                    <a href="#old-generalization-bounds" aria-label="&ldquo;Old&rdquo; Generalization Bounds">&ldquo;Old&rdquo; Generalization Bounds</a></li>
+                <li>
+                    <a href="#new-input-compression-bound" aria-label="&ldquo;New&rdquo; Input compression bound">&ldquo;New&rdquo; Input compression bound</a></li></ul>
+                </li>
+                <li>
+                    <a href="#network-size-and-training-data-size" aria-label="Network Size and Training Data Size">Network Size and Training Data Size</a><ul>
+                        
+                <li>
+                    <a href="#the-benefit-of-more-hidden-layers" aria-label="The Benefit of More Hidden Layers">The Benefit of More Hidden Layers</a></li>
+                <li>
+                    <a href="#the-benefit-of-more-training-samples" aria-label="The Benefit of More Training Samples">The Benefit of More Training Samples</a></li></ul>
+                </li>
+                <li>
+                    <a href="#references" aria-label="References">References</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><!-- This post is a summary of Prof Naftali Tishby's recent talk on "Information Theory in Deep Learning". It presented how to apply the information theory to study the growth and transformation of deep neural networks during training. -->
+<p><span class="update">Professor Naftali Tishby passed away in 2021. Hope the post can introduce his cool idea of information bottleneck to more people.</span></p>
+<p>Recently I watched the talk <a href="https://youtu.be/bLqJHjXihK8">&ldquo;Information Theory in Deep Learning&rdquo;</a> by Prof Naftali Tishby and found it very interesting. He presented how to apply the information theory to study the growth and transformation of deep neural networks during training. Using the <a href="https://arxiv.org/pdf/physics/0004057.pdf">Information Bottleneck (IB)</a> method, he proposed a new learning bound for deep neural networks (DNN), as the traditional learning theory fails due to the exponentially large number of parameters. Another keen observation is that DNN training involves two distinct phases: First, the network is trained to fully represent the input data and minimize the generalization error; then, it learns to forget the irrelevant details by compressing the representation of the input.</p>
+<p>Most of the materials in this post are from Prof Tishby’s talk and <a href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/#references">related papers</a>.</p>
+<h1 id="basic-concepts">Basic Concepts<a hidden class="anchor" aria-hidden="true" href="#basic-concepts">#</a></h1>
+<p><a href="https://en.wikipedia.org/wiki/Markov_chain"><strong>Markov Chain</strong></a></p>
+<p>A Markov process is a <a href="http://mathworld.wolfram.com/Memoryless.html">&ldquo;memoryless&rdquo;</a> (also called &ldquo;Markov Property&rdquo;) stochastic process. A Markov chain is a type of Markov process containing multiple discrete states. That is being said, the conditional probability of future states of the process is only determined by the current state and does not depend on the past states.</p>
+<p><a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence"><strong>Kullback–Leibler (KL) Divergence</strong></a></p>
+<p>KL divergence measures how one probability distribution $p$ diverges from a second expected probability distribution $q$. It is asymmetric.</p>
+<div>
+$$
+\begin{aligned}
+D_{KL}(p \| q) &= \sum_x p(x) \log \frac{p(x)}{q(x)} \\
+ &= - \sum_x p(x)\log q(x) + \sum_x p(x)\log p(x) \\
+ &= H(P, Q) - H(P)
+\end{aligned}
+$$
+</div>
+<p>$D_{KL}$ achieves the minimum zero when $p(x)$ == $q(x)$ everywhere.</p>
+<p><a href="https://en.wikipedia.org/wiki/Mutual_information"><strong>Mutual Information</strong></a></p>
+<p>Mutual information measures the mutual dependence between two variables. It quantifies the &ldquo;amount of information&rdquo; obtained about one random variable through the other random variable. Mutual information is symmetric.</p>
+<div>
+$$
+\begin{aligned}
+I(X;Y) &= D_{KL}[p(x,y) \| p(x)p(y)] \\
+ &= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x, y)}{p(x)p(y)}) \\
+ &= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x|y)}{p(x)}) \\ 
+ &= H(X) - H(X|Y) \\
+\end{aligned}
+$$
+</div>
+<p><a href="https://en.wikipedia.org/wiki/Data_processing_inequality"><strong>Data Processing Inequality (DPI)</strong></a></p>
+<p>For any markov chain: $X \to Y \to Z$, we would have $I(X; Y) \geq I(X; Z)$.</p>
+<p>A deep neural network can be viewed as a Markov chain, and thus when we are moving down the layers of a DNN, the mutual information between the layer and the input can only decrease.</p>
+<p><a href="https://en.wikipedia.org/wiki/Parametrization#Parametrization_invariance"><strong>Reparametrization invariance</strong></a></p>
+<p>For two invertible functions $\phi$, $\psi$, the mutual information still holds: $I(X; Y) = I(\phi(X); \psi(Y))$.</p>
+<p>For example, if we shuffle the weights in one layer of DNN, it would not affect the mutual information between this layer and another.</p>
+<h1 id="deep-neural-networks-as-markov-chains">Deep Neural Networks as Markov Chains<a hidden class="anchor" aria-hidden="true" href="#deep-neural-networks-as-markov-chains">#</a></h1>
+<p>The training data contains sampled observations from the joint distribution of $X$ and $Y$. The input variable $X$ and weights of hidden layers are all high-dimensional random variable. The ground truth target $Y$ and the predicted value $\hat{Y}$ are random variables of smaller dimensions in the classification settings.</p>
+<figure>
+	<img src="ib-dnn-structure.png" style="width: 460px;"  />
+	<figcaption>The structure of a deep neural network, which consists of the target label $Y$, input layer $X$, hidden layers $h\_1, \dots, h\_m$ and the final prediction $\hat{Y}$. (Image source: <a href="https://arxiv.org/pdf/1503.02406.pdf" target="_blank">Tishby and Zaslavsky, 2015</a>)</figcaption>
+</figure>
+<p>If we label the hidden layers of a DNN as $h_1, h_2, \dots, h_m$ as in Fig. 1, we can view each layer as one state of a Markov Chain: $ h_i \to h_{i+1}$. According to DPI, we would have:</p>
+<div>
+$$
+\begin{aligned}
+H(X) \geq I(X; h_1) \geq I(X; h_2) \geq \dots \geq I(X; h_m) \geq I(X; \hat{Y}) \\
+I(X; Y) \geq I(h_1; Y) \geq I(h_2; Y) \geq \dots \geq I(h_m; Y) \geq I(\hat{Y}; Y)
+\end{aligned}
+$$
+</div>
+<p>A DNN is designed to learn how to describe $X$ to predict $Y$ and eventually, to compress $X$ to only hold the information related to $Y$. Tishby describes this processing as <em>&ldquo;successive refinement of relevant information&rdquo;</em>.</p>
+<h2 id="information-plane-theorem">Information Plane Theorem<a hidden class="anchor" aria-hidden="true" href="#information-plane-theorem">#</a></h2>
+<p>A DNN has successive internal representations of $X$, a set of hidden layers $\{T_i\}$. The <em>information plane</em> theorem characterizes each layer by its encoder and decoder information. The encoder is a representation of the input data $X$, while the decoder translates the information in the current layer to the target ouput $Y$.</p>
+<p>Precisely, in an information plane plot:</p>
+<ul>
+<li><strong>X-axis</strong>: The sample complexity of $T_i$ is determined by the encoder mutual information $I(X; T_i)$. Sample complexity refers to how many samples you need to achieve certain accuracy and generalization.</li>
+<li><strong>Y-axis</strong>: The accuracy (generalization error) is determined by the decoder mutual information $I(T_i; Y)$.</li>
+</ul>
+<figure>
+	<img src="ib-information-plane.png" style="width: 640px;"  />
+	<figcaption>The encoder vs decoder mutual information of DNN hidden layers of 50 experiments. Different layers are color-coders, with green being the layer right next to the input and the orange being the furthest. There are three snapshots, at the initial epoch, 400 epochs and 9000 epochs respectively. (Image source: <a href="https://arxiv.org/pdf/1703.00810.pdf" target="_blank">Shwartz-Ziv and Tishby, 2017</a>)</figcaption>
+</figure>
+<p>Each dot in marks the encoder/ decoder mutual information of one hidden layer of one network simulation (no regularization is applied; no weights decay, no dropout, etc.). They move up as expected because the knowledge about the true labels is increasing (accuracy increases). At the early stage, the hidden layers learn a lot about the input $X$, but later they start to compress to forget some information about the input. Tishby believes that <em>&ldquo;the most important part of learning is actually forgetting&rdquo;</em>. Check out this <a href="https://youtu.be/P1A1yNsxMjc">nice video</a> that demonstrates how the mutual information measures of layers are changing in epoch time.</p>
+<figure>
+	<img src="ib-information-plane-merged.png" style="width: 400px;"  />
+	<figcaption>Here is an aggregated view of Fig 2. The compression happens after the generalization error becomes very small. (Image source: <a href="https://youtu.be/bLqJHjXihK8?t=15m15s" target="_blank">Tishby’ talk 15:15</a>)</figcaption>
+</figure>
+<h2 id="two-optimization-phases">Two Optimization Phases<a hidden class="anchor" aria-hidden="true" href="#two-optimization-phases">#</a></h2>
+<p>Tracking the normalized mean and standard deviation of each layer&rsquo;s weights in time also reveals two optimization phases of the training process.</p>
+<figure>
+	<img src="ib-mean-variation.png" style="width: 480px;"  />
+	<figcaption>The norm of mean and standard deviation of each layer's weight gradients for each layer as a function of training epochs. Different layers are color-coded. (Image source: <a href="https://arxiv.org/pdf/1703.00810.pdf" target="_blank">Shwartz-Ziv and Tishby, 2017</a>)</figcaption>
+</figure>
+<p>Among early epochs, the mean values are three magnitudes larger than the standard deviations. After a sufficient number of epochs, the error saturates and the standard deviations become much noisier afterward. The further a layer is away from the output, the noisier it gets, because the noises can get amplified and accumulated through the back-prop process (not due to the width of the layer).</p>
+<h1 id="learning-theory">Learning Theory<a hidden class="anchor" aria-hidden="true" href="#learning-theory">#</a></h1>
+<h2 id="old-generalization-bounds">&ldquo;Old&rdquo; Generalization Bounds<a hidden class="anchor" aria-hidden="true" href="#old-generalization-bounds">#</a></h2>
+<p>The generalization bounds defined by the classic learning theory is:</p>
+<div>
+$$
+\epsilon^2 < \frac{\log|H_\epsilon| + \log{1/\delta}}{2m}
+$$
+</div>
+<ul>
+<li>$\epsilon$: The difference between the training error and the generalization error. The generalization error measures how accurate the prediction of an algorithm is for previously unseen data.</li>
+<li>$H_\epsilon$: $\epsilon$-cover of the hypothesis class. Typically we assume the size $\vert H_\epsilon \vert \sim (1/\epsilon)^d$.</li>
+<li>$\delta$: Confidence.</li>
+<li>$m$: The number of training samples.</li>
+<li>$d$: The VC dimension of the hypothesis.</li>
+</ul>
+<p>This definition states that the difference between the training error and the generalization error is bounded by a function of the hypothesis space size and the dataset size. The bigger the hypothesis space gets, the bigger the generalization error becomes. I recommend this tutorial on ML theory, <a href="https://mostafa-samir.github.io/ml-theory-pt1/">part1</a> and <a href="https://mostafa-samir.github.io/ml-theory-pt2/">part2</a>, if you are interested in reading more on generalization bounds.</p>
+<p>However, it does not work for deep learning. The larger a network is, the more parameters it needs to learn. With this generalization bounds, larger networks (larger $d$) would have worse bounds. This is contrary to the intuition that larger networks are able to achieve better performance with higher expressivity.</p>
+<h2 id="new-input-compression-bound">&ldquo;New&rdquo; Input compression bound<a hidden class="anchor" aria-hidden="true" href="#new-input-compression-bound">#</a></h2>
+<p>To solve this counterintuitive observation, Tishby et al. proposed a new input compression bound for DNN.</p>
+<p>First let us have $T_\epsilon$ as an $\epsilon$-partition of the input variable $X$. This partition compresses the input with respect to the homogeneity to the labels into small cells. The cells in total can cover the whole input space. If the prediction outputs binary values, we can replace the cardinality of the hypothesis, $\vert H_\epsilon \vert$, with $2^{\vert T_\epsilon \vert}$.</p>
+<div>
+$$
+|H_\epsilon| \sim 2^{|X|} \to 2^{|T_\epsilon|}
+$$
+</div>
+<p>When $X$ is large, the size of $X$ is approximately $2^{H(X)}$. Each cell in the $\epsilon$-partition is of size $2^{H(X \vert T_\epsilon)}$. Therefore we have $\vert T_\epsilon \vert \sim \frac{2^{H(X)}}{2^{H(X \vert T_\epsilon)}} = 2^{I(T_\epsilon; X)}$. Then the input compression bound becomes:</p>
+<div>
+$$
+\epsilon^2 < \frac{2^{I(T_\epsilon; X)} + \log{1/\delta}}{2m}
+$$
+</div>
+<figure>
+	<img src="ib-bound.png" style="width: 480px;"  />
+	<figcaption>The black line is the optimal achievable information bottleneck (IB) limit. The red line corresponds to the upper bound on the out-of-sample IB distortion, when trained on a finite sample set. $\Delta C$ is the complexity gap and $\Delta G$ is the generalization gap. (Recreated based on <a href="https://youtu.be/bLqJHjXihK8?t=24m56s" target="_blank">Tishby’ talk 24:50</a>)</figcaption>
+</figure>
+<h1 id="network-size-and-training-data-size">Network Size and Training Data Size<a hidden class="anchor" aria-hidden="true" href="#network-size-and-training-data-size">#</a></h1>
+<h2 id="the-benefit-of-more-hidden-layers">The Benefit of More Hidden Layers<a hidden class="anchor" aria-hidden="true" href="#the-benefit-of-more-hidden-layers">#</a></h2>
+<p>Having more layers give us computational benefits and speed up the training process for good generalization.</p>
+<figure>
+	<img src="ib-layers.png" style="width: 640px;"  />
+	<figcaption>The optimization time is much shorter (fewer epochs) with more hidden layers. (Image source: <a href="https://arxiv.org/pdf/1703.00810.pdf" target="_blank">Shwartz-Ziv and Tishby, 2017</a>)</figcaption>
+</figure>
+<p><strong>Compression through stochastic relaxation</strong>: According to the <a href="https://en.wikipedia.org/wiki/Fokker%E2%80%93Planck_equation">diffusion equation</a>, the relaxation time of layer $k$ is proportional to the exponential of this layer&rsquo;s compression amount $\Delta S_k$: $\Delta t_k \sim \exp(\Delta S_k)$. We can compute the layer compression as $\Delta S_k = I(X; T_k) - I(X; T_{k-1})$.  Because $\exp(\sum_k \Delta S_k) \geq \sum_k \exp(\Delta S_k)$, we would expect an exponential decrease in training epochs with more hidden layers (larger $k$).</p>
+<h2 id="the-benefit-of-more-training-samples">The Benefit of More Training Samples<a hidden class="anchor" aria-hidden="true" href="#the-benefit-of-more-training-samples">#</a></h2>
+<p>Fitting more training data requires more information captured by the hidden layers. With increased training data size, the decoder mutual information (recall that this is directly related to the generalization error), $I(T; Y)$, is pushed up and gets closer to the theoretical information bottleneck bound. Tishby emphasized that It is the mutual information, not the layer size or the VC dimension, that determines generalization, different from standard theories.</p>
+<figure>
+	<img src="ib-training-size.png" style="width: 420px;"  />
+	<figcaption>The training data of different sizes is color-coded. The information plane of multiple converged networks are plotted. More training data leads to better generalization. (Image source: <a href="https://arxiv.org/pdf/1703.00810.pdf" target="_blank">Shwartz-Ziv and Tishby, 2017</a>)</figcaption>
+</figure>
+<hr>
+<p>Cited as:</p>
+<pre tabindex="0"><code>@article{weng2017infotheory,
+  title   = &#34;Anatomize Deep Learning with Information Theory&#34;,
+  author  = &#34;Weng, Lilian&#34;,
+  journal = &#34;lilianweng.github.io&#34;,
+  year    = &#34;2017&#34;,
+  url     = &#34;https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/&#34;
+}
+</code></pre><h1 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h1>
+<p>[1] Naftali Tishby. <a href="https://youtu.be/bLqJHjXihK8">Information Theory of Deep Learning</a></p>
+<p>[2] <a href="https://mostafa-samir.github.io/ml-theory-pt1/">Machine Learning Theory - Part 1: Introduction</a></p>
+<p>[3] <a href="https://mostafa-samir.github.io/ml-theory-pt2/">Machine Learning Theory - Part 2: Generalization Bounds</a></p>
+<p>[4] <a href="https://www.quantamagazine.org/new-theory-cracks-open-the-black-box-of-deep-learning-20170921/">New Theory Cracks Open the Black Box of Deep Learning</a> by Quanta Magazine.</p>
+<p>[5] Naftali Tishby and Noga Zaslavsky. <a href="https://arxiv.org/pdf/1503.02406.pdf">&ldquo;Deep learning and the information bottleneck principle.&rdquo;</a> IEEE Information Theory Workshop (ITW), 2015.</p>
+<p>[6] Ravid Shwartz-Ziv and Naftali Tishby. <a href="https://arxiv.org/pdf/1703.00810.pdf">&ldquo;Opening the Black Box of Deep Neural Networks via Information.&rdquo;</a> arXiv preprint arXiv:1703.00810, 2017.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://lilianweng.github.io/tags/information-theory/">Information-Theory</a></li>
+      <li><a href="https://lilianweng.github.io/tags/foundation/">Foundation</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/">
+    <span class="title">« </span>
+    <br>
+    <span>Learning Word Embedding</span>
+  </a>
+  <a class="next" href="https://lilianweng.github.io/posts/2017-08-20-gan/">
+    <span class="title"> »</span>
+    <br>
+    <span>From GAN to WGAN</span>
+  </a>
+</nav>
+
+
+<div class="share-buttons">
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on twitter"
+        href="https://twitter.com/intent/tweet/?text=Anatomize%20Deep%20Learning%20with%20Information%20Theory&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f&amp;hashtags=information-theory%2cfoundation">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-253.927,424.544c135.939,0 210.268,-112.643 210.268,-210.268c0,-3.218 0,-6.437 -0.153,-9.502c14.406,-10.421 26.973,-23.448 36.935,-38.314c-13.18,5.824 -27.433,9.809 -42.452,11.648c15.326,-9.196 26.973,-23.602 32.49,-40.92c-14.252,8.429 -30.038,14.56 -46.896,17.931c-13.487,-14.406 -32.644,-23.295 -53.946,-23.295c-40.767,0 -73.87,33.104 -73.87,73.87c0,5.824 0.613,11.494 1.992,16.858c-61.456,-3.065 -115.862,-32.49 -152.337,-77.241c-6.284,10.881 -9.962,23.601 -9.962,37.088c0,25.594 13.027,48.276 32.95,61.456c-12.107,-0.307 -23.448,-3.678 -33.41,-9.196l0,0.92c0,35.862 25.441,65.594 59.311,72.49c-6.13,1.686 -12.72,2.606 -19.464,2.606c-4.751,0 -9.348,-0.46 -13.946,-1.38c9.349,29.426 36.628,50.728 68.965,51.341c-25.287,19.771 -57.164,31.571 -91.8,31.571c-5.977,0 -11.801,-0.306 -17.625,-1.073c32.337,21.15 71.264,33.41 112.95,33.41Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on linkedin"
+        href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f&amp;title=Anatomize%20Deep%20Learning%20with%20Information%20Theory&amp;summary=Anatomize%20Deep%20Learning%20with%20Information%20Theory&amp;source=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on reddit"
+        href="https://reddit.com/submit?url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f&title=Anatomize%20Deep%20Learning%20with%20Information%20Theory">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on facebook"
+        href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on whatsapp"
+        href="https://api.whatsapp.com/send?text=Anatomize%20Deep%20Learning%20with%20Information%20Theory%20-%20https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f">
+        <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve">
+            <path
+                d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+        </svg>
+    </a>
+    <a target="_blank" rel="noopener noreferrer" aria-label="share Anatomize Deep Learning with Information Theory on telegram"
+        href="https://telegram.me/share/url?text=Anatomize%20Deep%20Learning%20with%20Information%20Theory&amp;url=https%3a%2f%2flilianweng.github.io%2fposts%2f2017-09-28-information-bottleneck%2f">
+        <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28">
+            <path
+                d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+        </svg>
+    </a>
+</div>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="https://lilianweng.github.io/">Lil&#39;Log</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://git.io/hugopapermod" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerText = 'copy';
+
+        function copyingDone() {
+            copybutton.innerText = 'copied!';
+            setTimeout(() => {
+                copybutton.innerText = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
